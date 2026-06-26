@@ -32,6 +32,7 @@ import ModelCompareDialog from "@/components/ai-assistant/ModelCompareDialog";
 import { GitCompare } from "lucide-react";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
 import SpeakButton from "@/components/ai-assistant/SpeakButton";
+import { extractTextFromPDF, extractTextFromDocx } from "@/lib/fileParser";
 
 const messageAnimation = {
   hidden: (role: "user" | "assistant") => ({
@@ -284,21 +285,53 @@ export default function AIAssistant() {
     return assistantSoFar;
   }, []);
 
+  const getFileText = async (file: File): Promise<string> => {
+    const name = file.name.toLowerCase();
+    try {
+      if (name.endsWith(".pdf")) {
+        return await extractTextFromPDF(file);
+      } else if (name.endsWith(".docx")) {
+        return await extractTextFromDocx(file);
+      } else if (name.endsWith(".doc")) {
+        toast({ 
+          title: "صيغة غير مدعومة بالكامل", 
+          description: "يرجى تحويل ملف .doc إلى .docx أو .pdf لتحليله بشكل أفضل.", 
+          variant: "destructive" 
+        });
+        return await file.text();
+      } else {
+        return await file.text();
+      }
+    } catch (err) {
+      console.error("Error reading file:", file.name, err);
+      throw err;
+    }
+  };
+
   const handleSend = async () => {
     if ((!input.trim() && attachedFiles.length === 0) || isLoading) return;
 
+    if (attachedFiles.length > 0 || resumeFile) {
+      toast({ title: "جاري قراءة الملفات المرفقة...", description: "الرجاء الانتظار حتى يستخرج المساعد النصوص تلقائياً." });
+    }
+
     let resumeText = "";
     if (resumeFile) {
-      try { resumeText = await resumeFile.text(); } catch { toast({ title: "تعذر قراءة الملف", variant: "destructive" }); }
+      try { 
+        resumeText = await getFileText(resumeFile); 
+      } catch { 
+        toast({ title: "تعذر قراءة ملف السيرة الذاتية", variant: "destructive" }); 
+      }
       setResumeFile(null);
     }
 
-    // Read text-based attachments (txt/pdf as text fallback)
+    // Read attachments (PDF, DOCX, TXT, etc.)
     const fileSummaries: string[] = [];
     for (const af of attachedFiles) {
       try {
-        if (af.type === "resume" || af.file.type.startsWith("text/")) {
-          const txt = await af.file.text();
+        const fileExt = af.file.name.split(".").pop()?.toLowerCase();
+        if (af.type === "resume" || af.file.type.startsWith("text/") || fileExt === "pdf" || fileExt === "docx" || fileExt === "doc") {
+          const txt = await getFileText(af.file);
           fileSummaries.push(`--- ملف: ${af.file.name} ---\n${txt.slice(0, 8000)}`);
         } else {
           fileSummaries.push(`📎 ${af.file.name} (${af.type})`);
