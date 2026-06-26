@@ -75,6 +75,7 @@ interface OfferData {
 }
 
 interface Message {
+  id?: string;
   role: "user" | "assistant";
   content: string;
   jobCreated?: { id: string; title: string };
@@ -151,6 +152,30 @@ export default function AIAssistant() {
     c.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const groupedConversations = useMemo(() => {
+    const today: Conversation[] = [];
+    const yesterday: Conversation[] = [];
+    const older: Conversation[] = [];
+    
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+    
+    filteredConversations.forEach(c => {
+      const cDate = new Date(c.updated_at);
+      if (cDate >= todayStart) {
+        today.push(c);
+      } else if (cDate >= yesterdayStart) {
+        yesterday.push(c);
+      } else {
+        older.push(c);
+      }
+    });
+    
+    return { today, yesterday, older };
+  }, [filteredConversations]);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
@@ -164,6 +189,7 @@ export default function AIAssistant() {
       .order("created_at", { ascending: true });
     if (error) { toast({ title: "خطأ في تحميل المحادثة", variant: "destructive" }); return; }
     const loaded: Message[] = (data || []).map((m: any) => ({
+      id: m.id,
       role: m.role as "user" | "assistant",
       content: m.content,
       ...(m.metadata && typeof m.metadata === "object" ? m.metadata : {}),
@@ -198,11 +224,17 @@ export default function AIAssistant() {
 
     // Save the last two messages (user + assistant)
     const lastTwo = msgs.slice(-2);
+    const updatedMsgs = [...msgs];
+    let changed = false;
+
     for (const msg of lastTwo) {
-      const { jobCreated, jobUpdated, jobPreview, candidateMoved, interviewScheduled, offerCreated, statsReport, proactiveInsights, emailSent, bulkMoved, isStreaming, ...rest } = msg;
+      if (msg.id) continue; // Skip if already saved and has an ID
+
+      const { id, jobCreated, jobUpdated, jobPreview, candidateMoved, interviewScheduled, offerCreated, statsReport, proactiveInsights, emailSent, bulkMoved, isStreaming, ...rest } = msg;
       const metadata: any = {};
       if (jobCreated) metadata.jobCreated = jobCreated;
       if (jobUpdated) metadata.jobUpdated = jobUpdated;
+      if (jobPreview) metadata.jobPreview = jobPreview;
       if (candidateMoved) metadata.candidateMoved = candidateMoved;
       if (interviewScheduled) metadata.interviewScheduled = interviewScheduled;
       if (offerCreated) metadata.offerCreated = offerCreated;
@@ -211,13 +243,27 @@ export default function AIAssistant() {
       if (emailSent) metadata.emailSent = emailSent;
       if (bulkMoved) metadata.bulkMoved = bulkMoved;
 
-      await supabase.from("chat_messages").insert({
+      const { data, error } = await supabase.from("chat_messages").insert({
         conversation_id: conversationId,
         user_id: user.id,
         role: msg.role,
         content: msg.content,
         metadata: Object.keys(metadata).length > 0 ? metadata : {},
-      });
+      }).select("id").single();
+
+      if (!error && data) {
+        const originalIdx = msgs.indexOf(msg);
+        if (originalIdx !== -1) {
+          updatedMsgs[originalIdx] = { ...msg, id: data.id };
+          changed = true;
+        }
+      } else if (error) {
+        console.error("Failed to insert message:", error);
+      }
+    }
+
+    if (changed) {
+      setMessages(updatedMsgs);
     }
 
     refetchConversations();
@@ -232,11 +278,37 @@ export default function AIAssistant() {
 
   const handleDeleteConversation = async (convId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    const confirmed = window.confirm("هل أنت متأكد من حذف هذه المحادثة؟");
+    if (!confirmed) return;
     const { error } = await supabase.from("chat_conversations").delete().eq("id", convId);
     if (error) { toast({ title: "خطأ في حذف المحادثة", variant: "destructive" }); return; }
     if (activeConversationId === convId) handleNewChat();
     refetchConversations();
     toast({ title: "تم حذف المحادثة ✅" });
+  };
+
+  const handleClearAllConversations = async () => {
+    if (!user) return;
+    const confirmed = window.confirm("هل أنت متأكد من حذف جميع المحادثات نهائياً؟ لا يمكن التراجع عن هذه الخطوة.");
+    if (!confirmed) return;
+    
+    try {
+      const { error } = await supabase
+        .from("chat_conversations")
+        .delete()
+        .eq("user_id", user.id);
+      if (error) throw error;
+      
+      handleNewChat();
+      refetchConversations();
+      toast({ title: "تم حذف جميع المحادثات بنجاح 🗑️" });
+    } catch (e: any) {
+      toast({
+        title: "خطأ في حذف المحادثات",
+        description: e.message || "خطأ غير معروف",
+        variant: "destructive"
+      });
+    }
   };
 
   const parseSSEStream = useCallback(async (resp: Response, onActions: (actions: any[]) => void) => {
@@ -462,21 +534,69 @@ export default function AIAssistant() {
         location: jobData.location,
         type: jobData.type,
         description: jobData.description || undefined,
-        requirements: Array.isArray(jobData.requirements) ? jobData.requirements.join("\n") : undefined,
+        requirements: Array.isArray(jobData.requirements) 
+          ? jobData.requirements.join("\n") 
+          : typeof jobData.requirements === 'string'
+            ? jobData.requirements
+            : undefined,
         experience: jobData.experience_level || undefined,
-        salaryMin: jobData.salary_min?.toString(),
-        salaryMax: jobData.salary_max?.toString(),
+        salaryMin: (jobData.salary_min !== null && jobData.salary_min !== undefined) ? String(jobData.salary_min) : undefined,
+        salaryMax: (jobData.salary_max !== null && jobData.salary_max !== undefined) ? String(jobData.salary_max) : undefined,
       });
 
-      setMessages(prev => prev.map((m, i) => i === msgIndex ? { ...m, jobPreview: { ...m.jobPreview!, status: "confirmed" as const }, jobCreated: { id: job.id, title: job.title } } : m));
+      // Call RPC to increment job posts used
+      await supabase.rpc("increment_job_posts_used" as any, { _user_id: session.user.id });
+      queryClient.invalidateQueries({ queryKey: ["my-subscription"] });
+
+      const confirmedPreview = { ...msg.jobPreview, status: "confirmed" as const };
+      const createdJob = { id: job.id, title: job.title };
+
+      setMessages(prev => prev.map((m, i) => i === msgIndex ? { ...m, jobPreview: confirmedPreview, jobCreated: createdJob } : m));
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
+
+      // Update message metadata in DB
+      if (msg.id) {
+        const metadata: any = {};
+        if (msg.jobUpdated) metadata.jobUpdated = msg.jobUpdated;
+        if (msg.candidateMoved) metadata.candidateMoved = msg.candidateMoved;
+        if (msg.interviewScheduled) metadata.interviewScheduled = msg.interviewScheduled;
+        if (msg.offerCreated) metadata.offerCreated = msg.offerCreated;
+        if (msg.statsReport) metadata.statsReport = msg.statsReport;
+        if (msg.proactiveInsights) metadata.proactiveInsights = msg.proactiveInsights;
+        if (msg.emailSent) metadata.emailSent = msg.emailSent;
+        if (msg.bulkMoved) metadata.bulkMoved = msg.bulkMoved;
+        
+        metadata.jobPreview = confirmedPreview;
+        metadata.jobCreated = createdJob;
+
+        await supabase.from("chat_messages").update({ metadata }).eq("id", msg.id);
+      }
     } catch (e: any) { 
       toast({ title: "خطأ", description: e.message || "خطأ في الاتصال", variant: "destructive" }); 
     }
   };
 
-  const handleRejectJob = (msgIndex: number) => {
-    setMessages(prev => prev.map((m, i) => i === msgIndex ? { ...m, jobPreview: { ...m.jobPreview!, status: "rejected" as const } } : m));
+  const handleRejectJob = async (msgIndex: number) => {
+    const msg = messages[msgIndex];
+    const rejectedPreview = msg.jobPreview ? { ...msg.jobPreview, status: "rejected" as const } : undefined;
+    setMessages(prev => prev.map((m, i) => i === msgIndex ? { ...m, jobPreview: rejectedPreview } : m));
+    
+    if (msg.id && rejectedPreview) {
+      const metadata: any = {};
+      if (msg.jobCreated) metadata.jobCreated = msg.jobCreated;
+      if (msg.jobUpdated) metadata.jobUpdated = msg.jobUpdated;
+      if (msg.candidateMoved) metadata.candidateMoved = msg.candidateMoved;
+      if (msg.interviewScheduled) metadata.interviewScheduled = msg.interviewScheduled;
+      if (msg.offerCreated) metadata.offerCreated = msg.offerCreated;
+      if (msg.statsReport) metadata.statsReport = msg.statsReport;
+      if (msg.proactiveInsights) metadata.proactiveInsights = msg.proactiveInsights;
+      if (msg.emailSent) metadata.emailSent = msg.emailSent;
+      if (msg.bulkMoved) metadata.bulkMoved = msg.bulkMoved;
+      
+      metadata.jobPreview = rejectedPreview;
+
+      await supabase.from("chat_messages").update({ metadata }).eq("id", msg.id);
+    }
     toast({ title: "تم إلغاء إنشاء الوظيفة" });
   };
 
@@ -487,8 +607,26 @@ export default function AIAssistant() {
     if (!confirmed) return;
     const { error } = await supabase.from("jobs").delete().eq("id", msg.jobCreated.id);
     if (error) { toast({ title: "فشل حذف الوظيفة", description: error.message, variant: "destructive" }); return; }
+    
     setMessages(prev => prev.map((m, i) => i === msgIndex ? { ...m, jobCreated: undefined, jobPreview: m.jobPreview ? { ...m.jobPreview, status: "rejected" as const } : undefined } : m));
     queryClient.invalidateQueries({ queryKey: ["jobs"] });
+    
+    if (msg.id) {
+      const metadata: any = {};
+      if (msg.jobUpdated) metadata.jobUpdated = msg.jobUpdated;
+      if (msg.candidateMoved) metadata.candidateMoved = msg.candidateMoved;
+      if (msg.interviewScheduled) metadata.interviewScheduled = msg.interviewScheduled;
+      if (msg.offerCreated) metadata.offerCreated = msg.offerCreated;
+      if (msg.statsReport) metadata.statsReport = msg.statsReport;
+      if (msg.proactiveInsights) metadata.proactiveInsights = msg.proactiveInsights;
+      if (msg.emailSent) metadata.emailSent = msg.emailSent;
+      if (msg.bulkMoved) metadata.bulkMoved = msg.bulkMoved;
+      
+      metadata.jobPreview = msg.jobPreview ? { ...msg.jobPreview, status: "rejected" as const } : undefined;
+      metadata.jobCreated = null;
+
+      await supabase.from("chat_messages").update({ metadata }).eq("id", msg.id);
+    }
     toast({ title: "تم حذف الوظيفة 🗑️" });
   };
 
@@ -587,9 +725,16 @@ export default function AIAssistant() {
                 <MessageSquare className="w-4 h-4 text-primary animate-pulse" />
                 المحادثات
               </h2>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted/80 rounded-xl" onClick={handleNewChat} title="محادثة جديدة">
-                <Plus className="w-4 h-4" />
-              </Button>
+              <div className="flex gap-1">
+                {conversations.length > 0 && (
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl" onClick={handleClearAllConversations} title="مسح كل السجل">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted/80 rounded-xl" onClick={handleNewChat} title="محادثة جديدة">
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
             <div className="relative">
               <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -604,46 +749,165 @@ export default function AIAssistant() {
 
           {/* Conversations List */}
           <ScrollArea className="flex-1">
-            <div className="p-2 space-y-1.5">
+            <div className="p-3 space-y-4">
               {filteredConversations.length === 0 ? (
-                <div className="text-center py-8 text-xs text-muted-foreground">
+                <div className="text-center py-12 text-xs text-muted-foreground">
                   <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
                   <p>لا توجد محادثات سابقة</p>
                   <p className="mt-1">ابدأ محادثة جديدة الآن!</p>
                 </div>
               ) : (
-                filteredConversations.map(conv => (
-                  <motion.button
-                    key={conv.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    whileHover={{ x: -2 }}
-                    onClick={() => loadConversation(conv.id)}
-                    className={cn(
-                      "w-full text-right px-3 py-2.5 rounded-xl text-xs transition-all duration-200 group flex items-start gap-2 border border-transparent",
-                      activeConversationId === conv.id
-                        ? "bg-primary/10 text-primary border-primary/20 font-bold shadow-sm shadow-primary/5"
-                        : "hover:bg-muted/40 hover:border-border/20 text-foreground/80 hover:text-foreground"
-                    )}
-                  >
-                    <div className="p-1 rounded-lg bg-background/50 border border-border/20 group-hover:bg-background/80 transition-colors">
-                      <Bot className="w-4 h-4 shrink-0 text-primary" />
+                <>
+                  {/* Today Group */}
+                  {groupedConversations.today.length > 0 && (
+                    <div className="space-y-1.5">
+                      <h3 className="px-2 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">اليوم</h3>
+                      {groupedConversations.today.map(conv => (
+                        <div key={conv.id} className="relative group">
+                          <button
+                            onClick={() => loadConversation(conv.id)}
+                            className={cn(
+                              "w-full text-right px-3 py-2.5 rounded-xl text-xs transition-all duration-300 flex items-center gap-2.5 border relative overflow-hidden",
+                              activeConversationId === conv.id
+                                ? "bg-primary/10 text-primary border-primary/25 font-bold shadow-sm shadow-primary/5"
+                                : "bg-transparent border-transparent hover:bg-muted/40 hover:border-border/10 text-foreground/80 hover:text-foreground"
+                            )}
+                          >
+                            {activeConversationId === conv.id && (
+                              <div className="absolute right-0 top-0 bottom-0 w-1 bg-primary rounded-r-full" />
+                            )}
+                            <div className={cn(
+                              "p-1.5 rounded-lg border transition-all duration-300",
+                              activeConversationId === conv.id 
+                                ? "bg-primary/20 border-primary/30 text-primary" 
+                                : "bg-background/40 border-border/10 group-hover:bg-background/80 group-hover:border-border/20 text-muted-foreground group-hover:text-primary"
+                            )}>
+                              <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold truncate text-foreground/90 leading-normal">{conv.title}</p>
+                              <p className="text-[9px] text-muted-foreground flex items-center gap-1 mt-1 font-semibold">
+                                <Clock className="w-2.5 h-2.5" />
+                                {formatTime(conv.updated_at)}
+                              </p>
+                            </div>
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteConversation(conv.id, e)}
+                            className={cn(
+                              "absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all duration-200",
+                              "opacity-0 group-hover:opacity-100 focus:opacity-100",
+                              "text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/10"
+                            )}
+                            title="حذف المحادثة"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold truncate text-foreground/90">{conv.title}</p>
-                      <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5 font-medium">
-                        <Clock className="w-3 h-3" />
-                        {formatTime(conv.updated_at)}
-                      </p>
+                  )}
+
+                  {/* Yesterday Group */}
+                  {groupedConversations.yesterday.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <h3 className="px-2 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">أمس</h3>
+                      {groupedConversations.yesterday.map(conv => (
+                        <div key={conv.id} className="relative group">
+                          <button
+                            onClick={() => loadConversation(conv.id)}
+                            className={cn(
+                              "w-full text-right px-3 py-2.5 rounded-xl text-xs transition-all duration-300 flex items-center gap-2.5 border relative overflow-hidden",
+                              activeConversationId === conv.id
+                                ? "bg-primary/10 text-primary border-primary/25 font-bold shadow-sm shadow-primary/5"
+                                : "bg-transparent border-transparent hover:bg-muted/40 hover:border-border/10 text-foreground/80 hover:text-foreground"
+                            )}
+                          >
+                            {activeConversationId === conv.id && (
+                              <div className="absolute right-0 top-0 bottom-0 w-1 bg-primary rounded-r-full" />
+                            )}
+                            <div className={cn(
+                              "p-1.5 rounded-lg border transition-all duration-300",
+                              activeConversationId === conv.id 
+                                ? "bg-primary/20 border-primary/30 text-primary" 
+                                : "bg-background/40 border-border/10 group-hover:bg-background/80 group-hover:border-border/20 text-muted-foreground group-hover:text-primary"
+                            )}>
+                              <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold truncate text-foreground/90 leading-normal">{conv.title}</p>
+                              <p className="text-[9px] text-muted-foreground flex items-center gap-1 mt-1 font-semibold">
+                                <Clock className="w-2.5 h-2.5" />
+                                {formatTime(conv.updated_at)}
+                              </p>
+                            </div>
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteConversation(conv.id, e)}
+                            className={cn(
+                              "absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all duration-200",
+                              "opacity-0 group-hover:opacity-100 focus:opacity-100",
+                              "text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/10"
+                            )}
+                            title="حذف المحادثة"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                    <button
-                      onClick={(e) => handleDeleteConversation(conv.id, e)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-destructive hover:bg-destructive/10 rounded-md"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </motion.button>
-                ))
+                  )}
+
+                  {/* Older Group */}
+                  {groupedConversations.older.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <h3 className="px-2 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">السابق</h3>
+                      {groupedConversations.older.map(conv => (
+                        <div key={conv.id} className="relative group">
+                          <button
+                            onClick={() => loadConversation(conv.id)}
+                            className={cn(
+                              "w-full text-right px-3 py-2.5 rounded-xl text-xs transition-all duration-300 flex items-center gap-2.5 border relative overflow-hidden",
+                              activeConversationId === conv.id
+                                ? "bg-primary/10 text-primary border-primary/25 font-bold shadow-sm shadow-primary/5"
+                                : "bg-transparent border-transparent hover:bg-muted/40 hover:border-border/10 text-foreground/80 hover:text-foreground"
+                            )}
+                          >
+                            {activeConversationId === conv.id && (
+                              <div className="absolute right-0 top-0 bottom-0 w-1 bg-primary rounded-r-full" />
+                            )}
+                            <div className={cn(
+                              "p-1.5 rounded-lg border transition-all duration-300",
+                              activeConversationId === conv.id 
+                                ? "bg-primary/20 border-primary/30 text-primary" 
+                                : "bg-background/40 border-border/10 group-hover:bg-background/80 group-hover:border-border/20 text-muted-foreground group-hover:text-primary"
+                            )}>
+                              <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold truncate text-foreground/90 leading-normal">{conv.title}</p>
+                              <p className="text-[9px] text-muted-foreground flex items-center gap-1 mt-1 font-semibold">
+                                <Clock className="w-2.5 h-2.5" />
+                                {formatTime(conv.updated_at)}
+                              </p>
+                            </div>
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteConversation(conv.id, e)}
+                            className={cn(
+                              "absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all duration-200",
+                              "opacity-0 group-hover:opacity-100 focus:opacity-100",
+                              "text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/10"
+                            )}
+                            title="حذف المحادثة"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </ScrollArea>
