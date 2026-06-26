@@ -476,17 +476,73 @@ export default function AIAssistant() {
   return (
     <DashboardLayout>
       <AnimatedDashboardBackground />
+      <style>{`
+        .chat-prose p {
+          margin-bottom: 0.5rem;
+          font-weight: 500;
+          color: inherit;
+        }
+        .chat-prose p:last-child {
+          margin-bottom: 0;
+        }
+        .chat-prose strong {
+          font-weight: 800;
+          color: hsl(var(--primary));
+        }
+        .dark .chat-prose strong {
+          color: hsl(var(--primary-foreground));
+        }
+        .chat-prose ul {
+          margin-bottom: 0.5rem;
+          padding-right: 1.25rem;
+          list-style-type: disc;
+        }
+        .chat-prose li {
+          margin-bottom: 0.25rem;
+          font-weight: 500;
+        }
+        .chat-prose table {
+          width: 100%;
+          margin: 0.75rem 0;
+          border-collapse: collapse;
+          font-size: 11px;
+          border-radius: 8px;
+          overflow: hidden;
+          border: 1px solid hsl(var(--border) / 0.3);
+        }
+        .chat-prose th, .chat-prose td {
+          border: 1px solid hsl(var(--border) / 0.3);
+          padding: 0.5rem 0.75rem;
+          text-align: right;
+        }
+        .chat-prose th {
+          background-color: hsl(var(--muted) / 0.6);
+          font-weight: 700;
+        }
+        .chat-prose td {
+          background-color: hsl(var(--card) / 0.3);
+        }
+        .premium-radial-glow {
+          position: absolute;
+          width: 140px;
+          height: 140px;
+          border-radius: 50%;
+          filter: blur(40px);
+          opacity: 0.04;
+          pointer-events: none;
+        }
+      `}</style>
       <div className="flex h-[calc(100vh-56px)] lg:h-screen overflow-hidden relative z-10" dir="rtl">
         {/* Sidebar - Conversations */}
         <div className={cn(
-          "absolute lg:relative z-30 h-full w-72 border-l border-border/30 bg-card/65 backdrop-blur-xl transition-transform duration-300 flex flex-col shadow-xl",
+          "absolute lg:relative z-30 h-full w-72 border-l border-border/20 bg-card/45 backdrop-blur-xl transition-transform duration-300 flex flex-col shadow-xl",
           sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
         )}>
           {/* Sidebar Header */}
-          <div className="p-4 border-b border-border/30 shrink-0 bg-gradient-to-b from-muted/30 to-transparent">
+          <div className="p-4 border-b border-border/20 shrink-0 bg-gradient-to-b from-muted/20 to-transparent">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-primary" />
+                <MessageSquare className="w-4 h-4 text-primary animate-pulse" />
                 المحادثات
               </h2>
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted/80 rounded-xl" onClick={handleNewChat} title="محادثة جديدة">
@@ -499,7 +555,7 @@ export default function AIAssistant() {
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="بحث في المحادثات..."
-                className="h-8 text-xs pr-8 bg-muted/40 border border-border/80 rounded-xl focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary/50"
+                className="h-8 text-xs pr-8 bg-muted/40 border border-border/20 rounded-xl focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary/50"
               />
             </div>
           </div>
@@ -525,12 +581,14 @@ export default function AIAssistant() {
                       "w-full text-right px-3 py-2.5 rounded-xl text-xs transition-all duration-200 group flex items-start gap-2 border border-transparent",
                       activeConversationId === conv.id
                         ? "bg-primary/10 text-primary border-primary/20 font-bold shadow-sm shadow-primary/5"
-                        : "hover:bg-muted/40 hover:border-border/30 text-foreground/80 hover:text-foreground"
+                        : "hover:bg-muted/40 hover:border-border/20 text-foreground/80 hover:text-foreground"
                     )}
                   >
-                    <Bot className="w-4 h-4 shrink-0 mt-0.5 text-muted-foreground" />
+                    <div className="p-1 rounded-lg bg-background/50 border border-border/20 group-hover:bg-background/80 transition-colors">
+                      <Bot className="w-4 h-4 shrink-0 text-primary" />
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold truncate">{conv.title}</p>
+                      <p className="font-bold truncate text-foreground/90">{conv.title}</p>
                       <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5 font-medium">
                         <Clock className="w-3 h-3" />
                         {formatTime(conv.updated_at)}
@@ -557,19 +615,19 @@ export default function AIAssistant() {
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <div className="px-4 py-3 border-b border-border/30 bg-card/60 backdrop-blur-md shrink-0">
+          <div className="px-4 py-3 border-b border-border/20 bg-card/45 backdrop-blur-md shrink-0">
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" className="lg:hidden shrink-0 w-9 h-9 rounded-xl hover:bg-muted/80" onClick={() => setSidebarOpen(!sidebarOpen)}>
                 <MessageSquare className="w-4.5 h-4.5" />
               </Button>
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-indigo-600 to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20 border border-primary/20 relative">
                 <Bot className="w-5 h-5 text-primary-foreground" />
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-background animate-pulse" />
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-background live-breathing-indicator" />
               </div>
               <div className="flex-1 min-w-0">
                 <h1 className="text-sm font-black text-foreground">مساعد التوظيف الذكي</h1>
                 <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 flex-wrap font-medium">
-                  <Sparkles className="w-3 h-3 text-primary" />
+                  <Sparkles className="w-3 h-3 text-primary animate-pulse" />
                   <span>الذكاء الاصطناعي التوليدي</span>
                   <span className="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/10">متصل الآن</span>
                 </p>
@@ -579,7 +637,7 @@ export default function AIAssistant() {
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="text-xs h-8 gap-1 rounded-xl bg-card/45 border border-border/30 font-bold hover:bg-primary/5 hover:text-primary transition-all duration-300 shadow-sm" 
+                className="text-xs h-8 gap-1 rounded-xl bg-card/45 border border-border/20 font-bold hover:bg-primary/5 hover:text-primary transition-all duration-300 shadow-sm" 
                 onClick={handleNewChat}
               >
                 <Plus className="w-3.5 h-3.5" />جديد
@@ -602,20 +660,23 @@ export default function AIAssistant() {
                   
                   {/* Avatar for user */}
                   {msg.role === "user" && (
-                    <div className="w-8.5 h-8.5 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-1">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 flex items-center justify-center shrink-0 mt-1 shadow-sm">
                       <span className="text-[10px] font-black text-primary">أنت</span>
                     </div>
                   )}
 
                   <div className={cn(
-                    "max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3.5 text-sm leading-relaxed shadow-md transition-all duration-200",
+                    "max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3.5 text-sm leading-relaxed shadow-md transition-all duration-200 relative overflow-hidden",
                     msg.role === "user"
-                      ? "bg-gradient-to-br from-primary to-indigo-600 text-white rounded-tr-md shadow-primary/10"
-                      : "glass-card-premium border border-border/40 rounded-tl-md text-foreground"
+                      ? "bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--primary)/0.85)] border border-[hsl(var(--primary)/0.35)] text-white rounded-tr-sm shadow-primary/10 font-medium"
+                      : "glass-card-premium border border-border/25 rounded-tl-sm text-foreground bg-card/30 backdrop-blur-md"
                   )}>
+                    {msg.role === "assistant" && (
+                      <div className="premium-radial-glow -bottom-10 -left-10 bg-primary/10" />
+                    )}
                     {msg.role === "assistant" ? (
-                      <div className="space-y-3">
-                        <div className="prose prose-sm max-w-none dark:prose-invert">
+                      <div className="space-y-3 relative z-10">
+                        <div className="prose prose-sm max-w-none dark:prose-invert chat-prose">
                           <ReactMarkdown>{msg.content}</ReactMarkdown>
                           {msg.isStreaming && <span className="inline-block w-1.5 h-4 bg-primary animate-pulse rounded-sm ml-0.5" />}
                         </div>
@@ -658,30 +719,30 @@ export default function AIAssistant() {
                         {/* Job Preview Card */}
                         {msg.jobPreview && (
                           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15, type: "spring" }}
-                            className={cn("mt-3 p-4 rounded-xl border space-y-3",
-                              msg.jobPreview.status === "confirmed" ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800" :
-                              msg.jobPreview.status === "rejected" ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 opacity-60" :
-                              "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800")}>
+                            className={cn("mt-3 p-4 rounded-xl border space-y-3 glass-card-premium",
+                              msg.jobPreview.status === "confirmed" ? "bg-green-500/5 border-green-500/25 text-green-700 dark:text-green-300" :
+                              msg.jobPreview.status === "rejected" ? "bg-red-500/5 border-red-500/25 text-red-700 dark:text-red-300 opacity-60" :
+                              "bg-amber-500/5 border-amber-500/25 text-amber-700 dark:text-amber-300")}>
                             <div className="flex items-center gap-2 text-xs font-bold">
-                              <Briefcase className="w-4 h-4 text-amber-600" />
+                              <Briefcase className="w-4 h-4 text-primary animate-pulse" />
                               <span className={msg.jobPreview.status === "confirmed" ? "text-green-800 dark:text-green-300" : msg.jobPreview.status === "rejected" ? "text-red-800 dark:text-red-300" : "text-amber-800 dark:text-amber-300"}>
                                 {msg.jobPreview.status === "confirmed" ? "✅ تم إنشاء الوظيفة" : msg.jobPreview.status === "rejected" ? "❌ تم إلغاء الوظيفة" : "⏳ هل تريد إضافة هذه الوظيفة؟"}
                               </span>
                             </div>
-                            <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-                              <div><span className="text-muted-foreground">المسمى:</span> <span className="font-medium">{msg.jobPreview.data.title}</span></div>
-                              <div><span className="text-muted-foreground">القسم:</span> <span className="font-medium">{msg.jobPreview.data.department}</span></div>
-                              <div><span className="text-muted-foreground">الموقع:</span> <span className="font-medium">{msg.jobPreview.data.location}</span></div>
-                              <div><span className="text-muted-foreground">النوع:</span> <span className="font-medium">{msg.jobPreview.data.type}</span></div>
-                              {msg.jobPreview.data.salary_min && <div><span className="text-muted-foreground">الراتب:</span> <span className="font-medium">{msg.jobPreview.data.salary_min} - {msg.jobPreview.data.salary_max}</span></div>}
-                              {msg.jobPreview.data.experience_level && <div><span className="text-muted-foreground">الخبرة:</span> <span className="font-medium">{msg.jobPreview.data.experience_level}</span></div>}
+                            <div className="grid grid-cols-2 gap-1.5 text-[11px] font-semibold">
+                              <div><span className="text-muted-foreground">المسمى:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.title}</span></div>
+                              <div><span className="text-muted-foreground">القسم:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.department}</span></div>
+                              <div><span className="text-muted-foreground">الموقع:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.location}</span></div>
+                              <div><span className="text-muted-foreground">النوع:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.type}</span></div>
+                              {msg.jobPreview.data.salary_min && <div><span className="text-muted-foreground">الراتب:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.salary_min} - {msg.jobPreview.data.salary_max}</span></div>}
+                              {msg.jobPreview.data.experience_level && <div><span className="text-muted-foreground">الخبرة:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.experience_level}</span></div>}
                             </div>
                             {msg.jobPreview.status === "pending" && (
                               <div className="flex gap-2">
-                                <Button size="sm" className="flex-1 text-xs h-8 gap-1 bg-green-600 hover:bg-green-700 text-white" onClick={() => handleConfirmJob(i)}>
+                                <Button size="sm" className="flex-1 text-xs h-8 gap-1 bg-green-600 hover:bg-green-700 text-white font-bold" onClick={() => handleConfirmJob(i)}>
                                   <Check className="w-3 h-3" />إضافة للنظام
                                 </Button>
-                                <Button variant="outline" size="sm" className="flex-1 text-xs h-8 gap-1 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleRejectJob(i)}>
+                                <Button variant="outline" size="sm" className="flex-1 text-xs h-8 gap-1 text-red-600 border-red-200 hover:bg-red-50 font-bold" onClick={() => handleRejectJob(i)}>
                                   <XCircle className="w-3 h-3" />إلغاء
                                 </Button>
                               </div>
@@ -692,22 +753,22 @@ export default function AIAssistant() {
                         {/* Job Created */}
                         {msg.jobCreated && (
                           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15, type: "spring" }}
-                            className="mt-3 p-4 rounded-xl bg-muted/50 border border-border/50 flex flex-col items-center gap-3">
+                            className="mt-3 p-4 rounded-xl bg-card/20 border border-border/20 shadow-md glass-card-premium flex flex-col items-center gap-3">
                             <div className="flex items-center gap-2 text-xs font-bold text-primary"><Briefcase className="w-4 h-4" /><span>{msg.jobCreated.title}</span></div>
                             <div className="bg-white p-3 rounded-xl shadow-sm"><QRCodeSVG value={getApplyUrl(msg.jobCreated.id)} size={130} level="H" bgColor="#ffffff" fgColor="#1e4a8a" /></div>
-                            <p className="text-[10px] text-muted-foreground text-center">امسح الرمز أو شارك الرابط لاستقبال الطلبات</p>
+                            <p className="text-[10px] text-muted-foreground text-center font-semibold">امسح الرمز أو شارك الرابط لاستقبال الطلبات</p>
                             <div className="flex gap-2 w-full">
-                              <Button variant="outline" size="sm" className="flex-1 text-xs h-8" onClick={() => { navigator.clipboard.writeText(getApplyUrl(msg.jobCreated!.id)); toast({ title: "تم نسخ الرابط ✅" }); }}>نسخ الرابط</Button>
-                              <Button size="sm" className="flex-1 text-xs h-8" onClick={() => setQrDialog({ open: true, jobId: msg.jobCreated!.id, jobTitle: msg.jobCreated!.title })}>تحميل QR</Button>
+                              <Button variant="outline" size="sm" className="flex-1 text-xs h-8 font-bold" onClick={() => { navigator.clipboard.writeText(getApplyUrl(msg.jobCreated!.id)); toast({ title: "تم نسخ الرابط ✅" }); }}>نسخ الرابط</Button>
+                              <Button size="sm" className="flex-1 text-xs h-8 font-bold" onClick={() => setQrDialog({ open: true, jobId: msg.jobCreated!.id, jobTitle: msg.jobCreated!.title })}>تحميل QR</Button>
                             </div>
-                            <div className="flex gap-2 w-full border-t border-border/50 pt-3">
-                              <Button variant="outline" size="sm" className="flex-1 text-xs h-8 gap-1" onClick={() => navigate(`/jobs/${msg.jobCreated!.id}`)}>
+                            <div className="flex gap-2 w-full border-t border-border/20 pt-3">
+                              <Button variant="outline" size="sm" className="flex-1 text-xs h-8 gap-1 font-bold" onClick={() => navigate(`/jobs/${msg.jobCreated!.id}`)}>
                                 <ExternalLink className="w-3 h-3" />التفاصيل
                               </Button>
-                              <Button variant="outline" size="sm" className="flex-1 text-xs h-8 gap-1 text-primary border-primary/30 hover:bg-primary/5" onClick={() => setInput(`عدّل وظيفة "${msg.jobCreated!.title}" `)}>
+                              <Button variant="outline" size="sm" className="flex-1 text-xs h-8 gap-1 text-primary border-primary/30 hover:bg-primary/5 font-bold" onClick={() => setInput(`عدّل وظيفة "${msg.jobCreated!.title}" `)}>
                                 <Pencil className="w-3 h-3" />تعديل
                               </Button>
-                              <Button variant="outline" size="sm" className="text-xs h-8 gap-1 text-destructive border-destructive/30 hover:bg-destructive/5 px-3" onClick={() => handleDeleteJob(i)}>
+                              <Button variant="outline" size="sm" className="text-xs h-8 gap-1 text-destructive border-destructive/30 hover:bg-destructive/5 px-3 font-bold" onClick={() => handleDeleteJob(i)}>
                                 <Trash2 className="w-3 h-3" />حذف
                               </Button>
                             </div>
@@ -717,20 +778,20 @@ export default function AIAssistant() {
                         {/* Job Updated */}
                         {msg.jobUpdated && (
                           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15 }}
-                            className="mt-3 p-3 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 flex items-center gap-3">
-                            <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
-                            <div className="text-xs"><p className="font-bold text-green-800 dark:text-green-300">تم تعديل الوظيفة</p><p className="text-green-600 dark:text-green-400">{msg.jobUpdated.title}</p></div>
+                            className="mt-3 p-3 rounded-xl bg-success/5 border border-success/20 flex items-center gap-3">
+                            <CheckCircle className="w-5 h-5 text-success shrink-0" />
+                            <div className="text-xs font-semibold"><p className="font-bold text-success">تم تعديل الوظيفة</p><p className="text-muted-foreground">{msg.jobUpdated.title}</p></div>
                           </motion.div>
                         )}
 
                         {/* Candidate Moved */}
                         {msg.candidateMoved && (
                           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15 }}
-                            className="mt-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-green-800 flex items-center gap-3">
-                            <ArrowRightLeft className="w-5 h-5 text-blue-600 shrink-0" />
-                            <div className="text-xs">
-                              <p className="font-bold text-blue-800 dark:text-blue-300">تم نقل {msg.candidateMoved.name}</p>
-                              <p className="text-blue-600 dark:text-blue-400">{msg.candidateMoved.old_stage} ← {msg.candidateMoved.new_stage}</p>
+                            className="mt-3 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center gap-3">
+                            <ArrowRightLeft className="w-5 h-5 text-primary shrink-0" />
+                            <div className="text-xs font-semibold">
+                              <p className="font-bold text-primary">تم نقل {msg.candidateMoved.name}</p>
+                              <p className="text-muted-foreground">{msg.candidateMoved.old_stage} ← {msg.candidateMoved.new_stage}</p>
                             </div>
                           </motion.div>
                         )}
@@ -738,19 +799,19 @@ export default function AIAssistant() {
                         {/* Interview Scheduled */}
                         {msg.interviewScheduled && (
                           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15 }}
-                            className="mt-3 p-4 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 space-y-3">
+                            className="mt-3 p-4 rounded-xl bg-warning/5 border border-warning/20 space-y-3 glass-card-premium">
                             <div className="flex items-center gap-2">
-                              <CalendarCheck className="w-5 h-5 text-purple-600 shrink-0" />
-                              <div className="text-xs">
-                                <p className="font-bold text-purple-800 dark:text-purple-300">مقابلة مجدولة: {msg.interviewScheduled.candidate_name}</p>
-                                <p className="text-purple-600 dark:text-purple-400">📅 {msg.interviewScheduled.date} — ⏰ {msg.interviewScheduled.time} — 📍 {msg.interviewScheduled.type}</p>
+                              <CalendarCheck className="w-5 h-5 text-warning shrink-0" />
+                              <div className="text-xs font-semibold">
+                                <p className="font-bold text-warning">مقابلة مجدولة: {msg.interviewScheduled.candidate_name}</p>
+                                <p className="text-muted-foreground mt-0.5">📅 {msg.interviewScheduled.date} — ⏰ {msg.interviewScheduled.time} — 📍 {msg.interviewScheduled.type}</p>
                               </div>
                             </div>
                             <div className="flex gap-2">
-                              <Button variant="outline" size="sm" className="flex-1 text-xs h-8" onClick={() => { navigator.clipboard.writeText(msg.interviewScheduled!.meeting_url); toast({ title: "تم نسخ رابط المقابلة ✅" }); }}>
+                              <Button variant="outline" size="sm" className="flex-1 text-xs h-8 font-bold" onClick={() => { navigator.clipboard.writeText(msg.interviewScheduled!.meeting_url); toast({ title: "تم نسخ رابط المقابلة ✅" }); }}>
                                 نسخ رابط الاجتماع
                               </Button>
-                              <Button size="sm" className="flex-1 text-xs h-8 gap-1" onClick={() => window.open(msg.interviewScheduled!.meeting_url, "_blank")}>
+                              <Button size="sm" className="flex-1 text-xs h-8 gap-1 font-bold" onClick={() => window.open(msg.interviewScheduled!.meeting_url, "_blank")}>
                                 <Video className="w-3 h-3" />انضمام
                               </Button>
                             </div>
@@ -760,19 +821,19 @@ export default function AIAssistant() {
                         {/* Offer Created */}
                         {msg.offerCreated && (
                           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15 }}
-                            className="mt-3 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 space-y-3">
+                            className="mt-3 p-4 rounded-xl bg-success/5 border border-success/20 space-y-3 glass-card-premium">
                             <div className="flex items-center gap-2">
-                              <Gift className="w-5 h-5 text-emerald-600 shrink-0" />
-                              <div className="text-xs">
-                                <p className="font-bold text-emerald-800 dark:text-emerald-300">عرض وظيفي: {msg.offerCreated.candidate_name}</p>
-                                <p className="text-emerald-600 dark:text-emerald-400">💼 {msg.offerCreated.position} — 💰 {new Intl.NumberFormat("ar-SA").format(msg.offerCreated.salary)} {msg.offerCreated.currency}</p>
+                              <Gift className="w-5 h-5 text-success shrink-0" />
+                              <div className="text-xs font-semibold">
+                                <p className="font-bold text-success font-bold">عرض وظيفي: {msg.offerCreated.candidate_name}</p>
+                                <p className="text-muted-foreground mt-0.5">💼 {msg.offerCreated.position} — 💰 {new Intl.NumberFormat("ar-SA").format(msg.offerCreated.salary)} {msg.offerCreated.currency}</p>
                               </div>
                             </div>
                             <div className="flex gap-2">
-                              <Button variant="outline" size="sm" className="flex-1 text-xs h-8" onClick={() => { navigator.clipboard.writeText(`${getPublicBaseUrl()}/offer/${msg.offerCreated!.token}`); toast({ title: "تم نسخ رابط العرض ✅" }); }}>
+                              <Button variant="outline" size="sm" className="flex-1 text-xs h-8 font-bold" onClick={() => { navigator.clipboard.writeText(`${getPublicBaseUrl()}/offer/${msg.offerCreated!.token}`); toast({ title: "تم نسخ رابط العرض ✅" }); }}>
                                 نسخ رابط العرض
                               </Button>
-                              <Button size="sm" className="flex-1 text-xs h-8 gap-1" onClick={() => navigate("/offers")}>
+                              <Button size="sm" className="flex-1 text-xs h-8 gap-1 font-bold" onClick={() => navigate("/offers")}>
                                 <ExternalLink className="w-3 h-3" />عرض العروض
                               </Button>
                             </div>
@@ -782,7 +843,7 @@ export default function AIAssistant() {
                         {/* Stats Report */}
                         {msg.statsReport && (
                           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15 }}
-                            className="mt-3 p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 space-y-3">
+                            className="mt-3 p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/20 space-y-3 glass-card-premium">
                             <div className="flex items-center gap-2 text-xs font-bold text-indigo-800 dark:text-indigo-300">
                               <BarChart3 className="w-4 h-4" />تقرير الإحصائيات
                             </div>
@@ -855,8 +916,8 @@ export default function AIAssistant() {
 
           {/* Legacy resume indicator (kept for backward-compat) */}
           {resumeFile && (
-            <div className="px-4 pb-1">
-              <div className="flex items-center gap-2 text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-lg w-fit">
+            <div className="px-4 pb-1.5 max-w-4xl mx-auto w-full">
+              <div className="flex items-center gap-2 text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-lg w-fit shadow-sm border border-primary/20 backdrop-blur-sm">
                 <FileText className="w-3 h-3" />
                 <span>{resumeFile.name}</span>
                 <button onClick={() => setResumeFile(null)} className="hover:text-destructive"><XCircle className="w-3 h-3" /></button>
@@ -865,15 +926,17 @@ export default function AIAssistant() {
           )}
 
           {/* Multi-file attachments preview */}
-          <FileAttachment
-            files={attachedFiles}
-            onAdd={(newOnes) => setAttachedFiles(prev => [...prev, ...newOnes])}
-            onRemove={(idx) => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
-            disabled={isLoading}
-          />
+          <div className="px-4 pb-1.5 max-w-4xl mx-auto w-full">
+            <FileAttachment
+              files={attachedFiles}
+              onAdd={(newOnes) => setAttachedFiles(prev => [...prev, ...newOnes])}
+              onRemove={(idx) => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
+              disabled={isLoading}
+            />
+          </div>
 
-          {/* Input */}
-          <div className="p-4 border-t border-border/30 bg-card/65 backdrop-blur-md shrink-0 relative">
+          {/* Input Floating Capsule Card */}
+          <div className="p-4 pt-1 pb-6 shrink-0 relative w-full max-w-4xl mx-auto z-20">
             <SlashCommandMenu
               query={input}
               onSelect={(cmd: SlashCommand) => {
@@ -883,7 +946,7 @@ export default function AIAssistant() {
                 }
               }}
             />
-            <div className="flex gap-2 max-w-4xl mx-auto items-center">
+            <div className="bg-card/50 border border-border/25 backdrop-blur-xl p-2 rounded-2xl shadow-xl flex gap-2 items-center relative">
               {/* Hidden legacy file input (resume only) */}
               <input type="file" ref={fileInputRef} accept=".txt,.pdf,.doc,.docx" className="hidden" onChange={handleFileSelect} />
 
@@ -904,9 +967,9 @@ export default function AIAssistant() {
               <Input value={input} onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleSend()}
                 placeholder="اكتب أمرك أو / للأوامر السريعة..."
-                className="flex-1 rounded-xl bg-muted/30 border border-border/30 backdrop-blur-md h-11 text-xs focus-visible:ring-primary/55 focus-visible:border-primary transition-all duration-300 focus-visible:ring-offset-0" />
+                className="flex-1 rounded-xl bg-transparent border-0 ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-xs shadow-none" />
               <Button onClick={handleSend} disabled={(!input.trim() && attachedFiles.length === 0) || isLoading}
-                size="icon" className="bg-primary text-primary-foreground hover:bg-primary/95 w-11 h-11 rounded-xl shrink-0 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform duration-200">
+                size="icon" className="bg-primary text-primary-foreground hover:bg-primary/95 w-10 h-10 rounded-xl shrink-0 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform duration-200">
                 <Send className="w-4 h-4" />
               </Button>
             </div>

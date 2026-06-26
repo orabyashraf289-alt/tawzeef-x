@@ -29,10 +29,10 @@ export const SMART_SUGGESTIONS: SmartSuggestion[] = [
 ];
 
 export const CATEGORY_STYLES: Record<SmartSuggestion["category"], { label: string; color: string }> = {
-  daily: { label: "🌅 يومي", color: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300" },
-  action: { label: "⚡ إجراء", color: "bg-primary/5 border-primary/20 text-primary" },
-  analysis: { label: "📊 تحليل", color: "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300" },
-  communication: { label: "✉️ تواصل", color: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300" },
+  daily: { label: "🌅 يومي", color: "bg-amber-500/5 border-amber-500/25 text-amber-600 dark:text-amber-400 hover:border-amber-500/40 hover:bg-amber-500/10" },
+  action: { label: "⚡ إجراء", color: "bg-primary/5 border-primary/25 text-primary hover:border-primary/45 hover:bg-primary/10" },
+  analysis: { label: "📊 تحليل", color: "bg-indigo-500/5 border-indigo-500/25 text-indigo-600 dark:text-indigo-400 hover:border-indigo-500/40 hover:bg-indigo-500/10" },
+  communication: { label: "✉️ تواصل", color: "bg-emerald-500/5 border-emerald-500/25 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10" },
 };
 
 export default function SmartSuggestions({ onSelect }: { onSelect: (text: string) => void }) {
@@ -45,7 +45,7 @@ export default function SmartSuggestions({ onSelect }: { onSelect: (text: string
         const style = CATEGORY_STYLES[cat];
         return (
           <div key={cat} className="space-y-1.5">
-            <p className="text-[10px] font-bold text-muted-foreground px-1">{style.label}</p>
+            <p className="text-[10px] font-bold text-muted-foreground/80 px-1">{style.label}</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {items.map((s, i) => {
                 const Icon = s.icon;
@@ -57,15 +57,17 @@ export default function SmartSuggestions({ onSelect }: { onSelect: (text: string
                     transition={{ delay: i * 0.03 }}
                     onClick={() => onSelect(s.text)}
                     className={cn(
-                      "text-right p-2.5 rounded-xl border text-xs transition-all hover:scale-[1.02] hover:shadow-md group",
+                      "text-right p-3 rounded-xl border text-xs transition-all hover:scale-[1.015] hover:shadow-md group glass-card-premium backdrop-blur-md shadow-sm",
                       style.color
                     )}
                   >
-                    <div className="flex items-start gap-2">
-                      <Icon className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-2.5">
+                      <div className="p-1 rounded-lg bg-background/50 group-hover:bg-background/80 transition-colors shadow-sm">
+                        <Icon className="w-3.5 h-3.5 shrink-0" />
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-[11px]">{s.label}</p>
-                        <p className="text-[10px] opacity-70 leading-tight mt-0.5 line-clamp-2">{s.text}</p>
+                        <p className="font-bold text-[11px] text-foreground/90">{s.label}</p>
+                        <p className="text-[10px] text-muted-foreground font-semibold leading-normal mt-0.5 line-clamp-2">{s.text}</p>
                       </div>
                     </div>
                   </motion.button>
