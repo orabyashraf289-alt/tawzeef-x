@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams, Navigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, Loader2, Shield, Zap, BarChart3, FileCheck, Briefcase, Sparkles, Building2, CheckCircle2, KeyRound, Monitor  } from "lucide-react";
+import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, Loader2, Shield, Zap, BarChart3, FileCheck, Briefcase, Sparkles, Building2, CheckCircle2, KeyRound, Monitor } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 /* ─── Device Trust Helpers ─── */
@@ -83,36 +83,36 @@ function AuroraBackground() {
         transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
       />
       {/* Floating particles — teal & coral */}
-      {[...Array(10)].map((_, i) => (
+      {[...Array(15)].map((_, i) => (
         <motion.div
           key={i}
-          className="absolute rounded-full"
+          className="absolute rounded-full pointer-events-none"
           style={{
             width: 2 + (i % 4),
             height: 2 + (i % 4),
-            left: `${8 + i * 9}%`,
+            left: `${8 + i * 6}%`,
             top: `${12 + (i * 13) % 75}%`,
             background: i % 3 === 0
-              ? "hsl(var(--primary) / 0.30)"
+              ? "hsl(var(--primary) / 0.35)"
               : i % 3 === 1
-              ? "hsl(var(--accent) / 0.22)"
-              : "hsl(181 70% 45% / 0.20)",
+              ? "hsl(var(--accent) / 0.25)"
+              : "hsl(181 70% 45% / 0.25)",
           }}
           animate={{
-            y: [0, -30 - i * 3, 0],
-            x: [0, (i % 2 === 0 ? 12 : -12), 0],
-            opacity: [0.15, 0.55, 0.15],
-            scale: [1, 1.6, 1],
+            y: [0, -40 - i * 3, 0],
+            x: [0, (i % 2 === 0 ? 15 : -15), 0],
+            opacity: [0.15, 0.6, 0.15],
+            scale: [1, 1.8, 1],
           }}
-          transition={{ duration: 5 + i * 0.6, repeat: Infinity, ease: "easeInOut", delay: i * 0.35 }}
+          transition={{ duration: 6 + i * 0.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.25 }}
         />
       ))}
       {/* Dot grid */}
-      <div className="absolute inset-0 opacity-[0.015]" style={{
+      <div className="absolute inset-0 opacity-[0.02]" style={{
         backgroundImage: "radial-gradient(circle, hsl(var(--foreground)) 1px, transparent 1px)",
         backgroundSize: "32px 32px",
       }} />
-      {/* Horizon glow — teal bottom fade */}
+      {/* Horizon glow */}
       <div className="absolute bottom-0 left-0 right-0 h-1/3" style={{
         background: "linear-gradient(to top, hsl(var(--background)) 0%, hsl(var(--primary) / 0.03) 50%, transparent 100%)",
       }} />
@@ -120,13 +120,13 @@ function AuroraBackground() {
   );
 }
 
-/* ─── Left branding panel ─── */
+/* ─── Right branding panel ─── */
 function BrandingPanel() {
   const features = [
-    { icon: <Zap className="w-5 h-5" />, title: "تقييم ذكي", desc: "تحليل المرشحين بالذكاء الاصطناعي" },
-    { icon: <BarChart3 className="w-5 h-5" />, title: "تقارير لحظية", desc: "لوحة تحكم تحليلية متقدمة" },
-    { icon: <Shield className="w-5 h-5" />, title: "أمان متقدم", desc: "تشفير وحماية بيانات كاملة" },
-    { icon: <FileCheck className="w-5 h-5" />, title: "عروض رقمية", desc: "إصدار وتوقيع عروض إلكترونياً" },
+    { icon: <Zap className="w-5 h-5 animate-pulse" />, title: "تقييم ذكي", desc: "تحليل المرشحين بالذكاء الاصطناعي بدقة متناهية" },
+    { icon: <BarChart3 className="w-5 h-5" />, title: "تقارير لحظية", desc: "لوحة تحكم تحليلية متقدمة لقياس الأداء" },
+    { icon: <Shield className="w-5 h-5" />, title: "أمان متقدم", desc: "تشفير وحماية كاملة للبيانات والملفات" },
+    { icon: <FileCheck className="w-5 h-5" />, title: "عروض رقمية", desc: "إصدار وتوقيع عروض العمل إلكترونياً وبسرعة" },
   ];
 
   const mouseX = useMotionValue(0);
@@ -136,7 +136,7 @@ function BrandingPanel() {
 
   return (
     <div
-      className="hidden lg:flex flex-col justify-between h-full relative overflow-hidden"
+      className="hidden lg:flex flex-col justify-between h-full relative overflow-hidden p-14 select-none"
       onMouseMove={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         mouseX.set((e.clientX - rect.left) / rect.width);
@@ -145,182 +145,118 @@ function BrandingPanel() {
     >
       {/* Deep gradient background */}
       <div className="absolute inset-0" style={{
-        background: "linear-gradient(160deg, hsl(222 75% 18%) 0%, hsl(222 65% 12%) 40%, hsl(230 50% 6%) 100%)"
+        background: "radial-gradient(circle at 100% 0%, hsl(222 75% 15%) 0%, hsl(222 65% 10%) 50%, hsl(230 50% 5%) 100%)"
       }} />
 
-      {/* Mouse-following glow */}
+      {/* Mouse-following light */}
       <motion.div
-        className="absolute w-[500px] h-[500px] rounded-full pointer-events-none"
+        className="absolute w-[500px] h-[500px] rounded-full pointer-events-none opacity-[0.22]"
         style={{
           left: glowX, top: glowY,
-          background: "radial-gradient(circle, hsl(222 70% 50% / 0.12), transparent 60%)",
+          background: "radial-gradient(circle, hsl(160 84% 35%) 0%, transparent 60%)",
           filter: "blur(60px)",
           transform: "translate(-50%, -50%)",
         }}
       />
 
-      {/* Static glows */}
+      {/* Static Glows */}
       <div className="absolute inset-0">
         <motion.div
-          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full"
-          style={{ background: "radial-gradient(circle, hsl(222 70% 50% / 0.12), transparent 65%)", filter: "blur(80px)" }}
-          animate={{ scale: [1, 1.08, 1], opacity: [0.7, 1, 0.7] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full"
-          style={{ background: "radial-gradient(circle, hsl(174 60% 45% / 0.08), transparent 60%)", filter: "blur(60px)" }}
-          animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.9, 0.5] }}
+          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full opacity-[0.12] mix-blend-screen"
+          style={{ background: "radial-gradient(circle, hsl(172 75% 32%), transparent 70%)", filter: "blur(80px)" }}
+          animate={{ scale: [1, 1.1, 1], opacity: [0.1, 0.18, 0.1] }}
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
         />
+        <motion.div
+          className="absolute bottom-0 left-0 w-[450px] h-[450px] rounded-full opacity-[0.08] mix-blend-screen"
+          style={{ background: "radial-gradient(circle, hsl(160 84% 25%), transparent 70%)", filter: "blur(60px)" }}
+          animate={{ scale: [1.1, 1, 1.1], opacity: [0.06, 0.12, 0.06] }}
+          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+        />
       </div>
 
-      {/* Animated rings */}
-      <div className="absolute inset-0 overflow-hidden">
-        <motion.div
-          className="absolute rounded-full border"
-          style={{ width: 550, height: 550, top: "-12%", right: "-18%", borderColor: "hsl(0 0% 100% / 0.03)" }}
-          animate={{ rotate: 360 }}
-          transition={{ duration: 120, repeat: Infinity, ease: "linear" }}
-        />
-        <motion.div
-          className="absolute rounded-full border"
-          style={{ width: 380, height: 380, bottom: "-8%", left: "-14%", borderColor: "hsl(0 0% 100% / 0.02)" }}
-          animate={{ rotate: -360 }}
-          transition={{ duration: 90, repeat: Infinity, ease: "linear" }}
-        />
-        {/* Dot grid */}
-        <div className="absolute inset-0 opacity-[0.02]" style={{
-          backgroundImage: "radial-gradient(circle, hsl(0 0% 100%) 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
-        }} />
-      </div>
+      {/* Grid overlay */}
+      <div className="absolute inset-0 opacity-[0.015] pointer-events-none" style={{
+        backgroundImage: "radial-gradient(circle, hsl(0 0% 100%) 1px, transparent 1px)",
+        backgroundSize: "32px 32px",
+      }} />
 
-      {/* Content */}
-      <div className="relative z-10 px-12 xl:px-16 pt-14">
+      {/* Content Top */}
+      <div className="relative z-10">
         {/* Logo */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.8, filter: "blur(10px)" }}
-          animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-          className="flex items-center gap-4 mb-20"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="flex items-center gap-4 mb-16"
         >
           <motion.div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center border overflow-hidden p-2"
-            style={{
-              background: "linear-gradient(135deg, hsl(0 0% 100% / 0.15), hsl(0 0% 100% / 0.05))",
-              borderColor: "hsl(0 0% 100% / 0.12)",
-              backdropFilter: "blur(16px)",
-            }}
-            whileHover={{ scale: 1.1, borderColor: "hsl(174 60% 55% / 0.4)", rotate: -5 }}
+            className="w-14 h-14 rounded-2xl flex items-center justify-center border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl relative overflow-hidden group p-2.5 shadow-lg"
+            whileHover={{ scale: 1.06, borderColor: "hsla(160, 84%, 25%, 0.3)", rotate: -3 }}
             transition={{ type: "spring", stiffness: 400, damping: 15 }}
           >
-            <img src={tawzeefLogo} alt="Tawzeef-X" className="w-10 h-10 object-contain" style={{ filter: "drop-shadow(0 0 6px hsl(0 0% 100% / 0.3))" }} />
+            <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <img src={tawzeefLogo} alt="Tawzeef-X" className="w-10 h-10 object-contain relative z-10" />
           </motion.div>
           <div className="flex flex-col">
-            <span className="text-[22px] font-black tracking-wide leading-tight" style={{ color: "hsl(0 0% 100% / 0.95)", fontFamily: "'Cairo', sans-serif" }}>Tawzeef-X</span>
-            <span className="text-[11px] font-semibold tracking-[0.25em] uppercase" style={{ color: "hsl(174 60% 55% / 0.5)" }}>منصة التوظيف</span>
+            <span className="text-[22px] font-black tracking-wide leading-tight text-white/95">Tawzeef-X</span>
+            <span className="text-[11px] font-bold tracking-[0.2em] text-emerald-400/60 uppercase">منصة التوظيف الذكية</span>
           </div>
         </motion.div>
 
         {/* Hero text */}
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
+          initial={{ opacity: 0, y: 35 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.8, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+          className="space-y-6"
         >
           <motion.div
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8"
-            style={{ background: "hsl(0 0% 100% / 0.05)", border: "1px solid hsl(0 0% 100% / 0.07)" }}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.5, duration: 0.6 }}
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/[0.07] bg-white/[0.03] backdrop-blur-xl"
+            whileHover={{ scale: 1.02, borderColor: "rgba(16, 185, 129, 0.25)" }}
           >
-            <motion.div animate={{ rotate: [0, 15, -15, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}>
-              <Sparkles className="w-3.5 h-3.5" style={{ color: "hsl(174 60% 55%)" }} />
-            </motion.div>
-            <span className="text-[12px] font-bold tracking-wide" style={{ color: "hsl(0 0% 100% / 0.5)", fontFamily: "'Cairo', sans-serif" }}>
-              منصة التوظيف الذكية #1
-            </span>
-            <motion.div
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ background: "hsl(152 56% 50%)" }}
-              animate={{ scale: [1, 1.4, 1], opacity: [1, 0.5, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
+            <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+            <span className="text-xs font-bold text-white/80">منصة التوظيف الذكية #1</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
           </motion.div>
 
-          <div className="overflow-hidden">
-            <motion.h1
-              className="text-[46px] xl:text-[56px] font-black leading-[1.05]"
-              style={{ fontFamily: "'Cairo', sans-serif", color: "hsl(0 0% 100% / 0.95)" }}
-              initial={{ y: 60 }}
-              animate={{ y: 0 }}
-              transition={{ delay: 0.35, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            >
-              وظّف الأفضل
-            </motion.h1>
-          </div>
-          <div className="overflow-hidden">
-            <motion.div
-              className="text-[46px] xl:text-[56px] font-black leading-[1.05] mt-1"
-              style={{
-                background: "linear-gradient(135deg, hsl(174 60% 55%), hsl(222 70% 70%))",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                fontFamily: "'Cairo', sans-serif",
-              }}
-              initial={{ y: 60 }}
-              animate={{ y: 0 }}
-              transition={{ delay: 0.45, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            >
-              بذكاء وسرعة
-            </motion.div>
-          </div>
+          <h1 className="text-4xl xl:text-5xl font-black text-white leading-tight">
+            وظّف الأفضل <br />
+            <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
+              بذكاء وسرعة فائقة
+            </span>
+          </h1>
 
-          <motion.p
-            className="text-[15px] leading-[1.9] max-w-[380px] mb-12 mt-6"
-            style={{ color: "hsl(0 0% 100% / 0.35)", fontFamily: "'Cairo', sans-serif" }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7, duration: 0.8 }}
-          >
-            منصة متكاملة تعتمد على الذكاء الاصطناعي لأتمتة كامل رحلة التوظيف — من نشر الإعلان حتى توقيع العرض
-          </motion.p>
+          <p className="text-[15px] leading-relaxed text-white/60 max-w-[420px]">
+            منصة متكاملة تعتمد على الذكاء الاصطناعي لأتمتة كامل رحلة التوظيف — من نشر الإعلان وفحص السير الذاتية وحتى توقيع العقود.
+          </p>
         </motion.div>
 
-        {/* Feature cards */}
-        <div className="grid grid-cols-2 gap-3.5 max-w-[420px]">
+        {/* Features cards */}
+        <div className="grid grid-cols-2 gap-4 mt-12 max-w-[460px]">
           {features.map((f, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, y: 24, scale: 0.9 }}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: 0.7 + i * 0.1, duration: 0.5, type: "spring", stiffness: 200, damping: 20 }}
-              className="group p-4 rounded-2xl cursor-default relative overflow-hidden"
-              style={{ background: "hsl(0 0% 100% / 0.03)", border: "1px solid hsl(0 0% 100% / 0.05)" }}
+              transition={{ delay: 0.3 + i * 0.1, duration: 0.5, type: "spring", stiffness: 180, damping: 18 }}
+              className="p-4.5 rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-xl relative overflow-hidden group"
               whileHover={{
-                y: -5, scale: 1.04,
-                backgroundColor: "hsla(0, 0%, 100%, 0.07)",
-                borderColor: "hsla(174, 60%, 55%, 0.2)",
-                boxShadow: "0 12px 40px -10px hsla(174, 60%, 55%, 0.12)",
-                transition: { duration: 0.25 },
+                y: -6,
+                scale: 1.02,
+                backgroundColor: "rgba(255, 255, 255, 0.05)",
+                borderColor: "rgba(16, 185, 129, 0.25)",
+                boxShadow: "0 15px 30px -10px rgba(16, 185, 129, 0.15)",
               }}
             >
-              <motion.div
-                className="w-9 h-9 rounded-xl flex items-center justify-center mb-3"
-                style={{ background: "hsl(0 0% 100% / 0.05)", color: "hsl(174 60% 55%)" }}
-                whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
-                transition={{ duration: 0.5 }}
-              >
+              {/* Glow overlay */}
+              <div className="absolute -inset-px bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" />
+
+              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 text-emerald-400 group-hover:scale-110 transition-transform duration-300 relative z-10">
                 {f.icon}
-              </motion.div>
-              <p className="text-[14px] font-bold mb-0.5" style={{ color: "hsl(0 0% 100% / 0.85)", fontFamily: "'Cairo', sans-serif" }}>
-                {f.title}
-              </p>
-              <p className="text-[12px] font-medium leading-relaxed" style={{ color: "hsl(0 0% 100% / 0.25)", fontFamily: "'Cairo', sans-serif" }}>
-                {f.desc}
-              </p>
+              </div>
+              <h3 className="text-sm font-bold text-white/95 mb-1 relative z-10">{f.title}</h3>
+              <p className="text-xs text-white/50 leading-normal relative z-10">{f.desc}</p>
             </motion.div>
           ))}
         </div>
@@ -330,15 +266,11 @@ function BrandingPanel() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.9, duration: 0.6 }}
-        className="relative z-10 mx-12 xl:mx-16 mb-12 p-5 rounded-2xl"
-        style={{
-          background: "hsl(0 0% 100% / 0.03)",
-          border: "1px solid hsl(0 0% 100% / 0.05)",
-          backdropFilter: "blur(8px)",
-        }}
+        transition={{ delay: 0.7, duration: 0.6 }}
+        className="relative z-10 p-6 rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-2xl shadow-xl overflow-hidden"
       >
-        <div className="flex items-center justify-between">
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-cyan-500/5 opacity-50" />
+        <div className="flex items-center justify-between relative z-10">
           {[
             { val: "AI", label: "تقييم ذكي" },
             { val: "24/7", label: "دعم متواصل" },
@@ -348,20 +280,14 @@ function BrandingPanel() {
             <motion.div
               key={i}
               className="text-center"
-              whileHover={{ scale: 1.08 }}
-              transition={{ type: "spring", stiffness: 300 }}
+              whileHover={{ scale: 1.05 }}
             >
-              <p className="text-[24px] xl:text-[28px] font-black leading-tight" style={{
-                fontFamily: "'Cairo', sans-serif",
-                background: "linear-gradient(180deg, hsl(0 0% 100% / 0.95), hsl(0 0% 100% / 0.55))",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}>
+              <span className="text-2xl xl:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60 leading-none block">
                 {s.val}
-              </p>
-              <p className="text-[11px] font-semibold mt-0.5" style={{ color: "hsl(0 0% 100% / 0.25)", fontFamily: "'Cairo', sans-serif" }}>
+              </span>
+              <span className="text-[10px] font-bold text-white/40 block mt-1">
                 {s.label}
-              </p>
+              </span>
             </motion.div>
           ))}
         </div>
@@ -386,19 +312,18 @@ function SocialButtons() {
 
   return (
     <div className="flex gap-3">
-      <motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.97 }} className="flex-1">
+      <motion.div whileHover={{ scale: 1.01, y: -1 }} whileTap={{ scale: 0.98 }} className="flex-1">
         <Button
           type="button"
           variant="outline"
           disabled={!!loadingProvider}
-          className="w-full h-[50px] rounded-xl text-[13px] font-bold gap-2.5 bg-card border-2 border-border/70 text-foreground hover:bg-muted/50 hover:border-primary/25 hover:shadow-lg transition-all duration-300"
-          style={{ fontFamily: "'Cairo', sans-serif" }}
+          className="w-full h-11 rounded-xl text-xs font-bold gap-2.5 bg-card/50 border border-border/70 text-foreground hover:bg-muted/40 hover:border-primary/30 transition-all duration-300"
           onClick={() => handleOAuth("google")}
         >
           {loadingProvider === "google" ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin text-primary" />
           ) : (
-            <svg className="w-[16px] h-[16px]" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
@@ -409,19 +334,18 @@ function SocialButtons() {
         </Button>
       </motion.div>
 
-      <motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.97 }} className="flex-1">
+      <motion.div whileHover={{ scale: 1.01, y: -1 }} whileTap={{ scale: 0.98 }} className="flex-1">
         <Button
           type="button"
           variant="outline"
           disabled={!!loadingProvider}
-          className="w-full h-[50px] rounded-xl text-[13px] font-bold gap-2.5 bg-foreground text-background border-2 border-foreground hover:bg-foreground/90 hover:shadow-lg transition-all duration-300"
-          style={{ fontFamily: "'Cairo', sans-serif" }}
+          className="w-full h-11 rounded-xl text-xs font-bold gap-2.5 bg-foreground text-background border border-foreground hover:bg-foreground/90 transition-all duration-300"
           onClick={() => handleOAuth("apple")}
         >
           {loadingProvider === "apple" ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
-            <svg className="w-[16px] h-[16px]" viewBox="0 0 24 24" fill="currentColor">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
             </svg>
           )}
@@ -458,7 +382,7 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
       countdownRef.current = setInterval(() => setCountdown(c => { if (c <= 1) { clearInterval(countdownRef.current!); return 0; } return c - 1; }), 1000);
       return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
     }
-  }, [countdown > 0 ? 1 : 0]);
+  }, [countdown > 0]);
 
   const requestLoginOtp = useCallback(async (email: string) => {
     const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/request-login-otp`;
@@ -515,7 +439,7 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
         if (isTrustedDevice(normalizedEmail)) {
           setPendingPassword("");
           setPendingOtp(false);
-          confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#2563eb", "#14b8a6", "#f59e0b"] });
+          confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
           toast({ title: "تم تسجيل الدخول ✅", description: "جهاز موثوق — تم تخطي التحقق" });
           logAuditEvent({ eventType: "login.success", userId: loginData.user?.id, userEmail: normalizedEmail, details: { method: "trusted_device" } });
           const accountType = loginData.session?.user?.user_metadata?.account_type;
@@ -542,7 +466,7 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
           ) {
             setPendingPassword("");
             setPendingOtp(false);
-            confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#2563eb", "#14b8a6", "#f59e0b"] });
+            confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
             toast({
               title: "تم تسجيل الدخول ✅",
               description: "تم تخطي التحقق الثنائي لعدم تهيئة بريد SMTP في الخادم",
@@ -574,7 +498,7 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
             body: { email: form.email, fullName: form.fullName, accountType },
           }).catch(console.error);
 
-          confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 }, colors: ["#2563eb", "#14b8a6", "#f59e0b", "#ef4444", "#8b5cf6"] });
+          confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b", "#ef4444", "#8b5cf6"] });
           setTimeout(() => confetti({ particleCount: 60, spread: 100, origin: { y: 0.5, x: 0.3 } }), 300);
           setTimeout(() => confetti({ particleCount: 60, spread: 100, origin: { y: 0.5, x: 0.7 } }), 500);
           toast({ title: "مرحباً بك! 🎉", description: "تم إنشاء حسابك بنجاح — تحقق من بريدك الإلكتروني" });
@@ -621,7 +545,7 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
       if (rememberDevice) trustDevice(otpEmail);
       setPendingPassword("");
       setPendingOtp(false);
-      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#2563eb", "#14b8a6", "#f59e0b"] });
+      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
       toast({ title: "تم التحقق بنجاح ✅" });
       const accountType = loginData.session?.user?.user_metadata?.account_type;
       navigate(accountType === "job_seeker" ? "/seeker-dashboard" : "/dashboard");
@@ -644,9 +568,7 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
 
     setOtpLoading(true);
     try {
-      // No auth needed - just call the function directly
       await requestLoginOtp(otpEmail);
-
       setCountdown(60);
       toast({ title: "تم إعادة إرسال الرمز ✉️", description: "تحقق من آخر رسالة في بريدك الإلكتروني" });
     } catch (error: any) {
@@ -660,535 +582,477 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
     `h-[48px] pr-11 rounded-xl text-[14px] font-medium transition-all duration-300 border-2 focus-visible:ring-0 focus-visible:ring-offset-0 ${
       focused(field)
         ? "bg-card border-primary/50 shadow-[0_0_0_4px_hsl(var(--primary)/0.06)]"
-        : "bg-muted/25 border-transparent hover:border-border/50"
-    } text-foreground placeholder:text-muted-foreground/40`;
+        : "bg-muted/20 border-transparent hover:border-border/40"
+    } text-foreground placeholder:text-muted-foreground/35`;
 
   const iconClass = (field: string) =>
-    `absolute right-3.5 top-1/2 -translate-y-1/2 w-[16px] h-[16px] transition-all duration-300 ${
-      focused(field) ? "text-primary scale-110" : "text-muted-foreground/35"
+    `absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-all duration-300 ${
+      focused(field) ? "text-primary scale-110" : "text-muted-foreground/40"
     }`;
 
   return (
-    <div className="w-full max-w-[420px] mx-auto px-5 sm:px-6 lg:px-8">
+    <div className="w-full max-w-[440px] mx-auto px-4 select-none">
       {/* Mobile logo */}
-      <div className="lg:hidden text-center mb-10">
+      <div className="lg:hidden text-center mb-8">
         <motion.div
-          initial={{ opacity: 0, scale: 0.8, filter: "blur(8px)" }}
-          animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6 }}
           className="flex flex-col items-center gap-3"
         >
           <motion.div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden p-2"
-            style={{
-              background: "linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--primary) / 0.03))",
-              border: "2px solid hsl(var(--primary) / 0.12)",
-            }}
+            className="w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden p-2 bg-gradient-to-tr from-primary/10 to-accent/10 border border-primary/15"
             whileTap={{ scale: 0.95 }}
           >
             <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
           </motion.div>
           <div>
-            <h1 className="text-[20px] font-black text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>Tawzeef-X</h1>
-            <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-primary/50">منصة التوظيف</p>
+            <h1 className="text-xl font-black text-foreground">Tawzeef-X</h1>
+            <p className="text-[10px] font-bold tracking-[0.25em] text-primary/60 uppercase">منصة التوظيف الذكية</p>
           </div>
         </motion.div>
       </div>
 
-      {emailConfirmation ? (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, filter: "blur(8px)" }}
-          animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-          className="text-center py-8"
-        >
+      <div className="bg-card/60 backdrop-blur-xl border border-border/50 shadow-2xl rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden">
+        {/* Decorative subtle border glow */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/20 to-transparent pointer-events-none" />
+
+        {emailConfirmation ? (
           <motion.div
-            initial={{ scale: 0, rotate: -90 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: "spring", stiffness: 250, damping: 18, delay: 0.1 }}
-            className="flex items-center justify-center mx-auto mb-6"
-            style={{ width: 80, height: 80, borderRadius: "24px", background: "linear-gradient(135deg, hsl(var(--accent) / 0.12), hsl(var(--primary) / 0.08))" }}
-          >
-            <CheckCircle2 className="w-10 h-10 text-accent" />
-          </motion.div>
-          <h2 className="text-[26px] font-black text-foreground mb-3" style={{ fontFamily: "'Cairo', sans-serif" }}>
-            تحقق من بريدك الإلكتروني ✉️
-          </h2>
-          <p className="text-muted-foreground text-[15px] font-medium mb-2 max-w-[340px] mx-auto leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
-            أرسلنا رابط تأكيد إلى
-          </p>
-          <p className="font-bold text-foreground text-[15px] mb-6" dir="ltr">{emailConfirmation}</p>
-          <p className="text-muted-foreground text-[13px] font-medium mb-6 max-w-[300px] mx-auto" style={{ fontFamily: "'Cairo', sans-serif" }}>
-            اضغط على الرابط في البريد لتفعيل حسابك، ثم سجّل دخولك
-          </p>
-          <Button
-            variant="outline"
-            onClick={() => { setEmailConfirmation(null); setIsLogin(true); }}
-            className="rounded-xl h-[48px] px-8 text-[14px] font-semibold"
-            style={{ fontFamily: "'Cairo', sans-serif" }}
-          >
-            العودة لتسجيل الدخول
-          </Button>
-        </motion.div>
-      ) : otpStep ? (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, filter: "blur(8px)" }}
-          animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-          className="text-center py-8"
-        >
-          <motion.div
-            initial={{ scale: 0, rotate: -90 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: "spring", stiffness: 250, damping: 18, delay: 0.1 }}
-            className="flex items-center justify-center mx-auto mb-6"
-            style={{ width: 80, height: 80, borderRadius: "24px", background: "linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--accent) / 0.08))" }}
-          >
-            <KeyRound className="w-10 h-10 text-primary" />
-          </motion.div>
-          <h2 className="text-[26px] font-black text-foreground mb-3" style={{ fontFamily: "'Cairo', sans-serif" }}>
-            التحقق بخطوتين 🔐
-          </h2>
-          <p className="text-muted-foreground text-[15px] font-medium mb-2 max-w-[340px] mx-auto leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
-            أرسلنا رمز تحقق إلى
-          </p>
-          <p className="font-bold text-foreground text-[15px] mb-6" dir="ltr">{otpEmail}</p>
-          
-          <div className={`max-w-[280px] mx-auto mb-6 ${otpShake ? "animate-shake" : ""}`}>
-            <Input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
-              placeholder="000000"
-              className={`text-center text-[28px] font-bold tracking-[0.5em] h-[56px] rounded-xl border-2 focus-visible:ring-0 transition-colors duration-300 ${
-                otpShake
-                  ? "border-destructive bg-destructive/5 focus-visible:border-destructive"
-                  : "border-border/70 focus-visible:border-primary/50"
-              }`}
-              style={{ fontFamily: "monospace" }}
-              dir="ltr"
-              autoFocus
-            />
-          </div>
-
-          <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.97 }}>
-            <Button
-              onClick={handleVerifyOtp}
-              disabled={otpLoading || otpCode.length < 6}
-              className="w-full max-w-[280px] h-[50px] rounded-xl text-[15px] font-bold text-primary-foreground"
-              style={{
-                fontFamily: "'Cairo', sans-serif",
-                background: "linear-gradient(135deg, hsl(var(--primary)), hsl(222 55% 56%))",
-                boxShadow: "0 8px 32px -8px hsl(var(--primary) / 0.35)",
-              }}
-            >
-              {otpLoading ? (
-                <span className="inline-flex items-center gap-2.5">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  جاري التحقق...
-                </span>
-              ) : "تأكيد الرمز"}
-            </Button>
-          </motion.div>
-
-          {/* Remember device checkbox */}
-          <div className="flex items-center justify-center gap-2.5 mt-4 max-w-[280px] mx-auto">
-            <Checkbox
-              id="remember-device"
-              checked={rememberDevice}
-              onCheckedChange={(v) => setRememberDevice(!!v)}
-              className="border-border/70"
-            />
-            <label
-              htmlFor="remember-device"
-              className="text-[12px] text-muted-foreground font-medium cursor-pointer flex items-center gap-1.5"
-              style={{ fontFamily: "'Cairo', sans-serif" }}
-            >
-              <Monitor className="w-3.5 h-3.5" />
-              تذكر هذا الجهاز لمدة 30 يوماً
-            </label>
-          </div>
-
-          <div className="flex items-center justify-center gap-4 mt-5">
-            {countdown > 0 ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center gap-2"
-              >
-                <div className="relative w-14 h-14">
-                  {/* Background circle */}
-                  <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
-                    <circle cx="28" cy="28" r="24" fill="none" strokeWidth="3" className="stroke-muted/20" />
-                    <motion.circle
-                      cx="28" cy="28" r="24" fill="none" strokeWidth="3"
-                      strokeLinecap="round"
-                      className="stroke-primary"
-                      style={{
-                        strokeDasharray: 2 * Math.PI * 24,
-                        strokeDashoffset: 2 * Math.PI * 24 * (1 - countdown / 60),
-                        filter: "drop-shadow(0 0 4px hsl(var(--primary) / 0.4))",
-                      }}
-                    />
-                  </svg>
-                  {/* Timer text */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-[15px] font-black text-foreground tabular-nums" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                      {countdown}
-                    </span>
-                  </div>
-                </div>
-                <span className="text-[11px] text-muted-foreground/50 font-medium" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                  إعادة الإرسال
-                </span>
-              </motion.div>
-            ) : (
-              <motion.button
-                onClick={handleResendOtp}
-                disabled={otpLoading}
-                className="text-[13px] text-primary/70 hover:text-primary transition-colors font-semibold px-4 py-2 rounded-lg hover:bg-primary/5"
-                style={{ fontFamily: "'Cairo', sans-serif" }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                إعادة إرسال الرمز ✉️
-              </motion.button>
-            )}
-            <span className="text-muted-foreground/20">|</span>
-            <button
-              onClick={() => { setOtpStep(false); setOtpCode(""); setOtpEmail(""); setPendingPassword(""); setCountdown(0); setPendingOtp(false); }}
-              className="text-[13px] text-muted-foreground hover:text-foreground transition-colors font-semibold"
-              style={{ fontFamily: "'Cairo', sans-serif" }}
-            >
-              العودة
-            </button>
-          </div>
-        </motion.div>
-      ) : (
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-      >
-        {/* Back link */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="hidden lg:block mb-10"
-        >
-          <a href="/" className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors font-medium group" style={{ fontFamily: "'Cairo', sans-serif" }}>
-            <motion.div whileHover={{ x: -3 }} transition={{ type: "spring", stiffness: 300 }}>
-              <ArrowLeft className="w-3.5 h-3.5" />
-            </motion.div>
-            العودة للرئيسية
-          </a>
-        </motion.div>
-
-        {/* Header */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={isLogin ? "login-header" : "signup-header"}
-            initial={{ opacity: 0, y: 20, filter: "blur(6px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: -20, filter: "blur(6px)" }}
-            transition={{ duration: 0.4 }}
-            className="mb-8"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-6 space-y-6"
           >
             <motion.div
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full mb-4"
-              style={{ background: "hsl(var(--primary) / 0.06)", border: "1px solid hsl(var(--primary) / 0.1)" }}
-              whileHover={{ scale: 1.03 }}
+              initial={{ scale: 0, rotate: -95 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.15 }}
+              className="flex items-center justify-center mx-auto"
+              style={{ width: 72, height: 72, borderRadius: "20px", background: "linear-gradient(135deg, hsl(var(--accent) / 0.1), hsl(var(--primary) / 0.05))" }}
             >
-              <Briefcase className="w-3.5 h-3.5 text-primary/60" />
-              <span className="text-[12px] font-bold text-primary/70 tracking-wide" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                {isLogin ? "مرحباً بعودتك" : "انضم إلينا"}
-              </span>
+              <CheckCircle2 className="w-9 h-9 text-accent animate-pulse" />
             </motion.div>
-            <h2 className="text-[28px] sm:text-[32px] font-black text-foreground mb-2 leading-tight" style={{ fontFamily: "'Cairo', sans-serif" }}>
-              {isLogin ? "تسجيل الدخول" : "إنشاء حساب جديد"}
-            </h2>
-            <p className="text-muted-foreground text-[14px] font-medium leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
-              {isLogin ? "أدخل بياناتك للوصول إلى لوحة التحكم" : "ابدأ رحلتك مع التوظيف الذكي"}
-            </p>
+            
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black text-foreground">
+                تأكيد البريد الإلكتروني ✉️
+              </h2>
+              <p className="text-muted-foreground text-sm leading-relaxed max-w-[320px] mx-auto">
+                أرسلنا رابط تأكيد الحساب للبريد التالي. يرجى تفقده لإتمام عملية التسجيل:
+              </p>
+              <p className="font-bold text-foreground text-sm tracking-wide" dir="ltr">{emailConfirmation}</p>
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={() => { setEmailConfirmation(null); setIsLogin(true); }}
+              className="rounded-xl h-11 px-8 text-xs font-bold"
+            >
+              العودة لتسجيل الدخول
+            </Button>
           </motion.div>
-        </AnimatePresence>
-
-
-
-
-        {/* Form */}
-        <AnimatePresence mode="wait">
-          <motion.form
-            key={isLogin ? "login" : "signup"}
-            initial={{ opacity: 0, x: isLogin ? -24 : 24, filter: "blur(4px)" }}
-            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, x: isLogin ? 24 : -24, filter: "blur(4px)" }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            onSubmit={handleSubmit}
-            className="space-y-3.5"
+        ) : otpStep ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-4 space-y-6"
           >
-            {!isLogin && (
-              <>
-                {/* Account Type Toggle */}
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <label className="text-[11px] font-bold text-foreground/50 mb-2 block tracking-wide" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                    نوع الحساب
-                  </label>
-                  <div className="flex bg-muted/30 rounded-xl p-1 border border-border/30 gap-1">
-                    {[
-                      { type: "company" as const, icon: <Building2 className="w-3.5 h-3.5" />, label: "شركة / HR" },
-                      { type: "job_seeker" as const, icon: <User className="w-3.5 h-3.5" />, label: "باحث عن عمل" },
-                    ].map((opt) => (
-                      <motion.button
-                        key={opt.type}
-                        type="button"
-                        onClick={() => setAccountType(opt.type)}
-                        className={`flex-1 py-2 rounded-lg text-[12px] font-bold transition-all duration-300 flex items-center justify-center gap-1.5 ${
-                          accountType === opt.type ? "bg-card text-foreground shadow-sm border border-border/40" : "text-muted-foreground hover:text-foreground"
-                        }`}
-                        style={{ fontFamily: "'Cairo', sans-serif" }}
-                        whileTap={{ scale: 0.97 }}
-                      >
-                        {opt.icon}
-                        {opt.label}
-                      </motion.button>
-                    ))}
-                  </div>
-                </motion.div>
+            <motion.div
+              initial={{ scale: 0, rotate: -90 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.1 }}
+              className="flex items-center justify-center mx-auto"
+              style={{ width: 72, height: 72, borderRadius: "20px", background: "linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--accent) / 0.05))" }}
+            >
+              <KeyRound className="w-9 h-9 text-primary" />
+            </motion.div>
 
-                {/* Full Name */}
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3 }}
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black text-foreground">
+                التحقق الثنائي 🔐
+              </h2>
+              <p className="text-muted-foreground text-sm max-w-[320px] mx-auto">
+                أرسلنا رمز تحقق مؤقت مكون من 6 أرقام إلى بريدك الإلكتروني:
+              </p>
+              <p className="font-bold text-foreground text-sm" dir="ltr">{otpEmail}</p>
+            </div>
+            
+            <div className={`max-w-[280px] mx-auto ${otpShake ? "animate-shake" : ""}`}>
+              <Input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="000000"
+                className={`text-center text-[28px] font-bold tracking-[0.5em] h-[52px] rounded-xl border-2 focus-visible:ring-0 transition-colors duration-300 ${
+                  otpShake
+                    ? "border-destructive bg-destructive/5 focus-visible:border-destructive text-destructive"
+                    : "border-border focus-visible:border-primary/50 text-foreground"
+                }`}
+                style={{ fontFamily: "monospace" }}
+                dir="ltr"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-4">
+              <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  onClick={handleVerifyOtp}
+                  disabled={otpLoading || otpCode.length < 6}
+                  className="w-full h-11 rounded-xl text-xs font-bold text-primary-foreground shadow-lg hover:shadow-primary/20 transition-all duration-300"
+                  style={{
+                    background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))",
+                  }}
                 >
-                  <label className="text-[11px] font-bold text-foreground/50 mb-1.5 block tracking-wide" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                    الاسم الكامل
+                  {otpLoading ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      جاري التحقق...
+                    </span>
+                  ) : "تأكيد الرمز ودخول"}
+                </Button>
+              </motion.div>
+
+              {/* Remember device checkbox */}
+              <div className="flex items-center justify-center gap-2">
+                <Checkbox
+                  id="remember-device"
+                  checked={rememberDevice}
+                  onCheckedChange={(v) => setRememberDevice(!!v)}
+                  className="border-border rounded"
+                />
+                <label
+                  htmlFor="remember-device"
+                  className="text-xs text-muted-foreground font-semibold cursor-pointer flex items-center gap-1.5"
+                >
+                  <Monitor className="w-3.5 h-3.5 text-muted-foreground/60" />
+                  تذكر هذا الجهاز لمدة 30 يوماً
+                </label>
+              </div>
+            </div>
+
+            <div className="border-t border-border/40 pt-4 flex items-center justify-center gap-4">
+              {countdown > 0 ? (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex items-center gap-2 text-xs font-bold text-muted-foreground"
+                >
+                  <span>إعادة الإرسال بعد {countdown} ثانية</span>
+                </motion.div>
+              ) : (
+                <motion.button
+                  onClick={handleResendOtp}
+                  disabled={otpLoading}
+                  className="text-xs text-primary hover:text-primary-foreground hover:bg-primary/10 transition-colors font-bold px-3 py-1.5 rounded-lg"
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  إعادة إرسال الرمز ✉️
+                </motion.button>
+              )}
+              <span className="text-muted-foreground/20">|</span>
+              <button
+                onClick={() => { setOtpStep(false); setOtpCode(""); setOtpEmail(""); setPendingPassword(""); setCountdown(0); setPendingOtp(false); }}
+                className="text-xs text-muted-foreground hover:text-foreground font-bold px-2 py-1"
+              >
+                العودة
+              </button>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-6"
+          >
+            {/* Back link */}
+            <div className="hidden lg:block">
+              <a href="/" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-all duration-300 font-medium group">
+                <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform duration-300" />
+                <span>العودة للرئيسية</span>
+              </a>
+            </div>
+
+            {/* Header */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={isLogin ? "login-header" : "signup-header"}
+                initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
+                transition={{ duration: 0.3 }}
+                className="space-y-1.5 text-right"
+              >
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-primary/15 bg-primary/[0.04] text-primary mb-1">
+                  <Briefcase className="w-3 h-3" />
+                  <span className="text-[10px] font-bold tracking-wide">
+                    {isLogin ? "مرحباً بعودتك" : "انضم إلينا اليوم"}
+                  </span>
+                </div>
+                <h2 className="text-2xl font-black text-foreground tracking-tight leading-tight">
+                  {isLogin ? "تسجيل الدخول" : "إنشاء حساب جديد"}
+                </h2>
+                <p className="text-muted-foreground text-xs leading-normal">
+                  {isLogin ? "أدخل بريدك الإلكتروني وكلمة المرور للوصول لحسابك" : "ابدأ رحلتك في التوظيف الذكي وتتبع المرشحين"}
+                </p>
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Form */}
+            <AnimatePresence mode="wait">
+              <motion.form
+                key={isLogin ? "login" : "signup"}
+                initial={{ opacity: 0, x: isLogin ? -15 : 15, filter: "blur(2px)" }}
+                animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, x: isLogin ? 15 : -15, filter: "blur(2px)" }}
+                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                onSubmit={handleSubmit}
+                className="space-y-4"
+              >
+                {!isLogin && (
+                  <div className="space-y-4">
+                    {/* Account Type Toggle */}
+                    <div className="space-y-1.5 text-right">
+                      <label className="text-[10px] font-bold text-muted-foreground tracking-wide block uppercase">
+                        نوع الحساب
+                      </label>
+                      <div className="flex bg-muted/40 rounded-xl p-1 border border-border/30 relative overflow-hidden h-[42px] select-none">
+                        <div
+                          className="absolute inset-y-1 rounded-lg bg-card shadow-sm border border-border/40 transition-all duration-300 ease-out"
+                          style={{
+                            width: "calc(50% - 4px)",
+                            right: accountType === "company" ? "4px" : "calc(50% + 2px)",
+                            left: accountType === "company" ? "calc(50% + 2px)" : "4px"
+                          }}
+                        />
+                        {[
+                          { type: "company" as const, icon: <Building2 className="w-3.5 h-3.5" />, label: "جهة توظيف / HR" },
+                          { type: "job_seeker" as const, icon: <User className="w-3.5 h-3.5" />, label: "باحث عن عمل" },
+                        ].map((opt) => (
+                          <button
+                            key={opt.type}
+                            type="button"
+                            onClick={() => setAccountType(opt.type)}
+                            className={`flex-1 py-1 rounded-lg text-xs font-bold transition-colors duration-300 flex items-center justify-center gap-1.5 relative z-10 ${
+                              accountType === opt.type ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            {opt.icon}
+                            <span>{opt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Full Name */}
+                    <div className="space-y-1.5 text-right">
+                      <label className="text-[10px] font-bold text-muted-foreground tracking-wide block uppercase">
+                        الاسم الكامل
+                      </label>
+                      <div className="relative">
+                        <User className={iconClass("name")} />
+                        <Input
+                          value={form.fullName}
+                          onChange={e => setForm({ ...form, fullName: e.target.value })}
+                          onFocus={() => setFocusedField("name")}
+                          onBlur={() => setFocusedField(null)}
+                          placeholder="أدخل الاسم الثنائي أو الثلاثي"
+                          className={inputClass("name")}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Company Name (only for company accounts) */}
+                    {accountType === "company" && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className="space-y-1.5 text-right"
+                      >
+                        <label className="text-[10px] font-bold text-muted-foreground tracking-wide block uppercase">
+                          اسم الشركة / المؤسسة
+                        </label>
+                        <div className="relative">
+                          <Building2 className={iconClass("companyName")} />
+                          <Input
+                            value={form.companyName}
+                            onChange={e => setForm({ ...form, companyName: e.target.value })}
+                            onFocus={() => setFocusedField("companyName")}
+                            onBlur={() => setFocusedField(null)}
+                            placeholder="مثال: شركة الحلول الذكية"
+                            className={inputClass("companyName")}
+                            required
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                )}
+
+                {/* Email */}
+                <div className="space-y-1.5 text-right">
+                  <label className="text-[10px] font-bold text-muted-foreground tracking-wide block uppercase">
+                    البريد الإلكتروني
                   </label>
                   <div className="relative">
-                    <User className={iconClass("name")} />
+                    <Mail className={iconClass("email")} />
                     <Input
-                      value={form.fullName}
-                      onChange={e => setForm({ ...form, fullName: e.target.value })}
-                      onFocus={() => setFocusedField("name")}
+                      type="email"
+                      value={form.email}
+                      onChange={e => setForm({ ...form, email: e.target.value })}
+                      onFocus={() => setFocusedField("email")}
                       onBlur={() => setFocusedField(null)}
-                      placeholder="أدخل اسمك الكامل"
-                      className={inputClass("name")}
-                      style={{ fontFamily: "'Cairo', sans-serif" }}
+                      placeholder="example@company.com"
+                      className={inputClass("email")}
+                      dir="ltr"
                       required
                     />
                   </div>
-                </motion.div>
+                </div>
 
-                {/* Company Name (only for company accounts) */}
-                {accountType === "company" && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <label className="text-[11px] font-bold text-foreground/50 mb-1.5 block tracking-wide" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                      اسم الشركة / المؤسسة
-                    </label>
-                    <div className="relative">
-                      <Building2 className={iconClass("companyName")} />
-                      <Input
-                        value={form.companyName}
-                        onChange={e => setForm({ ...form, companyName: e.target.value })}
-                        onFocus={() => setFocusedField("companyName")}
-                        onBlur={() => setFocusedField(null)}
-                        placeholder="مثال: شركة التقنية المتقدمة"
-                        className={inputClass("companyName")}
-                        style={{ fontFamily: "'Cairo', sans-serif" }}
-                        required
-                      />
-                    </div>
-                  </motion.div>
+                {/* Password */}
+                <div className="space-y-1.5 text-right">
+                  <label className="text-[10px] font-bold text-muted-foreground tracking-wide block uppercase">
+                    كلمة المرور
+                  </label>
+                  <div className="relative">
+                    <Lock className={iconClass("password")} />
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      value={form.password}
+                      onChange={e => setForm({ ...form, password: e.target.value })}
+                      onFocus={() => setFocusedField("password")}
+                      onBlur={() => setFocusedField(null)}
+                      placeholder="••••••••"
+                      className={`${inputClass("password")} pl-11`}
+                      dir="ltr"
+                      minLength={8}
+                      required
+                    />
+                    <motion.button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/35 hover:text-foreground transition-all duration-200"
+                      whileTap={{ scale: 0.85 }}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </motion.button>
+                  </div>
+
+                  {/* Password Strength Meter */}
+                  {!isLogin && form.password.length > 0 && (() => {
+                    const strength = checkPasswordStrength(form.password);
+                    return (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        className="mt-2 space-y-1"
+                      >
+                        <div className="flex gap-1">
+                          {[0, 1, 2, 3].map((i) => (
+                            <div
+                              key={i}
+                              className="h-1.5 flex-1 rounded-full transition-all duration-300"
+                              style={{ background: i < strength.score ? strength.color : "hsl(var(--muted))" }}
+                            />
+                          ))}
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] font-bold">
+                          <span style={{ color: strength.color }}>{strength.label}</span>
+                          {strength.suggestions.length > 0 && (
+                            <span className="text-muted-foreground/60">{strength.suggestions[0]}</span>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })()}
+                </div>
+
+                {isLogin && (
+                  <div className="flex justify-end text-right">
+                    <Link
+                      to="/forgot-password"
+                      className="text-xs text-primary hover:text-accent font-bold transition-colors"
+                    >
+                      نسيت كلمة المرور؟
+                    </Link>
+                  </div>
                 )}
-              </>
-            )}
 
-            <div>
-              <label className="text-[11px] font-bold text-foreground/50 mb-1.5 block tracking-wide" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                البريد الإلكتروني
-              </label>
-              <div className="relative">
-                <Mail className={iconClass("email")} />
-                <Input
-                  type="email"
-                  value={form.email}
-                  onChange={e => setForm({ ...form, email: e.target.value })}
-                  onFocus={() => setFocusedField("email")}
-                  onBlur={() => setFocusedField(null)}
-                  placeholder="example@company.com"
-                  className={inputClass("email")}
-                  style={{ fontFamily: "'Cairo', sans-serif" }}
-                  dir="ltr"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-[11px] font-bold text-foreground/50 mb-1.5 block tracking-wide" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                كلمة المرور
-              </label>
-              <div className="relative">
-                <Lock className={iconClass("password")} />
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  value={form.password}
-                  onChange={e => setForm({ ...form, password: e.target.value })}
-                  onFocus={() => setFocusedField("password")}
-                  onBlur={() => setFocusedField(null)}
-                  placeholder="••••••••"
-                  className={`${inputClass("password")} pl-11`}
-                  style={{ fontFamily: "'Cairo', sans-serif" }}
-                  dir="ltr"
-                  minLength={8}
-                  required
-                />
-                <motion.button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/35 hover:text-foreground transition-all duration-200"
-                  whileTap={{ scale: 0.85 }}
-                >
-                  {showPassword ? <EyeOff className="w-[16px] h-[16px]" /> : <Eye className="w-[16px] h-[16px]" />}
-                </motion.button>
-              </div>
-              {/* Password Strength Meter - signup only */}
-              {!isLogin && form.password.length > 0 && (() => {
-                const strength = checkPasswordStrength(form.password);
-                return (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    className="mt-2 space-y-1.5"
+                <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }} className="pt-2">
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full h-11 rounded-xl text-xs font-bold border-0 text-white shadow-lg hover:shadow-primary/10 transition-all duration-300 relative overflow-hidden group"
+                    style={{
+                      background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))",
+                    }}
                   >
-                    <div className="flex gap-1">
-                      {[0, 1, 2, 3].map((i) => (
-                        <div
-                          key={i}
-                          className="h-1.5 flex-1 rounded-full transition-all duration-300"
-                          style={{
-                            background: i < strength.score ? strength.color : "hsl(var(--muted))",
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold" style={{ color: strength.color, fontFamily: "'Cairo', sans-serif" }}>
-                        {strength.label}
-                      </span>
-                      {strength.suggestions.length > 0 && (
-                        <span className="text-[10px] text-muted-foreground/50" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                          {strength.suggestions[0]}
+                    {/* Shimmer */}
+                    <motion.div
+                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                      style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)" }}
+                      animate={{ x: ["-100%", "200%"] }}
+                      transition={{ duration: 2.2, repeat: Infinity, ease: "linear" }}
+                    />
+                    <span className="relative z-10">
+                      {loading ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          جاري المعالجة...
                         </span>
-                      )}
-                    </div>
-                  </motion.div>
-                );
-              })()}
+                      ) : isLogin ? "تسجيل الدخول" : "إنشاء حساب"}
+                    </span>
+                  </Button>
+                </motion.div>
+              </motion.form>
+            </AnimatePresence>
+
+            <div className="relative flex items-center justify-center my-4 select-none">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border/40" />
+              </div>
+              <span className="relative px-3 text-[10px] font-bold text-muted-foreground/50 bg-background/0 uppercase tracking-widest">
+                أو المتابعة عبر
+              </span>
             </div>
 
-            {isLogin && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end -mt-1">
-                <Link
-                  to="/forgot-password"
-                  className="text-[12px] text-primary/70 hover:text-primary transition-colors font-semibold"
-                  style={{ fontFamily: "'Cairo', sans-serif" }}
-                >
-                  نسيت كلمة المرور؟
-                </Link>
-              </motion.div>
-            )}
+            <SocialButtons />
 
-            <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.97 }} className="pt-1">
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full h-[50px] rounded-xl text-[15px] font-bold border-0 transition-all duration-300 text-primary-foreground relative overflow-hidden group"
-                style={{
-                  fontFamily: "'Cairo', sans-serif",
-                  background: "linear-gradient(135deg, hsl(var(--primary)), hsl(222 55% 56%))",
-                  boxShadow: "0 8px 32px -8px hsl(var(--primary) / 0.35)",
-                }}
+            <p className="text-center text-xs text-muted-foreground select-none">
+              {isLogin ? "ليس لديك حساب؟" : "لديك حساب بالفعل؟"}{" "}
+              <button
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-primary font-bold hover:text-accent transition-colors underline-offset-4 hover:underline"
               >
-                {/* Shimmer */}
-                <motion.div
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                  style={{ background: "linear-gradient(90deg, transparent 0%, hsl(0 0% 100% / 0.1) 50%, transparent 100%)" }}
-                  animate={{ x: ["-100%", "200%"] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                />
-                <span className="relative z-10">
-                  {loading ? (
-                    <span className="inline-flex items-center gap-2.5">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      جاري المعالجة...
-                    </span>
-                  ) : isLogin ? "تسجيل الدخول" : "إنشاء حساب"}
-                </span>
-              </Button>
-            </motion.div>
-          </motion.form>
-        </AnimatePresence>
+                {isLogin ? "أنشئ حساب جديد" : "سجّل دخولك"}
+              </button>
+            </p>
 
-        {/* Toggle */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="text-center text-[13px] text-muted-foreground mt-6"
-          style={{ fontFamily: "'Cairo', sans-serif" }}
-        >
-          {isLogin ? "ليس لديك حساب؟" : "لديك حساب بالفعل؟"}{" "}
-          <motion.button
-            onClick={() => setIsLogin(!isLogin)}
-            className="text-primary font-bold hover:text-primary/80 transition-colors underline-offset-4 hover:underline"
-            whileTap={{ scale: 0.95 }}
-          >
-            {isLogin ? "أنشئ حساب جديد" : "سجّل دخولك"}
-          </motion.button>
-        </motion.p>
+            <p className="text-center text-[10px] text-muted-foreground/35 leading-relaxed select-none">
+              بالمتابعة أنت توافق على{" "}
+              <span className="text-muted-foreground/50 underline-offset-2 hover:underline cursor-pointer">شروط الاستخدام</span>
+              {" "}و{" "}
+              <span className="text-muted-foreground/50 underline-offset-2 hover:underline cursor-pointer">سياسة الخصوصية</span>
+            </p>
 
-        {/* Terms */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="text-center text-[10px] text-muted-foreground/35 mt-4 leading-relaxed"
-          style={{ fontFamily: "'Cairo', sans-serif" }}
-        >
-          بالمتابعة أنت توافق على{" "}
-          <span className="text-muted-foreground/50 underline-offset-2 hover:underline cursor-pointer">شروط الاستخدام</span>
-          {" "}و{" "}
-          <span className="text-muted-foreground/50 underline-offset-2 hover:underline cursor-pointer">سياسة الخصوصية</span>
-        </motion.p>
-
-        {/* Mobile back */}
-        <motion.div
-          className="lg:hidden text-center mt-6 mb-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
-          <a href="/" className="text-muted-foreground hover:text-primary text-[13px] inline-flex items-center gap-1.5 transition-colors font-semibold" style={{ fontFamily: "'Cairo', sans-serif" }}>
-            العودة للرئيسية
-            <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
-          </a>
-        </motion.div>
-      </motion.div>
-      )}
+            {/* Mobile back button */}
+            <div className="lg:hidden text-center pt-2">
+              <a href="/" className="text-muted-foreground hover:text-foreground text-xs inline-flex items-center gap-1.5 transition-colors font-bold group">
+                <span>العودة للرئيسية</span>
+                <ArrowLeft className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300 rotate-180" />
+              </a>
+            </div>
+          </motion.div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1216,7 +1080,7 @@ export default function Auth() {
       </div>
       <div className="relative z-10 min-h-screen min-h-[100dvh] grid lg:grid-cols-[1fr_1.15fr]">
         <BrandingPanel />
-        <div className="flex items-center justify-center py-8 sm:py-12 lg:py-0 px-2">
+        <div className="flex items-center justify-center py-10 sm:py-14 lg:py-0 px-3">
           <AuthForm isLogin={isLogin} setIsLogin={setIsLogin} setPendingOtp={setPendingOtp} />
         </div>
       </div>
