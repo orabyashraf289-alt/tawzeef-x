@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useAddJob } from "@/hooks/useJobs";
 import QRCodeDialog from "@/components/QRCodeDialog";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
@@ -115,6 +116,7 @@ const WELCOME_MSG: Message = {
 export default function AIAssistant() {
   const { t } = useI18n();
   const { user } = useAuth();
+  const addJobMutation = useAddJob();
   const [messages, setMessages] = useState<Message[]>([WELCOME_MSG]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -453,17 +455,24 @@ export default function AIAssistant() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) { toast({ title: "يجب تسجيل الدخول أولاً", variant: "destructive" }); return; }
       const jobData = msg.jobPreview.data;
-      const { data: job, error } = await supabase.from("jobs").insert({
-        title: jobData.title, department: jobData.department, location: jobData.location, type: jobData.type,
-        description: jobData.description || null, requirements: jobData.requirements || null,
-        experience_level: jobData.experience_level || null, salary_min: jobData.salary_min || null,
-        salary_max: jobData.salary_max || null, user_id: session.user.id, status: "نشطة",
-      }).select().single();
-      if (error) { toast({ title: "فشل إنشاء الوظيفة", description: error.message, variant: "destructive" }); return; }
+      
+      const job = await addJobMutation.mutateAsync({
+        title: jobData.title,
+        department: jobData.department,
+        location: jobData.location,
+        type: jobData.type,
+        description: jobData.description || undefined,
+        requirements: Array.isArray(jobData.requirements) ? jobData.requirements.join("\n") : undefined,
+        experience: jobData.experience_level || undefined,
+        salaryMin: jobData.salary_min?.toString(),
+        salaryMax: jobData.salary_max?.toString(),
+      });
+
       setMessages(prev => prev.map((m, i) => i === msgIndex ? { ...m, jobPreview: { ...m.jobPreview!, status: "confirmed" as const }, jobCreated: { id: job.id, title: job.title } } : m));
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      toast({ title: "تم إنشاء الوظيفة ✅", description: job.title });
-    } catch { toast({ title: "خطأ في الاتصال", variant: "destructive" }); }
+    } catch (e: any) { 
+      toast({ title: "خطأ", description: e.message || "خطأ في الاتصال", variant: "destructive" }); 
+    }
   };
 
   const handleRejectJob = (msgIndex: number) => {
