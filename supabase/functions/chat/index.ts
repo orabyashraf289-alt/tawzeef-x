@@ -563,12 +563,21 @@ async function handleToolCall(tc: any, userId: string): Promise<{ result: string
     }
 
     case "generate_job_description": {
-      // Returns a structured prompt for AI to generate
+      const jobData = {
+        title: args.job_title,
+        department: args.department || "الهندسة",
+        location: "عن بُعد",
+        type: "دوام كامل",
+        description: `وصف وظيفي للمسمى: ${args.job_title}`,
+        experience_level: args.experience_level || "3-5 سنوات",
+      };
       return {
         result: JSON.stringify({
           generated: true,
+          job_data: jobData,
           instruction: `اكتب وصفاً وظيفياً احترافياً ومفصلاً للمسمى "${args.job_title}"${args.department ? ` في قسم ${args.department}` : ""}${args.experience_level ? ` لمستوى ${args.experience_level}` : ""}. اكتبه بصيغة احترافية تجذب أفضل المواهب وتشمل: نبذة عن الدور، المسؤوليات الرئيسية، المؤهلات المطلوبة، المهارات المرغوبة، والمزايا. استخدم تنسيق Markdown.`
         }),
+        action: { type: "job_preview", job_data: jobData },
       };
     }
 
@@ -736,6 +745,7 @@ ${userContext}
 7. 🌍 **اللغة**: العربية افتراضياً. الإنجليزية إن طلب المستخدم.
 8. ✨ **التنسيق**: استخدم Markdown، إيموجي بشكل معتدل، نقاط منظمة.
 9. 💡 **اقترح خطوات**: بعد كل إجراء، اقترح الخطوة التالية المنطقية.
+10. 📁 **عدم وجود وظائف**: إذا لم تكن هناك وظائف نشطة في النظام وقام المستخدم بتحليل سيرة ذاتية أو طلب مقارنة، أو عند اقتراح وظيفة مناسبة، استخدم أداة `create_job` تلقائياً لعرض بطاقة معاينة الوظيفة (Job Preview Card) فوراً ليتمكن المستخدم من إضافتها بكبسة زر دون إدخال يدوي.
 
 ## التفكير المنطقي:
 - إذا كان الطلب غامضاً، اطرح سؤالاً واحداً فقط.
