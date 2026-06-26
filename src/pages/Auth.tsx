@@ -1,11 +1,11 @@
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, memo } from "react";
 import confetti from "canvas-confetti";
 import { useNavigate, useSearchParams, Navigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, Loader2, Shield, Zap, BarChart3, FileCheck, Briefcase, Sparkles, Building2, CheckCircle2, KeyRound, Monitor, Send, Check, ChevronLeft } from "lucide-react";
+import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, Loader2, Shield, Zap, BarChart3, FileCheck, Briefcase, Sparkles, Building2, CheckCircle2, KeyRound, Monitor } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 /* ─── Device Trust Helpers ─── */
@@ -39,74 +39,36 @@ function trustDevice(email: string) {
 }
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue } from "framer-motion";
 import { lovable } from "@/integrations/lovable/index";
 import { translateAuthError } from "@/lib/authErrors";
 import { logAuditEvent } from "@/hooks/useAuditLog";
 import { checkPasswordStrength, isRateLimited, isValidEmail, sanitizeInput, detectSuspiciousInput } from "@/lib/security";
 
-/* ─── Animated Aurora Background ─── */
-function AuroraBackground() {
+/* ─── Optimized Animated Aurora Background ─── */
+const AuroraBackground = memo(function AuroraBackground() {
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
       {/* Aurora layer 1 — teal sweep */}
-      <motion.div
-        className="absolute animate-pulse"
+      <div
+        className="absolute w-[140%] h-[140%] top-[-40%] right-[-30%] will-change-transform"
         style={{
-          width: "140%", height: "140%", top: "-40%", right: "-30%",
-          background: "conic-gradient(from 180deg at 50% 50%, hsl(var(--primary) / 0.14) 0deg, hsl(var(--accent) / 0.08) 120deg, transparent 240deg, hsl(var(--primary) / 0.14) 360deg)",
+          background: "conic-gradient(from 180deg at 50% 50%, hsl(var(--primary) / 0.12) 0deg, hsl(var(--accent) / 0.06) 120deg, transparent 240deg, hsl(var(--primary) / 0.12) 360deg)",
           filter: "blur(90px)",
+          transform: "translate3d(0,0,0)",
+          animation: "spin-slow 70s linear infinite",
         }}
-        animate={{ rotate: [0, 360] }}
-        transition={{ duration: 70, repeat: Infinity, ease: "linear" }}
       />
       {/* Aurora layer 2 — coral bloom */}
-      <motion.div
-        className="absolute"
+      <div
+        className="absolute w-[120%] h-[120%] bottom-[-30%] left-[-20%] will-change-transform"
         style={{
-          width: "120%", height: "120%", bottom: "-30%", left: "-20%",
-          background: "conic-gradient(from 0deg at 40% 60%, hsl(var(--accent) / 0.1) 0deg, transparent 120deg, hsl(var(--primary) / 0.09) 240deg, hsl(var(--accent) / 0.1) 360deg)",
+          background: "conic-gradient(from 0deg at 40% 60%, hsl(var(--accent) / 0.08) 0deg, transparent 120deg, hsl(var(--primary) / 0.07) 240deg, hsl(var(--accent) / 0.08) 360deg)",
           filter: "blur(110px)",
+          transform: "translate3d(0,0,0)",
+          animation: "spin-reverse-slow 90s linear infinite",
         }}
-        animate={{ rotate: [360, 0] }}
-        transition={{ duration: 90, repeat: Infinity, ease: "linear" }}
       />
-      {/* Aurora layer 3 — center glow */}
-      <motion.div
-        className="absolute"
-        style={{
-          width: "80%", height: "80%", top: "10%", left: "10%",
-          background: "radial-gradient(ellipse at center, hsl(var(--primary) / 0.09) 0%, hsl(var(--accent) / 0.04) 50%, transparent 80%)",
-          filter: "blur(70px)",
-        }}
-        animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
-        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-      />
-      {/* Floating particles */}
-      {[...Array(15)].map((_, i) => (
-        <motion.div
-          key={i}
-          className="absolute rounded-full pointer-events-none"
-          style={{
-            width: 2 + (i % 4),
-            height: 2 + (i % 4),
-            left: `${10 + i * 5.5}%`,
-            top: `${15 + (i * 11) % 70}%`,
-            background: i % 3 === 0
-              ? "hsl(var(--primary) / 0.4)"
-              : i % 3 === 1
-              ? "hsl(var(--accent) / 0.3)"
-              : "hsl(181 70% 45% / 0.3)",
-          }}
-          animate={{
-            y: [0, -45 - i * 3, 0],
-            x: [0, (i % 2 === 0 ? 20 : -20), 0],
-            opacity: [0.2, 0.7, 0.2],
-            scale: [1, 2, 1],
-          }}
-          transition={{ duration: 7 + i * 0.4, repeat: Infinity, ease: "easeInOut", delay: i * 0.2 }}
-        />
-      ))}
       {/* Dot grid */}
       <div className="absolute inset-0 opacity-[0.02]" style={{
         backgroundImage: "radial-gradient(circle, hsl(var(--foreground)) 1px, transparent 1px)",
@@ -114,18 +76,19 @@ function AuroraBackground() {
       }} />
     </div>
   );
-}
+});
 
-/* ─── Live AI Recruiting Command Center Mockup ─── */
-function AICommandCenterWidget() {
+/* ─── Live AI Recruiting Command Center Mockup (High Performance) ─── */
+const AICommandCenterWidget = memo(function AICommandCenterWidget() {
   const [parseProgress, setParseProgress] = useState(0);
   const [chatState, setChatState] = useState<"parsing" | "analyzed" | "hired" | "reset">("parsing");
   const [pipelineStage, setPipelineStage] = useState<"applied" | "shortlisted">("applied");
   const [typedMessage, setTypedMessage] = useState("");
+  const [matchPercent, setMatchPercent] = useState(0);
 
   const targetMessage = "تم تحليل سيرة أحمد محمد الذاتية. المطابقة: 96% لدور مهندس برمجيات. نوصي بالمقابلة ✨";
 
-  // Control typing animation
+  // Throttled typing animation (GPU-friendly updates)
   useEffect(() => {
     if (chatState === "analyzed") {
       let index = 0;
@@ -135,74 +98,72 @@ function AICommandCenterWidget() {
         index++;
         if (index >= targetMessage.length) {
           clearInterval(timer);
-          // Transition pipeline card to shortlisted after typing completes
           setTimeout(() => {
             setPipelineStage("shortlisted");
             setChatState("hired");
           }, 800);
         }
-      }, 35);
+      }, 40);
       return () => clearInterval(timer);
     }
   }, [chatState]);
 
-  // Main Loop Controller
+  // Main Loop & State Sync
   useEffect(() => {
     let cycleInterval: ReturnType<typeof setInterval>;
-    let progressInterval: ReturnType<typeof setInterval>;
+    let percentInterval: ReturnType<typeof setInterval>;
+    let progressTimeout: ReturnType<typeof setTimeout>;
 
     const startCycle = () => {
       setChatState("parsing");
       setPipelineStage("applied");
       setParseProgress(0);
+      setMatchPercent(0);
       setTypedMessage("");
 
-      // Animate progress bar (Resume Parser)
-      progressInterval = setInterval(() => {
-        setParseProgress((p) => {
-          if (p >= 100) {
-            clearInterval(progressInterval);
-            setChatState("analyzed"); // Trigger typing assistant
-            return 100;
-          }
-          return p + 4;
-        });
+      // Trigger progress transition instantly using CSS transitions rather than state loops
+      progressTimeout = setTimeout(() => {
+        setParseProgress(100);
       }, 50);
+
+      // Throttled match percentage counter: updates only 7 times total to reduce React repaints
+      let currentPercent = 0;
+      percentInterval = setInterval(() => {
+        currentPercent += 16;
+        if (currentPercent >= 96) {
+          currentPercent = 96;
+          clearInterval(percentInterval);
+          setChatState("analyzed"); // Trigger typed chat assistant
+        }
+        setMatchPercent(currentPercent);
+      }, 200);
     };
 
     startCycle();
 
-    // 10s loop cycle
+    // 11s total loop cycle
     cycleInterval = setInterval(() => {
       setChatState("reset");
-      setTimeout(startCycle, 600);
-    }, 11000);
+      setTimeout(startCycle, 500);
+    }, 11500);
 
     return () => {
       clearInterval(cycleInterval);
-      clearInterval(progressInterval);
+      clearInterval(percentInterval);
+      clearTimeout(progressTimeout);
     };
   }, []);
 
   return (
-    <motion.div
-      className="w-full max-w-[420px] mx-auto rounded-3xl bg-white/[0.01] border border-white/[0.06] backdrop-blur-2xl p-6 shadow-[0_30px_80px_-15px_rgba(16,185,129,0.15)] relative overflow-hidden select-none"
-      style={{ transformStyle: "preserve-3d" }}
-      whileHover={{
-        rotateY: -3,
-        rotateX: 3,
-        scale: 1.015,
-        borderColor: "rgba(16, 185, 129, 0.22)",
-        boxShadow: "0 35px 90px -15px rgba(16, 185, 129, 0.2)"
-      }}
-      transition={{ type: "spring", stiffness: 150, damping: 20 }}
+    <div
+      className="w-full max-w-[420px] mx-auto rounded-3xl bg-white/[0.01] border border-white/[0.06] backdrop-blur-2xl p-6 shadow-[0_30px_80px_-15px_rgba(16,185,129,0.15)] relative overflow-hidden select-none will-change-transform transition-all duration-300 hover:scale-[1.015] hover:border-emerald-500/20 hover:shadow-[0_35px_90px_-15px_rgba(16,185,129,0.2)]"
+      style={{ transform: "translate3d(0,0,0)" }}
     >
-      {/* Dynamic scanline overlay for parsing step */}
+      {/* Dynamic scanline overlay */}
       {chatState === "parsing" && (
-        <motion.div
-          className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent z-20 pointer-events-none shadow-[0_0_12px_2px_rgba(34,211,238,0.4)]"
-          animate={{ top: ["0%", "100%", "0%"] }}
-          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+        <div
+          className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent z-20 pointer-events-none shadow-[0_0_12px_2px_rgba(34,211,238,0.4)] will-change-transform"
+          style={{ animation: "scan-vertical 2s ease-in-out infinite" }}
         />
       )}
 
@@ -234,10 +195,10 @@ function AICommandCenterWidget() {
               <span className="text-[10px] text-cyan-400 font-bold">{parseProgress}%</span>
             </div>
             
-            {/* Progress bar wrapper */}
+            {/* Optimized progress bar using GPU-accelerated CSS transition */}
             <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-full transition-all duration-150 ease-out"
+                className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-full transition-all duration-[1.5s] ease-out will-change-[width]"
                 style={{ width: `${parseProgress}%` }}
               />
             </div>
@@ -252,7 +213,6 @@ function AICommandCenterWidget() {
           </div>
 
           <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] relative overflow-hidden min-h-[76px] flex flex-col justify-center">
-            {/* Subtle background glow */}
             <div className="absolute inset-0 bg-emerald-500/[0.01] pointer-events-none" />
             
             <div className="flex items-start gap-3">
@@ -261,7 +221,7 @@ function AICommandCenterWidget() {
               </div>
               <div className="space-y-1 text-right">
                 <p className="text-[9px] font-bold text-emerald-400/70">Tawzeef-X Co-Pilot</p>
-                <p className="text-xs text-white/80 font-medium leading-relaxed">
+                <div className="text-xs text-white/80 font-medium leading-relaxed">
                   {chatState === "parsing" ? (
                     <span className="inline-flex items-center gap-1 text-white/40">
                       <Loader2 className="w-3 h-3 animate-spin text-white/40" />
@@ -270,7 +230,7 @@ function AICommandCenterWidget() {
                   ) : (
                     typedMessage
                   )}
-                </p>
+                </div>
               </div>
             </div>
           </div>
@@ -283,13 +243,13 @@ function AICommandCenterWidget() {
             
             {/* Column A: Applied */}
             <div className="rounded-2xl border border-white/[0.02] bg-white/[0.005] p-2 flex flex-col gap-1.5 relative justify-center">
-              <span className="text-[8px] font-bold text-white/30 block mb-1 text-right">متقدمون (1)</span>
+              <span className="text-[8px] font-bold text-white/30 block mb-1 text-right">متقدمون</span>
               
               <AnimatePresence>
                 {pipelineStage === "applied" && (
                   <motion.div
                     layoutId="pipelineCard"
-                    className="p-2 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between"
+                    className="p-2 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between will-change-transform"
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
@@ -313,7 +273,7 @@ function AICommandCenterWidget() {
                 {pipelineStage === "shortlisted" && (
                   <motion.div
                     layoutId="pipelineCard"
-                    className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between shadow-lg shadow-emerald-950/20"
+                    className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between shadow-lg shadow-emerald-950/20 will-change-transform"
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
@@ -334,154 +294,131 @@ function AICommandCenterWidget() {
 
       </div>
 
-      {/* Floating absolute stats capsule */}
-      <motion.div
-        className="absolute top-1/2 -right-4 translate-y-[-100%] rounded-2xl bg-gradient-to-tr from-[#0d122b] to-[#1e295d]/80 border border-white/[0.08] backdrop-blur-2xl p-3 shadow-2xl pointer-events-none z-30"
-        style={{ scale: 0.85 }}
-        animate={chatState === "hired" ? { scale: 0.9, x: -10, y: -20 } : { scale: 0.82, x: 0, y: 0 }}
-        transition={{ type: "spring", stiffness: 200, damping: 18 }}
+      {/* Floating stats metrics */}
+      <div
+        className="absolute top-1/2 -right-4 translate-y-[-100%] rounded-2xl bg-gradient-to-tr from-[#0d122b] to-[#1e295d]/80 border border-white/[0.08] backdrop-blur-2xl p-3 shadow-2xl pointer-events-none z-30 transition-all duration-500 will-change-transform"
+        style={{
+          transform: chatState === "hired" ? "translate3d(-10px, -20px, 0) scale(0.9)" : "translate3d(0, 0, 0) scale(0.82)"
+        }}
       >
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-            <Zap className="w-4 h-4" />
+            <Zap className="w-4 h-4 animate-bounce" />
           </div>
           <div className="text-right">
             <span className="text-[8px] text-white/40 block">سرعة التصفية</span>
             <span className="text-xs font-black text-white leading-none">3X أسرع</span>
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
-}
+});
 
-/* ─── Right branding panel ─── */
-function BrandingPanel() {
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-  const glowX = useTransform(mouseX, [0, 1], ["-20%", "120%"]);
-  const glowY = useTransform(mouseY, [0, 1], ["-20%", "120%"]);
+/* ─── Right branding panel (High Performance) ─── */
+const BrandingPanel = memo(function BrandingPanel() {
+  const mouseX = useMotionValue(-500);
+  const mouseY = useMotionValue(-500);
+
+  // Extremely fast cursor follow tracking without layouts triggers
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    mouseX.set(e.clientX - rect.left - 225);
+    mouseY.set(e.clientY - rect.top - 225);
+  }, [mouseX, mouseY]);
 
   return (
     <div
       className="hidden lg:flex flex-col justify-between h-full relative overflow-hidden p-14 select-none"
-      onMouseMove={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        mouseX.set((e.clientX - rect.left) / rect.width);
-        mouseY.set((e.clientY - rect.top) / rect.height);
-      }}
+      onMouseMove={handleMouseMove}
     >
       {/* Deep Obsidian background */}
       <div className="absolute inset-0 bg-[#050711]" style={{
         background: "radial-gradient(circle at 100% 0%, #0c0f24 0%, #050711 70%)"
       }} />
 
-      {/* Ambient neon light glow shapes */}
+      {/* Ambient neon light glow shapes (GPU Composited) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          className="absolute w-[600px] h-[600px] rounded-full opacity-[0.16] mix-blend-screen filter blur-[110px]"
+        <div
+          className="absolute w-[600px] h-[600px] rounded-full opacity-[0.15] mix-blend-screen filter blur-[110px] will-change-transform"
           style={{
             background: "radial-gradient(circle, #10b981 0%, transparent 70%)",
             top: "-10%",
             right: "-10%",
+            animation: "float-sphere-1 18s ease-in-out infinite",
           }}
-          animate={{
-            scale: [1, 1.2, 1],
-            x: [0, 50, 0],
-            y: [0, -30, 0],
-          }}
-          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
         />
-        <motion.div
-          className="absolute w-[500px] h-[500px] rounded-full opacity-[0.1] mix-blend-screen filter blur-[95px]"
+        <div
+          className="absolute w-[500px] h-[500px] rounded-full opacity-[0.09] mix-blend-screen filter blur-[95px] will-change-transform"
           style={{
             background: "radial-gradient(circle, #06b6d4 0%, transparent 70%)",
             bottom: "10%",
             left: "-10%",
+            animation: "float-sphere-2 20s ease-in-out infinite",
           }}
-          animate={{
-            scale: [1.25, 0.95, 1.25],
-            x: [0, -40, 0],
-            y: [0, 40, 0],
-          }}
-          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
         />
       </div>
 
-      {/* Background Starry Particles */}
-      <div className="absolute inset-0 opacity-[0.18] pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <motion.div
+      {/* Optimized Starry Particles using off-thread GPU animations */}
+      <div className="absolute inset-0 opacity-[0.16] pointer-events-none overflow-hidden">
+        {[...Array(10)].map((_, i) => (
+          <div
             key={i}
-            className="absolute rounded-full bg-white"
+            className="absolute rounded-full bg-white floating-particle"
             style={{
-              width: Math.random() * 2 + 1,
-              height: Math.random() * 2 + 1,
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              width: `${(i % 2) + 1.2}px`,
+              height: `${(i % 2) + 1.2}px`,
+              left: `${10 + i * 9}%`,
+              top: `${15 + (i * 13) % 70}%`,
+              ["--float-duration" as any]: `${7 + (i % 3) * 2}s`,
+              ["--float-delay" as any]: `${i * 0.4}s`,
             }}
-            animate={{ opacity: [0.15, 1, 0.15], scale: [1, 1.6, 1] }}
-            transition={{ duration: 4 + Math.random() * 4, repeat: Infinity, delay: Math.random() * 4 }}
           />
         ))}
       </div>
 
       {/* Grid mesh pattern */}
-      <div className="absolute inset-0 opacity-[0.035] pointer-events-none" style={{
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
         backgroundImage: `linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)`,
         backgroundSize: '40px 40px'
       }} />
 
-      {/* Mouse follow light */}
+      {/* GPU accelerated cursor follow light */}
       <motion.div
-        className="absolute w-[450px] h-[450px] rounded-full pointer-events-none opacity-[0.24]"
+        className="absolute w-[450px] h-[450px] rounded-full pointer-events-none opacity-[0.22] will-change-transform"
         style={{
-          left: glowX,
-          top: glowY,
+          x: mouseX,
+          y: mouseY,
           background: "radial-gradient(circle, #10b981 0%, transparent 60%)",
           filter: "blur(60px)",
-          transform: "translate(-50%, -50%)",
         }}
       />
 
       {/* Header Info */}
       <div className="relative z-10 px-6 pt-4 space-y-12">
         {/* Logo */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="flex items-center gap-4"
-        >
-          <motion.div
-            className="w-13 h-13 rounded-2xl flex items-center justify-center border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl relative overflow-hidden group p-2 shadow-lg"
-            whileHover={{ scale: 1.05, rotate: -2 }}
-            transition={{ type: "spring", stiffness: 400, damping: 15 }}
+        <div className="flex items-center gap-4">
+          <div
+            className="w-13 h-13 rounded-2xl flex items-center justify-center border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl relative overflow-hidden group p-2 shadow-lg transition-transform duration-300 hover:scale-105 hover:rotate-[-2deg]"
           >
             <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <img src={tawzeefLogo} alt="Tawzeef-X" className="w-9 h-9 object-contain relative z-10" />
-          </motion.div>
+          </div>
           <div className="flex flex-col">
             <span className="text-xl font-black tracking-wide leading-tight text-white/95">Tawzeef-X</span>
             <span className="text-[10px] font-bold tracking-[0.2em] text-emerald-400/50 uppercase">منصة التوظيف الذكية</span>
           </div>
-        </motion.div>
+        </div>
 
         {/* Hero copy */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-          className="space-y-5"
-        >
-          <motion.div
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/[0.07] bg-white/[0.03] backdrop-blur-xl"
-            whileHover={{ scale: 1.02, borderColor: "rgba(16, 185, 129, 0.25)" }}
+        <div className="space-y-5">
+          <div
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/[0.07] bg-white/[0.03] backdrop-blur-xl transition-all duration-300 hover:border-emerald-500/25"
           >
             <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
             <span className="text-xs font-bold text-white/80">منصة التوظيف الذكية #1</span>
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-          </motion.div>
+          </div>
 
           <h1 className="text-4xl xl:text-5xl font-black text-white leading-tight">
             وظّف الأفضل <br />
@@ -493,19 +430,16 @@ function BrandingPanel() {
           <p className="text-sm leading-relaxed text-white/50 max-w-[400px]">
             أتمتة كامل رحلة التوظيف بالذكاء الاصطناعي — من صياغة ونشر الوظيفة والبحث عن المرشحين والمطابقة الذكية، وحتى المقابلات وإرسال العروض.
           </p>
-        </motion.div>
+        </div>
       </div>
 
-      {/* Synced AI Pipeline monitor mockup */}
+      {/* Synced AI Command Center widget */}
       <div className="relative z-10 my-4 flex items-center justify-center">
         <AICommandCenterWidget />
       </div>
 
       {/* Bottom Stats Container */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.7, duration: 0.6 }}
+      <div
         className="relative z-10 p-5 rounded-2xl border border-white/[0.05] bg-white/[0.01] backdrop-blur-2xl shadow-xl overflow-hidden"
       >
         <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-cyan-500/5 opacity-50" />
@@ -516,27 +450,23 @@ function BrandingPanel() {
             { val: "98%", label: "رضا العملاء" },
             { val: "3X", label: "أسرع توظيفاً" },
           ].map((s, i) => (
-            <motion.div
-              key={i}
-              className="text-center"
-              whileHover={{ scale: 1.05 }}
-            >
+            <div key={i} className="text-center transition-transform duration-200 hover:scale-105">
               <span className="text-2xl xl:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60 leading-none block">
                 {s.val}
               </span>
               <span className="text-[9px] font-bold text-white/40 block mt-1">
                 {s.label}
               </span>
-            </motion.div>
+            </div>
           ))}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
-}
+});
 
 /* ─── Social Buttons ─── */
-function SocialButtons() {
+const SocialButtons = memo(function SocialButtons() {
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
 
   const handleOAuth = async (provider: "google" | "apple") => {
@@ -551,7 +481,7 @@ function SocialButtons() {
 
   return (
     <div className="flex gap-3">
-      <motion.div whileHover={{ scale: 1.015, y: -1 }} whileTap={{ scale: 0.985 }} className="flex-1">
+      <div className="flex-1 transition-all duration-200 hover:scale-[1.015] active:scale-[0.985]">
         <Button
           type="button"
           variant="outline"
@@ -571,9 +501,9 @@ function SocialButtons() {
           )}
           Google
         </Button>
-      </motion.div>
+      </div>
 
-      <motion.div whileHover={{ scale: 1.015, y: -1 }} whileTap={{ scale: 0.985 }} className="flex-1">
+      <div className="flex-1 transition-all duration-200 hover:scale-[1.015] active:scale-[0.985]">
         <Button
           type="button"
           variant="outline"
@@ -590,13 +520,13 @@ function SocialButtons() {
           )}
           Apple
         </Button>
-      </motion.div>
+      </div>
     </div>
   );
-}
+});
 
 /* ─── Auth form ─── */
-function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; setIsLogin: (v: boolean) => void; setPendingOtp: (v: boolean) => void }) {
+const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; setIsLogin: (v: boolean) => void; setPendingOtp: (v: boolean) => void }) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -643,7 +573,6 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
     try {
       const normalizedEmail = form.email.trim().toLowerCase();
 
-      // Client-side validations
       if (!isValidEmail(normalizedEmail)) {
         toast({ title: "خطأ", description: "يرجى إدخال بريد إلكتروني صحيح", variant: "destructive" });
         setLoading(false);
@@ -656,7 +585,6 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
         return;
       }
 
-      // Rate limiting: max 5 attempts per 5 minutes
       if (isRateLimited(`auth_${normalizedEmail}`, 5, 5 * 60 * 1000)) {
         toast({ title: "تجاوزت الحد المسموح ⛔", description: "يرجى الانتظار عدة دقائق قبل المحاولة مجدداً", variant: "destructive" });
         setLoading(false);
@@ -686,11 +614,8 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
           return;
         }
 
-        // Try sending OTP first; if SMTP is not configured, bypass and login directly
         try {
           await requestLoginOtp(normalizedEmail);
-          
-          // OTP succeeded, sign out to enforce verification
           await supabase.auth.signOut();
 
           setOtpEmail(normalizedEmail);
@@ -732,7 +657,6 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
         });
         if (error) throw error;
         if (data.user) {
-          // Send welcome email via Gmail SMTP (fire-and-forget)
           supabase.functions.invoke("send-welcome-email", {
             body: { email: form.email, fullName: form.fullName, accountType },
           }).catch(console.error);
@@ -833,22 +757,15 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
     <div className="w-full max-w-[430px] mx-auto px-4 select-none">
       {/* Mobile logo */}
       <div className="lg:hidden text-center mb-8">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex flex-col items-center gap-3"
-        >
-          <motion.div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden p-2.5 bg-gradient-to-tr from-primary/10 to-accent/10 border border-primary/15"
-            whileTap={{ scale: 0.95 }}
-          >
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden p-2.5 bg-gradient-to-tr from-primary/10 to-accent/10 border border-primary/15">
             <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
-          </motion.div>
+          </div>
           <div>
             <h1 className="text-xl font-black text-foreground">Tawzeef-X</h1>
             <p className="text-[10px] font-bold tracking-[0.25em] text-primary/60 uppercase">منصة التوظيف الذكية</p>
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* Styled Sweeping Border Gradient Glassmorphism Container */}
@@ -934,7 +851,7 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
             </div>
 
             <div className="space-y-4">
-              <motion.div whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.985 }}>
+              <div className="transition-all duration-200 hover:scale-[1.015] active:scale-[0.985]">
                 <Button
                   onClick={handleVerifyOtp}
                   disabled={otpLoading || otpCode.length < 6}
@@ -950,7 +867,7 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
                     </span>
                   ) : "تأكيد الرمز ودخول"}
                 </Button>
-              </motion.div>
+              </div>
 
               {/* Remember device checkbox */}
               <div className="flex items-center justify-center gap-2">
@@ -976,15 +893,13 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
                   <span>إعادة الإرسال بعد {countdown} ثانية</span>
                 </div>
               ) : (
-                <motion.button
+                <button
                   onClick={handleResendOtp}
                   disabled={otpLoading}
                   className="text-xs text-primary hover:text-primary-foreground hover:bg-primary/10 transition-colors font-bold px-3 py-1.5 rounded-lg"
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
                 >
                   إعادة إرسال الرمز ✉️
-                </motion.button>
+                </button>
               )}
               <span className="text-muted-foreground/20">|</span>
               <button
@@ -996,12 +911,7 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
             </div>
           </motion.div>
         ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="space-y-6"
-          >
+          <div className="space-y-6">
             {/* Back link */}
             <div className="hidden lg:block">
               <a href="/" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-all duration-300 font-medium group">
@@ -1169,14 +1079,13 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
                       minLength={8}
                       required
                     />
-                    <motion.button
+                    <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/35 hover:text-foreground transition-all duration-200"
-                      whileTap={{ scale: 0.85 }}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/35 hover:text-foreground transition-all duration-200 active:scale-90"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </motion.button>
+                    </button>
                   </div>
 
                   {/* Password Strength Meter */}
@@ -1219,7 +1128,7 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
                   </div>
                 )}
 
-                <motion.div whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.985 }} className="pt-2">
+                <div className="pt-2 transition-all duration-200 hover:scale-[1.015] active:scale-[0.985]">
                   <Button
                     type="submit"
                     disabled={loading}
@@ -1229,11 +1138,12 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
                     }}
                   >
                     {/* Shimmer */}
-                    <motion.div
+                    <div
                       className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                      style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)" }}
-                      animate={{ x: ["-100%", "200%"] }}
-                      transition={{ duration: 2.2, repeat: Infinity, ease: "linear" }}
+                      style={{
+                        background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)",
+                        animation: "shimmer-move 2.2s linear infinite"
+                      }}
                     />
                     <span className="relative z-10">
                       {loading ? (
@@ -1244,7 +1154,7 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
                       ) : isLogin ? "تسجيل الدخول" : "إنشاء حساب"}
                     </span>
                   </Button>
-                </motion.div>
+                </div>
               </motion.form>
             </AnimatePresence>
 
@@ -1283,12 +1193,12 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
                 <ArrowLeft className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300 rotate-180" />
               </a>
             </div>
-          </motion.div>
+          </div>
         )}
       </div>
     </div>
   );
-}
+});
 
 /* ─── Page ─── */
 export default function Auth() {
@@ -1307,7 +1217,7 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen min-h-[100dvh] relative overflow-hidden" dir="rtl">
-      {/* Styles for sweeping border gradient */}
+      {/* Styles for sweeping border gradient + off-thread hardware accelerated CSS animations */}
       <style>{`
         @keyframes gradient-sweep {
           0% { background-position: 0% 50%; }
@@ -1321,6 +1231,42 @@ export default function Auth() {
                       linear-gradient(135deg, hsl(var(--primary) / 0.3) 0%, hsl(var(--accent) / 0.1) 40%, hsl(var(--primary) / 0.4) 100%) border-box;
           background-size: 200% 200%;
           animation: gradient-sweep 6s ease infinite;
+        }
+
+        /* GPU accelerated background sphere animations */
+        @keyframes float-sphere-1 {
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+          50% { transform: translate3d(40px, -30px, 0) scale(1.15); }
+        }
+        @keyframes float-sphere-2 {
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1.15); }
+          50% { transform: translate3d(-35px, 35px, 0) scale(0.95); }
+        }
+        @keyframes spin-slow {
+          0% { transform: rotate(0deg) translate3d(0,0,0); }
+          100% { transform: rotate(360deg) translate3d(0,0,0); }
+        }
+        @keyframes spin-reverse-slow {
+          0% { transform: rotate(360deg) translate3d(0,0,0); }
+          100% { transform: rotate(0deg) translate3d(0,0,0); }
+        }
+        @keyframes float-particle {
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.15; }
+          50% { transform: translate3d(15px, -35px, 0) scale(1.4); opacity: 0.6; }
+        }
+        @keyframes scan-vertical {
+          0%, 100% { transform: translate3d(0, 0, 0); }
+          50% { transform: translate3d(0, 310px, 0); }
+        }
+        @keyframes shimmer-move {
+          0% { transform: translate3d(-100%, 0, 0); }
+          100% { transform: translate3d(200%, 0, 0); }
+        }
+
+        .floating-particle {
+          will-change: transform;
+          animation: float-particle var(--float-duration, 8s) ease-in-out infinite;
+          animation-delay: var(--float-delay, 0s);
         }
       `}</style>
 
