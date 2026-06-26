@@ -51,38 +51,38 @@ function AuroraBackground() {
     <div className="absolute inset-0 overflow-hidden">
       {/* Aurora layer 1 — teal sweep */}
       <motion.div
-        className="absolute"
+        className="absolute animate-pulse"
         style={{
           width: "140%", height: "140%", top: "-40%", right: "-30%",
-          background: "conic-gradient(from 180deg at 50% 50%, hsl(var(--primary) / 0.12) 0deg, hsl(var(--accent) / 0.06) 120deg, transparent 240deg, hsl(var(--primary) / 0.12) 360deg)",
-          filter: "blur(80px)",
+          background: "conic-gradient(from 180deg at 50% 50%, hsl(var(--primary) / 0.14) 0deg, hsl(var(--accent) / 0.08) 120deg, transparent 240deg, hsl(var(--primary) / 0.14) 360deg)",
+          filter: "blur(90px)",
         }}
         animate={{ rotate: [0, 360] }}
-        transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+        transition={{ duration: 70, repeat: Infinity, ease: "linear" }}
       />
       {/* Aurora layer 2 — coral bloom */}
       <motion.div
         className="absolute"
         style={{
           width: "120%", height: "120%", bottom: "-30%", left: "-20%",
-          background: "conic-gradient(from 0deg at 40% 60%, hsl(var(--accent) / 0.08) 0deg, transparent 120deg, hsl(var(--primary) / 0.07) 240deg, hsl(var(--accent) / 0.08) 360deg)",
-          filter: "blur(100px)",
+          background: "conic-gradient(from 0deg at 40% 60%, hsl(var(--accent) / 0.1) 0deg, transparent 120deg, hsl(var(--primary) / 0.09) 240deg, hsl(var(--accent) / 0.1) 360deg)",
+          filter: "blur(110px)",
         }}
         animate={{ rotate: [360, 0] }}
-        transition={{ duration: 80, repeat: Infinity, ease: "linear" }}
+        transition={{ duration: 90, repeat: Infinity, ease: "linear" }}
       />
-      {/* Aurora layer 3 — teal-coral center glow */}
+      {/* Aurora layer 3 — center glow */}
       <motion.div
         className="absolute"
         style={{
           width: "80%", height: "80%", top: "10%", left: "10%",
-          background: "radial-gradient(ellipse at center, hsl(var(--primary) / 0.07) 0%, hsl(var(--accent) / 0.03) 50%, transparent 80%)",
-          filter: "blur(60px)",
+          background: "radial-gradient(ellipse at center, hsl(var(--primary) / 0.09) 0%, hsl(var(--accent) / 0.04) 50%, transparent 80%)",
+          filter: "blur(70px)",
         }}
-        animate={{ scale: [1, 1.15, 1], opacity: [0.6, 1, 0.6] }}
-        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+        animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
+        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
       />
-      {/* Floating particles — teal & coral */}
+      {/* Floating particles */}
       {[...Array(15)].map((_, i) => (
         <motion.div
           key={i}
@@ -90,21 +90,21 @@ function AuroraBackground() {
           style={{
             width: 2 + (i % 4),
             height: 2 + (i % 4),
-            left: `${8 + i * 6}%`,
-            top: `${12 + (i * 13) % 75}%`,
+            left: `${10 + i * 5.5}%`,
+            top: `${15 + (i * 11) % 70}%`,
             background: i % 3 === 0
-              ? "hsl(var(--primary) / 0.35)"
+              ? "hsl(var(--primary) / 0.4)"
               : i % 3 === 1
-              ? "hsl(var(--accent) / 0.25)"
-              : "hsl(181 70% 45% / 0.25)",
+              ? "hsl(var(--accent) / 0.3)"
+              : "hsl(181 70% 45% / 0.3)",
           }}
           animate={{
-            y: [0, -40 - i * 3, 0],
-            x: [0, (i % 2 === 0 ? 15 : -15), 0],
-            opacity: [0.15, 0.6, 0.15],
-            scale: [1, 1.8, 1],
+            y: [0, -45 - i * 3, 0],
+            x: [0, (i % 2 === 0 ? 20 : -20), 0],
+            opacity: [0.2, 0.7, 0.2],
+            scale: [1, 2, 1],
           }}
-          transition={{ duration: 6 + i * 0.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.25 }}
+          transition={{ duration: 7 + i * 0.4, repeat: Infinity, ease: "easeInOut", delay: i * 0.2 }}
         />
       ))}
       {/* Dot grid */}
@@ -112,23 +112,185 @@ function AuroraBackground() {
         backgroundImage: "radial-gradient(circle, hsl(var(--foreground)) 1px, transparent 1px)",
         backgroundSize: "32px 32px",
       }} />
-      {/* Horizon glow */}
-      <div className="absolute bottom-0 left-0 right-0 h-1/3" style={{
-        background: "linear-gradient(to top, hsl(var(--background)) 0%, hsl(var(--primary) / 0.03) 50%, transparent 100%)",
-      }} />
     </div>
+  );
+}
+
+/* ─── Live AI Candidate Matching Widget ─── */
+function AICandidateWidget() {
+  const [matchPercent, setMatchPercent] = useState(0);
+  const [step, setStep] = useState(0); // 0: scanning, 1: completed, 2: reset
+  const [skillsVisible, setSkillsVisible] = useState<boolean[]>([false, false, false, false]);
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    let skillTimers: ReturnType<typeof setTimeout>[] = [];
+    let resetTimer: ReturnType<typeof setTimeout>;
+
+    const runCycle = () => {
+      setStep(0);
+      setMatchPercent(0);
+      setSkillsVisible([false, false, false, false]);
+
+      // Count up matching percentage
+      let currentPercent = 0;
+      interval = setInterval(() => {
+        currentPercent += 2;
+        if (currentPercent >= 96) {
+          currentPercent = 96;
+          clearInterval(interval);
+          setStep(1); // completed
+        }
+        setMatchPercent(currentPercent);
+      }, 45);
+
+      // Trigger skills checkmarks sequentially
+      skillTimers.push(setTimeout(() => setSkillsVisible(prev => [true, prev[1], prev[2], prev[3]]), 500));
+      skillTimers.push(setTimeout(() => setSkillsVisible(prev => [prev[0], true, prev[2], prev[3]]), 1100));
+      skillTimers.push(setTimeout(() => setSkillsVisible(prev => [prev[0], prev[1], true, prev[3]]), 1650));
+      skillTimers.push(setTimeout(() => setSkillsVisible(prev => [prev[0], prev[1], prev[2], true]), 2200));
+
+      // Reset cycle after 8 seconds
+      resetTimer = setTimeout(() => {
+        setStep(2);
+        setTimeout(runCycle, 600); // restart after transition out
+      }, 7500);
+    };
+
+    runCycle();
+
+    return () => {
+      clearInterval(interval);
+      skillTimers.forEach(clearTimeout);
+      clearTimeout(resetTimer);
+    };
+  }, []);
+
+  return (
+    <motion.div
+      className="w-full max-w-[370px] mx-auto rounded-3xl bg-white/[0.02] border border-white/[0.08] backdrop-blur-2xl p-6 shadow-[0_30px_70px_-15px_rgba(16,185,129,0.12)] relative overflow-hidden group select-none"
+      style={{ transformStyle: "preserve-3d" }}
+      whileHover={{
+        rotateY: -4,
+        rotateX: 4,
+        scale: 1.015,
+        borderColor: "rgba(16, 185, 129, 0.2)",
+        boxShadow: "0 35px 80px -15px rgba(16, 185, 129, 0.18)"
+      }}
+      transition={{ type: "spring", stiffness: 180, damping: 22 }}
+    >
+      {/* Scanline overlay (only visible in step 0: scanning) */}
+      {step === 0 && (
+        <motion.div
+          className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent z-20 pointer-events-none shadow-[0_0_15px_3px_rgba(52,211,153,0.5)]"
+          animate={{
+            top: ["0%", "100%", "0%"],
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+      )}
+
+      {/* Grid line overlay in widget */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
+        backgroundImage: "linear-gradient(to bottom, white 1px, transparent 1px)",
+        backgroundSize: "100% 8px"
+      }} />
+
+      {/* Main card contents */}
+      <div className="space-y-5 relative z-10">
+        {/* Candidate info row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* Avatar circle */}
+            <div className="w-12 h-12 rounded-2xl border border-white/[0.08] bg-white/[0.04] flex items-center justify-center font-bold text-white relative overflow-hidden shadow-inner">
+              <span className="text-sm bg-gradient-to-tr from-emerald-400 to-teal-300 bg-clip-text text-transparent font-black">أ م</span>
+              <div className="absolute inset-0 bg-emerald-500/5 opacity-50" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white tracking-wide">أحمد محمد</h4>
+              <p className="text-[10px] text-white/40 mt-0.5">مهندس برمجيات أول (Full-Stack)</p>
+            </div>
+          </div>
+          
+          {/* Recommendation rating */}
+          <div className="text-center relative">
+            <div className={`absolute -inset-2 rounded-full border border-emerald-500/10 ${step === 1 ? "animate-pulse" : ""}`} />
+            <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-b from-emerald-400 to-teal-300 leading-none">
+              {matchPercent}%
+            </span>
+            <span className="text-[8px] font-bold text-white/45 block mt-1 tracking-wider uppercase">تطابق</span>
+          </div>
+        </div>
+
+        {/* Scanning status banner */}
+        <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-white/[0.01] border border-white/[0.04]">
+          <span className="text-[10px] text-white/45">حالة المطابقة الذكية</span>
+          <AnimatePresence mode="wait">
+            <motion.span
+              key={step}
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              className={`text-[10px] font-bold flex items-center gap-1.5 ${
+                step === 1 ? "text-emerald-400" : "text-amber-400"
+              }`}
+            >
+              {step === 0 ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                  جاري فحص المهارات...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-bounce" />
+                  تطابق ممتاز ✨
+                </>
+              )}
+            </motion.span>
+          </AnimatePresence>
+        </div>
+
+        {/* Skills grid */}
+        <div className="space-y-2">
+          <p className="text-[9px] font-bold text-white/30 uppercase tracking-wider">نقاط التطابق</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              "React / Next.js",
+              "TypeScript",
+              "Node.js Server",
+              "AI Integration"
+            ].map((skill, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between p-2 rounded-xl border transition-all duration-300 bg-white/[0.01]"
+                style={{
+                  borderColor: skillsVisible[index] ? "rgba(16, 185, 129, 0.15)" : "rgba(255, 255, 255, 0.03)",
+                  backgroundColor: skillsVisible[index] ? "rgba(16, 185, 129, 0.03)" : "rgba(255, 255, 255, 0.01)"
+                }}
+              >
+                <span className={`text-[10px] truncate ${skillsVisible[index] ? "text-white/80 font-bold" : "text-white/35"}`}>
+                  {skill}
+                </span>
+                <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  skillsVisible[index] ? "bg-emerald-500/20 text-emerald-400 scale-100" : "bg-white/5 text-transparent scale-75"
+                }`}>
+                  <CheckCircle2 className="w-2.5 h-2.5" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
 /* ─── Right branding panel ─── */
 function BrandingPanel() {
-  const features = [
-    { icon: <Zap className="w-5 h-5 animate-pulse" />, title: "تقييم ذكي", desc: "تحليل المرشحين بالذكاء الاصطناعي بدقة متناهية" },
-    { icon: <BarChart3 className="w-5 h-5" />, title: "تقارير لحظية", desc: "لوحة تحكم تحليلية متقدمة لقياس الأداء" },
-    { icon: <Shield className="w-5 h-5" />, title: "أمان متقدم", desc: "تشفير وحماية كاملة للبيانات والملفات" },
-    { icon: <FileCheck className="w-5 h-5" />, title: "عروض رقمية", desc: "إصدار وتوقيع عروض العمل إلكترونياً وبسرعة" },
-  ];
-
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
   const glowX = useTransform(mouseX, [0, 1], ["-20%", "120%"]);
@@ -143,73 +305,115 @@ function BrandingPanel() {
         mouseY.set((e.clientY - rect.top) / rect.height);
       }}
     >
-      {/* Deep gradient background */}
-      <div className="absolute inset-0" style={{
-        background: "radial-gradient(circle at 100% 0%, hsl(222 75% 15%) 0%, hsl(222 65% 10%) 50%, hsl(230 50% 5%) 100%)"
+      {/* Deep Obsidian Gradient background */}
+      <div className="absolute inset-0 bg-[#060814]" style={{
+        background: "radial-gradient(circle at 100% 0%, #0d122b 0%, #060814 65%)"
       }} />
 
-      {/* Mouse-following light */}
+      {/* Dynamic ambient background blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          className="absolute w-[600px] h-[600px] rounded-full opacity-[0.16] mix-blend-screen filter blur-[110px]"
+          style={{
+            background: "radial-gradient(circle, #10b981 0%, transparent 70%)",
+            top: "-10%",
+            right: "-10%",
+          }}
+          animate={{
+            scale: [1, 1.25, 1],
+            x: [0, 60, 0],
+            y: [0, -40, 0],
+          }}
+          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute w-[500px] h-[500px] rounded-full opacity-[0.1] mix-blend-screen filter blur-[90px]"
+          style={{
+            background: "radial-gradient(circle, #06b6d4 0%, transparent 70%)",
+            bottom: "10%",
+            left: "-10%",
+          }}
+          animate={{
+            scale: [1.2, 0.95, 1.2],
+            x: [0, -50, 0],
+            y: [0, 50, 0],
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+        />
+      </div>
+
+      {/* Floating particles */}
+      <div className="absolute inset-0 opacity-[0.18] pointer-events-none">
+        {[...Array(20)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute rounded-full bg-white"
+            style={{
+              width: Math.random() * 2 + 1,
+              height: Math.random() * 2 + 1,
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+            }}
+            animate={{
+              opacity: [0.15, 1, 0.15],
+              scale: [1, 1.6, 1],
+            }}
+            transition={{
+              duration: 4 + Math.random() * 4,
+              repeat: Infinity,
+              delay: Math.random() * 4,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Grid Lines Overlay */}
+      <div className="absolute inset-0 opacity-[0.035] pointer-events-none" style={{
+        backgroundImage: `linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)`,
+        backgroundSize: '40px 40px'
+      }} />
+
+      {/* Mouse follow light */}
       <motion.div
-        className="absolute w-[500px] h-[500px] rounded-full pointer-events-none opacity-[0.22]"
+        className="absolute w-[450px] h-[450px] rounded-full pointer-events-none opacity-[0.24]"
         style={{
-          left: glowX, top: glowY,
-          background: "radial-gradient(circle, hsl(160 84% 35%) 0%, transparent 60%)",
+          left: glowX,
+          top: glowY,
+          background: "radial-gradient(circle, #10b981 0%, transparent 60%)",
           filter: "blur(60px)",
           transform: "translate(-50%, -50%)",
         }}
       />
 
-      {/* Static Glows */}
-      <div className="absolute inset-0">
-        <motion.div
-          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full opacity-[0.12] mix-blend-screen"
-          style={{ background: "radial-gradient(circle, hsl(172 75% 32%), transparent 70%)", filter: "blur(80px)" }}
-          animate={{ scale: [1, 1.1, 1], opacity: [0.1, 0.18, 0.1] }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute bottom-0 left-0 w-[450px] h-[450px] rounded-full opacity-[0.08] mix-blend-screen"
-          style={{ background: "radial-gradient(circle, hsl(160 84% 25%), transparent 70%)", filter: "blur(60px)" }}
-          animate={{ scale: [1.1, 1, 1.1], opacity: [0.06, 0.12, 0.06] }}
-          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-        />
-      </div>
-
-      {/* Grid overlay */}
-      <div className="absolute inset-0 opacity-[0.015] pointer-events-none" style={{
-        backgroundImage: "radial-gradient(circle, hsl(0 0% 100%) 1px, transparent 1px)",
-        backgroundSize: "32px 32px",
-      }} />
-
-      {/* Content Top */}
-      <div className="relative z-10">
+      {/* Upper Content (Logo & Info) */}
+      <div className="relative z-10 px-6 pt-4 space-y-12">
         {/* Logo */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="flex items-center gap-4 mb-16"
+          className="flex items-center gap-4"
         >
           <motion.div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl relative overflow-hidden group p-2.5 shadow-lg"
-            whileHover={{ scale: 1.06, borderColor: "hsla(160, 84%, 25%, 0.3)", rotate: -3 }}
+            className="w-13 h-13 rounded-2xl flex items-center justify-center border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl relative overflow-hidden group p-2 shadow-lg"
+            whileHover={{ scale: 1.05, rotate: -2 }}
             transition={{ type: "spring", stiffness: 400, damping: 15 }}
           >
-            <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <img src={tawzeefLogo} alt="Tawzeef-X" className="w-10 h-10 object-contain relative z-10" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <img src={tawzeefLogo} alt="Tawzeef-X" className="w-9 h-9 object-contain relative z-10" />
           </motion.div>
           <div className="flex flex-col">
-            <span className="text-[22px] font-black tracking-wide leading-tight text-white/95">Tawzeef-X</span>
-            <span className="text-[11px] font-bold tracking-[0.2em] text-emerald-400/60 uppercase">منصة التوظيف الذكية</span>
+            <span className="text-xl font-black tracking-wide leading-tight text-white/95">Tawzeef-X</span>
+            <span className="text-[10px] font-bold tracking-[0.2em] text-emerald-400/50 uppercase">منصة التوظيف الذكية</span>
           </div>
         </motion.div>
 
-        {/* Hero text */}
+        {/* Hero copy */}
         <motion.div
-          initial={{ opacity: 0, y: 35 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-          className="space-y-6"
+          className="space-y-5"
         >
           <motion.div
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/[0.07] bg-white/[0.03] backdrop-blur-xl"
@@ -227,50 +431,26 @@ function BrandingPanel() {
             </span>
           </h1>
 
-          <p className="text-[15px] leading-relaxed text-white/60 max-w-[420px]">
-            منصة متكاملة تعتمد على الذكاء الاصطناعي لأتمتة كامل رحلة التوظيف — من نشر الإعلان وفحص السير الذاتية وحتى توقيع العقود.
+          <p className="text-sm leading-relaxed text-white/50 max-w-[400px]">
+            أتمتة كامل رحلة التوظيف بالذكاء الاصطناعي — من صياغة ونشر الوظيفة والبحث عن المرشحين والمطابقة الذكية، وحتى المقابلات وإرسال العروض.
           </p>
         </motion.div>
-
-        {/* Features cards */}
-        <div className="grid grid-cols-2 gap-4 mt-12 max-w-[460px]">
-          {features.map((f, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: 0.3 + i * 0.1, duration: 0.5, type: "spring", stiffness: 180, damping: 18 }}
-              className="p-4.5 rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-xl relative overflow-hidden group"
-              whileHover={{
-                y: -6,
-                scale: 1.02,
-                backgroundColor: "rgba(255, 255, 255, 0.05)",
-                borderColor: "rgba(16, 185, 129, 0.25)",
-                boxShadow: "0 15px 30px -10px rgba(16, 185, 129, 0.15)",
-              }}
-            >
-              {/* Glow overlay */}
-              <div className="absolute -inset-px bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" />
-
-              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 text-emerald-400 group-hover:scale-110 transition-transform duration-300 relative z-10">
-                {f.icon}
-              </div>
-              <h3 className="text-sm font-bold text-white/95 mb-1 relative z-10">{f.title}</h3>
-              <p className="text-xs text-white/50 leading-normal relative z-10">{f.desc}</p>
-            </motion.div>
-          ))}
-        </div>
       </div>
 
-      {/* Bottom stats */}
+      {/* Center live interactive animation */}
+      <div className="relative z-10 my-4 flex items-center justify-center">
+        <AICandidateWidget />
+      </div>
+
+      {/* Bottom Stats Container */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.7, duration: 0.6 }}
-        className="relative z-10 p-6 rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-2xl shadow-xl overflow-hidden"
+        className="relative z-10 p-5 rounded-2xl border border-white/[0.05] bg-white/[0.01] backdrop-blur-2xl shadow-xl overflow-hidden"
       >
         <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-cyan-500/5 opacity-50" />
-        <div className="flex items-center justify-between relative z-10">
+        <div className="flex items-center justify-between relative z-10 px-4">
           {[
             { val: "AI", label: "تقييم ذكي" },
             { val: "24/7", label: "دعم متواصل" },
@@ -285,7 +465,7 @@ function BrandingPanel() {
               <span className="text-2xl xl:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60 leading-none block">
                 {s.val}
               </span>
-              <span className="text-[10px] font-bold text-white/40 block mt-1">
+              <span className="text-[9px] font-bold text-white/40 block mt-1">
                 {s.label}
               </span>
             </motion.div>
@@ -312,12 +492,12 @@ function SocialButtons() {
 
   return (
     <div className="flex gap-3">
-      <motion.div whileHover={{ scale: 1.01, y: -1 }} whileTap={{ scale: 0.98 }} className="flex-1">
+      <motion.div whileHover={{ scale: 1.015, y: -1 }} whileTap={{ scale: 0.985 }} className="flex-1">
         <Button
           type="button"
           variant="outline"
           disabled={!!loadingProvider}
-          className="w-full h-11 rounded-xl text-xs font-bold gap-2.5 bg-card/50 border border-border/70 text-foreground hover:bg-muted/40 hover:border-primary/30 transition-all duration-300"
+          className="w-full h-11 rounded-xl text-xs font-bold gap-2.5 bg-card/60 border border-border hover:bg-muted/40 hover:border-primary/20 transition-all duration-300"
           onClick={() => handleOAuth("google")}
         >
           {loadingProvider === "google" ? (
@@ -334,7 +514,7 @@ function SocialButtons() {
         </Button>
       </motion.div>
 
-      <motion.div whileHover={{ scale: 1.01, y: -1 }} whileTap={{ scale: 0.98 }} className="flex-1">
+      <motion.div whileHover={{ scale: 1.015, y: -1 }} whileTap={{ scale: 0.985 }} className="flex-1">
         <Button
           type="button"
           variant="outline"
@@ -343,7 +523,7 @@ function SocialButtons() {
           onClick={() => handleOAuth("apple")}
         >
           {loadingProvider === "apple" ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin text-background" />
           ) : (
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
@@ -581,27 +761,26 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
   const inputClass = (field: string) =>
     `h-[48px] pr-11 rounded-xl text-[14px] font-medium transition-all duration-300 border-2 focus-visible:ring-0 focus-visible:ring-offset-0 ${
       focused(field)
-        ? "bg-card border-primary/50 shadow-[0_0_0_4px_hsl(var(--primary)/0.06)]"
-        : "bg-muted/20 border-transparent hover:border-border/40"
+        ? "bg-card border-primary/50 shadow-[0_0_0_4px_rgba(16,185,129,0.08)]"
+        : "bg-muted/20 border-transparent hover:border-border/30"
     } text-foreground placeholder:text-muted-foreground/35`;
 
   const iconClass = (field: string) =>
     `absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-all duration-300 ${
-      focused(field) ? "text-primary scale-110" : "text-muted-foreground/40"
+      focused(field) ? "text-primary scale-110" : "text-muted-foreground/45"
     }`;
 
   return (
-    <div className="w-full max-w-[440px] mx-auto px-4 select-none">
+    <div className="w-full max-w-[430px] mx-auto px-4 select-none">
       {/* Mobile logo */}
       <div className="lg:hidden text-center mb-8">
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6 }}
           className="flex flex-col items-center gap-3"
         >
           <motion.div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden p-2 bg-gradient-to-tr from-primary/10 to-accent/10 border border-primary/15"
+            className="w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden p-2.5 bg-gradient-to-tr from-primary/10 to-accent/10 border border-primary/15"
             whileTap={{ scale: 0.95 }}
           >
             <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
@@ -613,9 +792,10 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
         </motion.div>
       </div>
 
-      <div className="bg-card/60 backdrop-blur-xl border border-border/50 shadow-2xl rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden">
-        {/* Decorative subtle border glow */}
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/20 to-transparent pointer-events-none" />
+      {/* Floating dual-border Glassmorphism form container */}
+      <div className="bg-card/65 backdrop-blur-3xl border border-border/50 shadow-2xl rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden shadow-[0_0_50px_-12px_rgba(16,185,129,0.1)]">
+        {/* Subtle decorative border gradient glow */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/25 to-transparent pointer-events-none" />
 
         {emailConfirmation ? (
           <motion.div
@@ -624,9 +804,9 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
             className="text-center py-6 space-y-6"
           >
             <motion.div
-              initial={{ scale: 0, rotate: -95 }}
+              initial={{ scale: 0, rotate: -90 }}
               animate={{ scale: 1, rotate: 0 }}
-              transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.15 }}
+              transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.1 }}
               className="flex items-center justify-center mx-auto"
               style={{ width: 72, height: 72, borderRadius: "20px", background: "linear-gradient(135deg, hsl(var(--accent) / 0.1), hsl(var(--primary) / 0.05))" }}
             >
@@ -697,7 +877,7 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
             </div>
 
             <div className="space-y-4">
-              <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}>
+              <motion.div whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.985 }}>
                 <Button
                   onClick={handleVerifyOtp}
                   disabled={otpLoading || otpCode.length < 6}
@@ -735,13 +915,9 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
 
             <div className="border-t border-border/40 pt-4 flex items-center justify-center gap-4">
               {countdown > 0 ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex items-center gap-2 text-xs font-bold text-muted-foreground"
-                >
+                <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
                   <span>إعادة الإرسال بعد {countdown} ثانية</span>
-                </motion.div>
+                </div>
               ) : (
                 <motion.button
                   onClick={handleResendOtp}
@@ -787,10 +963,10 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
                 transition={{ duration: 0.3 }}
                 className="space-y-1.5 text-right"
               >
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-primary/15 bg-primary/[0.04] text-primary mb-1">
-                  <Briefcase className="w-3 h-3" />
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-primary mb-1">
+                  <Sparkles className="w-3 h-3 text-primary animate-pulse" />
                   <span className="text-[10px] font-bold tracking-wide">
-                    {isLogin ? "مرحباً بعودتك" : "انضم إلينا اليوم"}
+                    {isLogin ? "مرحباً بعودتك" : "انضم للمنصة الأذكى"}
                   </span>
                 </div>
                 <h2 className="text-2xl font-black text-foreground tracking-tight leading-tight">
@@ -820,7 +996,7 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
                       <label className="text-[10px] font-bold text-muted-foreground tracking-wide block uppercase">
                         نوع الحساب
                       </label>
-                      <div className="flex bg-muted/40 rounded-xl p-1 border border-border/30 relative overflow-hidden h-[42px] select-none">
+                      <div className="flex bg-muted/40 rounded-xl p-1 border border-border/30 relative h-[42px] select-none">
                         <div
                           className="absolute inset-y-1 rounded-lg bg-card shadow-sm border border-border/40 transition-all duration-300 ease-out"
                           style={{
@@ -986,7 +1162,7 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
                   </div>
                 )}
 
-                <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }} className="pt-2">
+                <motion.div whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.985 }} className="pt-2">
                   <Button
                     type="submit"
                     disabled={loading}
