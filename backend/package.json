@@ -1,0 +1,15 @@
+{
+  "name": "tawzeef-x-backend",
+  "version": "1.0.0",
+  "description": "Ultra-fast Bun + Hono backend for Tawzeef-X",
+  "main": "index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch index.ts",
+    "start": "bun index.ts"
+  },
+  "dependencies": {
+    "hono": "^4.0.0",
+    "postgres": "^3.4.3"
+  }
+}

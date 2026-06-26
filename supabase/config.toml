@@ -1,0 +1,79 @@
+project_id = "odtpjvmayutbwqhlbvsr"
+
+[functions.chat]
+verify_jwt = false
+
+[functions.evaluate-candidate]
+verify_jwt = false
+
+[functions.candidate-portal]
+verify_jwt = false
+
+[functions.book-interview]
+verify_jwt = false
+
+[functions.send-invitation]
+verify_jwt = false
+
+[functions.send-webhook]
+verify_jwt = false
+
+[functions.elevenlabs-transcribe]
+verify_jwt = false
+
+[functions.notify-stage-change]
+verify_jwt = false
+
+[functions.send-email]
+verify_jwt = false
+
+[functions.manage-smtp]
+verify_jwt = false
+
+[functions.interview-reminders]
+verify_jwt = false
+
+[functions.og-apply]
+verify_jwt = false
+
+[functions.og-image]
+verify_jwt = false
+
+[functions.parse-resume]
+verify_jwt = false
+
+[functions.send-application-confirmation]
+verify_jwt = false
+
+[functions.auto-rank]
+verify_jwt = false
+
+[functions.generate-job-description]
+verify_jwt = false
+
+[functions.elevenlabs-tts]
+verify_jwt = false
+
+[functions.request-login-otp]
+verify_jwt = false
+
+[functions.verify-login-otp]
+verify_jwt = false
+
+[functions.generate-interview-questions]
+verify_jwt = false
+
+[functions.analyze-sentiment]
+verify_jwt = false
+
+[functions.evaluate-assessment-answers]
+verify_jwt = false
+
+[functions.send-assessment-results]
+verify_jwt = false
+
+[functions.email-tracking-pixel]
+verify_jwt = false
+
+[functions.candidate-chatbot]
+verify_jwt = false

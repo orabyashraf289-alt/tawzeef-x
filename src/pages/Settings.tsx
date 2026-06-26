@@ -1,0 +1,1106 @@
+import DashboardLayout from "@/components/DashboardLayout";
+import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  User, Mail, Shield, Calendar, Bell, Target, Settings2, Webhook, ChevronLeft,
+  Palette, KeyRound, Building2, Globe, Camera, Check, Linkedin, ExternalLink, Zap, Image, Trash2, GitBranch, Bookmark,
+} from "lucide-react";
+import SavedFiltersManager from "@/components/SavedFiltersManager";
+import EmailSettings from "@/components/EmailSettings";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { motion, AnimatePresence } from "framer-motion";
+import { Switch } from "@/components/ui/switch";
+import WebhookSettings from "@/components/WebhookSettings";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import PipelineStagesManager from "@/components/PipelineStagesManager";
+import { useUserRole } from "@/hooks/useUserRole";
+import { checkPasswordStrength } from "@/lib/security";
+import { useQueryClient } from "@tanstack/react-query";
+
+/* ─── Hiring Goals ─── */
+function HiringGoalsSection() {
+  const { user } = useAuth();
+  const { t, locale } = useI18n();
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const [loading, setLoading] = useState(false);
+  const [goals, setGoals] = useState({
+    hire_target: 10,
+    candidates_target: 50,
+    interviews_target: 20,
+    offers_target: 8,
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from("hiring_goals" as any)
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("month", currentMonth)
+        .maybeSingle();
+      if (data) {
+        setGoals({
+          hire_target: (data as any).hire_target,
+          candidates_target: (data as any).candidates_target,
+          interviews_target: (data as any).interviews_target,
+          offers_target: (data as any).offers_target,
+        });
+      }
+    })();
+  }, [user, currentMonth]);
+
+  const handleSave = async () => {
+    if (!user) return;
+    setLoading(true);
+    const { error } = await supabase
+      .from("hiring_goals" as any)
+      .upsert({ user_id: user.id, month: currentMonth, ...goals } as any, { onConflict: "user_id,month" });
+    if (error) toast({ title: t("settings.goalsSaveError"), description: error.message, variant: "destructive" });
+    else toast({ title: t("settings.goalsSaved") });
+    setLoading(false);
+  };
+
+  const fields = [
+    { key: "hire_target" as const, label: t("settings.hireTarget"), desc: t("settings.hireTargetDesc"), icon: "👤" },
+    { key: "candidates_target" as const, label: t("settings.candidatesTarget"), desc: t("settings.candidatesTargetDesc"), icon: "📋" },
+    { key: "interviews_target" as const, label: t("settings.interviewsTarget"), desc: t("settings.interviewsTargetDesc"), icon: "🎙️" },
+    { key: "offers_target" as const, label: t("settings.offersTarget"), desc: t("settings.offersTargetDesc"), icon: "📄" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-bold text-foreground">{t("settings.goalsTitle")}</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          {t("settings.goalsDesc")} {new Date().toLocaleDateString(locale === "en" ? "en-US" : "ar-SA", { month: "long", year: "numeric" })}
+        </p>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-4">
+        {fields.map(f => (
+          <div key={f.key} className="group relative bg-muted/30 hover:bg-muted/50 rounded-xl p-4 border border-border/40 transition-colors">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">{f.icon}</span>
+              <Label className="text-sm font-semibold text-foreground">{f.label}</Label>
+            </div>
+            <Input
+              type="number"
+              min={1}
+              value={goals[f.key]}
+              onChange={e => setGoals({ ...goals, [f.key]: parseInt(e.target.value) || 1 })}
+              className="text-center text-lg font-bold bg-card border-border/60"
+            />
+            <p className="text-[11px] text-muted-foreground mt-1.5">{f.desc}</p>
+          </div>
+        ))}
+      </div>
+      <Button onClick={handleSave} disabled={loading} className="gap-2">
+        {loading ? t("common.saving") : <><Check className="w-4 h-4" />{t("settings.saveGoals")}</>}
+      </Button>
+    </div>
+  );
+}
+
+/* ─── Account Section ─── */
+function AccountSection() {
+  const { user } = useAuth();
+  const { t, locale } = useI18n();
+  const queryClient = useQueryClient();
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("full_name, avatar_url, job_title").eq("user_id", user.id).single().then(({ data }: any) => {
+      if (data) {
+        setFullName(data.full_name || "");
+        setAvatarUrl(data.avatar_url || null);
+        setJobTitle(data.job_title || "");
+      }
+    });
+  }, [user]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: t("settings.avatarTooLarge"), variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    const ext = file.name.split(".").pop();
+    const path = `${user.id}/avatar.${ext}`;
+    const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (uploadError) {
+      toast({ title: "Error", description: uploadError.message, variant: "destructive" });
+      setUploading(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+    const newUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+    await supabase.from("profiles").update({ avatar_url: newUrl } as any).eq("user_id", user.id);
+    setAvatarUrl(newUrl);
+    queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
+    toast({ title: t("settings.avatarUpdated") });
+    setUploading(false);
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!user) return;
+    setUploading(true);
+    await supabase.from("profiles").update({ avatar_url: null } as any).eq("user_id", user.id);
+    setAvatarUrl(null);
+    queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
+    toast({ title: t("settings.avatarRemoved") });
+    setUploading(false);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    setLoading(true);
+    const { error } = await supabase.from("profiles").update({ full_name: fullName, job_title: jobTitle } as any).eq("user_id", user.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
+      toast({ title: t("settings.profileSaved") });
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-bold text-foreground">{t("settings.profileTitle")}</h2>
+        <p className="text-sm text-muted-foreground mt-1">{t("settings.profileDesc")}</p>
+      </div>
+
+      <div className="flex items-start gap-5">
+        <div className="relative group">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="avatar" className="w-20 h-20 rounded-2xl object-cover border-2 border-border/50 shadow-sm" />
+          ) : (
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border-2 border-border/50 flex items-center justify-center shadow-sm">
+              <User className="w-8 h-8 text-primary/70" />
+            </div>
+          )}
+          <label className="absolute -bottom-1 -left-1 w-7 h-7 rounded-full bg-card border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+            <Camera className="w-3.5 h-3.5 text-muted-foreground" />
+            <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploading} />
+          </label>
+          {avatarUrl && (
+            <button
+              onClick={handleRemoveAvatar}
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-card border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-destructive/10"
+              title={t("settings.removeAvatar")}
+            >
+              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+            </button>
+          )}
+          {uploading && (
+            <div className="absolute inset-0 rounded-2xl bg-background/60 flex items-center justify-center">
+              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 space-y-3">
+          <div>
+            <Label className="text-xs text-muted-foreground">{t("settings.fullName")}</Label>
+            <Input
+              value={fullName}
+              onChange={e => setFullName(e.target.value)}
+              placeholder={t("settings.fullNamePlaceholder")}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">{t("settings.jobTitleLabel")}</Label>
+            <Input
+              value={jobTitle}
+              onChange={e => setJobTitle(e.target.value)}
+              placeholder={t("settings.jobTitlePlaceholder")}
+              className="mt-1"
+            />
+          </div>
+        </div>
+      </div>
+
+      <Separator className="opacity-50" />
+
+      <div className="space-y-3">
+        <InfoRow icon={Mail} label={t("settings.emailLabel")} value={user?.email || "—"} />
+        <InfoRow icon={Calendar} label={t("settings.joinDate")} value={user?.created_at ? new Date(user.created_at).toLocaleDateString(locale === "en" ? "en-US" : "ar-SA", { year: "numeric", month: "long", day: "numeric" }) : "—"} />
+        <InfoRow icon={Shield} label={t("settings.accountStatus")} value={t("settings.active")} badge />
+      </div>
+
+      <Button onClick={handleSaveProfile} disabled={loading} className="gap-2">
+        {loading ? t("common.saving") : <><Check className="w-4 h-4" />{t("settings.saveChanges")}</>}
+      </Button>
+    </div>
+  );
+}
+
+function InfoRow({ icon: Icon, label, value, badge }: { icon: any; label: string; value: string; badge?: boolean }) {
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/30">
+      <div className="p-2 rounded-lg bg-primary/8">
+        <Icon className="w-4 h-4 text-primary" />
+      </div>
+      <div className="flex-1">
+        <p className="text-[11px] text-muted-foreground">{label}</p>
+        {badge ? (
+          <Badge variant="outline" className="text-xs border-green-500/30 text-green-600 mt-0.5">
+            <Check className="w-3 h-3 ml-1" />{value}
+          </Badge>
+        ) : (
+          <p className="text-sm font-medium text-foreground">{value}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Security Section ─── */
+function SecuritySection() {
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const { role, isAdmin } = useUserRole();
+  const [loading, setLoading] = useState(false);
+  const [savingPolicy, setSavingPolicy] = useState(false);
+
+  // Password Policy States
+  const [policy, setPolicy] = useState<any>(null);
+  const [minLength, setMinLength] = useState(8);
+  const [requireUpper, setRequireUpper] = useState(true);
+  const [requireLower, setRequireLower] = useState(true);
+  const [requireNumbers, setRequireNumbers] = useState(true);
+  const [requireSpecial, setRequireSpecial] = useState(true);
+
+  // New Password Form States
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  // Load policy
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from("password_policies" as any)
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (data) {
+        setPolicy(data);
+        setMinLength(data.min_length);
+        setRequireUpper(data.require_uppercase);
+        setRequireLower(data.require_lowercase);
+        setRequireNumbers(data.require_numbers);
+        setRequireSpecial(data.require_special);
+      }
+    })();
+  }, [user]);
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast({ title: t("settings.passwordMismatch"), variant: "destructive" });
+      return;
+    }
+
+    // Validate password against active policy
+    const strength = checkPasswordStrength(newPassword, policy || undefined);
+    if (strength.suggestions.length > 0) {
+      toast({
+        title: "كلمة المرور لا تستوفي الشروط الأمنية ⚠️",
+        description: (
+          <div className="space-y-1 mt-1 text-right animate-in fade-in-50 duration-200" dir="rtl">
+            <p className="font-semibold text-destructive mb-1 text-[11px]">يجب استيفاء الشروط التالية:</p>
+            <ul className="list-disc list-inside space-y-1 text-[10px] text-muted-foreground">
+              {strength.suggestions.map((s, idx) => (
+                <li key={idx}>{s}</li>
+              ))}
+            </ul>
+          </div>
+        ),
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: t("settings.passwordChanged") + " ✅" });
+      setNewPassword("");
+      setConfirmPassword("");
+      const form = e.target as HTMLFormElement;
+      form.reset();
+    }
+    setLoading(false);
+  };
+
+  const handleSavePolicy = async () => {
+    if (!user) return;
+    setSavingPolicy(true);
+    const { error } = await supabase
+      .from("password_policies" as any)
+      .upsert({
+        user_id: user.id,
+        min_length: minLength,
+        require_uppercase: requireUpper,
+        require_lowercase: requireLower,
+        require_numbers: requireNumbers,
+        require_special: requireSpecial,
+        updated_at: new Date().toISOString()
+      } as any, { onConflict: "user_id" });
+
+    if (error) {
+      toast({ title: "خطأ في حفظ سياسة كلمة المرور", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "تم حفظ سياسة كلمة المرور بنجاح ✅" });
+      // Update local policy object so validation uses new values immediately
+      setPolicy({
+        user_id: user.id,
+        min_length: minLength,
+        require_uppercase: requireUpper,
+        require_lowercase: requireLower,
+        require_numbers: requireNumbers,
+        require_special: requireSpecial
+      });
+    }
+    setSavingPolicy(false);
+  };
+
+  const activePolicyObj = policy || {
+    min_length: 8,
+    require_uppercase: true,
+    require_lowercase: true,
+    require_numbers: true,
+    require_special: true
+  };
+
+  const currentStrength = newPassword ? checkPasswordStrength(newPassword, activePolicyObj) : null;
+
+  return (
+    <div className="space-y-8">
+      {/* Change Password Form */}
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-lg font-bold text-foreground">{t("settings.securityTitle")}</h2>
+          <p className="text-sm text-muted-foreground mt-1">{t("settings.securityDesc")}</p>
+        </div>
+        <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">{t("settings.newPassword")}</Label>
+            <Input 
+              name="newPassword" 
+              type="password" 
+              placeholder="••••••••" 
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required 
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">{t("settings.confirmPassword")}</Label>
+            <Input 
+              name="confirmPassword" 
+              type="password" 
+              placeholder="••••••••" 
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required 
+            />
+          </div>
+
+          {/* Password Strength Meter */}
+          {newPassword && currentStrength && (
+            <div className="space-y-2 mt-2">
+              <div className="flex gap-1">
+                {[0, 1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="h-1.5 flex-1 rounded-full transition-all duration-300"
+                    style={{
+                      background: i < currentStrength.score ? currentStrength.color : "hsl(var(--muted))",
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold" style={{ color: currentStrength.color }}>
+                  قوة كلمة المرور: {currentStrength.label}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <Button type="submit" disabled={loading} className="gap-2">
+            {loading ? t("settings.updating") : <><KeyRound className="w-4 h-4" />{t("settings.changePassword")}</>}
+          </Button>
+        </form>
+      </div>
+
+      {/* Customizable Password Policy Section (Admins Only) */}
+      {isAdmin && (
+        <div className="space-y-6 pt-6 border-t border-border/60">
+          <div>
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <Shield className="w-5 h-5 text-primary" />
+              سياسة كلمة المرور المخصصة
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              قم بتهيئة القواعد الأمنية لكلمات المرور المطلوبة من أعضاء الفريق والمسؤولين.
+            </p>
+          </div>
+
+          <div className="bg-muted/20 border border-border/40 rounded-xl p-5 space-y-5 max-w-xl">
+            {/* Minimum Length */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label className="text-sm font-semibold">الحد الأدنى لطول كلمة المرور</Label>
+                <span className="text-xs font-mono font-bold bg-primary/10 text-primary px-2 py-0.5 rounded">
+                  {minLength} أحرف
+                </span>
+              </div>
+              <Input
+                type="range"
+                min={6}
+                max={20}
+                value={minLength}
+                onChange={(e) => setMinLength(parseInt(e.target.value))}
+                className="h-1.5 bg-secondary accent-primary transition-colors cursor-pointer"
+              />
+            </div>
+
+            <Separator className="opacity-40" />
+
+            {/* Toggle Options */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-foreground">تطلب أحرفاً كبيرة (A-Z)</p>
+                  <p className="text-[10px] text-muted-foreground">يجب أن تحتوي كلمة المرور على حرف كبير واحد على الأقل.</p>
+                </div>
+                <Switch checked={requireUpper} onCheckedChange={setRequireUpper} />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-foreground">تطلب أحرفاً صغيرة (a-z)</p>
+                  <p className="text-[10px] text-muted-foreground">يجب أن تحتوي كلمة المرور على حرف صغير واحد على الأقل.</p>
+                </div>
+                <Switch checked={requireLower} onCheckedChange={setRequireLower} />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-foreground">تطلب أرقاماً (0-9)</p>
+                  <p className="text-[10px] text-muted-foreground">يجب أن تحتوي كلمة المرور على رقم واحد على الأقل.</p>
+                </div>
+                <Switch checked={requireNumbers} onCheckedChange={setRequireNumbers} />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-foreground">تطلب رموزاً خاصة (@, #, $ ...)</p>
+                  <p className="text-[10px] text-muted-foreground">يجب أن تحتوي كلمة المرور على رمز خاص واحد على الأقل.</p>
+                </div>
+                <Switch checked={requireSpecial} onCheckedChange={setRequireSpecial} />
+              </div>
+            </div>
+
+            <Button onClick={handleSavePolicy} disabled={savingPolicy} className="w-full gap-2 mt-2">
+              {savingPolicy ? "جاري الحفظ..." : <><Check className="w-4 h-4" />حفظ سياسة كلمة المرور</>}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Notifications Section ─── */
+function NotificationsSection() {
+  const { t } = useI18n();
+  const prefs = [
+    { label: t("settings.notifNewApplications"), desc: t("settings.notifNewApplicationsDesc"), icon: "📩" },
+    { label: t("settings.notifInterviewReminders"), desc: t("settings.notifInterviewRemindersDesc"), icon: "⏰" },
+    { label: t("settings.notifCandidateUpdates"), desc: t("settings.notifCandidateUpdatesDesc"), icon: "👤" },
+    { label: t("settings.notifBrowserPush"), desc: t("settings.notifBrowserPushDesc"), icon: "🔔" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-bold text-foreground">{t("settings.notificationsTitle")}</h2>
+        <p className="text-sm text-muted-foreground mt-1">{t("settings.notificationsDesc")}</p>
+      </div>
+      <div className="space-y-2">
+        {prefs.map((pref, i) => (
+          <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border border-border/30 hover:bg-muted/50 transition-colors">
+            <div className="flex items-center gap-3">
+              <span className="text-lg">{pref.icon}</span>
+              <div>
+                <p className="text-sm font-medium text-foreground">{pref.label}</p>
+                <p className="text-[11px] text-muted-foreground">{pref.desc}</p>
+              </div>
+            </div>
+            <Switch defaultChecked onClick={() => {
+              if (i === 3 && "Notification" in window && Notification.permission !== "granted") {
+                Notification.requestPermission();
+              }
+            }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── LinkedIn Integration Section ─── */
+function LinkedInSection() {
+  const { t, locale } = useI18n();
+  const { user } = useAuth();
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [isActive, setIsActive] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [deliveries, setDeliveries] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("linkedin_settings" as any)
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data) {
+          setWebhookUrl(data.zapier_webhook_url || "");
+          setIsActive(data.is_active ?? true);
+        }
+        setLoaded(true);
+      });
+
+    // Load delivery log
+    supabase
+      .from("linkedin_deliveries" as any)
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(10)
+      .then(({ data }: any) => {
+        if (data) setDeliveries(data);
+      });
+  }, [user]);
+
+  const isValidZapierUrl = (url: string) =>
+    !url || url.startsWith("https://hooks.zapier.com/");
+
+  const handleSave = async () => {
+    if (!user) return;
+    if (webhookUrl && !isValidZapierUrl(webhookUrl)) {
+      toast({ title: t("settings.linkedinInvalidUrl"), variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase
+      .from("linkedin_settings" as any)
+      .upsert({ user_id: user.id, zapier_webhook_url: webhookUrl, is_active: isActive } as any, { onConflict: "user_id" });
+    if (error) toast({ title: t("settings.linkedinWebhookSaveError"), description: error.message, variant: "destructive" });
+    else toast({ title: t("settings.linkedinWebhookSaved") });
+    setLoading(false);
+  };
+
+  const handleTest = async () => {
+    if (!webhookUrl) return;
+    if (!isValidZapierUrl(webhookUrl)) {
+      toast({ title: t("settings.linkedinInvalidUrl"), variant: "destructive" });
+      return;
+    }
+    setTesting(true);
+    try {
+      await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        mode: "no-cors",
+        body: JSON.stringify({
+          event: "job.created",
+          timestamp: new Date().toISOString(),
+          data: {
+            job_title: "وظيفة تجريبية - Test Job",
+            department: "الهندسة",
+            location: "الرياض",
+            type: "دوام كامل",
+            apply_url: "https://example.com/apply/test",
+            description: "هذا اختبار للنشر التلقائي على LinkedIn",
+          },
+        }),
+      });
+      toast({ title: t("settings.linkedinTestSent") });
+    } catch {
+      toast({ title: t("settings.linkedinTestError"), variant: "destructive" });
+    }
+    setTesting(false);
+  };
+
+  const urlInvalid = webhookUrl.length > 0 && !isValidZapierUrl(webhookUrl);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+          <Linkedin className="w-5 h-5 text-[#0A66C2]" />
+          {t("settings.linkedinTitle")}
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">{t("settings.linkedinDesc")}</p>
+      </div>
+
+      {/* Manual Sharing */}
+      <div className="rounded-xl border border-border/50 p-5 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#0A66C2]/10 flex items-center justify-center shrink-0">
+            <Linkedin className="w-5 h-5 text-[#0A66C2]" />
+          </div>
+          <div>
+            <h3 className="font-bold text-sm text-foreground">{t("settings.linkedinManualTitle")}</h3>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{t("settings.linkedinManualDesc")}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* OG Preview */}
+      <div className="rounded-xl border border-border/50 p-5 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Image className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-bold text-sm text-foreground">{t("settings.linkedinOgTitle")}</h3>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{t("settings.linkedinOgDesc")}</p>
+          </div>
+        </div>
+        <div className="rounded-lg overflow-hidden border border-border/30 bg-muted/20">
+          <div className="h-28 bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0d9488]/40 flex items-center justify-center">
+            <div className="text-center">
+              <p className="text-white/90 font-bold text-sm">مطور واجهات أمامية</p>
+              <p className="text-white/50 text-xs mt-1">الهندسة · الرياض · دوام كامل</p>
+            </div>
+          </div>
+          <div className="p-3">
+            <p className="text-[11px] text-muted-foreground">ai-hire-buddy-22.lovable.app</p>
+            <p className="text-xs font-medium text-foreground mt-0.5">Tawzeef-X - فرصة وظيفية</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Zapier Webhook - Main CTA */}
+      <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-5 space-y-5">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Zap className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-foreground">{t("settings.linkedinAutoTitle")}</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-muted-foreground">
+                  {isActive ? t("settings.linkedinWebhookActive") : t("settings.linkedinWebhookInactive")}
+                </span>
+                <Switch checked={isActive} onCheckedChange={setIsActive} />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{t("settings.linkedinAutoDesc")}</p>
+          </div>
+        </div>
+
+        {/* Steps */}
+        <div className="space-y-2.5">
+          {[
+            t("settings.linkedinAutoStep1"),
+            t("settings.linkedinAutoStep2"),
+            t("settings.linkedinAutoStep3"),
+          ].map((step, i) => (
+            <div key={i} className="flex items-start gap-2.5">
+              <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                {i + 1}
+              </span>
+              <p className="text-xs text-muted-foreground leading-relaxed">{step}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Webhook URL Input */}
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">{t("settings.linkedinWebhookUrl")}</Label>
+          <Input
+            value={webhookUrl}
+            onChange={e => setWebhookUrl(e.target.value)}
+            placeholder={t("settings.linkedinWebhookPlaceholder")}
+            dir="ltr"
+            className={cn("font-mono text-sm", urlInvalid && "border-destructive focus-visible:ring-destructive")}
+          />
+          {urlInvalid && (
+            <p className="text-xs text-destructive">{t("settings.linkedinInvalidUrl")}</p>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          <Button onClick={handleSave} disabled={loading || urlInvalid} className="gap-2">
+            {loading ? t("common.saving") : <><Check className="w-4 h-4" />{t("settings.linkedinSaveWebhook")}</>}
+          </Button>
+          {webhookUrl && !urlInvalid && (
+            <Button variant="outline" onClick={handleTest} disabled={testing} className="gap-2">
+              <ExternalLink className="w-3.5 h-3.5" />
+              {testing ? "..." : t("settings.linkedinTestWebhook")}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Delivery Log */}
+      <div className="rounded-xl border border-border/50 p-5 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+            <Calendar className="w-5 h-5 text-muted-foreground" />
+          </div>
+          <div>
+            <h3 className="font-bold text-sm text-foreground">{t("settings.linkedinDeliveryLog")}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">{t("settings.linkedinDeliveryLogDesc")}</p>
+          </div>
+        </div>
+
+        {deliveries.length === 0 ? (
+          <div className="text-center py-6">
+            <p className="text-sm text-muted-foreground">{t("settings.linkedinNoDeliveries")}</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {deliveries.map((d: any) => (
+              <div key={d.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "w-2 h-2 rounded-full shrink-0",
+                    d.status === "success" ? "bg-green-500" : "bg-destructive"
+                  )} />
+                  <div>
+                    <p className="text-xs font-medium text-foreground">
+                      {(d.payload as any)?.job_title || d.event_type}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {d.error_message || (d.status === "success" ? t("settings.linkedinDeliverySuccess") : t("settings.linkedinDeliveryFailed"))}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-left">
+                  <Badge variant="outline" className={cn(
+                    "text-[10px]",
+                    d.status === "success" ? "border-green-500/30 text-green-600" : "border-destructive/30 text-destructive"
+                  )}>
+                    {d.status === "success" ? t("settings.linkedinDeliverySuccess") : t("settings.linkedinDeliveryFailed")}
+                  </Badge>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {new Date(d.created_at).toLocaleString(locale === "en" ? "en-US" : "ar-SA", {
+                      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+                    })}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Company Settings Section ─── */
+function CompanySection() {
+  const { user } = useAuth();
+  const { t, locale } = useI18n();
+  const queryClient = useQueryClient();
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [companyName, setCompanyName] = useState("");
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [e2eEnabled, setE2eEnabled] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("company_name, company_logo").eq("user_id", user.id).single().then(({ data }: any) => {
+      if (data) {
+        setCompanyName(data.company_name || "");
+        setCompanyLogo(data.company_logo || null);
+      }
+    });
+
+    supabase.from("company_members")
+      .select("company_id")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data?.company_id) {
+          setCompanyId(data.company_id);
+          supabase.from("companies")
+            .select("e2e_encryption")
+            .eq("id", data.company_id)
+            .maybeSingle()
+            .then(({ data: compData }: any) => {
+              if (compData) {
+                setE2eEnabled(!!compData.e2e_encryption);
+              }
+            });
+        }
+      });
+  }, [user]);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: locale === "en" ? "Logo too large (max 2MB)" : "حجم الشعار كبير (الحد 2 ميجا)", variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    const ext = file.name.split(".").pop();
+    const path = `${user.id}/company-logo.${ext}`;
+    const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (uploadError) {
+      toast({ title: "Error", description: uploadError.message, variant: "destructive" });
+      setUploading(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+    const newUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+    await supabase.from("profiles").update({ company_logo: newUrl } as any).eq("user_id", user.id);
+    setCompanyLogo(newUrl);
+    queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
+    toast({ title: locale === "en" ? "Logo updated ✅" : "تم تحديث الشعار ✅" });
+    setUploading(false);
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!user) return;
+    setUploading(true);
+    await supabase.from("profiles").update({ company_logo: null } as any).eq("user_id", user.id);
+    setCompanyLogo(null);
+    queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
+    toast({ title: locale === "en" ? "Logo removed" : "تم إزالة الشعار" });
+    setUploading(false);
+  };
+
+  const handleSave = async () => {
+    if (!user) return;
+    setLoading(true);
+    const { error } = await supabase.from("profiles").update({ company_name: companyName } as any).eq("user_id", user.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+
+    if (companyId) {
+      const { error: compErr } = await supabase.from("companies").update({ e2e_encryption: e2eEnabled } as any).eq("id", companyId);
+      if (compErr) {
+        toast({ title: "Error updating E2E settings", description: compErr.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
+    toast({ title: locale === "en" ? "Company info saved ✅" : "تم حفظ بيانات الشركة ✅" });
+    setLoading(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-bold text-foreground">{locale === "en" ? "Company Settings" : "إعدادات الشركة"}</h2>
+        <p className="text-sm text-muted-foreground mt-1">{locale === "en" ? "Update your company name, logo, and branding" : "تعديل اسم الشركة والشعار والهوية البصرية"}</p>
+      </div>
+
+      <div className="flex items-start gap-5">
+        <div className="relative group">
+          {companyLogo ? (
+            <img src={companyLogo} alt="company logo" className="w-20 h-20 rounded-2xl object-contain border-2 border-border/50 shadow-sm bg-card p-1" />
+          ) : (
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border-2 border-border/50 flex items-center justify-center shadow-sm">
+              <Building2 className="w-8 h-8 text-primary/70" />
+            </div>
+          )}
+          <label className="absolute -bottom-1 -left-1 w-7 h-7 rounded-full bg-card border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+            <Camera className="w-3.5 h-3.5 text-muted-foreground" />
+            <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploading} />
+          </label>
+          {companyLogo && (
+            <button
+              onClick={handleRemoveLogo}
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-card border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-destructive/10"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+            </button>
+          )}
+          {uploading && (
+            <div className="absolute inset-0 rounded-2xl bg-background/60 flex items-center justify-center">
+              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 space-y-3">
+          <div>
+            <Label className="text-xs text-muted-foreground">{locale === "en" ? "Company Name" : "اسم الشركة"}</Label>
+            <Input
+              value={companyName}
+              onChange={e => setCompanyName(e.target.value)}
+              placeholder={locale === "en" ? "Enter company name" : "أدخل اسم الشركة"}
+              className="mt-1"
+            />
+          </div>
+
+          {companyId && (
+            <div className="flex items-center justify-between p-3.5 rounded-xl border border-border/60 bg-muted/20 mt-4">
+              <div className="space-y-0.5 text-right">
+                <Label className="text-sm font-bold text-foreground">
+                  {locale === "en" ? "End-to-End Encryption" : "التشفيـر الشامـل (E2E)"}
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {locale === "en" 
+                    ? "Encrypt candidate notes and expected salaries locally before saving" 
+                    : "تشفير ملاحظات المرشحين وتوقعات الرواتب محلياً قبل حفظها لقاعدة البيانات"}
+                </p>
+              </div>
+              <Switch checked={e2eEnabled} onCheckedChange={setE2eEnabled} className="ms-4" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Separator className="opacity-50" />
+
+      <Button onClick={handleSave} disabled={loading} className="gap-2">
+        {loading ? (locale === "en" ? "Saving..." : "جاري الحفظ...") : <><Check className="w-4 h-4" />{locale === "en" ? "Save Changes" : "حفظ التغييرات"}</>}
+      </Button>
+    </div>
+  );
+}
+
+/* ─── Main Page ─── */
+export default function SettingsPage() {
+  const { t } = useI18n();
+  const [activeTab, setActiveTab] = useState("account");
+
+  const settingsTabs = [
+    { id: "account", label: t("settings.profile"), icon: User },
+    { id: "company", label: "الشركة", icon: Building2 },
+    { id: "pipeline", label: "مراحل التوظيف", icon: GitBranch },
+    { id: "filters", label: "الفلاتر المحفوظة", icon: Bookmark },
+    { id: "security", label: t("settings.security"), icon: Shield },
+    { id: "goals", label: t("settings.hiringGoals"), icon: Target },
+    { id: "notifications", label: t("settings.notifications"), icon: Bell },
+    { id: "linkedin", label: t("settings.linkedin"), icon: Linkedin },
+    { id: "email", label: t("settings.email"), icon: Mail },
+    { id: "webhooks", label: t("settings.webhooks"), icon: Webhook },
+  ];
+
+  return (
+    <DashboardLayout>
+      <div className="p-4 lg:p-8">
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-primary/8">
+              <Settings2 className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">{t("settings.title")}</h1>
+              <p className="text-sm text-muted-foreground">{t("settings.subtitle")}</p>
+            </div>
+          </div>
+        </motion.div>
+
+        <div className="flex flex-col lg:flex-row gap-6">
+          <motion.nav
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.05 }}
+            className="lg:w-56 shrink-0"
+          >
+            <div className="lg:sticky lg:top-24 bg-card rounded-2xl border border-border/50 p-2 space-y-0.5">
+              {settingsTabs.map(tab => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={cn(
+                      "relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-colors text-right",
+                      isActive
+                        ? "bg-primary/8 text-primary"
+                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                    )}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="settings-tab-indicator"
+                        className="absolute right-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-full"
+                        transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                      />
+                    )}
+                    <tab.icon className="w-4 h-4 shrink-0" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </motion.nav>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="flex-1 min-w-0"
+          >
+            <div className="bg-card rounded-2xl border border-border/50 p-5 sm:p-7 max-w-3xl">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {activeTab === "account" && <AccountSection />}
+                  {activeTab === "company" && <CompanySection />}
+                  {activeTab === "pipeline" && <PipelineStagesManager />}
+                  {activeTab === "filters" && <SavedFiltersManager />}
+                  {activeTab === "security" && <SecuritySection />}
+                  {activeTab === "goals" && <HiringGoalsSection />}
+                  {activeTab === "notifications" && <NotificationsSection />}
+                  {activeTab === "email" && <EmailSettings />}
+                  {activeTab === "linkedin" && <LinkedInSection />}
+                  {activeTab === "webhooks" && <WebhookSettings />}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}

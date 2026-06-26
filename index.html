@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0d5c5a" />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Tawzeef-X" />
+    <link rel="apple-touch-icon" href="/icon-192x192.png" />
+
+    <!-- Font fallback + smart loading: preconnect, preload critical body weight, swap to prevent FOUT -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Preload the most-used body weight to minimize FOUT for Arabic text -->
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="https://fonts.gstatic.com/s/ibmplexsansarabic/v12/Qw3CZRtWPQCuHme67tEYUIx3Kh0PHR9N6ZNmsmcwSA.woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="https://fonts.gstatic.com/s/tajawal/v11/Iurf6YBj_oCad4k1l_6gLrZjiLlJ-G0.woff2"
+      crossorigin
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap"
+    />
+    <style>
+      /* System Arabic fallback while web font loads — prevents FOUT layout jump */
+      @font-face {
+        font-family: "ArabicSystemFallback";
+        src: local("SF Arabic"), local("Geeza Pro"), local("Tahoma"), local("Segoe UI"), local("Arial");
+        size-adjust: 96%;
+        ascent-override: 95%;
+        descent-override: 25%;
+        line-gap-override: 0%;
+      }
+    </style>
+
+    <title>Tawzeef-X - منصة التوظيف الذكية | AI Recruitment Platform</title>
+    <meta name="description" content="منصة توظيف متكاملة مدعومة بالذكاء الاصطناعي. فلترة ذكية للمرشحين، مقابلات أونلاين، عروض وظيفية رقمية، وتحليلات متقدمة.">
+    <meta name="author" content="Tawzeef-X" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://ai-hire-buddy-22.lovable.app/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Tawzeef-X - منصة التوظيف الذكية">
+    <meta property="og:description" content="منصة توظيف متكاملة مدعومة بالذكاء الاصطناعي. فلترة ذكية للمرشحين، مقابلات أونلاين، عروض وظيفية رقمية.">
+    <meta property="og:url" content="https://ai-hire-buddy-22.lovable.app/" />
+    <meta property="og:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/7d58ebf4-8526-4374-b3f7-a48669d8ce68/id-preview-70d23a88--30c80f94-c812-4bd1-a77e-50b0c86fa107.lovable.app-1771276573997.png">
+    <meta property="og:locale" content="ar_SA" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Tawzeef-X - منصة التوظيف الذكية">
+    <meta name="twitter:description" content="منصة توظيف متكاملة مدعومة بالذكاء الاصطناعي. فلترة ذكية للمرشحين، مقابلات أونلاين، عروض وظيفية رقمية.">
+    <meta name="twitter:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/7d58ebf4-8526-4374-b3f7-a48669d8ce68/id-preview-70d23a88--30c80f94-c812-4bd1-a77e-50b0c86fa107.lovable.app-1771276573997.png">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Tawzeef-X",
+      "description": "منصة توظيف متكاملة مدعومة بالذكاء الاصطناعي",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "SAR"
+      }
+    }
+    </script>
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

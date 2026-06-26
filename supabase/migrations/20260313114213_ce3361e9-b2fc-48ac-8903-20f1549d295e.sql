@@ -1,0 +1,1 @@
+DROP POLICY "Service can read email settings" ON public.email_settings;
