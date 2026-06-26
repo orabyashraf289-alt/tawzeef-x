@@ -4,7 +4,6 @@
 
 ### Smart Recruitment Platform | منصة التوظيف الذكية
 
-[![Built with Lovable](https://img.shields.io/badge/Built%20with-Lovable-ff69b4)](https://lovable.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18.3-61dafb)](https://react.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8)](https://tailwindcss.com/)
@@ -47,10 +46,9 @@
 - **Frontend:** React 18, TypeScript, Tailwind CSS, Framer Motion
 - **UI Components:** shadcn/ui, Radix UI
 - **State Management:** TanStack React Query
-- **Backend:** Lovable Cloud (Supabase)
-- **AI Integration:** Lovable AI (Multi-model support)
-- **Video:** Remotion (Tutorial video generation)
-- **Charts:** Recharts
+- **Backend:** Supabase
+- **AI Integration:** OpenAI / Anthropic / Gemini
+- **Charts & Graphs:** Recharts
 - **Forms:** React Hook Form + Zod validation
 
 ### 🚀 Getting Started
@@ -121,8 +119,8 @@ remotion/             # Video generation compositions
 - **الواجهة الأمامية:** React 18، TypeScript، Tailwind CSS، Framer Motion
 - **مكونات الواجهة:** shadcn/ui، Radix UI
 - **إدارة الحالة:** TanStack React Query
-- **الخلفية:** Lovable Cloud
-- **الذكاء الاصطناعي:** Lovable AI (دعم متعدد النماذج)
+- **الخلفية:** Supabase
+- **الذكاء الاصطناعي:** OpenAI / Anthropic / Gemini
 - **الرسوم البيانية:** Recharts
 
 ### 🚀 البدء السريع
@@ -153,6 +151,6 @@ This project is private and proprietary.
 
 ---
 
-**Built with ❤️ using [Lovable](https://lovable.dev)**
+**Developed with ❤️**
 
 </div>
