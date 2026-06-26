@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams, Navigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, Loader2, Shield, Zap, BarChart3, FileCheck, Briefcase, Sparkles, Building2, CheckCircle2, KeyRound, Monitor } from "lucide-react";
+import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, Loader2, Shield, Zap, BarChart3, FileCheck, Briefcase, Sparkles, Building2, CheckCircle2, KeyRound, Monitor, Send, Check, ChevronLeft } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 /* ─── Device Trust Helpers ─── */
@@ -48,7 +48,7 @@ import { checkPasswordStrength, isRateLimited, isValidEmail, sanitizeInput, dete
 /* ─── Animated Aurora Background ─── */
 function AuroraBackground() {
   return (
-    <div className="absolute inset-0 overflow-hidden">
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {/* Aurora layer 1 — teal sweep */}
       <motion.div
         className="absolute animate-pulse"
@@ -116,175 +116,241 @@ function AuroraBackground() {
   );
 }
 
-/* ─── Live AI Candidate Matching Widget ─── */
-function AICandidateWidget() {
-  const [matchPercent, setMatchPercent] = useState(0);
-  const [step, setStep] = useState(0); // 0: scanning, 1: completed, 2: reset
-  const [skillsVisible, setSkillsVisible] = useState<boolean[]>([false, false, false, false]);
+/* ─── Live AI Recruiting Command Center Mockup ─── */
+function AICommandCenterWidget() {
+  const [parseProgress, setParseProgress] = useState(0);
+  const [chatState, setChatState] = useState<"parsing" | "analyzed" | "hired" | "reset">("parsing");
+  const [pipelineStage, setPipelineStage] = useState<"applied" | "shortlisted">("applied");
+  const [typedMessage, setTypedMessage] = useState("");
 
+  const targetMessage = "تم تحليل سيرة أحمد محمد الذاتية. المطابقة: 96% لدور مهندس برمجيات. نوصي بالمقابلة ✨";
+
+  // Control typing animation
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    let skillTimers: ReturnType<typeof setTimeout>[] = [];
-    let resetTimer: ReturnType<typeof setTimeout>;
-
-    const runCycle = () => {
-      setStep(0);
-      setMatchPercent(0);
-      setSkillsVisible([false, false, false, false]);
-
-      // Count up matching percentage
-      let currentPercent = 0;
-      interval = setInterval(() => {
-        currentPercent += 2;
-        if (currentPercent >= 96) {
-          currentPercent = 96;
-          clearInterval(interval);
-          setStep(1); // completed
+    if (chatState === "analyzed") {
+      let index = 0;
+      setTypedMessage("");
+      const timer = setInterval(() => {
+        setTypedMessage((prev) => prev + targetMessage.charAt(index));
+        index++;
+        if (index >= targetMessage.length) {
+          clearInterval(timer);
+          // Transition pipeline card to shortlisted after typing completes
+          setTimeout(() => {
+            setPipelineStage("shortlisted");
+            setChatState("hired");
+          }, 800);
         }
-        setMatchPercent(currentPercent);
-      }, 45);
+      }, 35);
+      return () => clearInterval(timer);
+    }
+  }, [chatState]);
 
-      // Trigger skills checkmarks sequentially
-      skillTimers.push(setTimeout(() => setSkillsVisible(prev => [true, prev[1], prev[2], prev[3]]), 500));
-      skillTimers.push(setTimeout(() => setSkillsVisible(prev => [prev[0], true, prev[2], prev[3]]), 1100));
-      skillTimers.push(setTimeout(() => setSkillsVisible(prev => [prev[0], prev[1], true, prev[3]]), 1650));
-      skillTimers.push(setTimeout(() => setSkillsVisible(prev => [prev[0], prev[1], prev[2], true]), 2200));
+  // Main Loop Controller
+  useEffect(() => {
+    let cycleInterval: ReturnType<typeof setInterval>;
+    let progressInterval: ReturnType<typeof setInterval>;
 
-      // Reset cycle after 8 seconds
-      resetTimer = setTimeout(() => {
-        setStep(2);
-        setTimeout(runCycle, 600); // restart after transition out
-      }, 7500);
+    const startCycle = () => {
+      setChatState("parsing");
+      setPipelineStage("applied");
+      setParseProgress(0);
+      setTypedMessage("");
+
+      // Animate progress bar (Resume Parser)
+      progressInterval = setInterval(() => {
+        setParseProgress((p) => {
+          if (p >= 100) {
+            clearInterval(progressInterval);
+            setChatState("analyzed"); // Trigger typing assistant
+            return 100;
+          }
+          return p + 4;
+        });
+      }, 50);
     };
 
-    runCycle();
+    startCycle();
+
+    // 10s loop cycle
+    cycleInterval = setInterval(() => {
+      setChatState("reset");
+      setTimeout(startCycle, 600);
+    }, 11000);
 
     return () => {
-      clearInterval(interval);
-      skillTimers.forEach(clearTimeout);
-      clearTimeout(resetTimer);
+      clearInterval(cycleInterval);
+      clearInterval(progressInterval);
     };
   }, []);
 
   return (
     <motion.div
-      className="w-full max-w-[370px] mx-auto rounded-3xl bg-white/[0.02] border border-white/[0.08] backdrop-blur-2xl p-6 shadow-[0_30px_70px_-15px_rgba(16,185,129,0.12)] relative overflow-hidden group select-none"
+      className="w-full max-w-[420px] mx-auto rounded-3xl bg-white/[0.01] border border-white/[0.06] backdrop-blur-2xl p-6 shadow-[0_30px_80px_-15px_rgba(16,185,129,0.15)] relative overflow-hidden select-none"
       style={{ transformStyle: "preserve-3d" }}
       whileHover={{
-        rotateY: -4,
-        rotateX: 4,
+        rotateY: -3,
+        rotateX: 3,
         scale: 1.015,
-        borderColor: "rgba(16, 185, 129, 0.2)",
-        boxShadow: "0 35px 80px -15px rgba(16, 185, 129, 0.18)"
+        borderColor: "rgba(16, 185, 129, 0.22)",
+        boxShadow: "0 35px 90px -15px rgba(16, 185, 129, 0.2)"
       }}
-      transition={{ type: "spring", stiffness: 180, damping: 22 }}
+      transition={{ type: "spring", stiffness: 150, damping: 20 }}
     >
-      {/* Scanline overlay (only visible in step 0: scanning) */}
-      {step === 0 && (
+      {/* Dynamic scanline overlay for parsing step */}
+      {chatState === "parsing" && (
         <motion.div
-          className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent z-20 pointer-events-none shadow-[0_0_15px_3px_rgba(52,211,153,0.5)]"
-          animate={{
-            top: ["0%", "100%", "0%"],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
+          className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent z-20 pointer-events-none shadow-[0_0_12px_2px_rgba(34,211,238,0.4)]"
+          animate={{ top: ["0%", "100%", "0%"] }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
         />
       )}
 
-      {/* Grid line overlay in widget */}
+      {/* Grid pattern background inside widget */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
         backgroundImage: "linear-gradient(to bottom, white 1px, transparent 1px)",
-        backgroundSize: "100% 8px"
+        backgroundSize: "100% 10px"
       }} />
 
-      {/* Main card contents */}
+      {/* Synchronized dashboard elements */}
       <div className="space-y-5 relative z-10">
-        {/* Candidate info row */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {/* Avatar circle */}
-            <div className="w-12 h-12 rounded-2xl border border-white/[0.08] bg-white/[0.04] flex items-center justify-center font-bold text-white relative overflow-hidden shadow-inner">
-              <span className="text-sm bg-gradient-to-tr from-emerald-400 to-teal-300 bg-clip-text text-transparent font-black">أ م</span>
-              <div className="absolute inset-0 bg-emerald-500/5 opacity-50" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-white tracking-wide">أحمد محمد</h4>
-              <p className="text-[10px] text-white/40 mt-0.5">مهندس برمجيات أول (Full-Stack)</p>
+        
+        {/* Row 1: Header + Active Parser Feed */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black text-white/35 uppercase tracking-wider">سجل العمليات الحية</span>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[8px] font-black">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+              <span>مستشعر معالج الملفات</span>
             </div>
           </div>
-          
-          {/* Recommendation rating */}
-          <div className="text-center relative">
-            <div className={`absolute -inset-2 rounded-full border border-emerald-500/10 ${step === 1 ? "animate-pulse" : ""}`} />
-            <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-b from-emerald-400 to-teal-300 leading-none">
-              {matchPercent}%
-            </span>
-            <span className="text-[8px] font-bold text-white/45 block mt-1 tracking-wider uppercase">تطابق</span>
-          </div>
-        </div>
 
-        {/* Scanning status banner */}
-        <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-white/[0.01] border border-white/[0.04]">
-          <span className="text-[10px] text-white/45">حالة المطابقة الذكية</span>
-          <AnimatePresence mode="wait">
-            <motion.span
-              key={step}
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -5 }}
-              className={`text-[10px] font-bold flex items-center gap-1.5 ${
-                step === 1 ? "text-emerald-400" : "text-amber-400"
-              }`}
-            >
-              {step === 0 ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
-                  جاري فحص المهارات...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-bounce" />
-                  تطابق ممتاز ✨
-                </>
-              )}
-            </motion.span>
-          </AnimatePresence>
-        </div>
-
-        {/* Skills grid */}
-        <div className="space-y-2">
-          <p className="text-[9px] font-bold text-white/30 uppercase tracking-wider">نقاط التطابق</p>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              "React / Next.js",
-              "TypeScript",
-              "Node.js Server",
-              "AI Integration"
-            ].map((skill, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-2 rounded-xl border transition-all duration-300 bg-white/[0.01]"
-                style={{
-                  borderColor: skillsVisible[index] ? "rgba(16, 185, 129, 0.15)" : "rgba(255, 255, 255, 0.03)",
-                  backgroundColor: skillsVisible[index] ? "rgba(16, 185, 129, 0.03)" : "rgba(255, 255, 255, 0.01)"
-                }}
-              >
-                <span className={`text-[10px] truncate ${skillsVisible[index] ? "text-white/80 font-bold" : "text-white/35"}`}>
-                  {skill}
-                </span>
-                <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  skillsVisible[index] ? "bg-emerald-500/20 text-emerald-400 scale-100" : "bg-white/5 text-transparent scale-75"
-                }`}>
-                  <CheckCircle2 className="w-2.5 h-2.5" />
-                </div>
+          <div className="p-3.5 rounded-2xl bg-white/[0.01] border border-white/[0.04] space-y-2.5">
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <FileCheck className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="text-[10px] font-bold text-white/80">cv_ahmed_software.pdf</span>
               </div>
-            ))}
+              <span className="text-[10px] text-cyan-400 font-bold">{parseProgress}%</span>
+            </div>
+            
+            {/* Progress bar wrapper */}
+            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-full transition-all duration-150 ease-out"
+                style={{ width: `${parseProgress}%` }}
+              />
+            </div>
           </div>
         </div>
+
+        {/* Row 2: AI Co-Pilot chat interaction */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black text-white/35 uppercase tracking-wider">مساعد المطابقة بالذكاء الاصطناعي</span>
+            <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] relative overflow-hidden min-h-[76px] flex flex-col justify-center">
+            {/* Subtle background glow */}
+            <div className="absolute inset-0 bg-emerald-500/[0.01] pointer-events-none" />
+            
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner">
+                <Zap className="w-4 h-4" />
+              </div>
+              <div className="space-y-1 text-right">
+                <p className="text-[9px] font-bold text-emerald-400/70">Tawzeef-X Co-Pilot</p>
+                <p className="text-xs text-white/80 font-medium leading-relaxed">
+                  {chatState === "parsing" ? (
+                    <span className="inline-flex items-center gap-1 text-white/40">
+                      <Loader2 className="w-3 h-3 animate-spin text-white/40" />
+                      جاري استخراج وتصنيف المهارات البرمجية...
+                    </span>
+                  ) : (
+                    typedMessage
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Row 3: Pipeline Kanban shifting card */}
+        <div className="space-y-2">
+          <span className="text-[10px] font-black text-white/35 uppercase tracking-wider">مراحل التوظيف الذكية</span>
+          <div className="grid grid-cols-2 gap-4 h-[76px]">
+            
+            {/* Column A: Applied */}
+            <div className="rounded-2xl border border-white/[0.02] bg-white/[0.005] p-2 flex flex-col gap-1.5 relative justify-center">
+              <span className="text-[8px] font-bold text-white/30 block mb-1 text-right">متقدمون (1)</span>
+              
+              <AnimatePresence>
+                {pipelineStage === "applied" && (
+                  <motion.div
+                    layoutId="pipelineCard"
+                    className="p-2 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ type: "spring", stiffness: 220, damping: 20 }}
+                  >
+                    <div className="flex items-center gap-1.5 overflow-hidden">
+                      <div className="w-5 h-5 rounded-md bg-white/5 flex items-center justify-center text-[8px] text-white/70">أ</div>
+                      <span className="text-[9px] font-bold text-white/80 truncate">أحمد محمد</span>
+                    </div>
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Column B: Shortlisted */}
+            <div className="rounded-2xl border border-white/[0.03] bg-emerald-500/[0.01] p-2 flex flex-col gap-1.5 relative justify-center">
+              <span className="text-[8px] font-bold text-emerald-400/40 block mb-1 text-right">مرشحون للمقابلة</span>
+              
+              <AnimatePresence>
+                {pipelineStage === "shortlisted" && (
+                  <motion.div
+                    layoutId="pipelineCard"
+                    className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between shadow-lg shadow-emerald-950/20"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ type: "spring", stiffness: 220, damping: 20 }}
+                  >
+                    <div className="flex items-center gap-1.5 overflow-hidden">
+                      <div className="w-5 h-5 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[8px] font-black">أ</div>
+                      <span className="text-[9px] font-bold text-white/95 truncate">أحمد محمد</span>
+                    </div>
+                    <div className="flex items-center gap-1 bg-emerald-500/20 text-emerald-400 px-1 rounded text-[7px] font-black">96%</div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+          </div>
+        </div>
+
       </div>
+
+      {/* Floating absolute stats capsule */}
+      <motion.div
+        className="absolute top-1/2 -right-4 translate-y-[-100%] rounded-2xl bg-gradient-to-tr from-[#0d122b] to-[#1e295d]/80 border border-white/[0.08] backdrop-blur-2xl p-3 shadow-2xl pointer-events-none z-30"
+        style={{ scale: 0.85 }}
+        animate={chatState === "hired" ? { scale: 0.9, x: -10, y: -20 } : { scale: 0.82, x: 0, y: 0 }}
+        transition={{ type: "spring", stiffness: 200, damping: 18 }}
+      >
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <Zap className="w-4 h-4" />
+          </div>
+          <div className="text-right">
+            <span className="text-[8px] text-white/40 block">سرعة التصفية</span>
+            <span className="text-xs font-black text-white leading-none">3X أسرع</span>
+          </div>
+        </div>
+      </motion.div>
     </motion.div>
   );
 }
@@ -305,12 +371,12 @@ function BrandingPanel() {
         mouseY.set((e.clientY - rect.top) / rect.height);
       }}
     >
-      {/* Deep Obsidian Gradient background */}
-      <div className="absolute inset-0 bg-[#060814]" style={{
-        background: "radial-gradient(circle at 100% 0%, #0d122b 0%, #060814 65%)"
+      {/* Deep Obsidian background */}
+      <div className="absolute inset-0 bg-[#050711]" style={{
+        background: "radial-gradient(circle at 100% 0%, #0c0f24 0%, #050711 70%)"
       }} />
 
-      {/* Dynamic ambient background blobs */}
+      {/* Ambient neon light glow shapes */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
           className="absolute w-[600px] h-[600px] rounded-full opacity-[0.16] mix-blend-screen filter blur-[110px]"
@@ -320,29 +386,29 @@ function BrandingPanel() {
             right: "-10%",
           }}
           animate={{
-            scale: [1, 1.25, 1],
-            x: [0, 60, 0],
-            y: [0, -40, 0],
+            scale: [1, 1.2, 1],
+            x: [0, 50, 0],
+            y: [0, -30, 0],
           }}
-          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute w-[500px] h-[500px] rounded-full opacity-[0.1] mix-blend-screen filter blur-[90px]"
+          className="absolute w-[500px] h-[500px] rounded-full opacity-[0.1] mix-blend-screen filter blur-[95px]"
           style={{
             background: "radial-gradient(circle, #06b6d4 0%, transparent 70%)",
             bottom: "10%",
             left: "-10%",
           }}
           animate={{
-            scale: [1.2, 0.95, 1.2],
-            x: [0, -50, 0],
-            y: [0, 50, 0],
+            scale: [1.25, 0.95, 1.25],
+            x: [0, -40, 0],
+            y: [0, 40, 0],
           }}
-          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
         />
       </div>
 
-      {/* Floating particles */}
+      {/* Background Starry Particles */}
       <div className="absolute inset-0 opacity-[0.18] pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <motion.div
@@ -354,20 +420,13 @@ function BrandingPanel() {
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
             }}
-            animate={{
-              opacity: [0.15, 1, 0.15],
-              scale: [1, 1.6, 1],
-            }}
-            transition={{
-              duration: 4 + Math.random() * 4,
-              repeat: Infinity,
-              delay: Math.random() * 4,
-            }}
+            animate={{ opacity: [0.15, 1, 0.15], scale: [1, 1.6, 1] }}
+            transition={{ duration: 4 + Math.random() * 4, repeat: Infinity, delay: Math.random() * 4 }}
           />
         ))}
       </div>
 
-      {/* Grid Lines Overlay */}
+      {/* Grid mesh pattern */}
       <div className="absolute inset-0 opacity-[0.035] pointer-events-none" style={{
         backgroundImage: `linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)`,
         backgroundSize: '40px 40px'
@@ -385,7 +444,7 @@ function BrandingPanel() {
         }}
       />
 
-      {/* Upper Content (Logo & Info) */}
+      {/* Header Info */}
       <div className="relative z-10 px-6 pt-4 space-y-12">
         {/* Logo */}
         <motion.div
@@ -437,9 +496,9 @@ function BrandingPanel() {
         </motion.div>
       </div>
 
-      {/* Center live interactive animation */}
+      {/* Synced AI Pipeline monitor mockup */}
       <div className="relative z-10 my-4 flex items-center justify-center">
-        <AICandidateWidget />
+        <AICommandCenterWidget />
       </div>
 
       {/* Bottom Stats Container */}
@@ -762,7 +821,7 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
     `h-[48px] pr-11 rounded-xl text-[14px] font-medium transition-all duration-300 border-2 focus-visible:ring-0 focus-visible:ring-offset-0 ${
       focused(field)
         ? "bg-card border-primary/50 shadow-[0_0_0_4px_rgba(16,185,129,0.08)]"
-        : "bg-muted/20 border-transparent hover:border-border/30"
+        : "bg-muted/15 border-transparent hover:border-border/30"
     } text-foreground placeholder:text-muted-foreground/35`;
 
   const iconClass = (field: string) =>
@@ -792,11 +851,9 @@ function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; se
         </motion.div>
       </div>
 
-      {/* Floating dual-border Glassmorphism form container */}
-      <div className="bg-card/65 backdrop-blur-3xl border border-border/50 shadow-2xl rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden shadow-[0_0_50px_-12px_rgba(16,185,129,0.1)]">
-        {/* Subtle decorative border gradient glow */}
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/25 to-transparent pointer-events-none" />
-
+      {/* Styled Sweeping Border Gradient Glassmorphism Container */}
+      <div className="sweeping-border-card backdrop-blur-3xl shadow-2xl rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden shadow-[0_0_60px_-12px_rgba(16,185,129,0.12)]">
+        
         {emailConfirmation ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -1250,6 +1307,23 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen min-h-[100dvh] relative overflow-hidden" dir="rtl">
+      {/* Styles for sweeping border gradient */}
+      <style>{`
+        @keyframes gradient-sweep {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .sweeping-border-card {
+          position: relative;
+          border: 1.5px solid transparent;
+          background: linear-gradient(to bottom, hsl(var(--card)) 0%, hsl(var(--card)) 100%) padding-box,
+                      linear-gradient(135deg, hsl(var(--primary) / 0.3) 0%, hsl(var(--accent) / 0.1) 40%, hsl(var(--primary) / 0.4) 100%) border-box;
+          background-size: 200% 200%;
+          animation: gradient-sweep 6s ease infinite;
+        }
+      `}</style>
+
       {/* Background */}
       <div className="absolute inset-0 bg-background">
         <AuroraBackground />
