@@ -714,6 +714,128 @@ function SectionHeader({ badge, badgeColor = "primary", title, highlight, descri
   );
 }
 
+
+/* ─── Hero Dashboard Mockup ─── */
+function HeroDashboardMockup() {
+  const [activeCandidateIndex, setActiveCandidateIndex] = useState(0);
+  const candidates = [
+    { name: "سارة عبد الرحمن", role: "مطور واجهات React", score: 96, match: "تطابق ممتاز", skills: ["React", "TailwindCSS", "TypeScript"] },
+    { name: "أحمد علي الطيار", role: "مهندس بيانات سحابية", score: 88, match: "تطابق قوي", skills: ["Python", "SQL", "Docker"] },
+    { name: "خالد بن الوليد", role: "مدير مشاريع تقنية", score: 79, match: "تطابق جيد", skills: ["Agile", "Jira", "Scrum"] }
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveCandidateIndex((prev) => (prev + 1) % candidates.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const activeCandidate = candidates[activeCandidateIndex];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95, y: 30 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      className="glass-card-premium relative overflow-hidden p-6 rounded-3xl border border-white/10 dark:border-white/5 shadow-2xl w-full max-w-md mx-auto"
+    >
+      {/* Decorative scanner line */}
+      <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent animate-pulse" />
+      
+      {/* Top Bar */}
+      <div className="flex items-center justify-between pb-4 border-b border-border/50 mb-5">
+        <div className="flex gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-destructive/60" />
+          <div className="w-3 h-3 rounded-full bg-warning/60" />
+          <div className="w-3 h-3 rounded-full bg-success/60" />
+        </div>
+        <div className="text-[11px] font-bold text-muted-foreground bg-muted/40 px-3 py-1 rounded-full flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-success animate-ping" />
+          AI مُطابق السير الذاتية نشط
+        </div>
+      </div>
+
+      {/* Main Candidate Card */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeCandidateIndex}
+          initial={{ opacity: 0, x: -10, y: 5 }}
+          animate={{ opacity: 1, x: 0, y: 0 }}
+          exit={{ opacity: 0, x: 10, y: -5 }}
+          transition={{ duration: 0.4 }}
+          className="space-y-4"
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center font-bold text-primary text-base">
+                {activeCandidate.name[0]}
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-foreground text-right">{activeCandidate.name}</h4>
+                <p className="text-xs text-muted-foreground text-right mt-0.5">{activeCandidate.role}</p>
+              </div>
+            </div>
+            
+            {/* Score Ring */}
+            <div className="text-left">
+              <div className="text-2xl font-black text-primary leading-none">{activeCandidate.score}%</div>
+              <div className="text-[9px] font-bold text-muted-foreground mt-1">{activeCandidate.match}</div>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>درجة الملاءمة</span>
+              <span className="font-bold text-foreground">{activeCandidate.score}%</span>
+            </div>
+            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${activeCandidate.score}%` }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+                className="h-full bg-gradient-to-r from-primary to-accent rounded-full"
+              />
+            </div>
+          </div>
+
+          {/* Skills Badges */}
+          <div className="pt-2">
+            <p className="text-[10px] font-bold text-muted-foreground text-right mb-2">المهارات المكتشفة بالـ AI:</p>
+            <div className="flex flex-wrap gap-1.5 justify-end">
+              {activeCandidate.skills.map((skill) => (
+                <span
+                  key={skill}
+                  className="text-[10px] font-semibold bg-primary/5 text-primary border border-primary/10 px-2.5 py-1 rounded-md"
+                >
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Decorative details grid at the bottom */}
+      <div className="mt-5 pt-4 border-t border-border/50 grid grid-cols-3 gap-3 text-center text-xs">
+        <div className="bg-muted/20 p-2.5 rounded-xl border border-border/30">
+          <div className="text-[10px] text-muted-foreground">المطابقة</div>
+          <div className="font-bold text-foreground mt-1">تلقائية</div>
+        </div>
+        <div className="bg-muted/20 p-2.5 rounded-xl border border-border/30">
+          <div className="text-[10px] text-muted-foreground">سرعة التحليل</div>
+          <div className="font-bold text-success mt-1">1.8s</div>
+        </div>
+        <div className="bg-muted/20 p-2.5 rounded-xl border border-border/30">
+          <div className="text-[10px] text-muted-foreground">الأمان</div>
+          <div className="font-bold text-primary mt-1">E2E نشط</div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function LandingPage() {
   const heroRef = useRef<HTMLElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -764,14 +886,14 @@ export default function LandingPage() {
         className="fixed top-0 inset-x-0 z-50 pt-5"
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="bg-background/55 backdrop-blur-xl border border-border/70 rounded-full px-6 h-16 flex items-center justify-between shadow-[0_8px_30px_rgb(0,0,0,0.02)] hover:border-primary/25 hover:shadow-md transition-all duration-300">
-            <motion.div className="flex items-center gap-3" whileHover={{ scale: 1.02 }}>
-              <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain animate-float" />
-              <span className="text-base font-bold text-foreground">
-                Tawzeef-X <span className="text-primary font-semibold">منصة التوظيف</span>
+          <div className="bg-background/40 backdrop-blur-2xl border border-white/10 dark:border-white/5 rounded-full px-6 h-16 flex items-center justify-between shadow-[0_8px_32px_0_rgba(0,0,0,0.03)] hover:border-primary/20 transition-all duration-300">
+            <motion.div className="flex items-center gap-2.5" whileHover={{ scale: 1.01 }}>
+              <img src={tawzeefLogo} alt="Tawzeef-X" className="w-7 h-7 object-contain" />
+              <span className="text-base font-black text-foreground">
+                Tawzeef-<span className="text-primary">X</span>
               </span>
             </motion.div>
-            <div className="hidden md:flex items-center gap-8 text-sm text-muted-foreground font-medium">
+            <div className="hidden md:flex items-center gap-7 text-[13px] text-muted-foreground font-bold">
               {[
                 { href: "#features", label: "المميزات" },
                 { href: "#how-it-works", label: "كيف تعمل" },
@@ -787,11 +909,11 @@ export default function LandingPage() {
             </div>
             <div className="hidden md:flex items-center gap-2">
               <Link to="/auth?mode=login">
-                <Button variant="ghost" size="sm" className="text-sm h-10 px-4 rounded-full">تسجيل الدخول</Button>
+                <Button variant="ghost" size="sm" className="text-xs font-bold h-9 px-4 rounded-full hover:bg-muted/40 text-muted-foreground hover:text-foreground">تسجيل الدخول</Button>
               </Link>
               <Link to="/auth?mode=signup">
-                <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-                  <Button size="sm" className="text-sm h-10 px-5 gradient-primary border-0 text-primary-foreground rounded-full shadow-sm hover:shadow-md transition-all duration-300">ابدأ مجاناً</Button>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button size="sm" className="text-xs font-bold h-9 px-5 gradient-primary border-0 text-primary-foreground rounded-full shadow-sm hover:shadow-md transition-all duration-300">ابدأ مجاناً</Button>
                 </motion.div>
               </Link>
             </div>
@@ -799,7 +921,7 @@ export default function LandingPage() {
             {/* Mobile menu toggle */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="flex md:hidden items-center justify-center w-10 h-10 rounded-full border border-border/70 bg-background/45 backdrop-blur-md hover:bg-muted transition-colors"
+              className="flex md:hidden items-center justify-center w-9 h-9 rounded-full border border-border/70 bg-background/45 backdrop-blur-md hover:bg-muted transition-colors"
               aria-label="Toggle Menu"
             >
               {isMobileMenuOpen ? <X className="w-4 h-4 text-foreground" /> : <Menu className="w-4 h-4 text-foreground" />}
@@ -851,155 +973,132 @@ export default function LandingPage() {
       </AnimatePresence>
 
       {/* Hero */}
-      <section ref={heroRef} className="relative pt-28 overflow-hidden min-h-[92vh] flex items-center bg-gradient-to-b from-background via-background/95 to-background/50">
+      <section ref={heroRef} className="relative pt-32 lg:pt-40 overflow-hidden min-h-[95vh] flex items-center bg-gradient-to-b from-background via-background/95 to-background/50">
         <HeroBackground />
-        <motion.div style={{ opacity: heroOpacity, y: heroY, scale: heroScale }} className="relative container mx-auto px-6 py-20 md:py-28">
-          <div className="max-w-4xl mx-auto text-center">
-            {/* Badge */}
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              className="inline-flex items-center gap-2.5 rounded-full px-5 py-2 text-sm font-semibold mb-10 border border-primary/15 bg-primary/5 text-primary shadow-sm"
-            >
-              <motion.div animate={{ rotate: [0, 15, -15, 0] }} transition={{ duration: 3, repeat: Infinity }}>
-                <Sparkles className="w-4 h-4" />
-              </motion.div>
-              منصة توظيف مدعومة بالذكاء الاصطناعي المتقدم
+        
+        {/* Glowing abstract background lights */}
+        <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] rounded-full bg-primary/5 blur-[120px] pointer-events-none animate-pulse" />
+        <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] rounded-full bg-accent/5 blur-[100px] pointer-events-none animate-pulse" style={{ animationDuration: "8s" }} />
+
+        <motion.div style={{ opacity: heroOpacity, y: heroY, scale: heroScale }} className="relative container mx-auto px-6 py-12 md:py-20">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+            
+            {/* Right Column: Copy text & CTAs */}
+            <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-right order-1 lg:order-2">
+              {/* Premium Badge */}
               <motion.div
-                className="w-2 h-2 rounded-full bg-success"
-                animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            </motion.div>
-
-            {/* Title with typewriter */}
-            <div className="overflow-hidden">
-              <motion.h1
-                initial={{ opacity: 0, y: 60 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                className="text-5xl md:text-7xl lg:text-8xl font-black leading-[1.2] text-foreground tracking-tight"
+                initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                className="inline-flex items-center gap-2.5 rounded-full px-5 py-2.5 text-xs font-bold mb-8 border border-primary/20 bg-primary/8 text-primary shadow-sm"
               >
-                <TypewriterText text="وظّف أفضل الكفاءات" delay={0.6} />
-              </motion.h1>
-            </div>
-            <div className="overflow-hidden mt-2">
-              <motion.div
-                initial={{ opacity: 0, y: 60 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                className="text-5xl md:text-7xl lg:text-8xl font-black leading-[1.2] tracking-tight"
-              >
-                <span className="text-gradient">
-                  <TypewriterText text="بذكاء وسرعة فائقة" delay={1.8} />
-                </span>
+                <motion.div animate={{ rotate: [0, 15, -15, 0] }} transition={{ duration: 3, repeat: Infinity }}>
+                  <Sparkles className="w-3.5 h-3.5" />
+                </motion.div>
+                منصة توظيف متكاملة مدعومة بالذكاء الاصطناعي
+                <span className="w-1.5 h-1.5 rounded-full bg-success live-breathing-indicator" />
               </motion.div>
-            </div>
 
-            {/* Subtitle */}
-            <motion.p
-              initial={{ opacity: 0, y: 24, filter: "blur(4px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="text-lg md:text-xl text-muted-foreground mt-8 max-w-2xl mx-auto leading-relaxed"
-            >
-              منصة توظيف متكاملة تستخدم الذكاء الاصطناعي لتقييم المرشحين، جدولة المقابلات الأونلاين،
-              وإدارة العروض الوظيفية — كل ذلك من مكان واحد
-            </motion.p>
-
-            {/* CTA Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.55 }}
-              className="flex flex-col sm:flex-row gap-3 mt-12 justify-center"
-            >
-              <Link to="/auth?mode=signup">
-                <motion.div whileHover={{ scale: 1.05, y: -3 }} whileTap={{ scale: 0.97 }}>
-                  <Button size="lg" className="border-0 text-primary-foreground px-10 h-14 text-base font-bold w-full sm:w-auto rounded-2xl relative overflow-hidden group bg-gradient-to-r from-primary via-primary/95 to-accent hover:from-primary/95 hover:to-accent/95 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25">
-                    <motion.div
-                      className="absolute inset-0"
-                      style={{ background: "linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.1), transparent)" }}
-                      animate={{ x: ["-100%", "200%"] }}
-                      transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
-                    />
-                    <span className="relative flex items-center gap-2">
-                      ابدأ الآن مجاناً
-                      <ArrowLeft className="w-4 h-4" />
-                    </span>
-                  </Button>
-                </motion.div>
-              </Link>
-              <Link to="/careers">
-                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                  <Button variant="outline" size="lg" className="h-14 text-base px-8 w-full sm:w-auto gap-2 rounded-2xl border-2">
-                    <Briefcase className="w-4 h-4" />
-                    تصفح الوظائف
-                  </Button>
-                </motion.div>
-              </Link>
-              <Link to="/pricing">
-                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                  <Button variant="ghost" size="lg" className="h-14 text-base px-8 w-full sm:w-auto rounded-2xl">
-                    عرض الأسعار
-                  </Button>
-                </motion.div>
-              </Link>
-            </motion.div>
-
-            {/* Social proof */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.75, duration: 0.5 }}
-              className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-16"
-            >
-              <div className="flex -space-x-3 space-x-reverse">
-                {["أ", "م", "س", "خ", "ن"].map((l, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, scale: 0, rotate: -30 }}
-                    animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                    transition={{ delay: 0.85 + i * 0.08, type: "spring", stiffness: 300, damping: 15 }}
-                    className="w-10 h-10 rounded-full gradient-primary border-[3px] border-background flex items-center justify-center text-xs text-primary-foreground font-bold shadow-md"
-                  >
-                    {l}
-                  </motion.div>
-                ))}
+              {/* Title */}
+              <div className="space-y-4">
+                <motion.h1
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                  className="text-4xl md:text-6xl lg:text-7xl font-black leading-[1.25] text-foreground tracking-normal"
+                >
+                  وظّف أفضل الكفاءات
+                </motion.h1>
+                <motion.h1
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  className="text-4xl md:text-6xl lg:text-7xl font-black leading-[1.25] tracking-normal"
+                >
+                  <span className="text-gradient">بذكاء وسرعة فائقة</span>
+                </motion.h1>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-0.5">
-                  {[...Array(5)].map((_, i) => (
-                    <motion.div key={i} initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 1 + i * 0.05, type: "spring" }}>
-                      <Star className="w-4 h-4 fill-warning text-warning" />
+
+              {/* Subtitle */}
+              <motion.p
+                initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                transition={{ duration: 0.6, delay: 0.35 }}
+                className="text-base md:text-lg text-muted-foreground mt-6 max-w-xl leading-relaxed font-medium"
+              >
+                فلترة ذكية ومؤتمتة للسير الذاتية بالذكاء الاصطناعي، مقابلات فيديو مدمجة بنسخ تلقائي، وإدارة كاملة للعروض الوظيفية مع تشفير تام للبيانات الحساسة.
+              </motion.p>
+
+              {/* CTA Buttons */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.45 }}
+                className="flex flex-col sm:flex-row gap-3 mt-10 w-full sm:w-auto"
+              >
+                <Link to="/auth?mode=signup" className="w-full sm:w-auto">
+                  <motion.div whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.98 }}>
+                    <Button size="lg" className="border-0 text-primary-foreground px-8 h-14 text-sm font-bold w-full rounded-2xl relative overflow-hidden group bg-gradient-to-r from-primary via-primary/95 to-accent hover:from-primary/95 hover:to-accent/95 shadow-md shadow-primary/10">
+                      <motion.div
+                        className="absolute inset-0"
+                        style={{ background: "linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.1), transparent)" }}
+                        animate={{ x: ["-100%", "200%"] }}
+                        transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+                      />
+                      <span className="relative flex items-center justify-center gap-2">
+                        ابدأ الآن مجاناً
+                        <ArrowLeft className="w-4 h-4" />
+                      </span>
+                    </Button>
+                  </motion.div>
+                </Link>
+                <Link to="/careers" className="w-full sm:w-auto">
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Button variant="outline" size="lg" className="h-14 text-sm px-7 w-full gap-2 rounded-2xl border border-border/80 hover:bg-muted/50 backdrop-blur-md">
+                      <Briefcase className="w-4 h-4 text-muted-foreground" />
+                      تصفح بوابة الوظائف
+                    </Button>
+                  </motion.div>
+                </Link>
+              </motion.div>
+
+              {/* Social proof */}
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6, duration: 0.5 }}
+                className="flex flex-col sm:flex-row items-center gap-4 mt-12"
+              >
+                <div className="flex -space-x-2 space-x-reverse">
+                  {["أ", "م", "س", "خ", "ن"].map((l, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.7 + i * 0.05, type: "spring", stiffness: 200 }}
+                      className="w-8 h-8 rounded-full gradient-primary border-2 border-background flex items-center justify-center text-[10px] text-primary-foreground font-bold shadow-sm"
+                    >
+                      {l}
                     </motion.div>
                   ))}
                 </div>
-                <span className="text-foreground text-sm font-bold">4.9/5</span>
-                <span className="text-muted-foreground text-sm">من مستخدمي المنصة</span>
-              </div>
-            </motion.div>
-
-            {/* Scroll indicator */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.5 }}
-              className="mt-16 flex justify-center"
-            >
-              <motion.div
-                animate={{ y: [0, 8, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                className="w-8 h-12 rounded-full border-2 border-border flex items-start justify-center pt-2"
-              >
-                <motion.div
-                  className="w-1.5 h-3 rounded-full bg-primary/40"
-                  animate={{ y: [0, 12, 0], opacity: [1, 0.3, 1] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                />
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="w-3.5 h-3.5 fill-warning text-warning" />
+                    ))}
+                  </div>
+                  <span className="text-foreground text-xs font-bold">4.9/5</span>
+                  <span className="text-muted-foreground text-xs font-medium">مقيّم من أصحاب العمل</span>
+                </div>
               </motion.div>
-            </motion.div>
+            </div>
+
+            {/* Left Column: Premium Interactive AI Mockup */}
+            <div className="lg:col-span-5 flex justify-center order-2 lg:order-1 w-full">
+              <HeroDashboardMockup />
+            </div>
+
           </div>
         </motion.div>
       </section>

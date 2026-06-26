@@ -207,7 +207,7 @@
   html[lang="ar"] :where(h1, h2, h3, h4, h5, h6),
   html[dir="rtl"] :where(h1, h2, h3, h4, h5, h6) {
     line-height: 1.55;
-    letter-spacing: 0;
+    letter-spacing: normal;
     word-spacing: 0.02em;
   }
   html[lang="ar"] h1,
@@ -234,6 +234,13 @@
     font-family: 'IBM Plex Sans Arabic', 'ArabicSystemFallback', 'Tajawal', system-ui, sans-serif;
   }
 
+  /* Bulletproof RTL letter-spacing safety net */
+  html[lang="ar"] *,
+  html[dir="rtl"] * {
+    letter-spacing: normal !important;
+  }
+
+
   html[lang="ar"] .leading-none,
   html[dir="rtl"] .leading-none,
   html[lang="ar"] .leading-tight,
@@ -244,8 +251,16 @@
   html[lang="ar"] .tracking-tight,
   html[dir="rtl"] .tracking-tight,
   html[lang="ar"] .tracking-tighter,
-  html[dir="rtl"] .tracking-tighter {
-    letter-spacing: 0 !important;
+  html[dir="rtl"] .tracking-tighter,
+  html[lang="ar"] .tracking-wide,
+  html[dir="rtl"] .tracking-wide,
+  html[lang="ar"] .tracking-wider,
+  html[dir="rtl"] .tracking-wider,
+  html[lang="ar"] .tracking-widest,
+  html[dir="rtl"] .tracking-widest,
+  html[lang="ar"] [class*="tracking-"],
+  html[dir="rtl"] [class*="tracking-"] {
+    letter-spacing: normal !important;
   }
 
   /* Force any inline Cairo font-family to use the unified Arabic stack */
