@@ -246,6 +246,37 @@ export default function RecruiterDashboard() {
   return (
     <>
       <AnimatedDashboardBackground />
+      <style>{`
+        @keyframes gradient-sweep {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .sweeping-border-card {
+          position: relative;
+          border: 1.5px solid transparent;
+          background: linear-gradient(to bottom, hsl(var(--card)) 0%, hsl(var(--card)) 100%) padding-box,
+                      linear-gradient(135deg, hsl(var(--primary) / 0.45) 0%, hsl(var(--accent) / 0.25) 45%, hsl(var(--success) / 0.4) 75%, hsl(var(--primary) / 0.45) 100%) border-box;
+          background-size: 200% 200%;
+          animation: gradient-sweep 6s ease infinite;
+        }
+
+        .premium-radial-glow {
+          position: absolute;
+          width: 160px;
+          height: 160px;
+          border-radius: 50%;
+          filter: blur(45px);
+          opacity: 0.08;
+          pointer-events: none;
+          transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        .glass-card-premium:hover .premium-radial-glow {
+          opacity: 0.22;
+          transform: scale(1.15);
+        }
+      `}</style>
       <motion.div 
         variants={container}
         initial="hidden"
@@ -293,34 +324,34 @@ export default function RecruiterDashboard() {
 
         {/* Today's Productivity Strip */}
         <motion.div variants={item}>
-          <Card className="group relative border-0 glass-card-premium shadow-md overflow-hidden bg-gradient-to-r from-accent/5 via-primary/5 to-success/5">
+          <Card className="group relative border-0 sweeping-border-card shadow-lg overflow-hidden bg-card/30 backdrop-blur-md">
             {/* Shimmer sweep */}
             <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
             <CardContent className="p-4 relative">
               <div className="flex items-center gap-2 mb-3">
                 <motion.div whileHover={{ rotate: 15, scale: 1.2 }} transition={{ type: "spring", stiffness: 300 }}>
-                  <Timer className="w-4 h-4 text-accent animate-bounce" />
+                  <Timer className="w-4.5 h-4.5 text-accent animate-bounce" />
                 </motion.div>
-                <span className="text-sm font-bold">{locale === "en" ? "Today's Activity" : "نشاط اليوم"}</span>
+                <span className="text-sm font-bold text-foreground/90">{locale === "en" ? "Today's Activity" : "نشاط اليوم"}</span>
                 <div className="flex items-center gap-1.5 ml-auto">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-success live-breathing-indicator" />
                   </span>
-                  <Badge variant="outline" className="text-[9px]">{new Date().toLocaleDateString(locale === "en" ? "en-US" : "ar-SA", { day: "numeric", month: "short" })}</Badge>
+                  <Badge variant="outline" className="text-[9px] bg-background/50">{new Date().toLocaleDateString(locale === "en" ? "en-US" : "ar-SA", { day: "numeric", month: "short" })}</Badge>
                 </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 {[
-                  { label: locale === "en" ? "New Candidates" : "مرشحون جدد", value: productivity.todayCandidates, icon: Users, color: "text-primary", bg: "bg-primary/10", type: "conversion" as const },
-                  { label: locale === "en" ? "Interviews Today" : "مقابلات اليوم", value: productivity.todayInterviews, icon: Video, color: "text-warning", bg: "bg-warning/10", type: "timeToHire" as const },
-                  { label: locale === "en" ? "This Week" : "هذا الأسبوع", value: productivity.weekCandidates, icon: TrendingUp, color: "text-accent", bg: "bg-accent/10", type: "conversion" as const },
-                  { label: locale === "en" ? "Week Interviews" : "مقابلات الأسبوع", value: productivity.weekInterviews, icon: Calendar, color: "text-info", bg: "bg-info/10", type: "timeToHire" as const },
-                  { label: locale === "en" ? "Avg Time to Hire" : "متوسط وقت التوظيف", value: productivity.avgTimeToHire, icon: Clock, color: "text-success", bg: "bg-success/10", suffix: locale === "en" ? " days" : " يوم", type: "timeToHire" as const },
+                  { label: locale === "en" ? "New Candidates" : "مرشحون جدد", value: productivity.todayCandidates, icon: Users, color: "text-primary", bg: "bg-primary/5 hover:border-primary/30", type: "conversion" as const },
+                  { label: locale === "en" ? "Interviews Today" : "مقابلات اليوم", value: productivity.todayInterviews, icon: Video, color: "text-warning", bg: "bg-warning/5 hover:border-warning/30", type: "timeToHire" as const },
+                  { label: locale === "en" ? "This Week" : "هذا الأسبوع", value: productivity.weekCandidates, icon: TrendingUp, color: "text-accent", bg: "bg-accent/5 hover:border-accent/30", type: "conversion" as const },
+                  { label: locale === "en" ? "Week Interviews" : "مقابلات الأسبوع", value: productivity.weekInterviews, icon: Calendar, color: "text-info", bg: "bg-info/5 hover:border-info/30", type: "timeToHire" as const },
+                  { label: locale === "en" ? "Avg Time to Hire" : "متوسط وقت التوظيف", value: productivity.avgTimeToHire, icon: Clock, color: "text-success", bg: "bg-success/5 hover:border-success/30", suffix: locale === "en" ? " days" : " يوم", type: "timeToHire" as const },
                 ].map((m, i) => (
-                  <motion.div key={i} whileHover={{ scale: 1.06, y: -4 }} whileTap={{ scale: 0.97 }} onClick={() => setSelectedKpi(m.type)} className={cn("rounded-xl p-3 text-center cursor-pointer glass-card-premium", m.bg)}>
+                  <motion.div key={i} whileHover={{ scale: 1.05, y: -4 }} whileTap={{ scale: 0.97 }} onClick={() => setSelectedKpi(m.type)} className={cn("rounded-xl p-3 text-center cursor-pointer glass-card-premium border border-border/20 backdrop-blur-sm", m.bg)}>
                     <motion.div whileHover={{ rotate: 10, scale: 1.15 }} transition={{ type: "spring", stiffness: 400 }}>
-                      <m.icon className={cn("w-5 h-5 mx-auto mb-1 transition-transform", m.color)} />
+                      <m.icon className={cn("w-5 h-5 mx-auto mb-1.5 transition-transform", m.color)} />
                     </motion.div>
                     <p className={cn("text-xl font-bold", m.color)}>{m.value}{m.suffix || ""}</p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">{m.label}</p>
@@ -334,19 +365,19 @@ export default function RecruiterDashboard() {
         {/* Stat Cards */}
         <motion.div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { icon: Briefcase, title: t("dashboard.activeJobs"), value: stats?.activeJobs ?? 0, subtitle: `${t("common.from")} ${allJobs.length} ${locale === "en" ? "jobs" : "وظيفة"}`, color: "from-primary to-primary/70", bgColor: "bg-primary/5", type: "fillRate" as const },
-            { icon: Users, title: t("dashboard.totalCandidates"), value: stats?.totalCandidates ?? 0, subtitle: weeklyTrend.change >= 0 ? `+${weeklyTrend.change}% ${t("dashboard.thisWeek")}` : `${weeklyTrend.change}% ${t("dashboard.thisWeek")}`, trend: weeklyTrend.change, color: "from-accent to-accent/70", bgColor: "bg-accent/5", type: "conversion" as const },
-            { icon: UserCheck, title: t("dashboard.hired"), value: stats?.hired ?? 0, subtitle: `${kpis.conversionRate}% ${t("dashboard.conversionRate")}`, color: "from-success to-success/70", bgColor: "bg-success/5", type: "offers" as const },
-            { icon: Calendar, title: t("dashboard.scheduledInterviews"), value: allInterviews.filter(i => i.status === "مجدولة").length, subtitle: `${allInterviews.filter(i => i.status === "مكتملة").length} ${t("dashboard.completed")}`, color: "from-warning to-warning/70", bgColor: "bg-warning/5", type: "timeToHire" as const },
+            { icon: Briefcase, title: t("dashboard.activeJobs"), value: stats?.activeJobs ?? 0, subtitle: `${t("common.from")} ${allJobs.length} ${locale === "en" ? "jobs" : "وظيفة"}`, iconBg: "from-primary/20 to-primary/5 border border-primary/30", iconColor: "text-primary", glowColor: "bg-primary", type: "fillRate" as const },
+            { icon: Users, title: t("dashboard.totalCandidates"), value: stats?.totalCandidates ?? 0, subtitle: weeklyTrend.change >= 0 ? `+${weeklyTrend.change}% ${t("dashboard.thisWeek")}` : `${weeklyTrend.change}% ${t("dashboard.thisWeek")}`, trend: weeklyTrend.change, iconBg: "from-accent/20 to-accent/5 border border-accent/30", iconColor: "text-accent", glowColor: "bg-accent", type: "conversion" as const },
+            { icon: UserCheck, title: t("dashboard.hired"), value: stats?.hired ?? 0, subtitle: `${kpis.conversionRate}% ${t("dashboard.conversionRate")}`, iconBg: "from-success/20 to-success/5 border border-success/30", iconColor: "text-success", glowColor: "bg-success", type: "offers" as const },
+            { icon: Calendar, title: t("dashboard.scheduledInterviews"), value: allInterviews.filter(i => i.status === "مجدولة").length, subtitle: `${allInterviews.filter(i => i.status === "مكتملة").length} ${t("dashboard.completed")}`, iconBg: "from-warning/20 to-warning/5 border border-warning/30", iconColor: "text-warning", glowColor: "bg-warning", type: "timeToHire" as const },
           ].map((stat, i) => (
-            <motion.div key={stat.title} whileHover={{ y: -8, scale: 1.02 }} transition={{ type: "spring", stiffness: 300, damping: 20 }} onClick={() => setSelectedKpi(stat.type)}>
-              <Card className="glass-card-premium border-none shadow-md group relative overflow-hidden cursor-pointer">
+            <motion.div key={stat.title} whileHover={{ y: -6, scale: 1.015 }} transition={{ type: "spring", stiffness: 300, damping: 20 }} onClick={() => setSelectedKpi(stat.type)}>
+              <Card className="glass-card-premium border border-border/20 shadow-lg group relative overflow-hidden cursor-pointer bg-card/40 backdrop-blur-md">
                 {/* Glow effect */}
-                <div className={cn("absolute -bottom-8 -right-8 w-24 h-24 rounded-full blur-2xl opacity-10 group-hover:opacity-35 transition-opacity duration-500 pointer-events-none", stat.color.replace('from-', 'bg-'))} />
+                <div className={cn("premium-radial-glow -bottom-10 -right-10", stat.glowColor)} />
                 <CardContent className="p-5 relative">
                   <div className="flex items-start justify-between">
-                    <motion.div className={cn("w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-md", stat.color)} whileHover={{ rotate: 12, scale: 1.15 }}>
-                      <stat.icon className="w-5 h-5 text-white" />
+                    <motion.div className={cn("w-11 h-11 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-inner", stat.iconBg)} whileHover={{ rotate: 12, scale: 1.12 }}>
+                      <stat.icon className={cn("w-5 h-5", stat.iconColor)} />
                     </motion.div>
                     {stat.trend !== undefined && (
                       <Badge variant="outline" className={cn("text-[10px] font-bold transition-all duration-300 group-hover:scale-105", stat.trend >= 0 ? "text-success border-success/30 bg-success/5" : "text-destructive border-destructive/30 bg-destructive/5")}>
@@ -357,7 +388,7 @@ export default function RecruiterDashboard() {
                   </div>
                   <div className="mt-4">
                     <AnimatedStatValue value={stat.value} delay={i * 0.1 + 0.2} />
-                    <p className="text-sm font-semibold text-foreground/80 mt-1">{stat.title}</p>
+                    <p className="text-sm font-bold text-foreground/80 mt-1">{stat.title}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{stat.subtitle}</p>
                   </div>
                 </CardContent>
@@ -369,22 +400,24 @@ export default function RecruiterDashboard() {
         {/* Quick Actions */}
         <motion.div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Zap className="w-4 h-4 text-warning animate-bounce" />{t("dashboard.quickActions")}
+            <h3 className="text-sm font-bold text-foreground/90 flex items-center gap-2">
+              <Zap className="w-4 h-4 text-warning animate-pulse" />{t("dashboard.quickActions")}
             </h3>
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
             {[
-              { label: t("dashboard.postJob"), icon: Briefcase, color: "bg-primary text-primary-foreground hover:bg-primary/90", path: "/jobs" },
-              { label: t("dashboard.candidates"), icon: Users, color: "bg-accent text-accent-foreground hover:bg-accent/90", path: "/candidates" },
-              { label: t("dashboard.pipeline"), icon: Kanban, color: "bg-info/10 text-info hover:bg-info/20", path: "/pipeline" },
-              { label: t("dashboard.scheduleInterview"), icon: Calendar, color: "bg-warning/10 text-warning hover:bg-warning/20", path: "/interviews" },
-              { label: t("dashboard.offers"), icon: FileText, color: "bg-success/10 text-success hover:bg-success/20", path: "/offers" },
-              { label: t("dashboard.reports"), icon: BarChart3, color: "bg-muted text-foreground hover:bg-muted/80", path: "/reports" },
+              { label: t("dashboard.postJob"), icon: Briefcase, color: "hover:bg-primary/10 text-primary border border-primary/25", path: "/jobs" },
+              { label: t("dashboard.candidates"), icon: Users, color: "hover:bg-accent/10 text-accent border border-accent/25", path: "/candidates" },
+              { label: t("dashboard.pipeline"), icon: Kanban, color: "hover:bg-info/10 text-info border border-info/25", path: "/pipeline" },
+              { label: t("dashboard.scheduleInterview"), icon: Calendar, color: "hover:bg-warning/10 text-warning border border-warning/25", path: "/interviews" },
+              { label: t("dashboard.offers"), icon: FileText, color: "hover:bg-success/10 text-success border border-success/25", path: "/offers" },
+              { label: t("dashboard.reports"), icon: BarChart3, color: "hover:bg-foreground/10 text-foreground border border-border/40", path: "/reports" },
             ].map((action, i) => (
               <Link key={action.label} to={action.path}>
-                <motion.div whileHover={{ scale: 1.08, y: -6 }} whileTap={{ scale: 0.93 }} className={cn("group relative flex flex-col items-center gap-2 rounded-xl p-4 font-medium text-xs transition-all cursor-pointer text-center glass-card-premium shadow-sm overflow-hidden", action.color)}>
-                  <action.icon className="w-5 h-5 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-200" />
+                <motion.div whileHover={{ scale: 1.05, y: -4 }} whileTap={{ scale: 0.95 }} className={cn("group relative flex flex-col items-center gap-2.5 rounded-xl p-4 font-bold text-xs transition-all cursor-pointer text-center glass-card-premium shadow-sm overflow-hidden bg-card/45 backdrop-blur-md border border-border/20", action.color)}>
+                  <div className="p-2 rounded-lg bg-background/50 group-hover:bg-background/80 transition-colors shadow-sm">
+                    <action.icon className="w-4.5 h-4.5 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-200" />
+                  </div>
                   <span>{action.label}</span>
                 </motion.div>
               </Link>
@@ -394,17 +427,17 @@ export default function RecruiterDashboard() {
 
         {/* Job Performance Table */}
         <motion.div variants={item}>
-          <Card className="group relative glass-card-premium border-none shadow-md overflow-hidden">
+          <Card className="group relative glass-card-premium border border-border/20 shadow-lg overflow-hidden bg-card/40 backdrop-blur-md">
             <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
-            <CardHeader className="pb-2 relative">
+            <CardHeader className="pb-3 relative">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
                   <motion.div whileHover={{ rotate: 15 }} transition={{ type: "spring", stiffness: 300 }}>
-                    <ListChecks className="w-4 h-4 text-primary animate-pulse" />
+                    <ListChecks className="w-4.5 h-4.5 text-primary" />
                   </motion.div>
                   {locale === "en" ? "Job Performance" : "أداء الوظائف"}
                 </CardTitle>
-                <Link to="/jobs" className="text-xs text-primary hover:underline flex items-center gap-1">
+                <Link to="/jobs" className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold">
                   {t("common.viewAll")} <ChevronRight className="w-3 h-3" />
                 </Link>
               </div>
@@ -414,7 +447,7 @@ export default function RecruiterDashboard() {
                 <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">{t("common.noData")}</div>
               ) : (
                 <div className="space-y-2">
-                  <div className="grid grid-cols-12 gap-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-3 pb-1">
+                  <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-3 pb-1 border-b border-border/20">
                     <span className="col-span-4">{locale === "en" ? "Position" : "الوظيفة"}</span>
                     <span className="col-span-2 text-center">{locale === "en" ? "Candidates" : "المرشحون"}</span>
                     <span className="col-span-2 text-center">{locale === "en" ? "Interviews" : "المقابلات"}</span>
@@ -422,19 +455,25 @@ export default function RecruiterDashboard() {
                     <span className="col-span-2 text-center">{locale === "en" ? "Status" : "الحالة"}</span>
                   </div>
                   {jobPerformance.map((job, i) => (
-                    <motion.div key={i} whileHover={{ x: 4 }} className="grid grid-cols-12 gap-2 items-center px-3 py-2.5 rounded-xl transition-colors cursor-default list-hover-highlight glass-card-premium">
-                      <span className="col-span-4 text-sm font-medium truncate">{job.title}</span>
+                    <motion.div key={i} whileHover={{ y: -2, scale: 1.005 }} className="grid grid-cols-12 gap-2 items-center px-3 py-2.5 rounded-xl transition-all cursor-default list-hover-highlight glass-card-premium bg-card/20 border border-border/10">
+                      <span className="col-span-4 text-sm font-semibold truncate text-foreground/90">{job.title}</span>
                       <span className="col-span-2 text-center">
-                        <Badge variant="outline" className="text-[10px]">{job.candidates}</Badge>
+                        <Badge variant="outline" className="text-[10px] bg-primary/5 border-primary/25 text-primary font-bold">{job.candidates}</Badge>
                       </span>
                       <span className="col-span-2 text-center">
-                        <Badge variant="outline" className="text-[10px] border-warning/30 text-warning">{job.interviews}</Badge>
+                        <Badge variant="outline" className="text-[10px] border-warning/25 text-warning bg-warning/5 font-bold">{job.interviews}</Badge>
                       </span>
                       <span className="col-span-2 text-center">
-                        <Badge variant="outline" className="text-[10px] border-success/30 text-success">{job.hired}</Badge>
+                        <Badge variant="outline" className="text-[10px] border-success/25 text-success bg-success/5 font-bold">{job.hired}</Badge>
                       </span>
-                      <span className="col-span-2 text-center">
-                        <Badge variant="outline" className={cn("text-[10px]", job.status === "نشطة" ? "border-success/30 text-success bg-success/5" : "border-muted-foreground/30 text-muted-foreground")}>
+                      <span className="col-span-2 text-center flex justify-center">
+                        <Badge variant="outline" className={cn("text-[10px] font-bold flex items-center gap-1", job.status === "نشطة" ? "border-success/20 text-success bg-success/5" : "border-muted-foreground/30 text-muted-foreground bg-muted/10")}>
+                          {job.status === "نشطة" && (
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+                              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-success live-breathing-indicator" />
+                            </span>
+                          )}
                           {job.status}
                         </Badge>
                       </span>
@@ -449,17 +488,17 @@ export default function RecruiterDashboard() {
         {/* Charts Row: Trends + KPIs + AI */}
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Trends */}
-          <motion.div variants={item} initial="hidden" animate="show" className="lg:col-span-2">
-            <Card className="group relative glass-card-premium border-none shadow-md overflow-hidden">
+          <motion.div variants={item} className="lg:col-span-2">
+            <Card className="group relative glass-card-premium border border-border/20 shadow-lg overflow-hidden bg-card/40 backdrop-blur-md">
               <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
               <CardHeader className="pb-2 relative">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-primary" />{t("dashboard.hiringTrends")}
+                    <TrendingUp className="w-4.5 h-4.5 text-primary" />{t("dashboard.hiringTrends")}
                   </CardTitle>
-                  <div className="flex gap-1 bg-muted rounded-lg p-0.5">
+                  <div className="flex gap-1 bg-muted/60 backdrop-blur-md rounded-lg p-0.5 border border-border/25">
                     {(["week", "month"] as const).map(tab => (
-                      <button key={tab} onClick={() => setActiveTab(tab)} className={cn("px-3 py-1.5 rounded-md text-xs font-medium transition-all", activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                      <button key={tab} onClick={() => setActiveTab(tab)} className={cn("px-3 py-1 rounded-md text-xs font-semibold transition-all", activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                         {tab === "week" ? t("dashboard.weekly") : t("dashboard.monthly")}
                       </button>
                     ))}
@@ -469,30 +508,30 @@ export default function RecruiterDashboard() {
               <CardContent>
                 {monthlyData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={280}>
-                    <AreaChart data={monthlyData}>
+                    <AreaChart data={monthlyData} margin={{ left: -10, right: 10 }}>
                       <defs>
                         <linearGradient id="rAppliedGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.25} />
                           <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                         </linearGradient>
                         <linearGradient id="rHiredGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3} />
+                          <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.25} />
                           <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                      <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fontSize: 11, fontWeight: 500 }} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 11, fontWeight: 500 }} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} />
                       <Tooltip contentStyle={chartTooltipStyle} />
-                      <Legend wrapperStyle={{ fontSize: 11, paddingTop: 16 }} />
-                      <Area type="monotone" dataKey="applied" name={locale === "en" ? "Applied" : "المتقدمين"} fill="url(#rAppliedGrad)" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ fill: "hsl(var(--primary))", strokeWidth: 0, r: 4 }} />
-                      <Area type="monotone" dataKey="hired" name={locale === "en" ? "Hired" : "تم التوظيف"} fill="url(#rHiredGrad)" stroke="hsl(var(--success))" strokeWidth={2.5} dot={{ fill: "hsl(var(--success))", strokeWidth: 0, r: 4 }} />
+                      <Legend wrapperStyle={{ fontSize: 11, fontWeight: 600, paddingTop: 16 }} />
+                      <Area type="monotone" dataKey="applied" name={locale === "en" ? "Applied" : "المتقدمين"} fill="url(#rAppliedGrad)" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ fill: "hsl(var(--primary))", strokeWidth: 0, r: 4 }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                      <Area type="monotone" dataKey="hired" name={locale === "en" ? "Hired" : "تم التوظيف"} fill="url(#rHiredGrad)" stroke="hsl(var(--success))" strokeWidth={3} dot={{ fill: "hsl(var(--success))", strokeWidth: 0, r: 4 }} activeDot={{ r: 6, strokeWidth: 0 }} />
                     </AreaChart>
                   </ResponsiveContainer>
                 ) : (
                   <div className="h-[280px] flex flex-col items-center justify-center text-muted-foreground">
-                    <Activity className="w-12 h-12 mb-3 opacity-30" />
-                    <p className="text-sm">{t("dashboard.noDataSufficient")}</p>
+                    <Activity className="w-12 h-12 mb-3 opacity-30 animate-pulse" />
+                    <p className="text-sm font-semibold">{t("dashboard.noDataSufficient")}</p>
                   </div>
                 )}
               </CardContent>
@@ -500,12 +539,12 @@ export default function RecruiterDashboard() {
           </motion.div>
 
           {/* KPIs + AI */}
-          <motion.div variants={item} initial="hidden" animate="show">
-            <Card className="group relative glass-card-premium border-none shadow-md h-full overflow-hidden">
+          <motion.div variants={item}>
+            <Card className="group relative glass-card-premium border border-border/20 shadow-lg h-full overflow-hidden bg-card/40 backdrop-blur-md">
               <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
               <CardHeader className="pb-2 relative">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Target className="w-4 h-4 text-primary" />{t("dashboard.kpis")}
+                  <Target className="w-4.5 h-4.5 text-primary" />{t("dashboard.kpis")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-5">
@@ -517,38 +556,38 @@ export default function RecruiterDashboard() {
                   <div key={kpi.label} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", `bg-${kpi.color}/10`)}>
+                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", `bg-${kpi.color}/10 border border-${kpi.color}/20`)}>
                           <kpi.icon className={cn("w-4 h-4", `text-${kpi.color}`)} />
                         </div>
                         <div>
-                          <p className="text-sm font-medium">{kpi.label}</p>
-                          <p className="text-[10px] text-muted-foreground">{kpi.desc}</p>
+                          <p className="text-sm font-bold text-foreground/90">{kpi.label}</p>
+                          <p className="text-[10px] text-muted-foreground font-semibold">{kpi.desc}</p>
                         </div>
                       </div>
-                      <span className="text-xl font-bold">{kpi.value}%</span>
+                      <span className="text-lg font-extrabold">{kpi.value}%</span>
                     </div>
-                    <div className="relative h-2 bg-muted rounded-full overflow-hidden">
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${kpi.value}%` }} transition={{ duration: 1, ease: "easeOut" }} className={cn("absolute h-full rounded-full", `bg-${kpi.color}`)} />
+                    <div className="relative h-2 bg-muted/60 rounded-full overflow-hidden border border-border/10">
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${kpi.value}%` }} transition={{ duration: 1.2, ease: "easeOut" }} className={cn("absolute h-full rounded-full", `bg-${kpi.color}`)} />
                     </div>
                   </div>
                 ))}
-                <div className="pt-4 border-t border-border">
+                <div className="pt-4 border-t border-border/20">
                   <div className="flex items-center gap-2 mb-3">
-                    <Brain className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">{t("dashboard.aiEvaluation")}</span>
+                    <Brain className="w-4.5 h-4.5 text-primary animate-pulse" />
+                    <span className="text-sm font-bold text-foreground/90">{t("dashboard.aiEvaluation")}</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="bg-primary/5 rounded-xl p-2.5 text-center">
-                      <p className="text-lg font-bold text-primary">{aiStats.evaluated}</p>
-                      <p className="text-[9px] text-muted-foreground">{t("dashboard.evaluated")}</p>
+                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-2.5 text-center">
+                      <p className="text-lg font-extrabold text-primary">{aiStats.evaluated}</p>
+                      <p className="text-[9px] text-muted-foreground font-semibold">{t("dashboard.evaluated")}</p>
                     </div>
-                    <div className="bg-success/5 rounded-xl p-2.5 text-center">
-                      <p className="text-lg font-bold text-success">{aiStats.avgScore}%</p>
-                      <p className="text-[9px] text-muted-foreground">{t("dashboard.avgMatch")}</p>
+                    <div className="bg-success/5 border border-success/20 rounded-xl p-2.5 text-center">
+                      <p className="text-lg font-extrabold text-success">{aiStats.avgScore}%</p>
+                      <p className="text-[9px] text-muted-foreground font-semibold">{t("dashboard.avgMatch")}</p>
                     </div>
-                    <div className="bg-warning/5 rounded-xl p-2.5 text-center">
-                      <p className="text-lg font-bold text-warning">{aiStats.highMatch}</p>
-                      <p className="text-[9px] text-muted-foreground">{locale === "en" ? "High Match" : "تطابق عالي"}</p>
+                    <div className="bg-warning/5 border border-warning/20 rounded-xl p-2.5 text-center">
+                      <p className="text-lg font-extrabold text-warning">{aiStats.highMatch}</p>
+                      <p className="text-[9px] text-muted-foreground font-semibold">{locale === "en" ? "High Match" : "تطابق عالي"}</p>
                     </div>
                   </div>
                 </div>
@@ -560,15 +599,15 @@ export default function RecruiterDashboard() {
         {/* Pipeline + Sources + Offers */}
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Pipeline */}
-          <motion.div variants={item} initial="hidden" animate="show" whileHover={{ y: -8, scale: 1.02 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
-            <Card className="group relative glass-card-premium border-none shadow-md h-full overflow-hidden">
+          <motion.div variants={item} whileHover={{ y: -6, scale: 1.015 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
+            <Card className="group relative glass-card-premium border border-border/20 shadow-lg h-full overflow-hidden bg-card/40 backdrop-blur-md">
               <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
               <CardHeader className="pb-2 relative">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Kanban className="w-4 h-4 text-primary" />{t("dashboard.pipelineStages")}
+                    <Kanban className="w-4.5 h-4.5 text-primary" />{t("dashboard.pipelineStages")}
                   </CardTitle>
-                  <Link to="/pipeline" className="text-xs text-primary hover:underline flex items-center gap-1">{t("common.viewAll")} <ChevronRight className="w-3 h-3" /></Link>
+                  <Link to="/pipeline" className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold">{t("common.viewAll")} <ChevronRight className="w-3 h-3" /></Link>
                 </div>
               </CardHeader>
               <CardContent>
@@ -581,12 +620,12 @@ export default function RecruiterDashboard() {
                       const width = Math.max((s.count / maxCount) * 100, 4);
                       return (
                         <div key={s.stage} className="space-y-1">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground font-medium">{s.label}</span>
-                            <span className="font-bold">{s.count}</span>
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-muted-foreground">{s.label}</span>
+                            <span className="font-bold text-foreground">{s.count}</span>
                           </div>
-                          <div className="h-6 bg-muted/30 rounded-lg overflow-hidden">
-                            <motion.div initial={{ width: 0 }} animate={{ width: `${width}%` }} transition={{ delay: i * 0.08, duration: 0.6, ease: "easeOut" }} className="h-full rounded-lg" style={{ background: s.fill }} />
+                          <div className="h-6 bg-muted/40 rounded-lg overflow-hidden border border-border/10 p-0.5">
+                            <motion.div initial={{ width: 0 }} animate={{ width: `${width}%` }} transition={{ delay: i * 0.06, duration: 0.6, ease: "easeOut" }} className="h-full rounded-md shadow-sm" style={{ background: s.fill }} />
                           </div>
                         </div>
                       );
@@ -598,12 +637,12 @@ export default function RecruiterDashboard() {
           </motion.div>
 
           {/* Sources */}
-          <motion.div variants={item} initial="hidden" animate="show" whileHover={{ y: -8, scale: 1.02 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
-            <Card className="group relative glass-card-premium border-none shadow-md h-full overflow-hidden">
+          <motion.div variants={item} whileHover={{ y: -6, scale: 1.015 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
+            <Card className="group relative glass-card-premium border border-border/20 shadow-lg h-full overflow-hidden bg-card/40 backdrop-blur-md">
               <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
               <CardHeader className="pb-2 relative">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-primary" />{t("dashboard.candidateSources")}
+                  <Globe className="w-4.5 h-4.5 text-primary" />{t("dashboard.candidateSources")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -621,13 +660,13 @@ export default function RecruiterDashboard() {
                     </ResponsiveContainer>
                     <div className="space-y-2 mt-3">
                       {sourceData.slice(0, 4).map((s, i) => (
-                        <div key={i} className="flex items-center justify-between text-xs">
+                        <div key={i} className="flex items-center justify-between text-xs font-semibold">
                           <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ background: s.fill }} />
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ background: s.fill }} />
                             <span className="text-muted-foreground">{s.name}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold">{s.value}</span>
+                            <span className="font-bold text-foreground">{s.value}</span>
                             <span className="text-muted-foreground text-[10px]">({Math.round((s.value / allCandidates.length) * 100)}%)</span>
                           </div>
                         </div>
@@ -640,42 +679,42 @@ export default function RecruiterDashboard() {
           </motion.div>
 
           {/* Offers Summary */}
-          <motion.div variants={item} initial="hidden" animate="show" whileHover={{ y: -8, scale: 1.02 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
-            <Card className="group relative glass-card-premium border-none shadow-md h-full overflow-hidden">
+          <motion.div variants={item} whileHover={{ y: -6, scale: 1.015 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
+            <Card className="group relative glass-card-premium border border-border/20 shadow-lg h-full overflow-hidden bg-card/40 backdrop-blur-md">
               <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
-              <CardHeader className="pb-2 relative">
+              <CardHeader className="pb-3 relative">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-primary" />{t("dashboard.offersSummary")}
+                    <FileText className="w-4.5 h-4.5 text-primary" />{t("dashboard.offersSummary")}
                   </CardTitle>
-                  <Link to="/offers" className="text-xs text-primary hover:underline flex items-center gap-1">{t("common.viewAll")} <ChevronRight className="w-3 h-3" /></Link>
+                  <Link to="/offers" className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold">{t("common.viewAll")} <ChevronRight className="w-3 h-3" /></Link>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { label: t("dashboard.totalOffers"), value: offersStats.total, icon: FileText, color: "text-foreground", bg: "bg-muted/50" },
-                    { label: t("dashboard.sentOffers"), value: offersStats.sent, icon: ArrowUpRight, color: "text-primary", bg: "bg-primary/5" },
-                    { label: t("dashboard.acceptedOffers"), value: offersStats.accepted, icon: CheckCircle2, color: "text-success", bg: "bg-success/5" },
-                    { label: t("dashboard.rejectedOffers"), value: offersStats.rejected, icon: AlertCircle, color: "text-destructive", bg: "bg-destructive/5" },
+                    { label: t("dashboard.totalOffers"), value: offersStats.total, icon: FileText, color: "text-foreground/90", bg: "bg-muted/30 border border-border/10" },
+                    { label: t("dashboard.sentOffers"), value: offersStats.sent, icon: ArrowUpRight, color: "text-primary", bg: "bg-primary/5 border border-primary/10" },
+                    { label: t("dashboard.acceptedOffers"), value: offersStats.accepted, icon: CheckCircle2, color: "text-success", bg: "bg-success/5 border border-success/10" },
+                    { label: t("dashboard.rejectedOffers"), value: offersStats.rejected, icon: AlertCircle, color: "text-destructive", bg: "bg-destructive/5 border border-destructive/10" },
                   ].map((s, i) => (
-                    <motion.div key={i} whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.97 }} className={cn("rounded-xl p-3 text-center transition-all cursor-default hover:shadow-md", s.bg)}>
+                    <motion.div key={i} whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.97 }} className={cn("rounded-xl p-3 text-center transition-all cursor-default shadow-sm", s.bg)}>
                       <motion.div whileHover={{ rotate: 10, scale: 1.2 }} transition={{ type: "spring", stiffness: 400 }}>
-                        <s.icon className={cn("w-4 h-4 mx-auto mb-1", s.color)} />
+                        <s.icon className={cn("w-4 h-4 mx-auto mb-1.5", s.color)} />
                       </motion.div>
-                      <p className={cn("text-xl font-bold", s.color)}>{s.value}</p>
-                      <p className="text-[10px] text-muted-foreground">{s.label}</p>
+                      <p className={cn("text-xl font-bold tracking-tight", s.color)}>{s.value}</p>
+                      <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">{s.label}</p>
                     </motion.div>
                   ))}
                 </div>
                 {offersStats.total > 0 && (
-                  <div className="mt-4 pt-3 border-t border-border">
-                    <div className="flex justify-between text-xs mb-2">
+                  <div className="mt-4 pt-3 border-t border-border/20">
+                    <div className="flex justify-between text-xs mb-2 font-semibold">
                       <span className="text-muted-foreground">{t("dashboard.acceptanceRate")}</span>
                       <span className="font-bold text-success">{offersStats.acceptanceRate}%</span>
                     </div>
-                    <div className="relative h-2 bg-muted rounded-full overflow-hidden">
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${offersStats.acceptanceRate}%` }} transition={{ duration: 1 }} className="absolute h-full rounded-full bg-success" />
+                    <div className="relative h-2 bg-muted/60 rounded-full overflow-hidden border border-border/10">
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${offersStats.acceptanceRate}%` }} transition={{ duration: 1.2, ease: "easeOut" }} className="absolute h-full rounded-full bg-success" />
                     </div>
                   </div>
                 )}
@@ -687,49 +726,49 @@ export default function RecruiterDashboard() {
         {/* Bottom Row: Interviews + Candidates + Activity */}
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Upcoming Interviews */}
-          <motion.div variants={item} initial="hidden" animate="show" whileHover={{ y: -8, scale: 1.02 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
-            <Card className="group relative glass-card-premium border-none shadow-md h-full overflow-hidden">
+          <motion.div variants={item} whileHover={{ y: -6, scale: 1.015 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
+            <Card className="group relative glass-card-premium border border-border/20 shadow-lg h-full overflow-hidden bg-card/40 backdrop-blur-md">
               <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
               <CardHeader className="pb-3 bg-gradient-to-l from-warning/5 to-transparent relative">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-warning" />{t("dashboard.upcomingInterviews")}
+                    <Calendar className="w-4.5 h-4.5 text-warning" />{t("dashboard.upcomingInterviews")}
                   </CardTitle>
-                  <Link to="/interviews" className="text-xs text-primary hover:underline flex items-center gap-1">{t("common.viewAll")} <ChevronRight className="w-3 h-3" /></Link>
+                  <Link to="/interviews" className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold">{t("common.viewAll")} <ChevronRight className="w-3 h-3" /></Link>
                 </div>
               </CardHeader>
               <CardContent className="pt-2">
                 {todayInterviews.length === 0 ? (
                   <div className="text-center py-8">
-                    <Calendar className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
-                    <p className="text-sm text-muted-foreground">{t("dashboard.noScheduledInterviews")}</p>
+                    <Calendar className="w-12 h-12 mx-auto text-muted-foreground/20 mb-3" />
+                    <p className="text-sm text-muted-foreground font-semibold">{t("dashboard.noScheduledInterviews")}</p>
                   </div>
                 ) : (
-                  <div className={cn("relative py-1 space-y-4", locale === "ar" ? "border-r border-dashed border-border/80 pr-4 mr-2" : "border-l border-dashed border-border/80 pl-4 ml-2")}>
+                  <div className={cn("relative py-1 space-y-4", locale === "ar" ? "border-r border-dashed border-border/60 pr-4 mr-2" : "border-l border-dashed border-border/60 pl-4 ml-2")}>
                     {todayInterviews.map((interview, i) => (
                       <motion.div
                         key={interview.id}
                         initial={{ opacity: 0, x: locale === "ar" ? 15 : -15 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.3 + i * 0.1 }}
-                        className="relative flex items-center gap-3 group/item p-2 rounded-xl list-hover-highlight transition-colors cursor-default"
+                        transition={{ delay: 0.3 + i * 0.08 }}
+                        className="relative flex items-center gap-3 group/item p-2 rounded-xl list-hover-highlight transition-all cursor-default hover:bg-muted/30"
                       >
                         {/* Timeline Bullet Node */}
                         <div className={cn(
-                          "absolute top-2.5 w-2.5 h-2.5 rounded-full border bg-background z-10 transition-transform group-hover/item:scale-125 border-warning bg-warning",
+                          "absolute top-2.5 w-2.5 h-2.5 rounded-full border bg-background z-10 transition-all group-hover/item:scale-125 border-warning bg-warning shadow-[0_0_8px_hsl(var(--warning)/0.6)]",
                           locale === "ar" ? "-right-[21.5px]" : "-left-[21.5px]"
                         )} />
 
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-warning to-warning/60 flex items-center justify-center flex-shrink-0 shadow-md border border-warning/20">
-                          <Video className="w-5 h-5 text-white" />
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-warning/20 to-warning/5 flex items-center justify-center flex-shrink-0 shadow-sm border border-warning/30">
+                          <Video className="w-5 h-5 text-warning" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm truncate">{interview.candidate_name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{interview.position}</p>
+                          <p className="font-bold text-sm truncate text-foreground/90">{interview.candidate_name}</p>
+                          <p className="text-xs text-muted-foreground truncate font-medium">{interview.position}</p>
                         </div>
                         <div className="text-left shrink-0">
-                          <span className="text-xs font-bold text-warning bg-warning/10 px-2.5 py-1 rounded-lg block">{interview.time?.slice(0, 5)}</span>
-                          <span className="text-[10px] text-muted-foreground mt-1 block">{interview.date}</span>
+                          <span className="text-xs font-extrabold text-warning bg-warning/10 px-2.5 py-1 rounded-lg block border border-warning/20">{interview.time?.slice(0, 5)}</span>
+                          <span className="text-[10px] text-muted-foreground font-medium mt-1 block">{interview.date}</span>
                         </div>
                       </motion.div>
                     ))}
@@ -740,40 +779,40 @@ export default function RecruiterDashboard() {
           </motion.div>
 
           {/* Recent Candidates */}
-          <motion.div variants={item} initial="hidden" animate="show" whileHover={{ y: -8, scale: 1.02 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
-            <Card className="group relative glass-card-premium border-none shadow-md h-full overflow-hidden">
+          <motion.div variants={item} whileHover={{ y: -6, scale: 1.015 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
+            <Card className="group relative glass-card-premium border border-border/20 shadow-lg h-full overflow-hidden bg-card/40 backdrop-blur-md">
               <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
               <CardHeader className="pb-3 bg-gradient-to-l from-primary/5 to-transparent relative">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Users className="w-4 h-4 text-primary" />{t("dashboard.recentCandidates")}
+                    <Users className="w-4.5 h-4.5 text-primary" />{t("dashboard.recentCandidates")}
                   </CardTitle>
-                  <Link to="/candidates" className="text-xs text-primary hover:underline flex items-center gap-1">{t("common.viewAll")} <ChevronRight className="w-3 h-3" /></Link>
+                  <Link to="/candidates" className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold">{t("common.viewAll")} <ChevronRight className="w-3 h-3" /></Link>
                 </div>
               </CardHeader>
               <CardContent className="pt-2">
                 {recentCandidates.length === 0 ? (
-                  <div className="text-center py-8"><p className="text-sm text-muted-foreground">{t("candidates.noCandidates")}</p></div>
+                  <div className="text-center py-8"><p className="text-sm text-muted-foreground font-semibold">{t("candidates.noCandidates")}</p></div>
                 ) : (
                   <div className="space-y-2">
                     {recentCandidates.map((c, i) => (
                       <motion.div key={c.id} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.05 }}>
-                        <Link to={`/candidates/${c.id}`} className="flex items-center gap-3 p-2.5 rounded-xl list-hover-highlight transition-all group">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-xs text-white font-bold shadow-md">
-                            {c.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
+                        <Link to={`/candidates/${c.id}`} className="flex items-center gap-3 p-2.5 rounded-xl list-hover-highlight transition-all group hover:bg-muted/30">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/25 to-primary/5 border border-primary/30 flex items-center justify-center text-xs text-primary font-extrabold shadow-sm">
+                            {c.name ? c.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : "??"}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate group-hover:text-primary transition-colors">{c.name}</p>
-                            <p className="text-xs text-muted-foreground truncate">{c.role}</p>
+                            <p className="text-sm font-bold truncate group-hover:text-primary transition-colors text-foreground/90">{c.name}</p>
+                            <p className="text-xs text-muted-foreground truncate font-medium">{c.role}</p>
                           </div>
                           <div className="flex items-center gap-2">
                             {(c as any).ai_score != null && (
-                              <div className="flex items-center gap-1 bg-primary/10 px-2 py-1 rounded-lg">
-                                <Star className="w-3 h-3 text-primary" />
-                                <span className="text-[10px] font-bold text-primary">{(c as any).ai_score}%</span>
+                              <div className="flex items-center gap-1 bg-primary/10 border border-primary/20 px-2 py-1 rounded-lg">
+                                <Star className="w-3 h-3 text-primary fill-primary" />
+                                <span className="text-[10px] font-extrabold text-primary">{(c as any).ai_score}%</span>
                               </div>
                             )}
-                            <Badge variant="outline" className={cn("text-[10px] border", statusColors[c.status] || "")}>{c.status}</Badge>
+                            <Badge variant="outline" className={cn("text-[10px] font-bold border", statusColors[c.status] || "")}>{c.status}</Badge>
                           </div>
                         </Link>
                       </motion.div>
@@ -785,30 +824,30 @@ export default function RecruiterDashboard() {
           </motion.div>
 
           {/* Activity Timeline */}
-          <motion.div variants={item} initial="hidden" animate="show" whileHover={{ y: -8, scale: 1.02 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
-            <Card className="group relative glass-card-premium border-none shadow-md h-full overflow-hidden">
+          <motion.div variants={item} whileHover={{ y: -6, scale: 1.015 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
+            <Card className="group relative glass-card-premium border border-border/20 shadow-lg h-full overflow-hidden bg-card/40 backdrop-blur-md">
               <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
               <CardHeader className="pb-3 bg-gradient-to-l from-info/5 to-transparent relative">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-info" />{t("dashboard.latestActivity")}
+                    <Activity className="w-4.5 h-4.5 text-info" />{t("dashboard.latestActivity")}
                   </CardTitle>
-                  <Link to="/notifications" className="text-xs text-primary hover:underline flex items-center gap-1">{t("common.viewAll")} <ChevronRight className="w-3 h-3" /></Link>
+                  <Link to="/notifications" className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold">{t("common.viewAll")} <ChevronRight className="w-3 h-3" /></Link>
                 </div>
               </CardHeader>
               <CardContent className="pt-2">
                 {allNotifications.length === 0 ? (
                   <div className="text-center py-8">
-                    <Activity className="w-12 h-12 mx-auto text-muted-foreground/20 mb-3" />
-                    <p className="text-sm text-muted-foreground">{t("dashboard.noActivity")}</p>
+                    <Activity className="w-12 h-12 mx-auto text-muted-foreground/20 mb-3 animate-pulse" />
+                    <p className="text-sm text-muted-foreground font-semibold">{t("dashboard.noActivity")}</p>
                   </div>
                 ) : (
                   <div className="space-y-1">
                     {allNotifications.slice(0, 6).map((n, i) => {
                       const typeColors: Record<string, string> = {
-                        application: "bg-info/10 text-info", stage_change: "bg-primary/10 text-primary",
-                        rejection: "bg-destructive/10 text-destructive", offer: "bg-accent text-accent-foreground",
-                        interview: "bg-warning/10 text-warning", system: "bg-muted text-muted-foreground",
+                        application: "bg-info/10 text-info border-info/20", stage_change: "bg-primary/10 text-primary border-primary/20",
+                        rejection: "bg-destructive/10 text-destructive border-destructive/20", offer: "bg-accent/15 text-accent border-accent/30",
+                        interview: "bg-warning/10 text-warning border-warning/20", system: "bg-muted text-muted-foreground border-border/20",
                       };
                       const typeIcons: Record<string, typeof Bell> = {
                         application: FileText, stage_change: Activity, rejection: AlertCircle,
@@ -825,15 +864,15 @@ export default function RecruiterDashboard() {
                         return `${Math.floor(hours / 24)} ${locale === "en" ? "d" : "ي"}`;
                       };
                       return (
-                        <motion.div key={n.id} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} className="flex items-start gap-3 p-2.5 rounded-xl list-hover-highlight transition-colors">
-                          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", typeColors[n.type] || "bg-muted")}>
+                        <motion.div key={n.id} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} className="flex items-start gap-3 p-2.5 rounded-xl list-hover-highlight transition-all hover:bg-muted/30">
+                          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border", typeColors[n.type] || "bg-muted")}>
                             <Icon className="w-3.5 h-3.5" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={cn("text-xs leading-relaxed", !n.read ? "font-semibold text-foreground" : "text-foreground/80")}>{n.title}</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">{formatTime(n.created_at)}</p>
+                            <p className={cn("text-xs leading-relaxed", !n.read ? "font-bold text-foreground" : "text-foreground/80 font-medium")}>{n.title}</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5 font-semibold">{formatTime(n.created_at)}</p>
                           </div>
-                          {!n.read && <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5" />}
+                          {!n.read && <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5 shadow-[0_0_8px_hsl(var(--primary)/0.6)]" />}
                         </motion.div>
                       );
                     })}
