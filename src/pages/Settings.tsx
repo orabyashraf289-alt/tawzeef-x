@@ -952,8 +952,9 @@ function CompanySection() {
       return;
     }
 
+    const rawNotesString = JSON.stringify({ size: companySize, description: notes });
+
     if (companyId) {
-      const rawNotesString = JSON.stringify({ size: companySize, description: notes });
       const { error: compErr } = await supabase.from("companies").update({
         name: companyName,
         logo_url: companyLogo,
@@ -969,6 +970,46 @@ function CompanySection() {
         toast({ title: "Error updating company settings", description: compErr.message, variant: "destructive" });
         setLoading(false);
         return;
+      }
+    } else {
+      // Create new company
+      const { data: newComp, error: compErr } = await supabase.from("companies").insert({
+        name: companyName,
+        logo_url: companyLogo,
+        website: website,
+        industry: industry,
+        city: city,
+        country: country,
+        notes: rawNotesString,
+        e2e_encryption: e2eEnabled,
+        owner_user_id: user.id,
+        status: "active"
+      } as any).select().single();
+
+      if (compErr) {
+        toast({ title: "Error creating company settings", description: compErr.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
+      if (newComp) {
+        setCompanyId(newComp.id);
+        // Link recruiter as owner
+        const { error: memberErr } = await supabase.from("company_members").insert({
+          company_id: newComp.id,
+          user_id: user.id,
+          member_role: "owner"
+        } as any);
+
+        if (memberErr) {
+          console.error("Error creating company member entry:", memberErr);
+        }
+
+        // Backfill company_id for all existing recruiter items
+        await supabase.from("jobs").update({ company_id: newComp.id } as any).eq("user_id", user.id).is("company_id", null);
+        await supabase.from("candidates").update({ company_id: newComp.id } as any).eq("user_id", user.id).is("company_id", null);
+        await supabase.from("interviews").update({ company_id: newComp.id } as any).eq("user_id", user.id).is("company_id", null);
+        await supabase.from("job_offers").update({ company_id: newComp.id } as any).eq("user_id", user.id).is("company_id", null);
       }
     }
 

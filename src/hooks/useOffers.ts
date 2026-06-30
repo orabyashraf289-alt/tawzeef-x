@@ -116,10 +116,20 @@ export function useCreateOffer() {
       additional_terms?: string;
       expires_at?: string;
     }) => {
+      // Resolve company_id for the current recruiter
+      const { data: memberData } = await supabase
+        .from("company_members")
+        .select("company_id")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+
+      const companyId = memberData?.company_id || null;
+
       const { data, error } = await supabase
         .from("job_offers")
         .insert({
           user_id: user!.id,
+          company_id: companyId,
           candidate_id: offer.candidate_id || null,
           job_id: offer.job_id || null,
           position: offer.position,
