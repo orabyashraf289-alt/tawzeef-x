@@ -99,7 +99,7 @@ function DroppableColumn({ stage, children, count, label, totalCandidates, avgDa
   );
 }
 
-function CandidateCard({ candidate, isDragging = false }: { candidate: any; isDragging?: boolean }) {
+function CandidateCard({ candidate, isDragging = false, response }: { candidate: any; isDragging?: boolean; response?: any }) {
   return (
     <div className={cn(
       "bg-card rounded-lg border border-border/50 p-3 transition-all group",
@@ -142,6 +142,19 @@ function CandidateCard({ candidate, isDragging = false }: { candidate: any; isDr
                 <Bot className="w-2.5 h-2.5" />{candidate.ai_score}
               </Badge>
             )}
+            {response && response.integrity_score != null && (
+              response.integrity_score < 60 ? (
+                <Badge variant="outline" className="text-[9px] h-4 px-1 gap-0.5 bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 animate-pulse">
+                  <AlertTriangle className="w-2.5 h-2.5" />
+                  شبهة غش
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[9px] h-4 px-1 gap-0.5 bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
+                  <CheckCircle2 className="w-2.5 h-2.5" />
+                  نزيه
+                </Badge>
+              )
+            )}
           </div>
 
           {candidate.skills && candidate.skills.length > 0 && (
@@ -162,7 +175,7 @@ function CandidateCard({ candidate, isDragging = false }: { candidate: any; isDr
   );
 }
 
-function DraggableCard({ candidate }: { candidate: any }) {
+function DraggableCard({ candidate, response }: { candidate: any; response?: any }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: candidate.id,
   });
@@ -175,7 +188,7 @@ function DraggableCard({ candidate }: { candidate: any }) {
 
   return (
     <div ref={setNodeRef} style={style} {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing">
-      <CandidateCard candidate={candidate} />
+      <CandidateCard candidate={candidate} response={response} />
     </div>
   );
 }
@@ -196,7 +209,7 @@ export default function Pipeline() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("assessment_responses")
-        .select("candidate_email, assessment_id, status, percentage")
+        .select("candidate_email, assessment_id, status, percentage, integrity_score")
         .eq("status", "completed");
       if (error) throw error;
       return data || [];
@@ -623,16 +636,23 @@ export default function Pipeline() {
                       <p className="text-[11px]">{t("pipeline.dragHere")}</p>
                     </div>
                   ) : (
-                    grouped[stage.id]?.map((candidate) => (
-                      <DraggableCard key={candidate.id} candidate={candidate} />
-                    ))
+                    grouped[stage.id]?.map((candidate) => {
+                      const response = (assessmentResponses || []).find(r => r.candidate_email === candidate.email);
+                      return <DraggableCard key={candidate.id} candidate={candidate} response={response} />;
+                    })
                   )}
                 </DroppableColumn>
               ))}
             </div>
 
             <DragOverlay>
-              {activeCand && <CandidateCard candidate={activeCand} isDragging />}
+              {activeCand && (
+                <CandidateCard 
+                  candidate={activeCand} 
+                  isDragging 
+                  response={(assessmentResponses || []).find(r => r.candidate_email === activeCand.email)} 
+                />
+              )}
             </DragOverlay>
           </DndContext>
         ) : (
