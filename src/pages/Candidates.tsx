@@ -136,7 +136,7 @@ function CompareDialog({ candidates, onClose }: { candidates: any[]; onClose: ()
 }
 
 export default function Candidates() {
-  const { t, locale } = useI18n();
+  const { t, locale, dir } = useI18n();
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
   const { data: candidatesResult, isLoading } = usePaginatedCandidates(page, PAGE_SIZE);
