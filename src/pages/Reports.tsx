@@ -12,8 +12,10 @@ import { useActiveStages } from "@/hooks/usePipelineStages";
 import { useOffers } from "@/hooks/useOffers";
 import { useI18n } from "@/contexts/I18nContext";
 import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import * as XLSX from "xlsx";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 import DateRangeFilter, { type DateRange } from "@/components/reports/DateRangeFilter";
 import HiringKPIReport from "@/components/reports/HiringKPIReport";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
@@ -36,6 +38,7 @@ const tooltipStyle = {
 };
 
 export default function Reports() {
+  const { toast } = useToast();
   const { data: candidates } = useCandidates();
   const { data: jobs } = useJobs();
   const { data: interviews } = useInterviews();
@@ -377,177 +380,57 @@ export default function Reports() {
     };
   }, [allCandidates, allInterviews, allOffers, locale]);
 
-  // Professional PDF Export
+  // Professional PDF Export using html2canvas to render Arabic text and charts perfectly
   const handleExportPDF = async () => {
+    if (!reportRef.current) return;
     setExporting(true);
+    
+    toast({
+      title: locale === "ar" ? "جاري تحضير ملف PDF..." : "Preparing PDF...",
+      description: locale === "ar" ? "الرجاء الانتظار حتى يتم توليد التقرير المطبوع." : "Please wait while generating the printed report.",
+    });
+
     try {
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const W = pdf.internal.pageSize.getWidth();
-      const H = pdf.internal.pageSize.getHeight();
-      const margin = 15;
-      let y = margin;
-
-      const addPage = () => { pdf.addPage(); y = margin; };
-      const checkPage = (needed: number) => { if (y + needed > H - margin) addPage(); };
-
-      // Header bar
-      pdf.setFillColor(30, 58, 138); // primary blue
-      pdf.rect(0, 0, W, 38, "F");
-      pdf.setFillColor(20, 184, 166); // accent teal
-      pdf.rect(0, 38, W, 2, "F");
-
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(22);
-      pdf.text("Tawzeef-X", W - margin, 18, { align: "right" });
-      pdf.setFontSize(10);
-      pdf.text("Recruitment Analytics Report", W - margin, 27, { align: "right" });
-      
-      const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-      pdf.setFontSize(8);
-      pdf.text(dateStr, margin, 32);
-
-      y = 48;
-
-      // KPI Section
-      pdf.setTextColor(30, 58, 138);
-      pdf.setFontSize(14);
-      pdf.text("Key Performance Indicators", margin, y);
-      y += 8;
-
-      const kpis = [
-        ["Total Candidates", totalCandidates.toString()],
-        ["Hired", hired.toString()],
-        ["Conversion Rate", `${conversionRate}%`],
-        ["Avg AI Score", avgAiScore],
-        ["Avg Time to Hire", avgTimeToHire],
-        ["Hiring Cost (SAR)", totalCostNum],
-        ["Offer Accept Rate", offerAcceptanceRate],
-        ["Interview Success", acceptRate],
-      ];
-
-      const colW = (W - 2 * margin) / 4;
-      kpis.forEach((kpi, i) => {
-        const col = i % 4;
-        const row = Math.floor(i / 4);
-        const x = margin + col * colW;
-        const boxY = y + row * 22;
-        
-        pdf.setFillColor(245, 247, 250);
-        pdf.roundedRect(x, boxY, colW - 3, 18, 3, 3, "F");
-        
-        pdf.setTextColor(100, 116, 139);
-        pdf.setFontSize(7);
-        pdf.text(kpi[0], x + 4, boxY + 7);
-        
-        pdf.setTextColor(15, 23, 42);
-        pdf.setFontSize(14);
-        pdf.text(kpi[1], x + 4, boxY + 14);
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        backgroundColor: document.documentElement.classList.contains("dark") ? "#0f172a" : "#ffffff",
       });
 
-      y += Math.ceil(kpis.length / 4) * 22 + 10;
-
-      // Pipeline Funnel
-      checkPage(60);
-      pdf.setTextColor(30, 58, 138);
-      pdf.setFontSize(14);
-      pdf.text("Pipeline Funnel", margin, y);
-      y += 8;
-
-      const maxFunnel = Math.max(...funnelData.map(f => f.count), 1);
-      funnelData.forEach((stage, i) => {
-        checkPage(12);
-        const barWidth = ((W - 2 * margin - 50) * stage.count) / maxFunnel;
-        const colors = [[30, 58, 138], [20, 184, 166], [245, 158, 11], [239, 68, 68], [139, 92, 246], [16, 185, 129]];
-        const c = colors[i % colors.length];
-        
-        pdf.setFontSize(8);
-        pdf.setTextColor(100, 116, 139);
-        pdf.text(stage.displayStage, margin, y + 5);
-        
-        pdf.setFillColor(c[0], c[1], c[2]);
-        pdf.roundedRect(margin + 50, y, Math.max(barWidth, 2), 7, 2, 2, "F");
-        
-        pdf.setTextColor(15, 23, 42);
-        pdf.setFontSize(8);
-        pdf.text(`${stage.count} (${stage.rate})`, margin + 54 + barWidth, y + 5);
-        y += 11;
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
       });
 
-      y += 8;
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = pdfWidth / imgWidth;
+      const canvasHeightInPdf = imgHeight * ratio;
 
-      // Department breakdown
-      checkPage(40);
-      pdf.setTextColor(30, 58, 138);
-      pdf.setFontSize(14);
-      pdf.text("Department Breakdown", margin, y);
-      y += 8;
+      let heightLeft = canvasHeightInPdf;
+      let position = 0;
+      const pageHeight = pdfHeight;
 
-      // Table header
-      pdf.setFillColor(30, 58, 138);
-      pdf.rect(margin, y, W - 2 * margin, 8, "F");
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(8);
-      const cols = [margin + 3, margin + 55, margin + 85, margin + 115];
-      pdf.text("Department", cols[0], y + 5.5);
-      pdf.text("Jobs", cols[1], y + 5.5);
-      pdf.text("Candidates", cols[2], y + 5.5);
-      pdf.text("Hired", cols[3], y + 5.5);
-      y += 8;
+      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, canvasHeightInPdf, undefined, "FAST");
+      heightLeft -= pageHeight;
 
-      departmentData.forEach((dept, i) => {
-        checkPage(8);
-        if (i % 2 === 0) {
-          pdf.setFillColor(248, 250, 252);
-          pdf.rect(margin, y, W - 2 * margin, 8, "F");
-        }
-        pdf.setTextColor(15, 23, 42);
-        pdf.setFontSize(8);
-        pdf.text(dept.name, cols[0], y + 5.5);
-        pdf.text(String(dept.jobs), cols[1], y + 5.5);
-        pdf.text(String(dept.candidates), cols[2], y + 5.5);
-        pdf.text(String(dept.hired), cols[3], y + 5.5);
-        y += 8;
-      });
-
-      y += 10;
-
-      // Source distribution
-      checkPage(40);
-      pdf.setTextColor(30, 58, 138);
-      pdf.setFontSize(14);
-      pdf.text("Candidate Sources", margin, y);
-      y += 8;
-
-      sourceData.forEach((src) => {
-        checkPage(10);
-        const barWidth = (W - 2 * margin - 60) * (src.value / 100);
-        pdf.setFontSize(8);
-        pdf.setTextColor(100, 116, 139);
-        pdf.text(`${src.name} (${src.count})`, margin, y + 5);
-        
-        pdf.setFillColor(30, 58, 138);
-        pdf.roundedRect(margin + 45, y, Math.max(barWidth, 2), 7, 2, 2, "F");
-        
-        pdf.setTextColor(15, 23, 42);
-        pdf.text(`${src.value}%`, margin + 49 + barWidth, y + 5);
-        y += 11;
-      });
-
-      // Footer on each page
-      const totalPages = pdf.getNumberOfPages();
-      for (let p = 1; p <= totalPages; p++) {
-        pdf.setPage(p);
-        pdf.setFillColor(248, 250, 252);
-        pdf.rect(0, H - 12, W, 12, "F");
-        pdf.setTextColor(148, 163, 184);
-        pdf.setFontSize(7);
-        pdf.text(`Tawzeef-X Recruitment Report | Generated ${dateStr}`, margin, H - 5);
-        pdf.text(`Page ${p} of ${totalPages}`, W - margin, H - 5, { align: "right" });
+      while (heightLeft >= 0) {
+        position = heightLeft - canvasHeightInPdf;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, pdfWidth, canvasHeightInPdf, undefined, "FAST");
+        heightLeft -= pageHeight;
       }
 
       pdf.save(`Tawzeef-X-Report-${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast({ title: locale === "ar" ? "تم تصدير التقرير بنجاح PDF ✅" : "Report Exported successfully PDF ✅" });
     } catch (e) {
       console.error("PDF export error:", e);
+      toast({ title: locale === "ar" ? "فشل تصدير التقرير" : "Failed to export report", variant: "destructive" });
     } finally {
       setExporting(false);
     }
