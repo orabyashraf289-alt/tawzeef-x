@@ -1323,7 +1323,7 @@ function PreferencesSection() {
 
 /* ─── Main Page ─── */
 export default function SettingsPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [activeTab, setActiveTab] = useState("account");
 
   const settingsTabs = [
