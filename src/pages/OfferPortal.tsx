@@ -38,6 +38,7 @@ interface Offer {
   expires_at: string | null;
   sent_at: string | null;
   signature_url: string | null;
+  company_id?: string | null;
 }
 
 const OFFER_TYPE_LABELS: Record<string, string> = {
@@ -49,6 +50,7 @@ const OFFER_TYPE_LABELS: Record<string, string> = {
 export default function OfferPortal() {
   const { token } = useParams<{ token: string }>();
   const [offer, setOffer] = useState<Offer | null>(null);
+  const [company, setCompany] = useState<{ name: string; logo_url: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [responding, setResponding] = useState(false);
@@ -100,6 +102,17 @@ export default function OfferPortal() {
       }
 
       setOffer(offerData);
+
+      if (offerData.company_id) {
+        const { data: companyData } = await supabase
+          .from("companies")
+          .select("name, logo_url")
+          .eq("id", offerData.company_id)
+          .single();
+        if (companyData) {
+          setCompany(companyData);
+        }
+      }
       setLoading(false);
     }
 
@@ -288,10 +301,12 @@ export default function OfferPortal() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 py-8 px-4">
       <div className="max-w-2xl mx-auto space-y-6">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-          <img src={tawzeefLogo} alt="Tawzeef-X" className="w-10 h-10 object-contain" />
-          <h1 className="text-2xl font-bold text-foreground">عرض العمل</h1>
-          <p className="text-muted-foreground mt-1">مراجعة تفاصيل عرض العمل المقدم لك</p>
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center flex flex-col items-center justify-center space-y-2">
+          <img src={company?.logo_url || tawzeefLogo} alt={company?.name || "Tawzeef-X"} className="w-16 h-16 object-contain rounded-xl shadow-md border border-border/40" />
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">{company?.name || "Tawzeef-X"}</h1>
+            <p className="text-muted-foreground mt-1">خطاب عرض العمل الرسمي المقدم لك</p>
+          </div>
         </motion.div>
 
         {(offer.status === "accepted" || offer.status === "rejected" || offer.status === "withdrawn" || isExpired) && (
@@ -525,7 +540,16 @@ export default function OfferPortal() {
         )}
 
         <div className="flex justify-center">
-          <Button variant="outline" size="sm" onClick={() => generateOfferPdf(offer)} className="gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => generateOfferPdf({
+              ...offer,
+              company_name: company?.name || undefined,
+              company_logo: company?.logo_url || undefined
+            })} 
+            className="gap-2"
+          >
             <Download className="w-4 h-4" />
             تحميل كملف PDF
           </Button>

@@ -15,6 +15,8 @@ interface OfferForPdf {
   expires_at: string | null;
   sent_at: string | null;
   signature_url: string | null;
+  company_name?: string;
+  company_logo?: string;
 }
 
 const OFFER_TYPE_AR: Record<string, string> = {
@@ -84,10 +86,10 @@ export async function generateOfferPdf(offer: OfferForPdf) {
       <!-- Top Header -->
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f3f4f6; padding-bottom: 20px; margin-bottom: 30px;">
         <div style="display: flex; align-items: center; gap: 12px;">
-          <img src="${tawzeefLogo}" style="width: 48px; height: 48px; object-fit: contain;" />
+          <img src="${offer.company_logo || tawzeefLogo}" style="width: 48px; height: 48px; object-fit: contain; border-radius: 8px;" />
           <div>
-            <h1 style="font-size: 20px; font-weight: 800; color: #4f46e5; margin: 0; letter-spacing: -0.5px;">Tawzeef-X</h1>
-            <p style="font-size: 10px; color: #6b7280; margin: 2px 0 0 0;">منصة التوظيف الذكية</p>
+            <h1 style="font-size: 20px; font-weight: 800; color: #4f46e5; margin: 0; letter-spacing: -0.5px;">${offer.company_name || "Tawzeef-X"}</h1>
+            <p style="font-size: 10px; color: #6b7280; margin: 2px 0 0 0;">${offer.company_name ? "عرض وظيفي رسمي" : "منصة التوظيف الذكية"}</p>
           </div>
         </div>
         <div style="text-align: left; font-size: 12px; color: #6b7280; line-height: 1.6;">
@@ -212,7 +214,7 @@ export async function generateOfferPdf(offer: OfferForPdf) {
       <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 50px; border-top: 2px solid #f3f4f6; padding-top: 30px;">
         <div style="text-align: center; width: 45%;">
           <div style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">جهة العمل (المدير المسؤول)</div>
-          <div style="height: 40px; display: flex; align-items: center; justify-content: center; font-style: italic; color: #9ca3af; font-size: 14px;">Tawzeef-X HR Team</div>
+          <div style="height: 40px; display: flex; align-items: center; justify-content: center; font-style: italic; color: #9ca3af; font-size: 14px;">${offer.company_name || "Tawzeef-X"} HR Team</div>
           <div style="border-top: 1px dashed #d1d5db; padding-top: 6px; font-size: 13px; font-weight: 700; color: #374151;">فريق الموارد البشرية</div>
         </div>
         <div style="text-align: center; width: 45%;">
