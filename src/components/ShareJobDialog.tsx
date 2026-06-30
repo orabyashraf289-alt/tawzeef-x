@@ -70,6 +70,16 @@ export default function ShareJobDialog({ open, onClose, jobTitle, jobId, isNewJo
     }
   };
 
+  const handleShareWhatsApp = () => {
+    const text = encodeURIComponent(`🚀 *${jobTitle}*\n\n${t("share.applyFor") || "تقدّم للوظيفة الآن:"} ${jobTitle}\n\n${applyUrl}`);
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleShareTelegram = () => {
+    const text = encodeURIComponent(`🚀 ${jobTitle}\n\n${t("share.applyFor") || "تقدّم للوظيفة الآن:"} ${jobTitle}\n\n${applyUrl}`);
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(applyUrl)}&text=${text}`, '_blank', 'noopener,noreferrer');
+  };
+
   const handleShareTwitter = () => {
     const text = encodeURIComponent(`${t("share.twitterText")} ${jobTitle}`);
     const url = encodeURIComponent(ogUrl);
@@ -238,18 +248,34 @@ export default function ShareJobDialog({ open, onClose, jobTitle, jobId, isNewJo
                 {linkedInShared ? <CheckCircle className="w-5 h-5 text-[#0A66C2] shrink-0" /> : <ExternalLink className="w-4 h-4 text-muted-foreground shrink-0" />}
               </motion.button>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-4 gap-2">
+                <button onClick={handleShareWhatsApp} className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/50 hover:border-green-500/20 hover:bg-green-500/5 transition-all">
+                  <div className="w-9 h-9 rounded-lg bg-[#25D366] flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white fill-current" viewBox="0 0 24 24">
+                      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 11.966.01c3.178.001 6.169 1.24 8.409 3.485 2.24 2.246 3.476 5.239 3.471 8.42-.013 6.618-5.353 11.956-11.922 11.956-2.01 0-3.992-.511-5.753-1.488L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.97C16.579 1.966 14.12 .943 11.96 0.943c-5.448 0-9.879 4.37-9.883 9.8.001 1.97.521 3.902 1.51 5.62l-.993 3.63 3.731-.968L6.648 19.15z"/>
+                    </svg>
+                  </div>
+                  <span className="text-[10px] font-semibold text-muted-foreground">واتساب</span>
+                </button>
+                <button onClick={handleShareTelegram} className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/50 hover:border-blue-500/20 hover:bg-blue-500/5 transition-all">
+                  <div className="w-9 h-9 rounded-lg bg-[#0088cc] flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white fill-current" viewBox="0 0 24 24">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.11.02-1.89 1.2-5.32 3.52-.5.34-.96.51-1.37.5-.45-.01-1.32-.26-1.97-.47-.8-.26-1.43-.4-1.38-.85.03-.24.36-.48.99-.72 3.87-1.68 6.46-2.8 7.77-3.34 3.69-1.54 4.46-1.81 4.96-1.82.11 0 .36.03.52.16.14.11.18.26.19.38 0 .09-.01.19-.02.27z"/>
+                    </svg>
+                  </div>
+                  <span className="text-[10px] font-semibold text-muted-foreground">تليجرام</span>
+                </button>
                 <button onClick={handleShareTwitter} className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/50 hover:border-foreground/20 hover:bg-muted/50 transition-all">
                   <div className="w-9 h-9 rounded-lg bg-foreground flex items-center justify-center">
                     <span className="text-background font-bold text-sm">𝕏</span>
                   </div>
-                  <span className="text-xs text-muted-foreground">{t("share.twitter")}</span>
+                  <span className="text-[10px] font-semibold text-muted-foreground">{t("share.twitter")}</span>
                 </button>
                 <button onClick={handleNativeShare} className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/50 hover:border-primary/30 hover:bg-primary/5 transition-all">
                   <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Share2 className="w-4 h-4 text-primary" />
                   </div>
-                  <span className="text-xs text-muted-foreground">{t("share.more")}</span>
+                  <span className="text-[10px] font-semibold text-muted-foreground">{t("share.more")}</span>
                 </button>
               </div>
 
