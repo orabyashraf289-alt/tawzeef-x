@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
+import confetti from "canvas-confetti";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Star, GripVertical, Users, Search, Filter, TrendingUp, Clock, Bot, Kanban, List, CheckCircle2, ArrowRight, ArrowUpDown, BarChart3, ClipboardCopy, ExternalLink, FileCheck, Mail, Loader2, Eye, Check } from "lucide-react";
+import { Star, GripVertical, Users, Search, Filter, TrendingUp, Clock, Bot, Kanban, List, CheckCircle2, ArrowRight, ArrowUpDown, BarChart3, ClipboardCopy, ExternalLink, FileCheck, Mail, Loader2, Eye, Check, AlertTriangle } from "lucide-react";
 import PipelineAnalytics from "@/components/PipelineAnalytics";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -432,6 +433,14 @@ export default function Pipeline() {
     } else {
       const stageInfo = STAGES.find(s => s.id === toStage);
       toast({ title: `${t("pipeline.movedTo").replace("{name}", candidate.name).replace("{stage}", stageInfo?.label || "")}` });
+
+      if (toStage === "العرض الوظيفي" || toStage === "مكتمل") {
+        confetti({
+          particleCount: 150,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+      }
 
       recordTransition.mutate({
         candidateId,
