@@ -31,7 +31,7 @@ import ExportConversation from "@/components/ai-assistant/ExportConversation";
 import SlashCommandMenu, { type SlashCommand } from "@/components/ai-assistant/SlashCommandMenu";
 import ModelSelector, { getStoredModelChoice, MODEL_OPTIONS, type ModelChoice } from "@/components/ai-assistant/ModelSelector";
 import ModelCompareDialog from "@/components/ai-assistant/ModelCompareDialog";
-import { GitCompare, Star, Mail, User, Printer, ChevronDown, ChevronUp } from "lucide-react";
+import { GitCompare, Star, Mail, User, Printer, ChevronDown, ChevronUp, MessageSquare, Send, Check, Copy } from "lucide-react";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
 import SpeakButton from "@/components/ai-assistant/SpeakButton";
 import { extractTextFromPDF, extractTextFromDocx } from "@/lib/fileParser";
@@ -109,6 +109,13 @@ interface InterviewGuideData {
   questions: InterviewQuestion[];
 }
 
+interface WhatsappSmsData {
+  candidateName: string;
+  phone: string;
+  message: string;
+  messageType: string;
+}
+
 interface Message {
   id?: string;
   role: "user" | "assistant";
@@ -125,6 +132,7 @@ interface Message {
   bulkMoved?: { moved: any[]; failed: string[]; new_stage: string; moved_count: number; failed_count: number };
   candidateComparison?: CandidateComparisonData;
   interviewGuide?: InterviewGuideData;
+  whatsappSms?: WhatsappSmsData;
   isStreaming?: boolean;
 }
 
@@ -505,6 +513,128 @@ const InterviewGuideCard = ({ guide }: { guide: InterviewGuideData }) => {
   );
 };
 
+const WhatsappSmsCard = ({ data }: { data: WhatsappSmsData }) => {
+  const [messageText, setMessageText] = useState(data.message);
+  const [phoneNumber, setPhoneNumber] = useState(data.phone);
+  const [copied, setCopied] = useState(false);
+
+  // Clean phone number helper
+  const getCleanPhone = (phone: string) => {
+    let clean = phone.replace(/[^\d+]/g, ""); // Remove non-digit except +
+    if (clean.startsWith("01")) {
+      // Egyptian prefix
+      clean = "20" + clean.substring(1);
+    } else if (clean.startsWith("05")) {
+      // Saudi prefix
+      clean = "966" + clean.substring(1);
+    }
+    // Remove leading '+' if present for WhatsApp wa.me link
+    if (clean.startsWith("+")) {
+      clean = clean.substring(1);
+    }
+    return clean;
+  };
+
+  const cleanPhone = getCleanPhone(phoneNumber);
+
+  const handleWhatsApp = () => {
+    const encodedText = encodeURIComponent(messageText);
+    const url = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`;
+    window.open(url, "_blank");
+  };
+
+  const handleSMS = () => {
+    const encodedText = encodeURIComponent(messageText);
+    const url = `sms:${phoneNumber}?body=${encodedText}`;
+    window.open(url, "_blank");
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(messageText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      transition={{ type: "spring", stiffness: 260, damping: 20 }}
+      className="mt-4 p-5 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 via-card to-background shadow-xl space-y-4 max-w-full overflow-hidden"
+    >
+      <div className="flex items-center justify-between border-b border-border/40 pb-3">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="w-5 h-5 text-primary animate-bounce" />
+          <div>
+            <h3 className="font-bold text-sm text-foreground">
+              قالب التواصل السريع لـ {data.candidateName}
+            </h3>
+            <p className="text-[10px] text-muted-foreground">
+              {data.messageType === "interview" ? "دعوة مقابلة شخصية" :
+               data.messageType === "offer" ? "عرض عمل رسمي" :
+               data.messageType === "match" ? "توافق سيرة ذاتية" : "رسالة ترحيبية"}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3.5">
+        <div className="space-y-1">
+          <label className="text-[10px] font-bold text-muted-foreground block">رقم الهاتف:</label>
+          <input 
+            type="text" 
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            placeholder="مثال: +9665xxxxxxxx أو +201xxxxxxxxx"
+            className="w-full text-xs p-2.5 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary/45 font-mono"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-bold text-muted-foreground block">نص الرسالة:</label>
+          <textarea 
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            rows={4}
+            className="w-full text-xs p-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary/45 leading-relaxed resize-none"
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-2 pt-2">
+        <Button 
+          variant="outline" 
+          size="sm"
+          className="flex-1 text-xs h-9 gap-1.5 font-bold border-green-500/20 bg-green-500/5 hover:bg-green-500/10 text-green-600 transition-all"
+          onClick={handleWhatsApp}
+          disabled={!cleanPhone}
+        >
+          <Send className="w-3.5 h-3.5 transform -rotate-45" />
+          إرسال عبر WhatsApp
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm"
+          className="flex-1 text-xs h-9 gap-1.5 font-bold border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary transition-all"
+          onClick={handleSMS}
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
+          إرسال رسالة قصيرة SMS
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm"
+          className="text-xs h-9 gap-1.5 font-bold hover:bg-muted transition-all"
+          onClick={handleCopy}
+        >
+          {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+          {copied ? "تم النسخ" : "نسخ النص"}
+        </Button>
+      </div>
+    </motion.div>
+  );
+};
+
 export default function AIAssistant() {
   const { t } = useI18n();
   const { user } = useAuth();
@@ -622,7 +752,7 @@ export default function AIAssistant() {
     for (const msg of lastTwo) {
       if (msg.id) continue; // Skip if already saved and has an ID
 
-      const { id, jobCreated, jobUpdated, jobPreview, candidateMoved, interviewScheduled, offerCreated, statsReport, proactiveInsights, emailSent, bulkMoved, candidateComparison, interviewGuide, isStreaming, ...rest } = msg;
+      const { id, jobCreated, jobUpdated, jobPreview, candidateMoved, interviewScheduled, offerCreated, statsReport, proactiveInsights, emailSent, bulkMoved, candidateComparison, interviewGuide, whatsappSms, isStreaming, ...rest } = msg;
       const metadata: any = {};
       if (jobCreated) metadata.jobCreated = jobCreated;
       if (jobUpdated) metadata.jobUpdated = jobUpdated;
@@ -636,6 +766,7 @@ export default function AIAssistant() {
       if (bulkMoved) metadata.bulkMoved = bulkMoved;
       if (candidateComparison) metadata.candidateComparison = candidateComparison;
       if (interviewGuide) metadata.interviewGuide = interviewGuide;
+      if (whatsappSms) metadata.whatsappSms = whatsappSms;
 
       const { data, error } = await supabase.from("chat_messages").insert({
         conversation_id: conversationId,
@@ -878,6 +1009,7 @@ export default function AIAssistant() {
                 if (action.type === "bulk_moved" && action.result) { msg.bulkMoved = action.result; queryClient.invalidateQueries({ queryKey: ["candidates"] }); }
                 if (action.type === "candidate_comparison" && action.comparison) { msg.candidateComparison = action.comparison; }
                 if (action.type === "interview_guide_generated" && action.guide) { msg.interviewGuide = action.guide; }
+                if (action.type === "whatsapp_sms_template" && action.dispatcher) { msg.whatsappSms = action.dispatcher; }
               }
               updated[lastIdx] = msg;
             }
@@ -897,6 +1029,7 @@ export default function AIAssistant() {
         else if (data.type === "stats_report") { newMsg.statsReport = { report_type: data.report_type, stats: data.stats }; }
         else if (data.type === "candidate_comparison" && data.comparison) { newMsg.candidateComparison = data.comparison; }
         else if (data.type === "interview_guide_generated" && data.guide) { newMsg.interviewGuide = data.guide; }
+        else if (data.type === "whatsapp_sms_template" && data.dispatcher) { newMsg.whatsappSms = data.dispatcher; }
         setMessages(prev => [...prev, newMsg]);
       }
 
@@ -1432,6 +1565,10 @@ export default function AIAssistant() {
 
                         {msg.interviewGuide && (
                           <InterviewGuideCard guide={msg.interviewGuide} />
+                        )}
+
+                        {msg.whatsappSms && (
+                          <WhatsappSmsCard data={msg.whatsappSms} />
                         )}
 
                         {/* Job Preview Card */}

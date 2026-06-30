@@ -111,6 +111,23 @@ const tools = [
   {
     type: "function",
     function: {
+      name: "generate_whatsapp_sms_template",
+      description: "توليد قالب رسالة جاهزة للإرسال للمرشح عبر الواتساب أو الرسائل القصيرة SMS (مثل دعوة مقابلة، عرض وظيفي، إلخ).",
+      parameters: {
+        type: "object",
+        properties: {
+          candidate_name: { type: "string", description: "اسم المرشح المطلوب التواصل معه." },
+          message_type: { type: "string", enum: ["interview", "offer", "match", "welcome"], description: "نوع الرسالة المطلوب صياغتها." },
+          custom_details: { type: "string", description: "تفاصيل إضافية لتضمينها في الرسالة (مثال: موعد المقابلة، تفاصيل الراتب)." }
+        },
+        required: ["candidate_name", "message_type"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "move_candidate_stage",
       description: "نقل مرشح إلى مرحلة توظيف مختلفة.",
       parameters: {
@@ -423,6 +440,42 @@ async function handleToolCall(tc: any, userId: string): Promise<{ result: string
       return {
         result: JSON.stringify({ success: true, moved_count: moved.length, failed_count: failed.length, moved, failed }),
         action: { type: "bulk_moved", moved, failed, new_stage: args.new_stage },
+      };
+    }
+
+    case "generate_whatsapp_sms_template": {
+      const { candidate_name, message_type, custom_details } = args;
+      const { data: candidates } = await admin.from("candidates").select("id, name, phone, role").eq("user_id", userId).ilike("name", `%${candidate_name}%`).limit(1);
+      
+      if (!candidates?.length) {
+        return { result: JSON.stringify({ error: `لم يتم العثور على مرشح باسم "${candidate_name}"` }) };
+      }
+      
+      const c = candidates[0];
+      const phone = c.phone || "";
+      const role = c.role || "الوظيفة المقترحة";
+      
+      let message = "";
+      if (message_type === "interview") {
+        message = `مرحباً ${c.name}، يسعدنا اهتمامك بالانضمام إلينا كـ ${role}. نود دعوتك لإجراء مقابلة شخصية ${custom_details ? `في موعد: ${custom_details}` : "في أقرب وقت يناسبك"}. يرجى إخطارنا بمدى تفرغك. بالتوفيق!`;
+      } else if (message_type === "offer") {
+        message = `مرحباً ${c.name}، يسعدنا إبلاغك بقبولك معنا كـ ${role}. لقد قمنا بإعداد عرض العمل الخاص بك ${custom_details ? `(تفاصيل العرض: ${custom_details})` : ""}، نرجو مراجعته وإفادتنا بقرارك. أهلاً بك في الفريق!`;
+      } else if (message_type === "match") {
+        message = `مرحباً ${c.name}، لقد قمنا بمراجعة سيرتك الذاتية ووجدنا توافقاً رائعاً مع وظيفة ${role}. نود التحدث معك بشكل سريع لاستكشاف فرص التعاون المتاحة.`;
+      } else {
+        message = `مرحباً ${c.name}، شكراً لتواصلك معنا وللتقديم على وظيفة ${role}. يسعدنا الترحيب بك وسيقوم فريق التوظيف بالتواصل معك قريباً.`;
+      }
+      
+      const dispatcherData = {
+        candidateName: c.name,
+        phone,
+        message,
+        messageType: message_type
+      };
+      
+      return {
+        result: JSON.stringify({ success: true, dispatcher_data: dispatcherData }),
+        action: { type: "whatsapp_sms_template", dispatcher: dispatcherData }
       };
     }
 
@@ -865,14 +918,15 @@ serve(async (req) => {
 
 ${userContext}
 
-## أدواتك (17 أداة):
+## أدواتك (18 أداة):
 **إدارة الوظائف**: create_job, update_job, delete_job, list_jobs, generate_job_description
 **إدارة المرشحين**: search_candidates, compare_candidates, move_candidate_stage, bulk_move_candidates, evaluate_candidate_ai, analyze_resume_text
 **المقابلات والعروض**: schedule_interview, generate_interview_questions, create_offer
-**التواصل**: send_email_to_candidate
+**التواصل**: send_email_to_candidate, generate_whatsapp_sms_template
 **التحليلات**: get_stats, get_proactive_insights
 
 ## قواعد ذهبية:
+12. 💬 **واتساب ورسائل قصيرة**: عند طلب التواصل مع المرشح عبر WhatsApp أو SMS، استخدم أداة `generate_whatsapp_sms_template` لعرض بطاقة الإرسال السريع والقوالب فوراً.
 1. 🎯 **استباقي**: عندما يسأل عن "ما الذي يحتاج انتباهي؟" أو "ابدأ يومي" استخدم get_proactive_insights مباشرة.
 2. 📧 **رسائل البريد**: عند طلب إرسال بريد، اكتب نص جذاب احترافي بنفسك ثم استخدم send_email_to_candidate.
 3. ✍️ **الوصف الوظيفي**: استخدم generate_job_description للحصول على إرشادات، ثم اكتب الوصف وقدّمه.
