@@ -36,8 +36,8 @@ Deno.serve(async (req) => {
     const isDirectGemini = (apiKey.startsWith("AIza") || apiKey.startsWith("AQ."));
     const API_URL = isDirectGemini
       ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-      : API_URL;
-    const resp = await fetch("https://api.lovable.dev/v1/chat/completions", {
+      : "https://api.lovable.dev/v1/chat/completions";
+    const resp = await fetch(API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

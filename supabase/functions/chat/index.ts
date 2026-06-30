@@ -925,7 +925,7 @@ serve(async (req) => {
     const isDirectGemini = (LOVABLE_API_KEY.startsWith("AIza") || LOVABLE_API_KEY.startsWith("AQ."));
     const API_URL = isDirectGemini
       ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-      : API_URL;
+      : "https://api.lovable.dev/v1/chat/completions";
 
     // Allowed models — anything else falls back to defaults
     const ALLOWED_MODELS = new Set([

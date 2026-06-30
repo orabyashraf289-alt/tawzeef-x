@@ -16,7 +16,7 @@ serve(async (req) => {
     const isDirectGemini = (LOVABLE_API_KEY.startsWith("AIza") || LOVABLE_API_KEY.startsWith("AQ."));
     const API_URL = isDirectGemini
       ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-      : API_URL;
+      : "https://api.lovable.dev/v1/chat/completions";
 
     let contextInfo = "";
     if (candidateContext) {
@@ -56,7 +56,7 @@ ${contextInfo}
 5. مقابلة نهائية - مقابلة مع الإدارة
 6. العرض الوظيفي - تقديم عرض العمل`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(API_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,

@@ -155,9 +155,9 @@ async function expandQueryWithAI(query: string): Promise<string> {
     const isDirectGemini = (key.startsWith("AIza") || key.startsWith("AQ."));
     const API_URL = isDirectGemini
       ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-      : API_URL;
+      : "https://api.lovable.dev/v1/chat/completions";
     const finalModel = isDirectGemini ? "gemini-2.5-flash" : EMBED_MODEL;
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const resp = await fetch(API_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
