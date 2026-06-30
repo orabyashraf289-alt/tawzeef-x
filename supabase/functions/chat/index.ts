@@ -582,22 +582,159 @@ async function handleToolCall(tc: any, userId: string): Promise<{ result: string
     }
 
     case "generate_interview_questions": {
-      const count = args.question_count || 6;
-      let candidateInfo = "";
+      const count = args.question_count || 5;
+      const jobTitle = args.job_title || "مطور برمجيات";
+      let candidateName = args.candidate_name || "المرشح";
+      let candidateSkills: string[] = [];
+      let candidateExperience = "غير محدد";
+      
       if (args.candidate_name) {
         const { data: cands } = await admin.from("candidates").select("name, role, skills, experience").eq("user_id", userId).ilike("name", `%${args.candidate_name}%`).limit(1);
         if (cands?.length) {
-          const c = cands[0];
-          candidateInfo = `\n\nمعلومات المرشح:\n- الاسم: ${c.name}\n- الدور: ${c.role || "غير محدد"}\n- المهارات: ${(c.skills || []).join(", ") || "غير محدد"}\n- الخبرة: ${c.experience || "غير محدد"}`;
+          candidateName = cands[0].name;
+          candidateSkills = cands[0].skills || [];
+          candidateExperience = cands[0].experience || "غير محدد";
         }
       }
+
+      // Predefined tailored questions database
+      const techPool = [
+        {
+          matchKeyword: "react",
+          question: "ما هو الفرق بين Virtual DOM و Real DOM في React؟ وكيف يحسن الأداء؟",
+          expectedAnswer: "الـ Virtual DOM هو نسخة خفيفة في الذاكرة من الـ Real DOM. عند تحديث الـ state، تقوم React بمقارنة الـ Virtual DOM الجديد بالقديم (Diffing) وتقوم بتحديث الأجزاء المتغيرة فقط في الـ Real DOM الفعلي (Reconciliation) مما يسرع الأداء.",
+          category: "تقني",
+          difficulty: "متوسط"
+        },
+        {
+          matchKeyword: "react",
+          question: "اشرح متى وكيف تستخدم hook مثل useMemo و useCallback؟",
+          expectedAnswer: "نستخدم useMemo لتخزين قيمة عملية حسابية معقدة وتجنب إعادة حسابها في كل render. بينما نستخدم useCallback لتخزين مرجع (reference) لدالة ما وتجنب إعادة إنشائها، مما يمنع إعادة render للمكونات التابعة غير الضرورية.",
+          category: "تقني",
+          difficulty: "صعب"
+        },
+        {
+          matchKeyword: "javascript",
+          question: "ما هي الوعود (Promises) في JavaScript؟ وكيف نستخدم Async/Await للتعامل معها؟",
+          expectedAnswer: "الوعد (Promise) هو كائن يمثل القيمة النهائية لعملية غير متزامنة (نجاح أو فشل). دالتا async و await هما طريقة مبسطة (Syntactic Sugar) لكتابة العمليات غير المتزامنة لتبدو وكأنها متزامنة وتسهل قراءتها وصيانتها.",
+          category: "تقني",
+          difficulty: "سهل"
+        },
+        {
+          matchKeyword: "node",
+          question: "كيف تعمل الـ Middleware في Express.js؟ وما هي فائدتها؟",
+          expectedAnswer: "الـ Middleware هي دوال تملك صلاحية الوصول إلى كائن الطلب (req) وكائن الاستجابة (res) ودالة Middleware التالية (next). تستخدم للتحقق من الصلاحيات، تسجيل السجلات (logging)، ومعالجة البيانات قبل إرسال الرد.",
+          category: "تقني",
+          difficulty: "متوسط"
+        },
+        {
+          matchKeyword: "node",
+          question: "كيف تتعامل مع الأخطاء غير المتوقعة (Unhandled Errors) في Node.js؟",
+          expectedAnswer: "نستخدم try/catch للعمليات المتزامنة وغير المتزامنة مع async/await. ونقوم بالاستماع للأحداث uncaughtException و unhandledRejection على كائن process لتسجيل الخطأ وإعادة تشغيل التطبيق بأمان.",
+          category: "تقني",
+          difficulty: "صعب"
+        },
+        {
+          matchKeyword: "database",
+          question: "ما هو الفهرس (Index) في قاعدة البيانات؟ وما هي تكلفة استخدامه؟",
+          expectedAnswer: "الفهرس هو بنية بيانات تسهل عملية البحث السريع عن السجلات في الجداول دون الحاجة لمسح الجدول بأكمله. تكلفته تكمن في استهلاك مساحة تخزين إضافية وبطء طفيف في عمليات الإدخال والتحديث (INSERT/UPDATE).",
+          category: "تقني",
+          difficulty: "متوسط"
+        },
+        {
+          matchKeyword: "python",
+          question: "ما الفرق بين القوائم (Lists) والـ Tuples في Python؟ ومتى تستخدم كل منهما؟",
+          expectedAnswer: "القوائم قابلة للتعديل (Mutable) وتستخدم للبيانات الديناميكية. الـ Tuples غير قابلة للتعديل (Immutable) وتكون أسرع في المعالجة وتستخدم للثوابت والبيانات التي يجب ألا تتغير.",
+          category: "تقني",
+          difficulty: "سهل"
+        }
+      ];
+
+      // Generic fallback technical questions
+      const genericTech = [
+        {
+          question: "ما هي أفضل الممارسات التي تتبعها لكتابة كود نظيف وقابل للصيانة (Clean Code)؟",
+          expectedAnswer: "استخدام أسماء متغيرات ودوال ذات دلالة واضحة، تقسيم الدوال الكبيرة إلى دوال صغيرة تؤدي وظيفة واحدة (Single Responsibility)، وكتابة اختبارات آلية.",
+          category: "تقني",
+          difficulty: "متوسط"
+        },
+        {
+          question: "كيف تتعامل مع مشاكل تضارب الكود (Merge Conflicts) في Git عند العمل في فريق؟",
+          expectedAnswer: "أقوم بسحب التحديثات الأخيرة أولاً، وتحديد السطور المتضاربة بالتعاون مع المطور الآخر، ثم دمج الكود واختباره محلياً قبل رفعه مجدداً.",
+          category: "حل مشكلات",
+          difficulty: "سهل"
+        }
+      ];
+
+      const behavioralPool = [
+        {
+          question: "احكِ لنا عن موقف واجهت فيه مشكلة تقنية صعبة في مشروع سابق وكيف قمت بحلها؟",
+          expectedAnswer: "يجب على المرشح استخدام منهجية STAR (الموقف، المهمة، الإجراء، النتيجة)، مع التركيز على مهارات البحث واستشارة الزملاء وحل المشكلة بشكل منهجي.",
+          category: "حل مشكلات",
+          difficulty: "متوسط"
+        },
+        {
+          question: "إذا تعارضت مع زميل في الفريق حول طريقة تنفيذ ميزة معينة، كيف تحل هذا الخلاف؟",
+          expectedAnswer: "عقد نقاش هادئ، الاستماع لوجهة نظره، مقارنة الحلول بناءً على معايير موضوعية (الأداء، سهولة الصيانة)، واللجوء للتوثيق أو رأي خبير إذا لزم الأمر.",
+          category: "سلوكي",
+          difficulty: "سهل"
+        },
+        {
+          question: "كيف تتعامل مع ضغط العمل والمواعيد النهائية الضيقة؟",
+          expectedAnswer: "ترتيب الأولويات، تقسيم المهام الكبيرة إلى أجزاء صغيرة، إخطار المدير مبكراً بأي تأخير محتمل، والتركيز على تسليم نموذج أولي يعمل أولاً.",
+          category: "سلوكي",
+          difficulty: "متوسط"
+        },
+        {
+          question: "ما الذي جذبك للتقديم في شركتنا؟ وكيف ترى مساهمتك معنا؟",
+          expectedAnswer: "إظهار معرفة برؤية الشركة ومنتجاتها، والربط بين شغفه الشخصي وخبرته العملية وأهداف نمو الشركة.",
+          category: "ملاءمة ثقافية",
+          difficulty: "سهل"
+        }
+      ];
+
+      // Build tailored list
+      const selectedQuestions: any[] = [];
+      const lowerJob = jobTitle.toLowerCase();
+      const matchedTech = techPool.filter(q => 
+        lowerJob.includes(q.matchKeyword) || 
+        candidateSkills.some(s => s.toLowerCase().includes(q.matchKeyword))
+      );
+
+      selectedQuestions.push(...matchedTech.slice(0, Math.min(matchedTech.length, Math.ceil(count / 2))));
+      const remainingCount = count - selectedQuestions.length;
+      if (selectedQuestions.length < count) {
+        const fallbackTechToAdd = genericTech.filter(g => !selectedQuestions.some(sq => sq.question === g.question));
+        selectedQuestions.push(...fallbackTechToAdd.slice(0, remainingCount));
+      }
+      const finalRemainingCount = count - selectedQuestions.length;
+      selectedQuestions.push(...behavioralPool.slice(0, finalRemainingCount));
+
+      const questions = selectedQuestions.slice(0, count).map((q, idx) => ({
+        id: `q-${idx + 1}`,
+        question: q.question,
+        category: q.category,
+        difficulty: q.difficulty,
+        expectedAnswer: q.expectedAnswer,
+        score: 0
+      }));
+
+      const guideData = {
+        candidateName,
+        jobTitle,
+        experience: candidateExperience,
+        questions
+      };
+
       return {
         result: JSON.stringify({
+          success: true,
           generated: true,
-          job_title: args.job_title,
-          instruction: `ولّد ${count} أسئلة مقابلة احترافية لوظيفة "${args.job_title}".${candidateInfo}\n${args.focus_areas ? `ركّز على: ${args.focus_areas.join(", ")}` : "غطِّ: تقني، سلوكي، حل مشكلات، ملاءمة ثقافية."}\n\nلكل سؤال اذكر: السؤال، التصنيف (تقني/سلوكي/حل مشكلات/ملاءمة)، مستوى الصعوبة (سهل/متوسط/صعب)، ونصيحة قصيرة للمُقابِل لتقييم الإجابة.`
+          job_title: jobTitle,
+          candidate_name: candidateName,
+          guide_data: guideData
         }),
-        action: { type: "interview_questions_generated", job_title: args.job_title },
+        action: { type: "interview_guide_generated", guide: guideData }
       };
     }
 
