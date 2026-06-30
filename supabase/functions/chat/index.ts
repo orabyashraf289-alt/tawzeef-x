@@ -111,6 +111,21 @@ const tools = [
   {
     type: "function",
     function: {
+      name: "generate_voice_briefing",
+      description: "توليد ملخص صوتي تفاعلي (Voice Briefing) لمدير التوظيف يعرض حالة التوظيف الحالية والإشعارات الهامة صوتياً.",
+      parameters: {
+        type: "object",
+        properties: {
+          briefing_type: { type: "string", enum: ["daily", "weekly"], description: "نوع الملخص المطلوب (يومي أو أسبوعي)." }
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "generate_whatsapp_sms_template",
       description: "توليد قالب رسالة جاهزة للإرسال للمرشح عبر الواتساب أو الرسائل القصيرة SMS (مثل دعوة مقابلة، عرض وظيفي، إلخ).",
       parameters: {
@@ -440,6 +455,44 @@ async function handleToolCall(tc: any, userId: string): Promise<{ result: string
       return {
         result: JSON.stringify({ success: true, moved_count: moved.length, failed_count: failed.length, moved, failed }),
         action: { type: "bulk_moved", moved, failed, new_stage: args.new_stage },
+      };
+    }
+
+    case "generate_voice_briefing": {
+      const { briefing_type = "daily" } = args;
+      
+      const today = new Date();
+      const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      const todayStr = today.toISOString().split("T")[0];
+
+      const [jobsR, candidatesR, interviewsR, offersR] = await Promise.all([
+        admin.from("jobs").select("id").eq("user_id", userId).eq("status", "نشطة"),
+        admin.from("candidates").select("id").eq("user_id", userId).neq("status", "مرفوض").neq("status", "مقبول"),
+        admin.from("interviews").select("id").eq("user_id", userId).gte("date", todayStr).lte("date", nextWeek).eq("status", "مجدولة"),
+        admin.from("job_offers").select("id").eq("user_id", userId).in("status", ["sent", "viewed"]),
+      ]);
+
+      const activeJobsCount = jobsR.data?.length || 0;
+      const activeCandidatesCount = candidatesR.data?.length || 0;
+      const upcomingInterviewsCount = interviewsR.data?.length || 0;
+      const pendingOffersCount = offersR.data?.length || 0;
+
+      let briefingText = `مرحباً بك يا مدير التوظيف. إليك التقرير الصوتي ${briefing_type === "weekly" ? "الأسبوعي" : "اليومي"} لحالة منصة توظيف-إكس: لدينا حالياً ${activeJobsCount} وظائف نشطة يستقبل النظام طلباتها. إجمالي المرشحين النشطين في المراحل المختلفة هو ${activeCandidatesCount} مرشحاً. بالنسبة للمقابلات، هناك ${upcomingInterviewsCount} مقابلات مجدولة خلال الأيام السبعة القادمة. ولدينا ${pendingOffersCount} عروض عمل معلقة بانتظار ردود المرشحين. نوصي بمتابعة المقابلات القادمة اليوم لحسم التعيينات. أتمنى لك يوماً موفقاً!`;
+
+      const briefingData = {
+        briefingText,
+        briefingType: briefing_type,
+        stats: {
+          activeJobs: activeJobsCount,
+          activeCandidates: activeCandidatesCount,
+          upcomingInterviews: upcomingInterviewsCount,
+          pendingOffers: pendingOffersCount
+        }
+      };
+
+      return {
+        result: JSON.stringify({ success: true, briefing_data: briefingData }),
+        action: { type: "voice_briefing_generated", briefing: briefingData }
       };
     }
 
@@ -918,14 +971,15 @@ serve(async (req) => {
 
 ${userContext}
 
-## أدواتك (18 أداة):
+## أدواتك (19 أداة):
 **إدارة الوظائف**: create_job, update_job, delete_job, list_jobs, generate_job_description
 **إدارة المرشحين**: search_candidates, compare_candidates, move_candidate_stage, bulk_move_candidates, evaluate_candidate_ai, analyze_resume_text
 **المقابلات والعروض**: schedule_interview, generate_interview_questions, create_offer
 **التواصل**: send_email_to_candidate, generate_whatsapp_sms_template
-**التحليلات**: get_stats, get_proactive_insights
+**التحليلات**: get_stats, get_proactive_insights, generate_voice_briefing
 
 ## قواعد ذهبية:
+13. 🎙️ **ملخص صوتي**: عند طلب ملخص صوتي أو تقرير صوتي، استخدم أداة `generate_voice_briefing` لعرض مشغل الصوت التفاعلي للتقرير فوراً.
 12. 💬 **واتساب ورسائل قصيرة**: عند طلب التواصل مع المرشح عبر WhatsApp أو SMS، استخدم أداة `generate_whatsapp_sms_template` لعرض بطاقة الإرسال السريع والقوالب فوراً.
 1. 🎯 **استباقي**: عندما يسأل عن "ما الذي يحتاج انتباهي؟" أو "ابدأ يومي" استخدم get_proactive_insights مباشرة.
 2. 📧 **رسائل البريد**: عند طلب إرسال بريد، اكتب نص جذاب احترافي بنفسك ثم استخدم send_email_to_candidate.
