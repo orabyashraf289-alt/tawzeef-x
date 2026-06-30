@@ -72,6 +72,7 @@ export default function OffersPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [editingOffer, setEditingOffer] = useState<JobOffer | null>(null);
   const [salaryBreakdown, setSalaryBreakdown] = useState(false);
+  const [employeeNationality, setEmployeeNationality] = useState<"saudi" | "non-saudi" | "none">("none");
   const [baseSalary, setBaseSalary] = useState("");
   const [allowances, setAllowances] = useState<{ name: string; amount: string }[]>([
     { name: locale === "en" ? "Housing" : "بدل سكن", amount: "" },
@@ -90,6 +91,23 @@ export default function OffersPage() {
     expires_days: "7",
   });
 
+  const totalSalary = salaryBreakdown
+    ? (parseFloat(baseSalary) || 0) + allowances.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0)
+    : parseFloat(form.salary) || 0;
+
+  const housingAllowanceAmount = parseFloat(
+    allowances?.find(a => a.name.includes("سكن") || a.name.toLowerCase().includes("housing"))?.amount || "0"
+  ) || 0;
+  
+  const gosiBase = (parseFloat(baseSalary) || 0) + housingAllowanceAmount;
+  const gosiDeduction = employeeNationality === "saudi"
+    ? gosiBase * 0.0975
+    : employeeNationality === "non-saudi"
+      ? gosiBase * 0.02
+      : 0;
+
+  const netSalary = totalSalary - gosiDeduction;
+
   const addAllowance = () => {
     setAllowances([...allowances, { name: "", amount: "" }]);
   };
@@ -104,9 +122,7 @@ export default function OffersPage() {
     setAllowances(updated);
   };
 
-  const totalSalary = salaryBreakdown
-    ? (parseFloat(baseSalary) || 0) + allowances.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0)
-    : parseFloat(form.salary) || 0;
+
 
   const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
     draft: { label: t("offers.draft"), variant: "secondary" },
@@ -136,6 +152,12 @@ export default function OffersPage() {
           .filter(a => a.name && a.amount)
           .map(a => `${a.name}: ${parseFloat(a.amount).toLocaleString()} ${form.currency}`),
         `${locale === "en" ? "Total" : "الإجمالي"}: ${totalSalary.toLocaleString()} ${form.currency}`,
+        ...(employeeNationality !== "none"
+          ? [
+              `${locale === "en" ? "GOSI Deduction" : "خصم التأمينات (GOSI)"}: -${gosiDeduction.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${form.currency}`,
+              `${locale === "en" ? "Net Take-Home Salary" : "صافي الراتب المستلم"}: ${netSalary.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${form.currency}`
+            ]
+          : []),
       ].join("\n");
       termsText = termsText ? `${breakdownLines}\n\n${termsText}` : breakdownLines;
     }
@@ -301,6 +323,12 @@ export default function OffersPage() {
         `${locale === "en" ? "Basic Salary" : "الراتب الأساسي"}: ${parseFloat(baseSalary).toLocaleString()} ${form.currency}`,
         ...allowances.filter(a => a.name && a.amount).map(a => `${a.name}: ${parseFloat(a.amount).toLocaleString()} ${form.currency}`),
         `${locale === "en" ? "Total" : "الإجمالي"}: ${totalSalary.toLocaleString()} ${form.currency}`,
+        ...(employeeNationality !== "none"
+          ? [
+              `${locale === "en" ? "GOSI Deduction" : "خصم التأمينات (GOSI)"}: -${gosiDeduction.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${form.currency}`,
+              `${locale === "en" ? "Net Take-Home Salary" : "صافي الراتب المستلم"}: ${netSalary.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${form.currency}`
+            ]
+          : []),
       ].join("\n");
       termsText = termsText ? `${breakdownLines}\n\n${termsText}` : breakdownLines;
     }
@@ -537,6 +565,51 @@ export default function OffersPage() {
                         <PlusCircle className="w-3.5 h-3.5" />
                         {locale === "en" ? "Add Allowance" : "إضافة بدل"}
                       </Button>
+                    </div>
+
+                    {/* GOSI Deduction Calculator */}
+                    <div className="space-y-3.5 pt-3 border-t border-border/40">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-bold">
+                          {locale === "en" ? "GOSI Deduction Calculator" : "حساب استقطاع التأمينات الاجتماعية (GOSI)"}
+                        </Label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-[10px] text-muted-foreground">
+                            {locale === "en" ? "Nationality" : "نوع الموظف"}
+                          </Label>
+                          <Select 
+                            value={employeeNationality} 
+                            onValueChange={(v: any) => setEmployeeNationality(v)}
+                          >
+                            <SelectTrigger className="h-8 text-xs mt-1">
+                              <SelectValue placeholder="اختر نوع الموظف" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">{locale === "en" ? "No GOSI" : "بدون خصم تأمينات"}</SelectItem>
+                              <SelectItem value="saudi">{locale === "en" ? "Saudi Employee (9.75%)" : "سعودي (التأمينات 9.75%)"}</SelectItem>
+                              <SelectItem value="non-saudi">{locale === "en" ? "Non-Saudi (2%)" : "مقيم/غير سعودي (التأمينات 2%)"}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {employeeNationality !== "none" && (
+                          <div className="flex flex-col justify-end text-xs text-right space-y-1">
+                            <div className="flex justify-between text-muted-foreground gap-2">
+                              <span>{locale === "en" ? "GOSI Base" : "الخاضع للتأمينات"}:</span>
+                              <span className="font-semibold text-foreground">{gosiBase.toLocaleString()} {form.currency}</span>
+                            </div>
+                            <div className="flex justify-between text-destructive gap-2">
+                              <span>{locale === "en" ? "Deduction" : "خصم التأمينات"}:</span>
+                              <span className="font-bold">-{gosiDeduction.toLocaleString(undefined, { maximumFractionDigits: 2 })} {form.currency}</span>
+                            </div>
+                            <div className="flex justify-between text-success pt-1.5 border-t border-border/30 font-bold gap-2">
+                              <span>{locale === "en" ? "Net Take-Home" : "صافي الراتب المستلم"}:</span>
+                              <span>{netSalary.toLocaleString(undefined, { maximumFractionDigits: 2 })} {form.currency}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -875,6 +948,51 @@ export default function OffersPage() {
                       <PlusCircle className="w-3.5 h-3.5" />
                       {locale === "en" ? "Add Allowance" : "إضافة بدل"}
                     </Button>
+                  </div>
+
+                  {/* GOSI Deduction Calculator */}
+                  <div className="space-y-3.5 pt-3 border-t border-border/40">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-bold">
+                        {locale === "en" ? "GOSI Deduction Calculator" : "حساب استقطاع التأمينات الاجتماعية (GOSI)"}
+                      </Label>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">
+                          {locale === "en" ? "Nationality" : "نوع الموظف"}
+                        </Label>
+                        <Select 
+                          value={employeeNationality} 
+                          onValueChange={(v: any) => setEmployeeNationality(v)}
+                        >
+                          <SelectTrigger className="h-8 text-xs mt-1">
+                            <SelectValue placeholder="اختر نوع الموظف" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">{locale === "en" ? "No GOSI" : "بدون خصم تأمينات"}</SelectItem>
+                            <SelectItem value="saudi">{locale === "en" ? "Saudi Employee (9.75%)" : "سعودي (التأمينات 9.75%)"}</SelectItem>
+                            <SelectItem value="non-saudi">{locale === "en" ? "Non-Saudi (2%)" : "مقيم/غير سعودي (التأمينات 2%)"}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {employeeNationality !== "none" && (
+                        <div className="flex flex-col justify-end text-xs text-right space-y-1">
+                          <div className="flex justify-between text-muted-foreground gap-2">
+                            <span>{locale === "en" ? "GOSI Base" : "الخاضع للتأمينات"}:</span>
+                            <span className="font-semibold text-foreground">{gosiBase.toLocaleString()} {form.currency}</span>
+                          </div>
+                          <div className="flex justify-between text-destructive gap-2">
+                            <span>{locale === "en" ? "Deduction" : "خصم التأمينات"}:</span>
+                            <span className="font-bold">-{gosiDeduction.toLocaleString(undefined, { maximumFractionDigits: 2 })} {form.currency}</span>
+                          </div>
+                          <div className="flex justify-between text-success pt-1.5 border-t border-border/30 font-bold gap-2">
+                            <span>{locale === "en" ? "Net Take-Home" : "صافي الراتب المستلم"}:</span>
+                            <span>{netSalary.toLocaleString(undefined, { maximumFractionDigits: 2 })} {form.currency}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

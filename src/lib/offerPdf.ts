@@ -1,3 +1,4 @@
+import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 
@@ -41,226 +42,236 @@ function parseSalaryBreakdown(terms: string | null) {
   return items.length > 0 ? items : null;
 }
 
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
-
 export async function generateOfferPdf(offer: OfferForPdf) {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const pageW = 210;
-  const margin = 20;
-  const contentW = pageW - margin * 2;
-  let y = 20;
+  // Create dynamic print container
+  const container = document.createElement("div");
+  container.dir = "rtl";
+  container.style.position = "absolute";
+  container.style.left = "-9999px";
+  container.style.top = "-9999px";
+  container.style.width = "794px"; // Standard A4 pixel width at 96 DPI (approx)
+  container.style.padding = "40px";
+  container.style.backgroundColor = "#ffffff";
+  container.style.color = "#1f2937";
+  container.style.fontFamily = "system-ui, -apple-system, sans-serif";
+  container.style.boxSizing = "border-box";
 
-  // Colors
-  const primary: [number, number, number] = [99, 102, 241];
-  const gray: [number, number, number] = [107, 114, 128];
-  const dark: [number, number, number] = [31, 41, 55];
-
-  // Load logo
-  try {
-    const logoImg = await loadImage(tawzeefLogo);
-    doc.addImage(logoImg, "PNG", pageW / 2 - 8, y, 16, 16);
-    y += 22;
-  } catch { y += 5; }
-
-  // Header bar
-  doc.setFillColor(...primary);
-  doc.roundedRect(margin, y, contentW, 14, 3, 3, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(16);
-  doc.text("عرض وظيفي", pageW / 2, y + 9.5, { align: "center" });
-  y += 22;
-
-  // Position
-  doc.setTextColor(...dark);
-  doc.setFontSize(18);
-  doc.text(offer.position, pageW / 2, y, { align: "center" });
-  y += 8;
-
-  if (offer.department) {
-    doc.setFontSize(11);
-    doc.setTextColor(...gray);
-    doc.text(`القسم: ${offer.department}`, pageW / 2, y, { align: "center" });
-    y += 8;
-  }
-
-  // Divider
-  doc.setDrawColor(229, 231, 235);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageW - margin, y);
-  y += 8;
-
-  // Salary Section
+  // Parse salary breakdown & GOSI if present
   const breakdown = parseSalaryBreakdown(offer.additional_terms);
-  doc.setFontSize(13);
-  doc.setTextColor(...primary);
-  doc.text("تفاصيل الراتب", pageW - margin, y, { align: "right" });
-  y += 8;
+  let cleanTerms = offer.additional_terms || "";
+  const breakdownIdx = cleanTerms.search(/تفصيل الراتب:|Salary Breakdown:/);
+  if (breakdownIdx !== -1) {
+    const lines = cleanTerms.substring(breakdownIdx).split("\n");
+    let endIdx = 1;
+    for (; endIdx < lines.length; endIdx++) {
+      if (!lines[endIdx].trim()) { endIdx++; break; }
+    }
+    cleanTerms = (cleanTerms.substring(0, breakdownIdx) + cleanTerms.substring(breakdownIdx).split("\n").slice(endIdx).join("\n")).trim();
+  }
 
-  if (breakdown && breakdown.length > 0) {
-    const totalItem = breakdown.find(b => b.label === "الإجمالي" || b.label === "Total");
-    const details = breakdown.filter(b => b.label !== "الإجمالي" && b.label !== "Total");
+  // Get GOSI and Net details from breakdown
+  const gosiItem = breakdown?.find(b => b.label.includes("التأمينات") || b.label.toLowerCase().includes("gosi"));
+  const netItem = breakdown?.find(b => b.label.includes("صافي") || b.label.toLowerCase().includes("net"));
+  const totalItem = breakdown?.find(b => b.label === "الإجمالي" || b.label === "Total");
+  const detailItems = breakdown?.filter(b => b !== gosiItem && b !== netItem && b !== totalItem) || [];
 
-    // Table header
-    doc.setFillColor(243, 244, 246);
-    doc.roundedRect(margin, y, contentW, 8, 2, 2, "F");
-    doc.setFontSize(10);
-    doc.setTextColor(...gray);
-    doc.text("البند", pageW - margin - 5, y + 5.5, { align: "right" });
-    doc.text("المبلغ (ر.س)", margin + 5, y + 5.5, { align: "left" });
-    y += 11;
+  // Build HTML Structure
+  container.innerHTML = `
+    <div style="border: 2px solid #e5e7eb; border-radius: 12px; padding: 40px; background: #ffffff; position: relative; box-sizing: border-box;">
+      <!-- Header Border Accent -->
+      <div style="height: 6px; background: linear-gradient(to left, #6366f1, #4f46e5); border-radius: 6px 6px 0 0; position: absolute; top: 0; left: 0; right: 0;"></div>
+      
+      <!-- Top Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f3f4f6; padding-bottom: 20px; margin-bottom: 30px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <img src="${tawzeefLogo}" style="width: 48px; height: 48px; object-fit: contain;" />
+          <div>
+            <h1 style="font-size: 20px; font-weight: 800; color: #4f46e5; margin: 0; letter-spacing: -0.5px;">Tawzeef-X</h1>
+            <p style="font-size: 10px; color: #6b7280; margin: 2px 0 0 0;">منصة التوظيف الذكية</p>
+          </div>
+        </div>
+        <div style="text-align: left; font-size: 12px; color: #6b7280; line-height: 1.6;">
+          <div>التاريخ: ${new Date().toLocaleDateString("ar-SA")}</div>
+          <div>مرجع العرض: OFF-${offer.position.substring(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}</div>
+        </div>
+      </div>
 
-    details.forEach((item) => {
-      doc.setTextColor(...dark);
-      doc.setFontSize(10);
-      doc.text(item.label, pageW - margin - 5, y, { align: "right" });
-      doc.text(item.amount, margin + 5, y, { align: "left" });
-      y += 7;
+      <!-- Document Title -->
+      <div style="text-align: center; margin-bottom: 35px;">
+        <span style="background: #f0f3ff; color: #4f46e5; padding: 6px 16px; border-radius: 9999px; font-size: 13px; font-weight: 700; border: 1px solid #e0e7ff; display: inline-block;">عرض عمل رسمي موحد</span>
+        <h2 style="font-size: 24px; font-weight: 800; color: #111827; margin: 15px 0 5px 0;">خطاب عرض العمل الرسمي</h2>
+        <p style="font-size: 13px; color: #6b7280; margin: 0;">تم إعداد هذا العرض بموجب أنظمة وقوانين وزارة الموارد البشرية والعمل بالمملكة العربية السعودية</p>
+      </div>
+
+      <!-- Introduction -->
+      <div style="margin-bottom: 30px; font-size: 14px; line-height: 1.8; color: #374151; text-align: right;">
+        <p>يسرنا أن نتقدم لكم بهذا العرض الوظيفي للانضمام إلى فريق عملنا، متمنين لكم مسيرة مهنية حافلة بالنجاح والإنجازات المشتركة. فيما يلي تفاصيل وبنود العرض:</p>
+      </div>
+
+      <!-- Info Grid (Flex Layout for HTML2Canvas safety) -->
+      <div style="display: flex; flex-wrap: wrap; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 30px; text-align: right; box-sizing: border-box;">
+        <div style="width: 50%; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; box-sizing: border-box; padding-left: 10px;">
+          <div style="font-size: 12px; color: #6b7280;">المسمى الوظيفي</div>
+          <div style="font-size: 14px; font-weight: 700; color: #111827;">${offer.position}</div>
+        </div>
+        <div style="width: 50%; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; box-sizing: border-box; padding-left: 10px;">
+          <div style="font-size: 12px; color: #6b7280;">القسم / الإدارة</div>
+          <div style="font-size: 14px; font-weight: 700; color: #111827;">${offer.department || "غير محدد"}</div>
+        </div>
+        <div style="width: 50%; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; padding-left: 10px;">
+          <div style="font-size: 12px; color: #6b7280;">نوع التعاقد</div>
+          <div style="font-size: 14px; font-weight: 700; color: #111827;">${OFFER_TYPE_AR[offer.offer_type] || offer.offer_type}</div>
+        </div>
+        <div style="width: 50%; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; padding-left: 10px;">
+          <div style="font-size: 12px; color: #6b7280;">تاريخ البدء المتوقع</div>
+          <div style="font-size: 14px; font-weight: 700; color: #111827;">${offer.start_date ? new Date(offer.start_date).toLocaleDateString("ar-SA") : "غير محدد"}</div>
+        </div>
+      </div>
+
+      <!-- Salary & GOSI Table -->
+      <div style="margin-bottom: 30px; text-align: right;">
+        <h3 style="font-size: 15px; font-weight: 800; color: #111827; margin: 0 0 12px 0; border-right: 3px solid #4f46e5; padding-right: 8px;">تفاصيل المزايا المالية والراتب</h3>
+        <table style="width: 100%; border-collapse: collapse; text-align: right; font-size: 13px;">
+          <thead>
+            <tr style="background: #f3f4f6; border-bottom: 2px solid #e5e7eb;">
+              <th style="padding: 10px 12px; font-weight: 700; color: #374151; text-align: right;">بند الراتب / البدل</th>
+              <th style="padding: 10px 12px; font-weight: 700; color: #374151; text-align: left;">القيمة شهرياً (${offer.currency})</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${detailItems.length > 0 
+              ? detailItems.map(item => `
+                  <tr style="border-bottom: 1px solid #f3f4f6;">
+                    <td style="padding: 10px 12px; color: #4b5563; text-align: right;">${item.label}</td>
+                    <td style="padding: 10px 12px; color: #111827; font-weight: 600; text-align: left;">${item.amount}</td>
+                  </tr>
+                `).join("")
+              : `
+                  <tr style="border-bottom: 1px solid #f3f4f6;">
+                    <td style="padding: 10px 12px; color: #4b5563; text-align: right;">الراتب الأساسي</td>
+                    <td style="padding: 10px 12px; color: #111827; font-weight: 600; text-align: left;">${new Intl.NumberFormat("ar-SA").format(offer.salary)}</td>
+                  </tr>
+                `
+            }
+            <!-- Subtotal -->
+            <tr style="border-top: 2px solid #e5e7eb; background: #fafafa;">
+              <td style="padding: 12px 12px; font-weight: 700; color: #111827; text-align: right;">إجمالي الراتب الإجمالي (Gross)</td>
+              <td style="padding: 12px 12px; font-weight: 700; color: #4f46e5; font-size: 15px; text-align: left;">
+                ${totalItem ? totalItem.amount : `${new Intl.NumberFormat("ar-SA").format(offer.salary)} ${offer.currency}`}
+              </td>
+            </tr>
+            <!-- GOSI Deduction if exists -->
+            ${gosiItem ? `
+              <tr style="border-bottom: 1px solid #f3f4f6; color: #dc2626;">
+                <td style="padding: 10px 12px; font-weight: 600; text-align: right;">${gosiItem.label}</td>
+                <td style="padding: 10px 12px; font-weight: 700; text-align: left;">${gosiItem.amount}</td>
+              </tr>
+            ` : ""}
+            <!-- Net Take Home if exists -->
+            ${netItem ? `
+              <tr style="background: #f5f6ff; border-top: 2px solid #e0e7ff;">
+                <td style="padding: 12px 12px; font-weight: 800; color: #4f46e5; text-align: right;">${netItem.label}</td>
+                <td style="padding: 12px 12px; font-weight: 800; color: #4f46e5; font-size: 16px; text-align: left;">${netItem.amount}</td>
+              </tr>
+            ` : ""}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Benefits & Additional Terms -->
+      ${offer.benefits && offer.benefits.length > 0 
+        ? `
+          <div style="margin-bottom: 30px; text-align: right;">
+            <h3 style="font-size: 15px; font-weight: 800; color: #111827; margin: 0 0 10px 0; border-right: 3px solid #4f46e5; padding-right: 8px;">المزايا الإضافية والتأمين</h3>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px; color: #4b5563; box-sizing: border-box;">
+              ${offer.benefits.map(b => `<div style="width: 48%; display: flex; align-items: center; gap: 6px; box-sizing: border-box;">• ${b}</div>`).join("")}
+            </div>
+          </div>
+        ` 
+        : ""
+      }
+
+      ${cleanTerms 
+        ? `
+          <div style="margin-bottom: 30px; text-align: right;">
+            <h3 style="font-size: 15px; font-weight: 800; color: #111827; margin: 0 0 10px 0; border-right: 3px solid #4f46e5; padding-right: 8px;">شروط وأحكام العمل الإضافية</h3>
+            <p style="font-size: 13px; color: #4b5563; line-height: 1.8; margin: 0; white-space: pre-wrap;">${cleanTerms}</p>
+          </div>
+        ` 
+        : ""
+      }
+
+      <!-- Standard Clauses (probation period, annual leave) -->
+      <div style="margin-bottom: 35px; border-top: 1px solid #f3f4f6; padding-top: 20px; font-size: 12px; color: #6b7280; line-height: 1.7; display: flex; flex-direction: column; gap: 6px; text-align: right;">
+        <div>* يخضع هذا العرض لفترة تجربة مدتها (90) يوماً تبدأ من تاريخ مباشرة العمل الفعلي بموجب المادة 53 من نظام العمل السعودي.</div>
+        <div>* يستحق الموظف إجازة سنوية مدفوعة الأجر لا تقل عن (30) يوماً بموجب المادة 109 من نظام العمل السعودي.</div>
+        <div>* يلتزم الطرفان بالسرية التامة والمحافظة على أسرار العمل وحماية الملكية الفكرية طوال فترة التعاقد وبعدها.</div>
+      </div>
+
+      <!-- Signatures Block -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 50px; border-top: 2px solid #f3f4f6; padding-top: 30px;">
+        <div style="text-align: center; width: 45%;">
+          <div style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">جهة العمل (المدير المسؤول)</div>
+          <div style="height: 40px; display: flex; align-items: center; justify-content: center; font-style: italic; color: #9ca3af; font-size: 14px;">Tawzeef-X HR Team</div>
+          <div style="border-top: 1px dashed #d1d5db; padding-top: 6px; font-size: 13px; font-weight: 700; color: #374151;">فريق الموارد البشرية</div>
+        </div>
+        <div style="text-align: center; width: 45%;">
+          <div style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">الموافقة والتوقيع الرقمي للمرشح</div>
+          <div style="height: 40px; display: flex; align-items: center; justify-content: center;">
+            ${offer.signature_url 
+              ? `<img src="${offer.signature_url}" style="max-height: 40px; max-width: 150px; object-contain;" />` 
+              : `<span style="font-size: 12px; color: #9ca3af; font-style: italic;">بانتظار توقيع المرشح</span>`
+            }
+          </div>
+          <div style="border-top: 1px dashed #d1d5db; padding-top: 6px; font-size: 13px; font-weight: 700; color: #374151;">توقيع المرشح</div>
+        </div>
+      </div>
+
+      <!-- Footer Branding -->
+      <div style="text-align: center; font-size: 10px; color: #9ca3af; margin-top: 40px; border-top: 1px solid #f3f4f6; padding-top: 15px;">
+        هذا خطاب عرض وظيفي إلكتروني رسمي وموثق رقمياً وصادر عبر منصة Tawzeef-X.
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(container);
+
+  try {
+    // Generate high-resolution canvas using html2canvas
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#ffffff",
     });
 
-    // Total row
-    doc.setDrawColor(...primary);
-    doc.setLineWidth(0.8);
-    doc.line(margin, y - 2, pageW - margin, y - 2);
-    y += 3;
-    doc.setFontSize(12);
-    doc.setTextColor(...primary);
-    doc.text("الإجمالي", pageW - margin - 5, y, { align: "right" });
-    const formattedTotal = new Intl.NumberFormat("ar-SA").format(offer.salary);
-    doc.text(`${formattedTotal} ر.س`, margin + 5, y, { align: "left" });
-    y += 10;
-  } else {
-    doc.setFontSize(14);
-    doc.setTextColor(...dark);
-    const formattedSalary = new Intl.NumberFormat("ar-SA").format(offer.salary);
-    doc.text(`${formattedSalary} ${offer.currency === "SAR" ? "ر.س" : offer.currency}`, pageW / 2, y, { align: "center" });
-    y += 10;
-  }
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
+    const ratio = pdfWidth / imgWidth;
+    const canvasHeightInPdf = imgHeight * ratio;
 
-  // Divider
-  doc.setDrawColor(229, 231, 235);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageW - margin, y);
-  y += 8;
+    let heightLeft = canvasHeightInPdf;
+    let position = 0;
+    const pageHeight = pdfHeight;
 
-  // Info grid
-  doc.setFontSize(13);
-  doc.setTextColor(...primary);
-  doc.text("معلومات العرض", pageW - margin, y, { align: "right" });
-  y += 8;
+    pdf.addImage(imgData, "PNG", 0, position, pdfWidth, canvasHeightInPdf, undefined, "FAST");
+    heightLeft -= pageHeight;
 
-  const infoItems: [string, string][] = [];
-  infoItems.push(["نوع العمل", OFFER_TYPE_AR[offer.offer_type] || offer.offer_type]);
-  if (offer.start_date) {
-    infoItems.push(["تاريخ البدء", new Date(offer.start_date).toLocaleDateString("ar-SA")]);
-  }
-  if (offer.expires_at) {
-    infoItems.push(["صلاحية العرض", new Date(offer.expires_at).toLocaleDateString("ar-SA")]);
-  }
-  if (offer.sent_at) {
-    infoItems.push(["تاريخ الإرسال", new Date(offer.sent_at).toLocaleDateString("ar-SA")]);
-  }
-
-  infoItems.forEach(([label, value]) => {
-    doc.setFontSize(10);
-    doc.setTextColor(...gray);
-    doc.text(label, pageW - margin - 5, y, { align: "right" });
-    doc.setTextColor(...dark);
-    doc.text(value, margin + 5, y, { align: "left" });
-    y += 7;
-  });
-  y += 3;
-
-  // Benefits
-  if (offer.benefits && offer.benefits.length > 0) {
-    doc.setDrawColor(229, 231, 235);
-    doc.line(margin, y, pageW - margin, y);
-    y += 8;
-    doc.setFontSize(13);
-    doc.setTextColor(...primary);
-    doc.text("المزايا والفوائد", pageW - margin, y, { align: "right" });
-    y += 8;
-
-    offer.benefits.forEach((b) => {
-      doc.setFontSize(10);
-      doc.setTextColor(...dark);
-      doc.text(`• ${b}`, pageW - margin - 5, y, { align: "right" });
-      y += 6;
-    });
-    y += 3;
-  }
-
-  // Additional terms (excluding the salary breakdown part)
-  if (offer.additional_terms) {
-    let termsText = offer.additional_terms;
-    const breakdownIdx = termsText.search(/تفصيل الراتب:|Salary Breakdown:/);
-    if (breakdownIdx !== -1) {
-      termsText = termsText.substring(0, breakdownIdx).trim();
+    while (heightLeft >= 0) {
+      position = heightLeft - canvasHeightInPdf;
+      pdf.addPage();
+      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, canvasHeightInPdf, undefined, "FAST");
+      heightLeft -= pageHeight;
     }
-    if (termsText) {
-      doc.setDrawColor(229, 231, 235);
-      doc.line(margin, y, pageW - margin, y);
-      y += 8;
-      doc.setFontSize(13);
-      doc.setTextColor(...primary);
-      doc.text("شروط إضافية", pageW - margin, y, { align: "right" });
-      y += 8;
-      doc.setFontSize(10);
-      doc.setTextColor(...dark);
-      const lines = doc.splitTextToSize(termsText, contentW - 10);
-      doc.text(lines, pageW - margin - 5, y, { align: "right" });
-      y += lines.length * 5 + 5;
-    }
+
+    pdf.save(`عرض-وظيفي-${offer.position}.pdf`);
+  } catch (error) {
+    console.error("Error generating offer PDF:", error);
+  } finally {
+    document.body.removeChild(container);
   }
-
-  // Signature
-  if (offer.signature_url) {
-    if (y > 240) { doc.addPage(); y = 20; }
-    doc.setDrawColor(229, 231, 235);
-    doc.line(margin, y, pageW - margin, y);
-    y += 8;
-    doc.setFontSize(13);
-    doc.setTextColor(...primary);
-    doc.text("التوقيع الإلكتروني", pageW - margin, y, { align: "right" });
-    y += 5;
-
-    try {
-      const sigImg = await loadImage(offer.signature_url);
-      const sigW = 60;
-      const sigH = 25;
-      doc.addImage(sigImg, "PNG", pageW / 2 - sigW / 2, y, sigW, sigH);
-      y += sigH + 5;
-    } catch { /* skip */ }
-  }
-
-  // Status badge
-  y += 5;
-  const statusMap: Record<string, { label: string; color: [number, number, number] }> = {
-    accepted: { label: "مقبول ✅", color: [16, 185, 129] },
-    rejected: { label: "مرفوض ❌", color: [239, 68, 68] },
-    sent: { label: "مرسل", color: [59, 130, 246] },
-    viewed: { label: "تم الاطلاع", color: [245, 158, 11] },
-    draft: { label: "مسودة", color: [156, 163, 175] },
-  };
-  const st = statusMap[offer.status] || { label: offer.status, color: gray };
-  doc.setFillColor(...st.color);
-  doc.roundedRect(pageW / 2 - 20, y, 40, 8, 2, 2, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(10);
-  doc.text(st.label, pageW / 2, y + 5.5, { align: "center" });
-
-  // Footer
-  const footerY = 285;
-  doc.setFontSize(8);
-  doc.setTextColor(...gray);
-  doc.text("هذا المستند صادر إلكترونياً عبر منصة توظيف-X", pageW / 2, footerY, { align: "center" });
-
-  doc.save(`عرض-وظيفي-${offer.position}.pdf`);
 }
