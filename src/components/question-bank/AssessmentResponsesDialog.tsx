@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
-import { Brain, Eye, ArrowLeft, Send, ThumbsUp, Lightbulb, CheckCircle, Loader2, Edit2, Save } from "lucide-react";
+import { Brain, Eye, ArrowLeft, Send, ThumbsUp, Lightbulb, CheckCircle, Loader2, Edit2, Save, ShieldAlert, Activity, ClipboardCheck, AlertTriangle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -39,6 +39,7 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
   const [editingAnswers, setEditingAnswers] = useState<AnswerEntry[] | null>(null);
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showProctoring, setShowProctoring] = useState(false);
   const [questions, setQuestions] = useState<Record<string, { question_text: string; points: number; question_type: string }>>({});
   const qc = useQueryClient();
 
@@ -195,6 +196,161 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
               </>
             )}
           </div>
+
+          {/* Proctoring & Integrity Panel */}
+          {(() => {
+            if (!selected) return null;
+            
+            const rawLog = (selected as any).tab_switch_log;
+            const proctoringLog = rawLog 
+              ? (typeof rawLog === "string" ? JSON.parse(rawLog) : rawLog)
+              : null;
+            
+            const proctoringData = proctoringLog || ((selected as any).tab_switches > 0 ? {
+              cheat_score: Math.min(100, (selected as any).tab_switches * 15),
+              cheat_level: (selected as any).tab_switches >= 5 ? "high" : (selected as any).tab_switches >= 3 ? "medium" : "low",
+              counters: {
+                visibility: (selected as any).tab_switches,
+                blur: (selected as any).tab_switches,
+                copy: 0,
+                cut: 0,
+                paste: 0,
+                contextmenu: 0,
+                fullscreenExit: 0
+              },
+              events: [
+                { time: selected.started_at, type: "visibility_hidden" }
+              ]
+            } : null);
+
+            if (!proctoringData) return null;
+
+            const score = proctoringData.cheat_score || 0;
+            const level = proctoringData.cheat_level || "safe";
+            const counters = proctoringData.counters || {};
+            const events = proctoringData.events || [];
+
+            const getEventLabel = (type: string) => {
+              switch (type) {
+                case "visibility_hidden": return "تصغير المتصفح / مغادرة علامة التبويب";
+                case "visibility_visible": return "العودة لعلامة تبويب الاختبار";
+                case "blur": return "الخروج من نافذة الاختبار (فقدان التركيز)";
+                case "focus": return "التركيز على نافذة الاختبار";
+                case "copy": return "محاولة نسخ نص السؤال (تم الحظر)";
+                case "cut": return "محاولة قص نص السؤال (تم الحظر)";
+                case "paste": return "محاولة لصق نص في الإجابة (تم الحظر)";
+                case "contextmenu": return "محاولة النقر بزر الفأرة الأيمن (تم الحظر)";
+                case "fullscreen_exit":
+                case "fullscreenExit": return "مغادرة وضع ملء الشاشة الكاملة";
+                default: return `حدث غير معروف: ${type}`;
+              }
+            };
+
+            const getLevelBadge = (lvl: string) => {
+              switch (lvl) {
+                case "high": return <Badge className="bg-red-500 hover:bg-red-600 text-white font-bold">مستوى خطورة عالٍ 🚨</Badge>;
+                case "medium": return <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-bold">مستوى خطورة متوسط ⚠️</Badge>;
+                case "low": return <Badge className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold">مستوى خطورة منخفض 🔍</Badge>;
+                default: return <Badge className="bg-green-500 hover:bg-green-600 text-white font-bold">نزاهة ممتازة (آمن) ✅</Badge>;
+              }
+            };
+
+            const getScoreColor = (sc: number) => {
+              if (sc >= 70) return "bg-red-500";
+              if (sc >= 40) return "bg-amber-500";
+              if (sc >= 15) return "bg-yellow-500";
+              return "bg-green-500";
+            };
+
+            return (
+              <Card className="border border-destructive/20 bg-destructive/5 overflow-hidden">
+                <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert className="h-5 w-5 text-destructive animate-pulse" />
+                    <div>
+                      <CardTitle className="text-sm font-bold text-destructive">
+                        تقرير حماية النزاهة والمراقبة الأمنية (Proctoring Report)
+                      </CardTitle>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        رصد تفصيلي لسلوك المرشح ومحاولات الخروج عن قواعد الاختبار
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    {getLevelBadge(level)}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs font-semibold">
+                      <span className="text-muted-foreground">مؤشر خطورة الغش العام:</span>
+                      <span className={cn(
+                        "font-bold",
+                        score >= 70 ? "text-red-600" : score >= 40 ? "text-amber-600" : score >= 15 ? "text-yellow-600" : "text-green-600"
+                      )}>{score} / 100</span>
+                    </div>
+                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden flex">
+                      <div className={cn("h-full transition-all duration-500", getScoreColor(score))} style={{ width: `${score}%` }} />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
+                    <div className="bg-background border rounded-lg p-2 flex flex-col justify-center">
+                      <span className="font-mono text-base font-black text-destructive">{counters.visibility || 0}</span>
+                      <span className="text-[9px] text-muted-foreground">مغادرة التبويب</span>
+                    </div>
+                    <div className="bg-background border rounded-lg p-2 flex flex-col justify-center">
+                      <span className="font-mono text-base font-black text-amber-600">{counters.copy || 0}</span>
+                      <span className="text-[9px] text-muted-foreground">محاولات النسخ</span>
+                    </div>
+                    <div className="bg-background border rounded-lg p-2 flex flex-col justify-center">
+                      <span className="font-mono text-base font-black text-amber-600">{counters.paste || 0}</span>
+                      <span className="text-[9px] text-muted-foreground">محاولات اللصق</span>
+                    </div>
+                    <div className="bg-background border rounded-lg p-2 flex flex-col justify-center">
+                      <span className="font-mono text-base font-black text-purple-600">{counters.contextmenu || 0}</span>
+                      <span className="text-[9px] text-muted-foreground">كليك يمين</span>
+                    </div>
+                    <div className="bg-background border rounded-lg p-2 flex flex-col justify-center col-span-2 sm:col-span-1">
+                      <span className="font-mono text-base font-black text-blue-600">{counters.fullscreenExit || 0}</span>
+                      <span className="text-[9px] text-muted-foreground">خروج من ملء الشاشة</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setShowProctoring(!showProctoring)}
+                      className="text-xs gap-1 hover:bg-destructive/10 text-destructive font-bold h-8 px-0"
+                    >
+                      <Activity className="h-3.5 w-3.5" />
+                      {showProctoring ? "إخفاء الخط الزمني التفصيلي" : "عرض سجل الأحداث والخط الزمني للمراقبة"}
+                    </Button>
+                    
+                    {showProctoring && (
+                      <div className="bg-background border border-border/60 rounded-lg p-3 max-h-[180px] overflow-y-auto space-y-2.5">
+                        {events.length === 0 ? (
+                          <p className="text-[10px] text-muted-foreground text-center py-2">لا توجد أحداث مسجلة</p>
+                        ) : (
+                          events.map((ev: any, i: number) => (
+                            <div key={i} className="flex gap-2 items-start text-[10px] border-b border-border/20 pb-2 last:border-0 last:pb-0">
+                              <span className="font-mono text-muted-foreground shrink-0 mt-0.5">
+                                {new Date(ev.time).toLocaleTimeString('ar-SA')}
+                              </span>
+                              <span className="text-foreground font-medium">
+                                {getEventLabel(ev.type)}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Answers */}
           <div className="space-y-4">
