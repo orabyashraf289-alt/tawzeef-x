@@ -20,6 +20,7 @@ import { useStageTransitions } from "@/hooks/useStageTransitions";
 import { useActiveStages } from "@/hooks/usePipelineStages";
 import AIEvaluationCard from "@/components/AIEvaluationCard";
 import StageActions from "@/components/StageActions";
+import { SingleResponseProctoringDialog } from "@/components/question-bank/AssessmentResponsesDialog";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -168,6 +169,8 @@ function StageHistoryTimeline({ candidateId }: { candidateId: string }) {
 
 /* ─── Candidate Assessment Results ─── */
 function CandidateAssessmentResults({ candidateEmail, jobId }: { candidateEmail: string | null; jobId: string | null }) {
+  const [proctoringResponseId, setProctoringResponseId] = useState<string | null>(null);
+  
   const { data: responses = [], isLoading } = useQuery({
     queryKey: ["candidate-assessment-results", candidateEmail],
     queryFn: async () => {
@@ -205,21 +208,58 @@ function CandidateAssessmentResults({ candidateEmail, jobId }: { candidateEmail:
                 </Badge>
               </div>
               {r.status === "completed" && (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">النتيجة: {r.total_score}/{r.max_score}</span>
                     <span className={cn("font-bold", passed ? "text-success" : "text-destructive")}>{r.percentage}%</span>
                   </div>
                   <Progress value={r.percentage} className="h-1.5" />
+                  
+                  {/* Proctoring & Integrity Details */}
+                  <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t border-border/10">
+                    <div className="flex items-center gap-1.5 text-[11px]">
+                      <span className="text-muted-foreground">درجة النزاهة:</span>
+                      {r.integrity_score != null ? (
+                        <span className={cn(
+                          "font-bold",
+                          r.integrity_score >= 80 ? "text-green-600 dark:text-green-400" :
+                          r.integrity_score >= 60 ? "text-amber-600 dark:text-amber-400" :
+                          "text-red-600 dark:text-red-400"
+                        )}>
+                          {r.integrity_score}%
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </div>
+                    
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 text-[10px] px-2 text-primary hover:text-primary hover:bg-primary/5 gap-1 font-bold"
+                      onClick={() => setProctoringResponseId(r.id)}
+                    >
+                      <Shield className="w-3 h-3" />
+                      سجل المراقبة والنزاهة
+                    </Button>
+                  </div>
                 </div>
               )}
-              <p className="text-[10px] text-muted-foreground mt-1.5">
+              <p className="text-[10px] text-muted-foreground mt-2">
                 {new Date(r.created_at).toLocaleDateString("ar-SA")}
               </p>
             </div>
           );
         })}
       </div>
+
+      {proctoringResponseId && (
+        <SingleResponseProctoringDialog
+          responseId={proctoringResponseId}
+          open={!!proctoringResponseId}
+          onClose={() => setProctoringResponseId(null)}
+        />
+      )}
     </motion.div>
   );
 }
