@@ -36,6 +36,14 @@ function saveVoicePref(p: VoicePreference) {
   try { localStorage.setItem(VOICE_PREF_KEY, JSON.stringify(p)); } catch {}
 }
 
+export function detectLanguage(text: string): "ar" | "en" {
+  const arabicPattern = /[\u0600-\u06FF]/g;
+  const arabicCount = (text.match(arabicPattern) || []).length;
+  const latinPattern = /[a-zA-Z]/g;
+  const latinCount = (text.match(latinPattern) || []).length;
+  return arabicCount >= latinCount ? "ar" : "en";
+}
+
 export function cleanForTTS(text: string): string {
   return text
     .replace(/```[\s\S]*?```/g, " ")
@@ -286,13 +294,33 @@ class SpeechService {
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       const voices = window.speechSynthesis.getVoices();
+      
+      const isEnglish = detectLanguage(text) === "en";
       let chosen: SpeechSynthesisVoice | undefined;
+      
       if (this.voicePref.voiceURI) {
-        chosen = voices.find((v) => v.voiceURI === this.voicePref.voiceURI);
+        const prefVoice = voices.find((v) => v.voiceURI === this.voicePref.voiceURI);
+        if (prefVoice) {
+          const prefLangIsEn = prefVoice.lang.startsWith("en");
+          const prefLangIsAr = prefVoice.lang.startsWith("ar");
+          if ((isEnglish && prefLangIsEn) || (!isEnglish && prefLangIsAr)) {
+            chosen = prefVoice;
+          }
+        }
       }
-      if (!chosen) chosen = voices.find((v) => v.lang.startsWith("ar"));
+      
+      if (!chosen) {
+        if (isEnglish) {
+          chosen = voices.find((v) => v.lang.startsWith("en-US")) || 
+                   voices.find((v) => v.lang.startsWith("en"));
+        } else {
+          chosen = voices.find((v) => v.lang.startsWith("ar-SA")) || 
+                   voices.find((v) => v.lang.startsWith("ar"));
+        }
+      }
+      
       if (chosen) utter.voice = chosen;
-      utter.lang = chosen?.lang || this.voicePref.lang || "ar-SA";
+      utter.lang = chosen?.lang || (isEnglish ? "en-US" : "ar-SA");
       utter.rate = this.voicePref.rate || 0.95;
       utter.onend = () => resolve();
       utter.onerror = () => resolve();
