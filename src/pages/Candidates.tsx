@@ -193,8 +193,58 @@ export default function Candidates() {
     return [...skills].sort();
   }, [candidates]);
 
+  const [aiPrompt, setAiPrompt] = useState("");
+
   const filtered = useMemo(() => {
-    const base = (candidates || []).filter(c => {
+    let base = candidates || [];
+    
+    // 1. Apply AI Prompt Filter if active
+    if (aiPrompt.trim()) {
+      const prompt = aiPrompt.toLowerCase();
+      
+      // Parse numeric thresholds (e.g. > 80, >= 75)
+      const gtMatch = prompt.match(/(?:>|أكبر من|أعلى من)\s*(\d+)/);
+      const gtScore = gtMatch ? parseInt(gtMatch[1]) : null;
+      
+      const ltMatch = prompt.match(/(?:<|أصغر من|أقل من)\s*(\d+)/);
+      const ltScore = ltMatch ? parseInt(ltMatch[1]) : null;
+
+      base = base.filter(c => {
+        // Text keywords match name, role, email, skills, experience, education, source
+        const textToSearch = [
+          c.name,
+          c.role,
+          c.email,
+          ...(c.skills || []),
+          c.experience,
+          c.education,
+          c.source,
+          c.status,
+          c.stage
+        ].join(" ").toLowerCase();
+
+        // Check if any keyword in prompt matches
+        // We can split prompt into tokens except numeric condition tokens
+        const tokens = prompt
+          .replace(/(?:>|<|أكبر من|أعلى من|أصغر من|أقل من)\s*\d+/, "")
+          .split(/\s+/)
+          .filter(t => t.length > 1);
+
+        const matchesTokens = tokens.length === 0 || tokens.every(token => textToSearch.includes(token));
+        
+        let matchesScore = true;
+        if (gtScore !== null) {
+          matchesScore = ((c as any).ai_score ?? 0) >= gtScore;
+        } else if (ltScore !== null) {
+          matchesScore = ((c as any).ai_score ?? 0) <= ltScore;
+        }
+        
+        return matchesTokens && matchesScore;
+      });
+    }
+
+    // 2. Apply standard filters
+    base = base.filter(c => {
       const q = search.trim();
       const matchSearch = !q || c.name.includes(q) || (c.role || "").includes(q) || (c.email || "").includes(q);
       const matchStatus = statusFilter === "all" || c.status === statusFilter;
@@ -204,10 +254,11 @@ export default function Candidates() {
       const matchAiScore = !aiScoreMin || ((c as any).ai_score ?? 0) >= parseInt(aiScoreMin);
       return matchSearch && matchStatus && matchJob && matchStage && matchSkill && matchAiScore;
     });
+
     if (sortMode === "ai") return [...base].sort((a, b) => ((b as any).ai_score ?? -1) - ((a as any).ai_score ?? -1));
     if (sortMode === "rating") return [...base].sort((a, b) => (b.rating || 0) - (a.rating || 0));
     return [...base].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
-  }, [candidates, search, statusFilter, jobFilter, stageFilter, sortMode, skillFilter, aiScoreMin]);
+  }, [candidates, search, statusFilter, jobFilter, stageFilter, sortMode, skillFilter, aiScoreMin, aiPrompt]);
 
   // Progressive rendering: show first 30 instantly, expand in idle frames.
   // Avoids 50-100ms blocking paint when filtering large pages.
@@ -403,6 +454,54 @@ export default function Candidates() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="space-y-3">
+          {/* AI Smart Prompt Filter Bar */}
+          <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 space-y-3 relative overflow-hidden" dir={dir}>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full pointer-events-none translate-x-8 -translate-y-8" />
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+              <h4 className="text-xs font-bold text-foreground">
+                {locale === "en" ? "AI Natural Language Prompt Filter" : "منظف الفلترة الذكي بالذكاء الاصطناعي"}
+              </h4>
+            </div>
+            <div className="relative">
+              <Brain className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/70" />
+              <Input
+                placeholder={locale === "en" ? "Filter by writing prompts e.g. 'React developer with score > 80' or 'Accepted Figma design'..." : "فلتر بكتابة أي جملة مثل: 'مطور React بتقييم > 80' أو 'قيد المراجعة في التصميم'..."}
+                className="pr-10 bg-card border-border/80 focus:border-primary/50 text-xs"
+                value={aiPrompt}
+                onChange={e => setAiPrompt(e.target.value)}
+              />
+              {aiPrompt && (
+                <button
+                  onClick={() => setAiPrompt("")}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-md hover:bg-muted"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {/* Suggestion Chips */}
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="text-[10px] text-muted-foreground">
+                {locale === "en" ? "Try prompt suggestions:" : "جرب كتابة:"}
+              </span>
+              {[
+                { label: "React > 80", text: "React > 80" },
+                { label: locale === "en" ? "Figma Reviewing" : "Figma قيد المراجعة", text: "Figma قيد المراجعة" },
+                { label: locale === "en" ? "Accepted Score > 75" : "مقبول تقييم > 75", text: "مقبول تقييم > 75" },
+                { label: locale === "en" ? "Experience with Python" : "خبرة Python", text: "خبرة Python" }
+              ].map((chip, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setAiPrompt(chip.text)}
+                  className="px-2 py-0.5 rounded-md bg-card hover:bg-primary/5 hover:text-primary text-[10px] text-muted-foreground border border-border/60 transition-colors"
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
