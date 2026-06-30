@@ -151,6 +151,39 @@ export default function Tutorial() {
               </Card>
             </motion.div>
 
+            {/* Start Interactive Tour CTA */}
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <Card className="border-2 border-primary/20 bg-primary/5 shadow-sm">
+                <CardContent className="pt-6 pb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <Bot className="w-6 h-6 text-primary" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="font-bold text-base text-foreground">
+                        {locale === "en" ? "Take the Interactive Walkthrough Tour" : "ابدأ الجولة الإرشادية التفاعلية للمنصة"}
+                      </h3>
+                      <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
+                        {locale === "en" 
+                          ? "Let our virtual assistant guide you through the screens of Tawzeef-X in a real-time, step-by-step interactive walkthrough." 
+                          : "دع مساعدنا الافتراضي يأخذك في جولة حية سريعة لجميع شاشات النظام لتتعرف على الميزات والوظائف خطوة بخطوة."}
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => {
+                      localStorage.removeItem("tawzeef-x-tour-completed");
+                      window.location.reload();
+                    }}
+                    className="gap-2 shrink-0 w-full sm:w-auto"
+                  >
+                    <Zap className="w-4 h-4" />
+                    {locale === "en" ? "Start Interactive Tour" : "بدء الجولة التفاعلية"}
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+
             {/* Additional Features Grid */}
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
