@@ -6,12 +6,16 @@ interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   resolvedTheme: "light" | "dark";
+  primaryColor: string;
+  setPrimaryColor: (color: string) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
   theme: "system",
   setTheme: () => {},
   resolvedTheme: "light",
+  primaryColor: "160 84% 25%",
+  setPrimaryColor: () => {},
 });
 
 export function useTheme() {
@@ -29,6 +33,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return stored || "light";
   });
 
+  const [primaryColor, setPrimaryColorState] = useState<string>(() => {
+    return localStorage.getItem("tawzeef-x-primary") || "160 84% 25%";
+  });
+
   const resolvedTheme = theme === "system" ? getSystemTheme() : theme;
 
   useEffect(() => {
@@ -36,7 +44,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.classList.remove("light", "dark");
     root.classList.add(resolvedTheme);
     localStorage.setItem("tawzeef-x-theme", theme);
-  }, [theme, resolvedTheme]);
+    
+    // Apply primary color HSL value to document root
+    root.style.setProperty("--primary", primaryColor);
+  }, [theme, resolvedTheme, primaryColor]);
 
   // Listen for system theme changes
   useEffect(() => {
@@ -48,9 +59,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [theme]);
 
   const setTheme = (t: Theme) => setThemeState(t);
+  
+  const setPrimaryColor = (color: string) => {
+    localStorage.setItem("tawzeef-x-primary", color);
+    setPrimaryColorState(color);
+  };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme, primaryColor, setPrimaryColor }}>
       {children}
     </ThemeContext.Provider>
   );

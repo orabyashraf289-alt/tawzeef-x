@@ -1,5 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import WebhookSettings from "@/components/WebhookSettings";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -841,6 +843,15 @@ function CompanySection() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [e2eEnabled, setE2eEnabled] = useState(false);
 
+  const [website, setWebsite] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [city, setCity] = useState("");
+  const [country, setCountry] = useState("SA");
+  const [notes, setNotes] = useState("");
+  const [companySize, setCompanySize] = useState("");
+
+  const { primaryColor, setPrimaryColor } = useTheme();
+
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("company_name, company_logo").eq("user_id", user.id).single().then(({ data }: any) => {
@@ -858,12 +869,32 @@ function CompanySection() {
         if (data?.company_id) {
           setCompanyId(data.company_id);
           supabase.from("companies")
-            .select("e2e_encryption")
+            .select("name, logo_url, website, industry, country, city, notes, e2e_encryption")
             .eq("id", data.company_id)
             .maybeSingle()
             .then(({ data: compData }: any) => {
               if (compData) {
+                setCompanyName(compData.name || "");
+                setCompanyLogo(compData.logo_url || null);
+                setWebsite(compData.website || "");
+                setIndustry(compData.industry || "");
+                setCity(compData.city || "");
+                setCountry(compData.country || "SA");
                 setE2eEnabled(!!compData.e2e_encryption);
+
+                // Parse structured size and description from notes
+                const rawNotes = compData.notes;
+                if (rawNotes && rawNotes.startsWith("{")) {
+                  try {
+                    const parsed = JSON.parse(rawNotes);
+                    setCompanySize(parsed.size || "");
+                    setNotes(parsed.description || "");
+                  } catch (e) {
+                    setNotes(rawNotes);
+                  }
+                } else {
+                  setNotes(rawNotes || "");
+                }
               }
             });
         }
@@ -889,6 +920,9 @@ function CompanySection() {
     const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
     const newUrl = `${urlData.publicUrl}?t=${Date.now()}`;
     await supabase.from("profiles").update({ company_logo: newUrl } as any).eq("user_id", user.id);
+    if (companyId) {
+      await supabase.from("companies").update({ logo_url: newUrl } as any).eq("id", companyId);
+    }
     setCompanyLogo(newUrl);
     queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
     toast({ title: locale === "en" ? "Logo updated ✅" : "تم تحديث الشعار ✅" });
@@ -899,6 +933,9 @@ function CompanySection() {
     if (!user) return;
     setUploading(true);
     await supabase.from("profiles").update({ company_logo: null } as any).eq("user_id", user.id);
+    if (companyId) {
+      await supabase.from("companies").update({ logo_url: null } as any).eq("id", companyId);
+    }
     setCompanyLogo(null);
     queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
     toast({ title: locale === "en" ? "Logo removed" : "تم إزالة الشعار" });
@@ -916,9 +953,20 @@ function CompanySection() {
     }
 
     if (companyId) {
-      const { error: compErr } = await supabase.from("companies").update({ e2e_encryption: e2eEnabled } as any).eq("id", companyId);
+      const rawNotesString = JSON.stringify({ size: companySize, description: notes });
+      const { error: compErr } = await supabase.from("companies").update({
+        name: companyName,
+        logo_url: companyLogo,
+        website: website,
+        industry: industry,
+        city: city,
+        country: country,
+        notes: rawNotesString,
+        e2e_encryption: e2eEnabled
+      } as any).eq("id", companyId);
+
       if (compErr) {
-        toast({ title: "Error updating E2E settings", description: compErr.message, variant: "destructive" });
+        toast({ title: "Error updating company settings", description: compErr.message, variant: "destructive" });
         setLoading(false);
         return;
       }
@@ -963,14 +1011,85 @@ function CompanySection() {
             </div>
           )}
         </div>
-        <div className="flex-1 space-y-3">
+        <div className="flex-1 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">{locale === "en" ? "Company Name" : "اسم الشركة"}</Label>
+              <Input
+                value={companyName}
+                onChange={e => setCompanyName(e.target.value)}
+                placeholder={locale === "en" ? "Enter company name" : "أدخل اسم الشركة"}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">{locale === "en" ? "Website" : "الموقع الإلكتروني"}</Label>
+              <Input
+                value={website}
+                onChange={e => setWebsite(e.target.value)}
+                placeholder="https://example.com"
+                className="mt-1 font-mono"
+                dir="ltr"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">{locale === "en" ? "Industry / Activity" : "مجال العمل / النشاط"}</Label>
+              <Input
+                value={industry}
+                onChange={e => setIndustry(e.target.value)}
+                placeholder={locale === "en" ? "e.g. Technology, Healthcare" : "مثال: تقنية معلومات، الرعاية الصحية"}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">{locale === "en" ? "Company Size" : "حجم الشركة (عدد الموظفين)"}</Label>
+              <select
+                value={companySize}
+                onChange={e => setCompanySize(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 mt-1"
+              >
+                <option value="">{locale === "en" ? "Select size..." : "اختر الحجم..."}</option>
+                <option value="1-10">١ - ١٠ موظفين</option>
+                <option value="11-50">١١ - ٥٠ موظفاً</option>
+                <option value="51-200">٥١ - ٢٠٠ موظف</option>
+                <option value="201-500">٢٠١ - ٥٠٠ موظف</option>
+                <option value="501-1000">٥٠١ - ١٠٠٠ موظف</option>
+                <option value="1000+">أكثر من ١٠٠٠ موظف</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">{locale === "en" ? "City" : "المدينة"}</Label>
+              <Input
+                value={city}
+                onChange={e => setCity(e.target.value)}
+                placeholder={locale === "en" ? "e.g. Riyadh" : "مثال: الرياض"}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">{locale === "en" ? "Country" : "الدولة"}</Label>
+              <Input
+                value={country}
+                onChange={e => setCountry(e.target.value)}
+                placeholder={locale === "en" ? "e.g. Saudi Arabia" : "مثال: المملكة العربية السعودية"}
+                className="mt-1"
+              />
+            </div>
+          </div>
+
           <div>
-            <Label className="text-xs text-muted-foreground">{locale === "en" ? "Company Name" : "اسم الشركة"}</Label>
-            <Input
-              value={companyName}
-              onChange={e => setCompanyName(e.target.value)}
-              placeholder={locale === "en" ? "Enter company name" : "أدخل اسم الشركة"}
-              className="mt-1"
+            <Label className="text-xs text-muted-foreground">{locale === "en" ? "Company Description" : "نبذة عن نشاط الشركة"}</Label>
+            <Textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder={locale === "en" ? "Describe your company..." : "اكتب نبذة تعريفية قصيرة عن الشركة..."}
+              className="mt-1 min-h-[80px]"
             />
           </div>
 
@@ -989,6 +1108,49 @@ function CompanySection() {
               <Switch checked={e2eEnabled} onCheckedChange={setE2eEnabled} className="ms-4" />
             </div>
           )}
+        </div>
+      </div>
+
+      <Separator className="opacity-50" />
+
+      {/* Theme selection section */}
+      <div className="space-y-3">
+        <div>
+          <h3 className="font-bold text-sm text-foreground">{locale === "en" ? "Platform Branding Theme" : "هوية ثيم المنصة (الألوان)"}</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {locale === "en" 
+              ? "Choose the primary accent color for your recruitment workspace" 
+              : "اختر اللون الرئيسي الذي يتناسب مع هوية شركتك ليتم تطبيقه على كامل المنصة"}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1.5">
+          {[
+            { name: "أخضر سعودي (الافتراضي)", value: "160 84% 25%", colorClass: "bg-[#0b5f43]" },
+            { name: "أزرق ملكي", value: "221 83% 45%", colorClass: "bg-[#0f52ba]" },
+            { name: "بنفسجي إمبراطوري", value: "262 83% 48%", colorClass: "bg-[#6c3082]" },
+            { name: "أحمر قرمزي", value: "347 77% 42%", colorClass: "bg-[#9b111e]" },
+            { name: "ذهبي ناري", value: "24 95% 45%", colorClass: "bg-[#d4af37]" }
+          ].map((color) => {
+            const isSelected = primaryColor === color.value;
+            return (
+              <button
+                key={color.value}
+                onClick={() => setPrimaryColor(color.value)}
+                className={cn(
+                  "flex items-center gap-2.5 p-3 rounded-xl border-2 transition-all text-right",
+                  isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-border/50 hover:border-border hover:bg-muted/30"
+                )}
+              >
+                <div className={cn("w-6 h-6 rounded-full shrink-0 flex items-center justify-center shadow-sm", color.colorClass)}>
+                  {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-[11px] text-foreground truncate">{color.name}</p>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
