@@ -38,7 +38,7 @@ const JOB_TEMPLATES = [
 ];
 
 export default function Jobs() {
-  const { t } = useI18n();
+  const { t, locale, dir } = useI18n();
   const { user } = useAuth();
   const { data: jobs, isLoading } = useJobs();
   const addJobMutation = useAddJob();
@@ -78,6 +78,76 @@ export default function Jobs() {
       toast({ title: "خطأ", description: e.message, variant: "destructive" });
     } finally {
       setKsaApplyingFor(null);
+    }
+  };
+
+  const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
+
+  const handleSelectJob = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedJobs(prev => [...prev, id]);
+    } else {
+      setSelectedJobs(prev => prev.filter(item => item !== id));
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedJobs(filteredJobs.map(j => j.id));
+    } else {
+      setSelectedJobs([]);
+    }
+  };
+
+  const handleBatchArchive = async (restore = false) => {
+    if (selectedJobs.length === 0) return;
+    const actionText = restore ? "استعادة" : "أرشفة";
+    if (!window.confirm(`هل أنت متأكد من ${restore ? "استعادة" : "أرشفة"} ${selectedJobs.length} وظيفة محددة؟`)) return;
+    
+    const newStatus = restore ? "نشطة" : "مؤرشفة";
+    try {
+      const { error } = await supabase.from("jobs").update({ status: newStatus }).in("id", selectedJobs);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      setSelectedJobs([]);
+      toast({ title: `تمت عملية ال${actionText} بنجاح ✅`, description: `تم تحديث حالة ${selectedJobs.length} وظيفة.` });
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedJobs.length === 0) return;
+    if (!window.confirm(`تحذير: هل أنت متأكد من حذف ${selectedJobs.length} وظيفة محددة نهائياً؟`)) return;
+
+    try {
+      const { error } = await supabase.from("jobs").delete().in("id", selectedJobs);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      setSelectedJobs([]);
+      toast({ title: "تم الحذف بنجاح ✅", description: "تم إزالة الوظائف المحددة نهائياً." });
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleBatchApplyKsa = async () => {
+    if (selectedJobs.length === 0) return;
+    const tpl = STAGE_TEMPLATES.find(s => s.id === "ksa_full");
+    if (!tpl) return;
+    if (!window.confirm(`سيتم تطبيق مسار التوظيف السعودي الكامل ونقل مرشحي ${selectedJobs.length} وظيفة إلى المرحلة الأولى. متابعة؟`)) return;
+
+    try {
+      await applyTemplate.mutateAsync(tpl.stages.map((s, i) => ({ ...s, sort_order: i })));
+      const firstStage = tpl.stages[0].name;
+      const { error } = await supabase.from("candidates").update({ stage: firstStage }).in("job_id", selectedJobs);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["pipeline_stages"] });
+      setSelectedJobs([]);
+      toast({ title: "تم تطبيق المسار السعودي بنجاح ✅", description: "تم تحديث كافة المرشحين للوظائف المحددة." });
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e.message, variant: "destructive" });
     }
   };
 
@@ -388,14 +458,23 @@ export default function Jobs() {
                     <div className="absolute inset-x-0 top-0 h-0.5 rounded-t-xl bg-gradient-to-l from-primary/60 to-primary/20 opacity-0 group-hover:opacity-100 transition-opacity" />
 
                     <div className="flex items-start justify-between mb-3">
-                      <Badge variant="outline"
-                        className={`text-xs ${
-                          job.status === "نشطة" ? "bg-success/10 text-success border-success/20" :
-                          job.status === "مؤرشفة" ? "bg-warning/10 text-warning border-warning/20" :
-                          "bg-muted text-muted-foreground border-border"
-                        }`}>
-                        {job.status}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedJobs.includes(job.id)}
+                          onChange={(e) => handleSelectJob(job.id, e.target.checked)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 text-primary border-border rounded focus:ring-primary cursor-pointer"
+                        />
+                        <Badge variant="outline"
+                          className={`text-xs ${
+                            job.status === "نشطة" ? "bg-success/10 text-success border-success/20" :
+                            job.status === "مؤرشفة" ? "bg-warning/10 text-warning border-warning/20" :
+                            "bg-muted text-muted-foreground border-border"
+                          }`}>
+                          {job.status}
+                        </Badge>
+                      </div>
                       <span className="text-[11px] text-muted-foreground">{formatDate(job.created_at)}</span>
                     </div>
 
@@ -489,7 +568,15 @@ export default function Jobs() {
         ) : (
           <motion.div variants={container} initial="hidden" animate="show" className="space-y-2">
             <div className="hidden sm:grid grid-cols-12 gap-4 px-5 py-2.5 text-xs font-medium text-muted-foreground bg-muted/30 rounded-lg border border-border/30">
-              <span className="col-span-3">{t("jobs.title", "الوظيفة")}</span>
+              <span className="col-span-3 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={selectedJobs.length === filteredJobs.length && filteredJobs.length > 0}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  className="w-4 h-4 text-primary border-border rounded focus:ring-primary cursor-pointer"
+                />
+                <span>{t("jobs.title", "الوظيفة")}</span>
+              </span>
               <span className="col-span-2">{t("jobs.department")}</span>
               <span className="col-span-2">{t("jobs.location")}</span>
               <span className="col-span-1">{t("jobs.type")}</span>
@@ -501,9 +588,17 @@ export default function Jobs() {
                 <motion.div key={job.id} variants={item} layout
                   className={`bg-card rounded-xl border border-border/50 hover:border-primary/20 hover:shadow-sm transition-all ${job.status === "مؤرشفة" ? "opacity-70" : ""}`}>
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-center px-5 py-4">
-                    <div className="sm:col-span-3">
-                      <Link to={`/jobs/${job.id}`} className="font-semibold text-sm text-foreground hover:text-primary transition-colors">{job.title}</Link>
-                      <p className="text-xs text-muted-foreground mt-0.5">{formatDate(job.created_at)}</p>
+                    <div className="sm:col-span-3 flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedJobs.includes(job.id)}
+                        onChange={(e) => handleSelectJob(job.id, e.target.checked)}
+                        className="w-4 h-4 text-primary border-border rounded focus:ring-primary cursor-pointer"
+                      />
+                      <div>
+                        <Link to={`/jobs/${job.id}`} className="font-semibold text-sm text-foreground hover:text-primary transition-colors">{job.title}</Link>
+                        <p className="text-xs text-muted-foreground mt-0.5">{formatDate(job.created_at)}</p>
+                      </div>
                     </div>
                     <div className="sm:col-span-2 text-sm text-muted-foreground">{job.department}</div>
                     <div className="sm:col-span-2 text-sm text-muted-foreground">{job.location}</div>
@@ -588,6 +683,80 @@ export default function Jobs() {
         />
       )}
       <ShareJobDialog open={shareDialog.open} onClose={() => setShareDialog({ open: false, jobTitle: "", jobId: "", isNew: false })} jobTitle={shareDialog.jobTitle} jobId={shareDialog.jobId} isNewJob={shareDialog.isNew} />
+
+      {/* Floating Batch Actions Bar */}
+      <AnimatePresence>
+        {selectedJobs.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-6 inset-x-4 max-w-xl mx-auto z-40 bg-foreground/95 backdrop-blur-md rounded-2xl shadow-xl border border-border/20 p-4 text-background flex items-center justify-between gap-4"
+            dir={dir}
+          >
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="bg-primary/20 text-primary border-primary/30 text-xs font-bold">
+                {selectedJobs.length}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {locale === "en" ? "selected jobs" : "وظائف محددة"}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleBatchArchive(showArchived)}
+                className="text-xs hover:bg-background/10 hover:text-white"
+              >
+                {showArchived ? (
+                  <>
+                    <RotateCcw className="w-3.5 h-3.5 ml-1.5" />
+                    {locale === "en" ? "Restore" : "استعادة"}
+                  </>
+                ) : (
+                  <>
+                    <Archive className="w-3.5 h-3.5 ml-1.5" />
+                    {locale === "en" ? "Archive" : "أرشفة"}
+                  </>
+                )}
+              </Button>
+
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleBatchApplyKsa}
+                className="text-xs text-primary hover:bg-primary/10 hover:text-primary-foreground"
+              >
+                <Workflow className="w-3.5 h-3.5 ml-1.5" />
+                {locale === "en" ? "Saudi Path" : "المسار السعودي"}
+              </Button>
+
+              {hasActionPermission("action.delete_jobs") && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={handleBatchDelete}
+                  className="text-xs h-8"
+                >
+                  <Trash2 className="w-3.5 h-3.5 ml-1.5" />
+                  {locale === "en" ? "Delete" : "حذف"}
+                </Button>
+              )}
+
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelectedJobs([])}
+                className="text-xs p-1 h-8 w-8 hover:bg-background/10 hover:text-white rounded-lg animate-pulse"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 }
