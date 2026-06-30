@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Star, MessageSquare, ThumbsUp, ThumbsDown, Minus } from "lucide-react";
+import { Star, MessageSquare, ThumbsUp, ThumbsDown, Minus, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface EvaluationCriteria {
   key: string;
@@ -38,6 +39,68 @@ export default function InterviewEvaluationForm({ open, onClose, candidateName, 
 
   const avgScore = criteria.reduce((s, c) => s + c.score, 0) / criteria.length;
   const overallRating = Math.round(avgScore);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const generateAIEvaluation = async () => {
+    const hasRated = criteria.some(c => c.score > 0);
+    if (!hasRated) {
+      alert("يرجى تقييم بعض المعايير أولاً بالنجوم ليتمكن الذكاء الاصطناعي من تحليل الدرجات وصياغة التقييم!");
+      return;
+    }
+
+    setAiLoading(true);
+    try {
+      const criteriaScores = criteria.map(c => `${c.label}: ${c.score}/5`).join(", ");
+      const prompt = `
+أنت خبير تقييم مقابلات توظيف ذكي ومحترف.
+أريدك كتابة تقييم شامل للمرشح "${candidateName}" بناءً على الدرجات التي حصل عليها في المقابلة التالية (من 5):
+الدرجات الممنوحة: ${criteriaScores}
+
+يرجى صياغة النتيجة بصيغة JSON تحتوي فقط على الحقول التالية:
+- strengths: نقاط القوة البارزة بناءً على المعايير المرتفعة (أكثر من جملة باللغة العربية)
+- weaknesses: نقاط الضعف أو الجوانب التي تحتاج تحسين بناءً على المعايير المنخفضة (أكثر من جملة باللغة العربية)
+- notes: ملاحظات عامة وتلخيص لملف المرشح (باللغة العربية)
+- recommendation: التوصية المقترحة إما "hire" أو "maybe" أو "no_hire"
+
+اكتب النتيجة بصيغة JSON نظيفة فقط داخل كود بلوك \`\`\`json.
+`;
+
+      const { data, error } = await supabase.functions.invoke("chat", {
+        body: {
+          messages: [
+            {
+              role: "system",
+              content: "أنت مساعد تقييم خبير. يجب أن تعود النتيجة دائماً بصيغة JSON نظيفة فقط بداخل كود بلوك ```json"
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          disable_tools: true
+        }
+      });
+
+      if (error) throw error;
+      const contentText = data?.choices?.[0]?.message?.content || "";
+      if (!contentText) throw new Error("لم يتم تلقي استجابة من الذكاء الاصطناعي");
+
+      const match = contentText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      const rawJson = match ? match[1] : contentText;
+      const parsed = JSON.parse(rawJson);
+
+      if (parsed.strengths) setStrengths(parsed.strengths);
+      if (parsed.weaknesses) setWeaknesses(parsed.weaknesses);
+      if (parsed.notes) setNotes(parsed.notes);
+      if (parsed.recommendation) setRecommendation(parsed.recommendation);
+
+    } catch (e: any) {
+      console.error(e);
+      alert("عذراً، فشل توليد التقييم الذكي: " + e.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const updateScore = (key: string, score: number) => {
     setCriteria(prev => prev.map(c => c.key === key ? { ...c, score } : c));
@@ -64,7 +127,24 @@ export default function InterviewEvaluationForm({ open, onClose, candidateName, 
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
         <DialogHeader>
-          <DialogTitle className="text-lg">تقييم المقابلة — {candidateName}</DialogTitle>
+          <DialogTitle className="text-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <span>تقييم المقابلة — {candidateName}</span>
+            <Button
+              size="sm"
+              variant="outline"
+              type="button"
+              onClick={generateAIEvaluation}
+              disabled={aiLoading}
+              className="text-[11px] h-8 gap-1.5 border-primary/30 hover:border-primary text-primary bg-primary/5 hover:bg-primary/10 transition-all font-semibold shrink-0"
+            >
+              {aiLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+              )}
+              صياغة تقييم ذكي بالذكاء الاصطناعي ✨
+            </Button>
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5">

@@ -219,20 +219,20 @@ export default function VideoRoom() {
     setAiSaving(true);
     try {
       const summaryText = `--- تقييم الذكاء الاصطناعي للمقابلة ---
-التوصية: \${aiReport.recommendation}
-التقييم العام: \${aiReport.score}/100
+التوصية: ${aiReport.recommendation}
+التقييم العام: ${aiReport.score}/100
 
 الملخص:
-\${aiReport.summary}
+${aiReport.summary}
 
 نقاط القوة:
-\${aiReport.strengths?.map((s: string) => \`- \${s}\`).join("\n")}
+${aiReport.strengths?.map((s: string) => `- ${s}`).join("\n")}
 
 نقاط الضعف:
-\${aiReport.weaknesses?.map((w: string) => \`- \${w}\`).join("\n")}
+${aiReport.weaknesses?.map((w: string) => `- ${w}`).join("\n")}
 
 مهارات التواصل:
-\${aiReport.communication}`;
+${aiReport.communication}`;
 
       const { error } = await supabase
         .from("interviews")
