@@ -484,36 +484,56 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
                 <TableHead>{t("qbank.candidateName")}</TableHead>
                 <TableHead>{t("qbank.email")}</TableHead>
                 <TableHead>{t("qbank.score")}</TableHead>
+                <TableHead>النزاهة 🛡️</TableHead>
                 <TableHead>{t("qbank.status")}</TableHead>
                 <TableHead>{t("qbank.date")}</TableHead>
                 <TableHead>{t("common.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {responses.map(r => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium">{r.candidate_name}</TableCell>
-                  <TableCell>{r.candidate_email}</TableCell>
-                  <TableCell>
-                    <Badge variant={r.percentage >= 70 ? "default" : "destructive"}>
-                      {r.total_score}/{r.max_score} ({r.percentage}%)
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={r.status === "completed" ? "default" : "secondary"}>
-                      {r.status === "completed" ? t("qbank.completed") : t("qbank.inProgress")}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(r.started_at), "yyyy/MM/dd HH:mm")}
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" className="gap-1" onClick={() => loadDetails(r.id)}>
-                      <Eye className="h-4 w-4" /> {t("qbank.review.view")}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {responses.map(r => {
+                const log = r.tab_switch_log;
+                const parsed = log ? (typeof log === "string" ? JSON.parse(log) : log) : null;
+                const cheat = r.integrity_score ?? parsed?.cheat_score;
+                return (
+                  <TableRow key={r.id}>
+                    <TableCell className="font-medium">{r.candidate_name}</TableCell>
+                    <TableCell>{r.candidate_email}</TableCell>
+                    <TableCell>
+                      <Badge variant={r.percentage >= 70 ? "default" : "destructive"}>
+                        {r.total_score}/{r.max_score} ({r.percentage}%)
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {cheat == null ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : cheat >= 60 ? (
+                        <Badge variant="outline" className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 animate-pulse text-[10px] gap-1 font-bold">
+                          <AlertTriangle className="w-3 h-3" />
+                          شبهة غش ({cheat}%)
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20 text-[10px] font-bold">
+                          آمن
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={r.status === "completed" ? "default" : "secondary"}>
+                        {r.status === "completed" ? t("qbank.completed") : t("qbank.inProgress")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {format(new Date(r.started_at), "yyyy/MM/dd HH:mm")}
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" className="gap-1" onClick={() => loadDetails(r.id)}>
+                        <Eye className="h-4 w-4" /> {t("qbank.review.view")}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}

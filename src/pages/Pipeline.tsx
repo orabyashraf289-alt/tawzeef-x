@@ -100,6 +100,11 @@ function DroppableColumn({ stage, children, count, label, totalCandidates, avgDa
 }
 
 function CandidateCard({ candidate, isDragging = false, response }: { candidate: any; isDragging?: boolean; response?: any }) {
+  const parsedLog = response?.tab_switch_log
+    ? (typeof response.tab_switch_log === "string" ? JSON.parse(response.tab_switch_log) : response.tab_switch_log)
+    : null;
+  const integrityScore = response?.integrity_score ?? parsedLog?.cheat_score;
+
   return (
     <div className={cn(
       "bg-card rounded-lg border border-border/50 p-3 transition-all group",
@@ -142,8 +147,8 @@ function CandidateCard({ candidate, isDragging = false, response }: { candidate:
                 <Bot className="w-2.5 h-2.5" />{candidate.ai_score}
               </Badge>
             )}
-            {response && response.integrity_score != null && (
-              response.integrity_score < 60 ? (
+            {integrityScore != null && (
+              integrityScore < 60 ? (
                 <Badge variant="outline" className="text-[9px] h-4 px-1 gap-0.5 bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 animate-pulse">
                   <AlertTriangle className="w-2.5 h-2.5" />
                   شبهة غش
@@ -209,7 +214,7 @@ export default function Pipeline() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("assessment_responses")
-        .select("candidate_email, assessment_id, status, percentage, integrity_score")
+        .select("candidate_email, assessment_id, status, percentage, integrity_score, tab_switch_log")
         .eq("status", "completed");
       if (error) throw error;
       return data || [];

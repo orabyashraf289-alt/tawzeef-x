@@ -199,6 +199,11 @@ function CandidateAssessmentResults({ candidateEmail, jobId }: { candidateEmail:
         {responses.map((r: any) => {
           const assessment = r.assessments;
           const passed = r.percentage >= (assessment?.passing_score || 70);
+          const parsedLog = r.tab_switch_log
+            ? (typeof r.tab_switch_log === "string" ? JSON.parse(r.tab_switch_log) : r.tab_switch_log)
+            : null;
+          const integrityScore = r.integrity_score ?? parsedLog?.cheat_score;
+
           return (
             <div key={r.id} className="bg-muted/30 rounded-xl p-3.5 border border-border/20">
               <div className="flex items-center justify-between mb-2">
@@ -219,14 +224,14 @@ function CandidateAssessmentResults({ candidateEmail, jobId }: { candidateEmail:
                   <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t border-border/10">
                     <div className="flex items-center gap-1.5 text-[11px]">
                       <span className="text-muted-foreground">درجة النزاهة:</span>
-                      {r.integrity_score != null ? (
+                      {integrityScore != null ? (
                         <span className={cn(
                           "font-bold",
-                          r.integrity_score >= 80 ? "text-green-600 dark:text-green-400" :
-                          r.integrity_score >= 60 ? "text-amber-600 dark:text-amber-400" :
+                          integrityScore >= 80 ? "text-green-600 dark:text-green-400" :
+                          integrityScore >= 60 ? "text-amber-600 dark:text-amber-400" :
                           "text-red-600 dark:text-red-400"
                         )}>
-                          {r.integrity_score}%
+                          {integrityScore}%
                         </span>
                       ) : (
                         <span className="text-muted-foreground">—</span>
