@@ -728,9 +728,9 @@ serve(async (req) => {
 
 ${userContext}
 
-## أدواتك (16 أداة):
+## أدواتك (17 أداة):
 **إدارة الوظائف**: create_job, update_job, delete_job, list_jobs, generate_job_description
-**إدارة المرشحين**: search_candidates, move_candidate_stage, bulk_move_candidates, evaluate_candidate_ai, analyze_resume_text
+**إدارة المرشحين**: search_candidates, compare_candidates, move_candidate_stage, bulk_move_candidates, evaluate_candidate_ai, analyze_resume_text
 **المقابلات والعروض**: schedule_interview, generate_interview_questions, create_offer
 **التواصل**: send_email_to_candidate
 **التحليلات**: get_stats, get_proactive_insights
@@ -746,6 +746,7 @@ ${userContext}
 8. ✨ **التنسيق**: استخدم Markdown، إيموجي بشكل معتدل، نقاط منظمة.
 9. 💡 **اقترح خطوات**: بعد كل إجراء، اقترح الخطوة التالية المنطقية.
 10. 📁 **عدم وجود وظائف**: إذا لم تكن هناك وظائف نشطة في النظام وقام المستخدم بتحليل سيرة ذاتية أو طلب مقارنة، أو عند اقتراح وظيفة مناسبة، استخدم أداة `create_job` تلقائياً لعرض بطاقة معاينة الوظيفة (Job Preview Card) فوراً ليتمكن المستخدم من إضافتها بكبسة زر دون إدخال يدوي.
+11. 📊 **مقارنة المرشحين**: عند طلب المقارنة بين السير الذاتية أو المرشحين، استخدم أداة `compare_candidates` لعرض بطاقة المقارنة التفاعلية والتحليل فوراً.
 
 ## التفكير المنطقي:
 - إذا كان الطلب غامضاً، اطرح سؤالاً واحداً فقط.
