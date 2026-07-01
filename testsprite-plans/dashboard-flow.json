@@ -1,0 +1,15 @@
+{
+  "projectId": "c4a430f1-0bf0-4c92-90e5-562100ed1f04",
+  "type": "frontend",
+  "name": "Dashboard Flow - verify sidebar and routing works",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navigate to /"
+    },
+    {
+      "type": "assertion",
+      "description": "The page redirects to /auth or shows the dashboard layout"
+    }
+  ]
+}
