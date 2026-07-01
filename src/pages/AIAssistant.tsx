@@ -1,5 +1,43 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { Bot, Send, Sparkles, Briefcase, CheckCircle, ArrowRightLeft, CalendarCheck, Video, XCircle, Check, Pencil, Trash2, ExternalLink, Paperclip, BarChart3, FileText, Gift, Plus, MessageSquare, Clock, ChevronRight, Search } from "lucide-react";
+import {
+  Bot,
+  Send,
+  Sparkles,
+  Briefcase,
+  CheckCircle,
+  ArrowRightLeft,
+  CalendarCheck,
+  Video,
+  XCircle,
+  Check,
+  Pencil,
+  Trash2,
+  ExternalLink,
+  Paperclip,
+  BarChart3,
+  FileText,
+  Gift,
+  Plus,
+  MessageSquare,
+  Clock,
+  ChevronRight,
+  Search,
+  GitCompare,
+  Star,
+  Mail,
+  User,
+  Printer,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Loader2,
+  Edit3,
+  Save
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -31,7 +69,6 @@ import ExportConversation from "@/components/ai-assistant/ExportConversation";
 import SlashCommandMenu, { type SlashCommand } from "@/components/ai-assistant/SlashCommandMenu";
 import ModelSelector, { getStoredModelChoice, MODEL_OPTIONS, type ModelChoice } from "@/components/ai-assistant/ModelSelector";
 import ModelCompareDialog from "@/components/ai-assistant/ModelCompareDialog";
-import { GitCompare, Star, Mail, User, Printer, ChevronDown, ChevronUp, MessageSquare, Send, Check, Copy, Play, Pause, Volume2, VolumeX, Loader2, ExternalLink, FileText, Edit3, Save } from "lucide-react";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
 import SpeakButton from "@/components/ai-assistant/SpeakButton";
 import { extractTextFromPDF, extractTextFromDocx } from "@/lib/fileParser";
