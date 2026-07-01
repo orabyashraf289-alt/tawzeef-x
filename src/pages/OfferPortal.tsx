@@ -219,6 +219,17 @@ export default function OfferPortal() {
       setOffer({ ...offer, status: newStatus, signature_url: accept ? signatureData : null });
       toast({ title: accept ? "تم قبول العرض وتوثيق التوقيع بنجاح! 🎉" : "تم رفض العرض" });
 
+      if (accept) {
+        import("canvas-confetti").then((module) => {
+          const confettiFn = module.default || module;
+          confettiFn({
+            particleCount: 180,
+            spread: 90,
+            origin: { y: 0.6 }
+          });
+        });
+      }
+
       // Notify recruiter via email about candidate response
       try {
         // Get the full offer via RPC (secure token-based access)

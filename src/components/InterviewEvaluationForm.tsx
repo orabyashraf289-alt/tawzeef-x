@@ -77,7 +77,8 @@ export default function InterviewEvaluationForm({ open, onClose, candidateName, 
               content: prompt
             }
           ],
-          disable_tools: true
+          disable_tools: true,
+          stream: false
         }
       });
 

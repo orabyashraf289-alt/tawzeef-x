@@ -37,6 +37,44 @@ const JOB_TEMPLATES = [
   { title: "مدير مشاريع", department: "الإدارة", type: "دوام كامل", description: "إدارة المشاريع التقنية وضمان التسليم في الوقت المحدد وبالجودة المطلوبة.", requirements: "PMP/Agile\nإدارة الفرق\nJira/Asana\nتواصل فعال" },
 ];
 
+const getMarketBenchmark = (department: string) => {
+  const benchmarks: Record<string, { min: number; max: number; label: string }> = {
+    "الهندسة": { min: 12000, max: 22000, label: "١٢ ألف - ٢٢ ألف ر.س" },
+    "التصميم": { min: 8000, max: 16000, label: "٨ آلاف - ١٦ ألف ر.س" },
+    "البيانات": { min: 10000, max: 20000, label: "١٠ آلاف - ٢٠ ألف ر.س" },
+    "التسويق": { min: 7000, max: 14000, label: "٧ آلاف - ١٤ ألف ر.س" },
+    "الموارد البشرية": { min: 8000, max: 15000, label: "٨ آلاف - ١٥ ألف ر.س" },
+    "المالية": { min: 9000, max: 18000, label: "٩ آلاف - ١٨ ألف ر.س" },
+    "الإدارة": { min: 12000, max: 25000, label: "١٢ ألف - ٢٥ ألف ر.س" }
+  };
+  return benchmarks[department] || { min: 8000, max: 15000, label: "٨ آلاف - ١٥ ألف ر.س" };
+};
+
+const getSalaryComparison = (min: number, max: number, dept: string) => {
+  const benchmark = getMarketBenchmark(dept);
+  const avg = (min + max) / 2;
+  
+  if (avg > benchmark.max) {
+    return {
+      status: "above",
+      label: "أعلى من متوسط السوق 🔥",
+      color: "text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30 dark:text-indigo-400 border-indigo-200/50"
+    };
+  } else if (avg < benchmark.min) {
+    return {
+      status: "below",
+      label: "أقل من متوسط السوق 📉",
+      color: "text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 border-amber-200/50"
+    };
+  } else {
+    return {
+      status: "average",
+      label: "متوافق مع متوسط السوق ⚖️",
+      color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-400 border-emerald-200/50"
+    };
+  }
+};
+
 export default function Jobs() {
   const { t, locale, dir } = useI18n();
   const { user } = useAuth();
@@ -168,6 +206,28 @@ export default function Jobs() {
         stats[c.job_id].applicants++;
         if (["مقابلة تقنية", "مقابلة نهائية", "العرض الوظيفي"].includes(c.stage || "")) stats[c.job_id].interviewed++;
         if (c.status === "مقبول" || c.status === "مكتمل") stats[c.job_id].hired++;
+      }
+    });
+    return stats;
+  }, [allJobs, allCandidates]);
+
+  const jobPipelineStats = useMemo(() => {
+    const stats: Record<string, { screening: number; interviewing: number; offered: number; hired: number }> = {};
+    allJobs.forEach(j => { stats[j.id] = { screening: 0, interviewing: 0, offered: 0, hired: 0 }; });
+    allCandidates.forEach(c => {
+      if (c.job_id && stats[c.job_id]) {
+        const stage = c.stage || "";
+        if (["تقديم", "تصفية", "فحص السيرة الذاتية", "Screening"].includes(stage)) {
+          stats[c.job_id].screening++;
+        } else if (["مقابلة", "مقابلة تقنية", "مقابلة نهائية", "Interview"].some(kw => stage.includes(kw))) {
+          stats[c.job_id].interviewing++;
+        } else if (["العرض", "العرض الوظيفي", "عرض عمل", "Offer"].some(kw => stage.includes(kw))) {
+          stats[c.job_id].offered++;
+        } else if (c.status === "مقبول" || c.status === "مكتمل" || stage.includes("توظيف") || stage.includes("Hired")) {
+          stats[c.job_id].hired++;
+        } else {
+          stats[c.job_id].screening++;
+        }
       }
     });
     return stats;
@@ -488,21 +548,55 @@ export default function Jobs() {
                       <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-primary/50" /><span>{job.location}</span></div>
                       <div className="flex items-center gap-2"><Clock className="w-3.5 h-3.5 text-primary/50" /><span>{job.type}</span></div>
                       {job.salary_min && job.salary_max && (
-                        <div className="flex items-center gap-2">
-                          <TrendingUp className="w-3.5 h-3.5 text-primary/50" />
-                          <span className="flex items-center gap-1">{job.salary_min.toLocaleString()} - {job.salary_max.toLocaleString()} <SARSymbol className="w-4 h-4 inline-block" /></span>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <TrendingUp className="w-3.5 h-3.5 text-primary/50" />
+                            <span className="flex items-center gap-1 font-medium">{job.salary_min.toLocaleString()} - {job.salary_max.toLocaleString()} <SARSymbol className="w-4 h-4 inline-block" /></span>
+                          </div>
+                          {(() => {
+                            const comp = getSalaryComparison(Number(job.salary_min), Number(job.salary_max), job.department);
+                            return (
+                              <span className={`inline-flex items-center text-[10px] px-2.5 py-0.5 rounded-full border ${comp.color} font-medium mt-0.5`}>
+                                {comp.label}
+                              </span>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
 
-                    {/* Per-job stats */}
-                    {jobStats[job.id] && (
-                      <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border/30">
-                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><UsersIcon className="w-3 h-3" />{jobStats[job.id].applicants} {t("jobs.applicants", "متقدم")}</span>
-                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><Calendar className="w-3 h-3" />{jobStats[job.id].interviewed} {t("jobs.interviewed", "مقابلة")}</span>
-                        <span className="flex items-center gap-1 text-[11px] text-success"><UserCheck className="w-3 h-3" />{jobStats[job.id].hired} {t("jobs.hiredCount", "تم توظيفه")}</span>
-                      </div>
-                    )}
+                    {/* Pipeline Mini Preview */}
+                    {(() => {
+                      const pstats = jobPipelineStats[job.id] || { screening: 0, interviewing: 0, offered: 0, hired: 0 };
+                      const total = pstats.screening + pstats.interviewing + pstats.offered + pstats.hired;
+                      return (
+                        <div className="mt-4 pt-3 border-t border-border/30 space-y-2">
+                          <div className="flex justify-between text-[11px] font-semibold text-foreground">
+                            <span>مسار التوظيف الحالي</span>
+                            <span className="text-muted-foreground">{total} متقدم</span>
+                          </div>
+                          {total > 0 ? (
+                            <div className="space-y-2">
+                              {/* Stacked Progress Bar */}
+                              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden flex">
+                                {pstats.screening > 0 && <div className="h-full bg-blue-500 transition-all" style={{ width: `${(pstats.screening / total) * 100}%` }} title={`تصفية: ${pstats.screening}`} />}
+                                {pstats.interviewing > 0 && <div className="h-full bg-amber-500 transition-all" style={{ width: `${(pstats.interviewing / total) * 100}%` }} title={`مقابلات: ${pstats.interviewing}`} />}
+                                {pstats.offered > 0 && <div className="h-full bg-purple-500 transition-all" style={{ width: `${(pstats.offered / total) * 100}%` }} title={`عروض: ${pstats.offered}`} />}
+                                {pstats.hired > 0 && <div className="h-full bg-emerald-500 transition-all" style={{ width: `${(pstats.hired / total) * 100}%` }} title={`تم توظيفه: ${pstats.hired}`} />}
+                              </div>
+                              <div className="grid grid-cols-4 text-[9px] text-muted-foreground font-medium pt-0.5 text-center gap-0.5">
+                                <span className="flex items-center justify-center gap-0.5 truncate" title={`فحص (${pstats.screening})`}><span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />فحص ({pstats.screening})</span>
+                                <span className="flex items-center justify-center gap-0.5 truncate" title={`مقابلة (${pstats.interviewing})`}><span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />مقابلة ({pstats.interviewing})</span>
+                                <span className="flex items-center justify-center gap-0.5 truncate" title={`عروض (${pstats.offered})`}><span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />عروض ({pstats.offered})</span>
+                                <span className="flex items-center justify-center gap-0.5 truncate" title={`توظيف (${pstats.hired})`}><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 text-emerald-600 font-semibold" />توظيف ({pstats.hired})</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-muted-foreground italic text-center py-1">لا يوجد متقدمين نشطين حالياً</div>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between">
                       <Link to={`/jobs/${job.id}`} className="text-xs text-primary font-medium hover:underline">{t("jobs.viewDetails")} ←</Link>
@@ -579,9 +673,9 @@ export default function Jobs() {
               </span>
               <span className="col-span-2">{t("jobs.department")}</span>
               <span className="col-span-2">{t("jobs.location")}</span>
-              <span className="col-span-1">{t("jobs.type")}</span>
+              <span className="col-span-2">مسار التوظيف</span>
               <span className="col-span-1">{t("jobs.status")}</span>
-              <span className="col-span-3 text-center">{t("common.actions")}</span>
+              <span className="col-span-2 text-center">{t("common.actions")}</span>
             </div>
             <AnimatePresence>
               {visibleJobs.map((job) => (
@@ -598,11 +692,41 @@ export default function Jobs() {
                       <div>
                         <Link to={`/jobs/${job.id}`} className="font-semibold text-sm text-foreground hover:text-primary transition-colors">{job.title}</Link>
                         <p className="text-xs text-muted-foreground mt-0.5">{formatDate(job.created_at)}</p>
+                        {job.salary_min && job.salary_max && (
+                          <div className="mt-1">
+                            {(() => {
+                              const comp = getSalaryComparison(Number(job.salary_min), Number(job.salary_max), job.department);
+                              return (
+                                <span className={`inline-flex items-center text-[9px] px-2 py-0.5 rounded-full border ${comp.color} font-medium`}>
+                                  {comp.label}
+                                </span>
+                              );
+                            })()}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="sm:col-span-2 text-sm text-muted-foreground">{job.department}</div>
                     <div className="sm:col-span-2 text-sm text-muted-foreground">{job.location}</div>
-                    <div className="sm:col-span-1 text-xs text-muted-foreground">{job.type}</div>
+                    <div className="sm:col-span-2 flex flex-col gap-1 pr-2">
+                      {(() => {
+                        const pstats = jobPipelineStats[job.id] || { screening: 0, interviewing: 0, offered: 0, hired: 0 };
+                        const total = pstats.screening + pstats.interviewing + pstats.offered + pstats.hired;
+                        return total > 0 ? (
+                          <div className="w-full space-y-1">
+                            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden flex">
+                              {pstats.screening > 0 && <div className="h-full bg-blue-500" style={{ width: `${(pstats.screening / total) * 100}%` }} title={`تصفية: ${pstats.screening}`} />}
+                              {pstats.interviewing > 0 && <div className="h-full bg-amber-500" style={{ width: `${(pstats.interviewing / total) * 100}%` }} title={`مقابلات: ${pstats.interviewing}`} />}
+                              {pstats.offered > 0 && <div className="h-full bg-purple-500" style={{ width: `${(pstats.offered / total) * 100}%` }} title={`عروض: ${pstats.offered}`} />}
+                              {pstats.hired > 0 && <div className="h-full bg-emerald-500" style={{ width: `${(pstats.hired / total) * 100}%` }} title={`توظيف: ${pstats.hired}`} />}
+                            </div>
+                            <span className="text-[10px] text-muted-foreground font-semibold block">{total} متقدم</span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground/60 italic">لا يوجد متقدمين</span>
+                        );
+                      })()}
+                    </div>
                     <div className="sm:col-span-1">
                       <Badge variant="outline" className={`text-[10px] ${
                         job.status === "نشطة" ? "bg-success/10 text-success border-success/20" :
@@ -610,8 +734,8 @@ export default function Jobs() {
                         "bg-muted text-muted-foreground"
                       }`}>{job.status}</Badge>
                     </div>
-                    <div className="sm:col-span-3 flex items-center justify-center gap-1.5">
-                      <Link to={`/jobs/${job.id}`}><Button variant="ghost" size="sm" className="text-xs h-8">{t("jobs.viewDetails")}</Button></Link>
+                    <div className="sm:col-span-2 flex items-center justify-center gap-1.5 flex-wrap">
+                      <Link to={`/jobs/${job.id}`}><Button variant="ghost" size="sm" className="text-xs h-8 px-2">{t("jobs.viewDetails")}</Button></Link>
                       <button onClick={() => setShareDialog({ open: true, jobTitle: job.title, jobId: job.id, isNew: false })} className="text-muted-foreground hover:text-primary p-1.5 rounded-lg hover:bg-primary/5 transition-colors" title={t("jobs.share")}><Share2 className="w-3.5 h-3.5" /></button>
                       <button onClick={() => handleQuickQR(job)} className="text-muted-foreground hover:text-primary p-1.5 rounded-lg hover:bg-primary/5 transition-colors" title="تحميل QR"><QrCode className="w-3.5 h-3.5" /></button>
                       <button onClick={() => handleDuplicate(job)} className="text-muted-foreground hover:text-primary p-1.5 rounded-lg hover:bg-primary/5 transition-colors" title={t("jobs.duplicate")}><Copy className="w-3.5 h-3.5" /></button>

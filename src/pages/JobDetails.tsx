@@ -4,7 +4,8 @@ import AddJobDialog from "@/components/AddJobDialog";
 import { useUpdateJob } from "@/hooks/useJobs";
 import SARSymbol from "@/components/SARSymbol";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Briefcase, MapPin, Clock, Users, Calendar, DollarSign, Star, ChevronLeft, Share2, Edit, ExternalLink, ArrowLeft, Eye, Phone, Mail, Trash2, QrCode, Linkedin, Brain, Loader2, ClipboardCheck, Copy, Check, BarChart3, Link2 } from "lucide-react";
+import { Briefcase, MapPin, Clock, Users, Calendar, DollarSign, Star, ChevronLeft, Share2, Edit, ExternalLink, ArrowLeft, Eye, Phone, Mail, Trash2, QrCode, Linkedin, Brain, Loader2, ClipboardCheck, Copy, Check, BarChart3, Link2, Sparkles, UserPlus } from "lucide-react";
+import confetti from "canvas-confetti";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -154,6 +155,82 @@ export default function JobDetails() {
     }
   };
 
+  // AI Candidates recommendation states & mutations
+  const [recs, setRecs] = useState<any[]>([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
+  const [recExpandedQuery, setRecExpandedQuery] = useState("");
+  const [hasSearchedRecs, setHasSearchedRecs] = useState(false);
+
+  const fetchRecommendations = async () => {
+    if (!id || !job) return;
+    setLoadingRecs(true);
+    setRecs([]);
+    setHasSearchedRecs(true);
+    try {
+      const searchQuery = `${job.title} ${job.description || ""} ${(job.requirements || []).join(" ")}`;
+      const { data, error } = await supabase.functions.invoke("semantic-search-candidates", {
+        body: { query: searchQuery.trim(), limit: 15 },
+      });
+      if (error) throw error;
+      
+      // Filter out candidates already assigned to this job
+      const filtered = (data?.results || []).filter((c: any) => c.job_id !== id);
+      setRecs(filtered);
+      setRecExpandedQuery(data?.query_expansion || "");
+    } catch (e: any) {
+      toast({ title: "فشل تحميل التوصيات", description: e.message, variant: "destructive" });
+    } finally {
+      setLoadingRecs(false);
+    }
+  };
+
+  const assignCandidateMutation = useMutation({
+    mutationFn: async ({ candidateId, candidateName }: { candidateId: string; candidateName: string }) => {
+      let firstStage = "تقديم الطلب";
+      try {
+        const { data: stages } = await supabase
+          .from("pipeline_stages")
+          .select("name")
+          .eq("user_id", user?.id)
+          .order("sort_order", { ascending: true })
+          .limit(1);
+        if (stages && stages.length > 0) {
+          firstStage = stages[0].name;
+        }
+      } catch (err) {
+        console.error("Error fetching first stage:", err);
+      }
+
+      const { error } = await supabase
+        .from("candidates")
+        .update({ job_id: id, stage: firstStage })
+        .eq("id", candidateId);
+
+      if (error) throw error;
+      return { candidateId, candidateName };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["job-assessment-responses"] });
+      
+      confetti({
+        particleCount: 150,
+        spread: 80,
+        origin: { y: 0.6 }
+      });
+
+      toast({
+        title: `تم ربط المرشح بنجاح 🎉`,
+        description: `تم تعيين ${data.candidateName} للوظيفة بنجاح ونقله للمرحلة الأولى.`,
+      });
+
+      setRecs(prev => prev.filter(c => c.id !== data.candidateId));
+    },
+    onError: (e: any) => {
+      toast({ title: "فشل ربط المرشح", description: e.message, variant: "destructive" });
+    },
+  });
+
   // Get candidates linked to this job
   const jobCandidates = (allCandidates || []).filter(c => c.job_id === id);
 
@@ -289,8 +366,9 @@ export default function JobDetails() {
             <TabsList className="bg-muted/70 backdrop-blur-sm">
               <TabsTrigger value="candidates">المرشحون ({jobCandidates.length})</TabsTrigger>
               <TabsTrigger value="applications">الطلبات ({(applications || []).length})</TabsTrigger>
-              <TabsTrigger value="assessments">
-                الاختبارات ({jobAssessments.length})
+              <TabsTrigger value="assessments">الاختبارات ({jobAssessments.length})</TabsTrigger>
+              <TabsTrigger value="recommendations" className="gap-1 flex items-center">
+                توصيات المطابقة <Sparkles className="w-3.5 h-3.5 text-primary animate-pulse" />
               </TabsTrigger>
               <TabsTrigger value="details">تفاصيل الوظيفة</TabsTrigger>
             </TabsList>
@@ -575,6 +653,140 @@ export default function JobDetails() {
                 </div>
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="recommendations" className="space-y-4 mt-4">
+            <Card className="border-0 bg-gradient-to-r from-primary/5 to-accent/5 overflow-hidden">
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                      <Sparkles className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-display font-bold text-sm text-foreground">توصيات المطابقة الذكية بالذكاء الاصطناعي 🧠</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                        يقوم محرك المطابقة بمسح كامل قاعدة بيانات المرشحين ومقارنتها بمتطلبات المسمى الوظيفي والمهارات والوصف الوظيفي لترشيح أفضل الكفاءات.
+                      </p>
+                    </div>
+                  </div>
+                  <Button onClick={fetchRecommendations} disabled={loadingRecs} className="gap-2 shrink-0">
+                    {loadingRecs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                    {hasSearchedRecs ? "إعادة فحص ومطابقة قاعدة البيانات" : "البحث والمطابقة في قاعدة البيانات"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {loadingRecs ? (
+              <div className="text-center py-20 bg-muted/20 rounded-2xl border border-border/30">
+                <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
+                <p className="text-sm font-medium text-foreground">جاري مسح قاعدة بيانات المرشحين...</p>
+                <p className="text-xs text-muted-foreground mt-1">يتم الآن تحليل المهارات والخبرات ومطابقتها دلالياً</p>
+              </div>
+            ) : hasSearchedRecs && recs.length === 0 ? (
+              <Card className="border-border/40 py-16 text-center">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+                  <Users className="w-8 h-8 text-muted-foreground/30" />
+                </div>
+                <h4 className="font-semibold text-sm mb-1">لا توجد توصيات مطابقة إضافية</h4>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  جميع المرشحين المتوافقين في قاعدة البيانات تم تعيينهم بالفعل لهذه الوظيفة أو لا يوجد تطابق كافٍ.
+                </p>
+              </Card>
+            ) : recs.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {recs.map((c, idx) => {
+                  const scorePercent = Math.round(c._score * 100);
+                  const isExcellent = scorePercent >= 80;
+                  const isGood = scorePercent >= 60;
+                  const scoreColor = isExcellent 
+                    ? "text-success border-success/30 bg-success/5" 
+                    : isGood 
+                      ? "text-warning border-warning/30 bg-warning/5" 
+                      : "text-muted-foreground border-border bg-muted/5";
+
+                  return (
+                    <motion.div
+                      key={c.id}
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className="glass-card border border-border/40 rounded-2xl p-5 hover:shadow-lg transition-all group flex flex-col justify-between"
+                    >
+                      <div>
+                        {/* Header: Avatar, Name, Score */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-11 h-11 border border-border/50">
+                              <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+                                {c.name.split(" ").map((n: any) => n[0]).slice(0, 2).join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <Link to={`/candidates/${c.id}`} target="_blank" className="font-bold text-sm hover:text-primary transition-colors block">
+                                {c.name}
+                              </Link>
+                              <p className="text-xs text-muted-foreground mt-0.5">{c.role || "بدون مسمى وظيفي"}</p>
+                            </div>
+                          </div>
+
+                          <div className={cn("flex flex-col items-center justify-center w-12 h-12 rounded-xl border text-center shrink-0 font-display font-bold text-sm", scoreColor)}>
+                            <span>{scorePercent}%</span>
+                            <span className="text-[8px] font-normal leading-none">تطابق</span>
+                          </div>
+                        </div>
+
+                        {/* Location / Experience badges */}
+                        <div className="flex flex-wrap gap-2 mt-4">
+                          {c.location && <Badge variant="secondary" className="text-[10px] gap-1"><MapPin className="w-3 h-3 text-muted-foreground" />{c.location}</Badge>}
+                          {c.experience && <Badge variant="secondary" className="text-[10px] gap-1"><Clock className="w-3 h-3 text-muted-foreground" />{c.experience}</Badge>}
+                        </div>
+
+                        {/* Matched Keywords & Skills */}
+                        {c._matched && c._matched.length > 0 && (
+                          <div className="mt-4">
+                            <p className="text-[10px] font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
+                              <Check className="w-3.5 h-3.5 text-success" /> مهارات مطابقة:
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              {c._matched.map((term: string) => (
+                                <Badge key={term} variant="outline" className="text-[9px] px-1.5 py-0.5 border-success/30 text-success bg-success/5">
+                                  {term}
+                                </Badge>
+                              ))}
+                              {c.skills?.filter((s: string) => !c._matched.includes(s.toLowerCase())).slice(0, 3).map((s: string) => (
+                                <Badge key={s} variant="outline" className="text-[9px] px-1.5 py-0.5 border-border text-muted-foreground">
+                                  {s}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-2 mt-6 pt-4 border-t border-border/50">
+                        <Button
+                          size="sm"
+                          className="flex-1 text-xs gap-1.5 h-9"
+                          onClick={() => assignCandidateMutation.mutate({ candidateId: c.id, candidateName: c.name })}
+                          disabled={assignCandidateMutation.isPending}
+                        >
+                          {assignCandidateMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
+                          ربط ووظف بالشركة
+                        </Button>
+                        <Link to={`/candidates/${c.id}`} target="_blank" className="flex-1">
+                          <Button size="sm" variant="outline" className="w-full text-xs gap-1 h-9">
+                            <Eye className="w-3.5 h-3.5" /> مراجعة السيرة
+                          </Button>
+                        </Link>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            ) : null}
           </TabsContent>
 
           <TabsContent value="details" className="mt-4 space-y-6">

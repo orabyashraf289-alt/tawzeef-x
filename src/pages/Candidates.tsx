@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Search, Mail, Phone, Star, UserPlus, Users, UserCheck, UserX, Brain, Sparkles, GitCompareArrows, X, Filter, ArrowUpDown, CheckSquare, Trash2, ArrowRight, Archive, Download, LayoutGrid, List } from "lucide-react";
+import { Search, Mail, Phone, Star, UserPlus, Users, UserCheck, UserX, Brain, Sparkles, GitCompareArrows, X, Filter, ArrowUpDown, CheckSquare, Trash2, ArrowRight, Archive, Download, LayoutGrid, List, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -160,6 +160,8 @@ export default function Candidates() {
   const [showCompare, setShowCompare] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [selectedCandidateForAiSummary, setSelectedCandidateForAiSummary] = useState<any | null>(null);
+  const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
 
   const runAutoScreening = async (silent = false) => {
     if (autoScreeningRunning || !candidates?.length) return;
@@ -246,7 +248,14 @@ export default function Candidates() {
     // 2. Apply standard filters
     base = base.filter(c => {
       const q = search.trim();
-      const matchSearch = !q || c.name.includes(q) || (c.role || "").includes(q) || (c.email || "").includes(q);
+      const matchSearch = !q || 
+        c.name.toLowerCase().includes(q.toLowerCase()) || 
+        (c.role || "").toLowerCase().includes(q.toLowerCase()) || 
+        (c.email || "").toLowerCase().includes(q.toLowerCase()) ||
+        (c.experience || "").toLowerCase().includes(q.toLowerCase()) ||
+        (c.education || "").toLowerCase().includes(q.toLowerCase()) ||
+        (c.source || "").toLowerCase().includes(q.toLowerCase()) ||
+        (c.skills || []).some((s: string) => s.toLowerCase().includes(q.toLowerCase()));
       const matchStatus = statusFilter === "all" || c.status === statusFilter;
       const matchJob = jobFilter === "all" || c.job_id === jobFilter;
       const matchStage = stageFilter === "all" || c.stage === stageFilter;
@@ -680,14 +689,26 @@ export default function Candidates() {
                       <span className="text-xs text-muted-foreground hidden sm:block min-w-[100px]">{c.role}</span>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${statusStyles[c.status] || "bg-muted text-muted-foreground border-border"}`}>{c.status}</span>
                       {c.stage && <span className="text-[10px] text-muted-foreground hidden md:block">{c.stage}</span>}
-                      {(c as any).ai_score != null && (
-                        <span className={cn("flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border",
-                          (c as any).ai_score >= 80 ? "bg-success/10 text-success border-success/20" :
-                          (c as any).ai_score >= 50 ? "bg-warning/10 text-warning border-warning/20" :
-                          "bg-destructive/10 text-destructive border-destructive/20"
-                        )}>
-                          <Brain className="w-3 h-3" />{(c as any).ai_score}%
-                        </span>
+                      {(c as any).ai_score != null ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setSelectedCandidateForAiSummary(c); }}
+                          className={cn("flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors hover:opacity-85",
+                            (c as any).ai_score >= 80 ? "bg-success/10 text-success border-success/20" :
+                            (c as any).ai_score >= 50 ? "bg-warning/10 text-warning border-warning/20" :
+                            "bg-destructive/10 text-destructive border-destructive/20"
+                          )}
+                          title="عرض ملخص الذكاء الاصطناعي"
+                        >
+                          <Brain className="w-3 h-3 text-primary" />{(c as any).ai_score}%
+                        </button>
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setSelectedCandidateForAiSummary(c); }}
+                          className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium border border-border/80 text-muted-foreground hover:bg-primary/5 hover:text-primary transition-colors"
+                          title="فرز بالذكاء الاصطناعي"
+                        >
+                          <Brain className="w-3 h-3" />—
+                        </button>
                       )}
                       <div className="flex items-center gap-0.5 mr-auto">
                         {Array.from({ length: 5 }).map((_, i) => (
@@ -765,16 +786,29 @@ export default function Candidates() {
                           <span className={`px-2 py-0.5 rounded-md text-[11px] font-medium border ${statusStyles[c.status] || "bg-muted text-muted-foreground border-border"}`}>
                             {c.status}
                           </span>
-                          {(c as any).ai_score != null && (
-                            <span className={cn(
-                              "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold border",
-                              (c as any).ai_score >= 80 ? "bg-success/10 text-success border-success/20" :
-                              (c as any).ai_score >= 50 ? "bg-warning/10 text-warning border-warning/20" :
-                              "bg-destructive/10 text-destructive border-destructive/20"
-                            )}>
-                              <Brain className="w-3 h-3" />
+                          {(c as any).ai_score != null ? (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedCandidateForAiSummary(c); }}
+                              className={cn(
+                                "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold border transition-colors hover:opacity-85",
+                                (c as any).ai_score >= 80 ? "bg-success/10 text-success border-success/20" :
+                                (c as any).ai_score >= 50 ? "bg-warning/10 text-warning border-warning/20" :
+                                "bg-destructive/10 text-destructive border-destructive/20"
+                              )}
+                              title="عرض ملخص الذكاء الاصطناعي"
+                            >
+                              <Brain className="w-3 h-3 text-primary" />
                               {(c as any).ai_score}%
-                            </span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedCandidateForAiSummary(c); }}
+                              className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium border border-border/80 text-muted-foreground hover:bg-primary/5 hover:text-primary transition-colors"
+                              title="فرز بالذكاء الاصطناعي"
+                            >
+                              <Brain className="w-3 h-3" />
+                              —
+                            </button>
                           )}
                         </div>
                         <div className="flex gap-1.5">
@@ -819,6 +853,204 @@ export default function Candidates() {
       {showCompare && compareList.length >= 2 && (
         <CompareDialog candidates={compareList} onClose={() => setShowCompare(false)} />
       )}
+
+      {/* AI CV Summary Side Sheet */}
+      <AnimatePresence>
+        {selectedCandidateForAiSummary && (
+          <div className="fixed inset-0 z-50 flex justify-end" dir="rtl">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
+              onClick={() => setSelectedCandidateForAiSummary(null)}
+            />
+            {/* Drawer */}
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative bg-card w-full max-w-md h-full shadow-2xl p-6 overflow-y-auto border-r border-border flex flex-col z-10"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-border mb-5">
+                <div className="flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-primary" />
+                  <h3 className="font-display font-bold text-base">تحليل السيرة الذاتية بالذكاء الاصطناعي</h3>
+                </div>
+                <button
+                  onClick={() => setSelectedCandidateForAiSummary(null)}
+                  className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Candidate Quick Stats */}
+              <div className="bg-muted/30 rounded-xl p-4 border border-border/40 mb-5">
+                <h4 className="font-bold text-sm text-foreground mb-1">{selectedCandidateForAiSummary.name}</h4>
+                <p className="text-xs text-muted-foreground mb-2">{selectedCandidateForAiSummary.role}</p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 flex-wrap">
+                  <span>الخبرة: {selectedCandidateForAiSummary.experience || "غير حددة"}</span>
+                  <span>•</span>
+                  <span>المرحلة: {selectedCandidateForAiSummary.stage || "غير محددة"}</span>
+                </div>
+              </div>
+
+              {/* AI Score Section */}
+              {selectedCandidateForAiSummary.ai_score != null ? (
+                (() => {
+                  let evalData: any = null;
+                  if (selectedCandidateForAiSummary.ai_evaluation) {
+                    try {
+                      evalData = JSON.parse(selectedCandidateForAiSummary.ai_evaluation);
+                    } catch {
+                      evalData = { summary: selectedCandidateForAiSummary.ai_evaluation };
+                    }
+                  }
+                  
+                  return (
+                    <div className="space-y-5 flex-1">
+                      {/* Score circle */}
+                      <div className="text-center py-4 bg-primary/[0.02] border border-primary/5 rounded-xl">
+                        <div className={cn("text-5xl font-black tracking-tight", 
+                          selectedCandidateForAiSummary.ai_score >= 80 ? "text-green-600 dark:text-green-400" :
+                          selectedCandidateForAiSummary.ai_score >= 50 ? "text-amber-600 dark:text-amber-400" :
+                          "text-destructive"
+                        )}>
+                          {selectedCandidateForAiSummary.ai_score}%
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-1.5 font-medium">نسبة توافق المؤهلات مع الوظيفة</p>
+                        
+                        {evalData?.recommendation && (
+                          <div className="mt-3">
+                            <span className={cn("px-3 py-1 rounded-full text-xs font-bold border",
+                              evalData.recommendation === "مناسب جداً" ? "bg-green-500/10 text-green-700 border-green-200 dark:text-green-400 dark:border-green-500/20" :
+                              evalData.recommendation === "مناسب" ? "bg-blue-500/10 text-blue-700 border-blue-200 dark:text-blue-400 dark:border-blue-500/20" :
+                              evalData.recommendation === "يحتاج تطوير" ? "bg-amber-500/10 text-amber-700 border-amber-200 dark:text-amber-400 dark:border-amber-500/20" :
+                              "bg-red-500/10 text-red-700 border-red-200 dark:text-red-400 dark:border-red-500/20"
+                            )}>
+                              {evalData.recommendation}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Summary */}
+                      {evalData?.summary && (
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-bold text-foreground">الملخص التنفيذي للتقييم:</h4>
+                          <p className="text-xs text-muted-foreground leading-relaxed bg-muted/20 p-3 rounded-lg border border-border/30">
+                            {evalData.summary}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Strengths */}
+                      {evalData?.strengths && evalData.strengths.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-bold text-green-600 dark:text-green-400 flex items-center gap-1">
+                            <TrendingUp className="w-3.5 h-3.5" />نقاط القوة والميزات التنافسية:
+                          </h4>
+                          <ul className="space-y-1.5 bg-green-500/[0.02] border border-green-500/10 rounded-xl p-3">
+                            {evalData.strengths.map((str: string, idx: number) => (
+                              <li key={idx} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0" />
+                                <span>{str}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Weaknesses */}
+                      {evalData?.weaknesses && evalData.weaknesses.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                            <TrendingDown className="w-3.5 h-3.5" />نقاط التحسين والفجوات:
+                          </h4>
+                          <ul className="space-y-1.5 bg-amber-500/[0.02] border border-amber-500/10 rounded-xl p-3">
+                            {evalData.weaknesses.map((weak: string, idx: number) => (
+                              <li key={idx} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                                <span>{weak}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center">
+                    <Sparkles className="w-8 h-8 text-primary/40" />
+                  </div>
+                  <h4 className="font-semibold text-sm">لم يتم تشغيل التقييم الذكي بعد</h4>
+                  <p className="text-xs text-muted-foreground max-w-xs">
+                    اضغط على الزر أدناه لتشغيل الفرز والتحليل الذكي لاستخراج نقاط السيرة الذاتية ونسبة التوافق.
+                  </p>
+                  <Button 
+                    onClick={async () => {
+                      setAiSummaryLoading(true);
+                      try {
+                        const resp = await fetch(EVAL_URL, {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                          },
+                          body: JSON.stringify({ candidateId: selectedCandidateForAiSummary.id, jobId: selectedCandidateForAiSummary.job_id }),
+                        });
+                        
+                        if (!resp.ok) {
+                          const err = await resp.json();
+                          throw new Error(err.error || "فشل التقييم");
+                        }
+                        
+                        const evalResult = await resp.json();
+                        
+                        // Update local state
+                        setSelectedCandidateForAiSummary((prev: any) => ({
+                          ...prev,
+                          ai_score: evalResult.score,
+                          ai_evaluation: JSON.stringify(evalResult)
+                        }));
+                        
+                        // Refetch list queries
+                        queryClient.invalidateQueries({ queryKey: ["candidates"] });
+                        toast({ title: "تم التقييم بنجاح ✅" });
+                      } catch (err: any) {
+                        toast({ title: "خطأ", description: err.message, variant: "destructive" });
+                      } finally {
+                        setAiSummaryLoading(false);
+                      }
+                    }}
+                    disabled={aiSummaryLoading}
+                    className="w-full bg-gradient-to-l from-primary to-primary/80 text-primary-foreground"
+                  >
+                    {aiSummaryLoading ? (
+                      <><Loader2 className="w-4 h-4 animate-spin ml-1" />جاري التقييم...</>
+                    ) : (
+                      <><Sparkles className="w-4 h-4 ml-1" />بدء التقييم بالذكاء الاصطناعي</>
+                    )}
+                  </Button>
+                </div>
+              )}
+              
+              {/* Profile Link in Drawer */}
+              <div className="pt-4 border-t border-border mt-auto">
+                <Link to={`/candidates/${selectedCandidateForAiSummary.id}`}>
+                  <Button variant="outline" className="w-full text-xs">عرض الملف الشخصي الكامل ←</Button>
+                </Link>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 }

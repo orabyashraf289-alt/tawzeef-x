@@ -51,12 +51,20 @@ import {
   X,
   Pencil,
   Download,
-  Undo2
+  Undo2,
+  Sparkles,
+  TrendingUp,
+  TrendingDown,
+  ThumbsUp,
+  AlertTriangle,
+  Lightbulb,
+  Loader2
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useI18n } from "@/contexts/I18nContext";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function OffersPage() {
   const { t, locale } = useI18n();
@@ -90,6 +98,78 @@ export default function OffersPage() {
     additional_terms: "",
     expires_days: "7",
   });
+
+  const [predictionDialogOpen, setPredictionDialogOpen] = useState(false);
+  const [predicting, setPredicting] = useState(false);
+  const [predictionResult, setPredictionResult] = useState<any>(null);
+  const [activeOfferForPrediction, setActiveOfferForPrediction] = useState<JobOffer | null>(null);
+
+  const handlePredictAcceptance = async (offer: JobOffer) => {
+    setActiveOfferForPrediction(offer);
+    setPredictionDialogOpen(true);
+    setPredicting(true);
+    setPredictionResult(null);
+
+    const candidate = candidates?.find(c => c.id === offer.candidate_id);
+
+    try {
+      const prompt = `
+أنت خبير توظيف ومستشار موارد بشرية ذكي ومحترف في السوق السعودي.
+قم بتحليل العرض الوظيفي التالي المقدم للمرشح ومقارنته بملفه الشخصي وتنافسية الراتب في السوق السعودي.
+
+تفاصيل الوظيفة والعرض:
+- المسمى الوظيفي: ${offer.position}
+- القسم: ${offer.department || "غير محدد"}
+- الراتب الإجمالي: ${offer.salary} ${offer.currency}
+- البدلات والشروط الإضافية: ${offer.additional_terms || "غير محددة"}
+- المزايا: ${offer.benefits?.join(", ") || "غير محددة"}
+
+ملف المرشح:
+- الاسم: ${candidate?.name || "غير معروف"}
+- المهارات والخبرة: ${candidate?.experience || "غير متوفرة"}
+- التقييم لمطابقة الوظيفة (AI Match Score): ${candidate?.ai_score || "غير متوفرة"}
+
+قم بتوليد تقرير شامل باللغة العربية بصيغة JSON تحتوي على الحقول التالية فقط بداخل كود بلوك \`\`\`json:
+- score: نسبة احتمال قبول العرض من المرشح (عدد صحيح من 0 إلى 100)
+- rationale: مبرر التقييم باختصار (جملة أو جملتين باللغة العربية)
+- attractions: مصفوفة سلاسل نصية (strings) تحتوي على 3 نقاط قوة تجعل العرض جذاباً للمرشح
+- risks: مصفوفة سلاسل نصية (strings) تحتوي على نقطتين أو ثلاث تشكل خطراً لرفض العرض
+- tips: مصفوفة سلاسل نصية (strings) تحتوي على 3 توصيات عملية لصاحب العمل لتحسين احتمالية قبول العرض أو التفاوض
+`;
+
+      const { data, error } = await supabase.functions.invoke("chat", {
+        body: {
+          messages: [
+            {
+              role: "system",
+              content: "أنت مستشار توظيف خبير بالسوق السعودي. يجب أن تعود النتيجة دائماً بصيغة JSON نظيفة فقط بداخل كود بلوك \`\`\`json"
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          disable_tools: true,
+          stream: false
+        }
+      });
+
+      if (error) throw error;
+      const contentText = data?.choices?.[0]?.message?.content || "";
+      if (!contentText) throw new Error("لم يتم تلقي استجابة من الذكاء الاصطناعي");
+
+      const match = contentText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      const rawJson = match ? match[1] : contentText;
+      const parsed = JSON.parse(rawJson);
+      setPredictionResult(parsed);
+    } catch (err: any) {
+      console.error(err);
+      toast({ title: "فشل توليد التنبؤ بالقبول", description: err.message, variant: "destructive" });
+      setPredictionDialogOpen(false);
+    } finally {
+      setPredicting(false);
+    }
+  };
 
   const totalSalary = salaryBreakdown
     ? (parseFloat(baseSalary) || 0) + allowances.reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0)
@@ -830,6 +910,15 @@ export default function OffersPage() {
                             <Undo2 className="w-4 h-4" />
                           </Button>
                         )}
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="text-primary hover:text-primary/80"
+                          onClick={() => handlePredictAcceptance(offer)}
+                          title="التنبؤ بالقبول بالذكاء الاصطناعي"
+                        >
+                          <Sparkles className="w-4 h-4 animate-pulse" />
+                        </Button>
                         {offer.status !== "accepted" && offer.status !== "rejected" && (
                           <Button
                             size="icon"
@@ -1016,6 +1105,124 @@ export default function OffersPage() {
                 {updateOffer.isPending ? "جاري الحفظ..." : "حفظ التعديلات"}
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* AI Acceptance Predictor Dialog */}
+        <Dialog open={predictionDialogOpen} onOpenChange={setPredictionDialogOpen}>
+          <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto bg-card" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-xl font-black">
+                <Sparkles className="w-6 h-6 text-primary animate-pulse shrink-0" />
+                <span>تحليل وتنبؤ قبول العرض بالذكاء الاصطناعي</span>
+              </DialogTitle>
+            </DialogHeader>
+
+            {predicting ? (
+              <div className="flex flex-col items-center justify-center p-12 space-y-4">
+                <div className="relative w-16 h-16">
+                  <Sparkles className="w-8 h-8 text-primary mx-auto absolute inset-0 m-auto animate-bounce" />
+                  <Loader2 className="w-16 h-16 text-primary/30 animate-spin absolute inset-0" />
+                </div>
+                <div className="text-center">
+                  <p className="font-bold text-foreground">جاري دراسة ملف المرشح ومقارنة العرض...</p>
+                  <p className="text-xs text-muted-foreground mt-1">يقوم الذكاء الاصطناعي بتحليل الرواتب والبدلات والمطابقة مع متطلبات السوق السعودي.</p>
+                </div>
+              </div>
+            ) : predictionResult ? (
+              <div className="space-y-5 py-2">
+                {/* Acceptance Score Section */}
+                <div className="bg-primary/5 rounded-2xl p-5 border border-primary/10 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-right">
+                  <div className="relative w-24 h-24 flex items-center justify-center shrink-0">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r="40"
+                        className="stroke-muted fill-none"
+                        strokeWidth="8"
+                      />
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r="40"
+                        className={cn(
+                          "fill-none stroke-current transition-all duration-1000",
+                          predictionResult.score >= 80 ? "text-green-500" :
+                          predictionResult.score >= 50 ? "text-amber-500" :
+                          "text-destructive"
+                        )}
+                        strokeWidth="8"
+                        strokeDasharray={Math.floor(2 * Math.PI * 40)}
+                        strokeDashoffset={Math.floor(2 * Math.PI * 40 * (1 - predictionResult.score / 100))}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <span className="absolute text-2xl font-black text-foreground">
+                      {predictionResult.score}%
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-extrabold text-foreground">احتمالية قبول العرض</h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {predictionResult.rationale}
+                    </p>
+                  </div>
+                </div>
+
+                {/* attractions & risks */}
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {predictionResult.attractions?.length > 0 && (
+                    <div className="space-y-2">
+                      <h5 className="text-xs font-bold text-green-600 dark:text-green-400 flex items-center gap-1">
+                        <ThumbsUp className="w-4 h-4" />عناصر الجذب بالعرض:
+                      </h5>
+                      <ul className="space-y-1.5 bg-green-500/[0.02] border border-green-500/10 rounded-xl p-3">
+                        {predictionResult.attractions.map((item: string, i: number) => (
+                          <li key={i} className="text-xs text-muted-foreground flex items-start gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {predictionResult.risks?.length > 0 && (
+                    <div className="space-y-2">
+                      <h5 className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                        <AlertTriangle className="w-4 h-4" />نقاط القلق أو الرفض:
+                      </h5>
+                      <ul className="space-y-1.5 bg-amber-500/[0.02] border border-amber-500/10 rounded-xl p-3">
+                        {predictionResult.risks.map((item: string, i: number) => (
+                          <li key={i} className="text-xs text-muted-foreground flex items-start gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Actionable recommendations / tips */}
+                {predictionResult.tips?.length > 0 && (
+                  <div className="space-y-2 pt-1 border-t border-border/40">
+                    <h5 className="text-xs font-bold text-primary flex items-center gap-1">
+                      <Lightbulb className="w-4 h-4" />توصيات لتحسين احتمالية القبول:
+                    </h5>
+                    <ul className="space-y-1.5 bg-primary/[0.02] border border-primary/10 rounded-xl p-3">
+                      {predictionResult.tips.map((item: string, i: number) => (
+                        <li key={i} className="text-xs text-muted-foreground flex items-start gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : null}
           </DialogContent>
         </Dialog>
       </div>

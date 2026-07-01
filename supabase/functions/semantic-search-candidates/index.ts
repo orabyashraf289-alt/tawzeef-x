@@ -94,7 +94,7 @@ serve(async (req) => {
 
     const { data: candidates, error } = await supabase
       .from("candidates")
-      .select("id,name,role,email,phone,skills,experience,education,summary,location,stage,status,ai_score,rating,created_at,embedding,embedding_text")
+      .select("id,name,role,email,phone,skills,experience,education,summary,location,stage,status,ai_score,rating,created_at,embedding,embedding_text,job_id")
       .order("created_at", { ascending: false })
       .limit(500);
 

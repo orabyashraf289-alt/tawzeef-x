@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { InterviewsSkeleton } from "@/components/Skeletons";
 import InterviewCalendar from "@/components/InterviewCalendar";
 import InterviewEvaluationForm from "@/components/InterviewEvaluationForm";
-import { Calendar, Clock, Video, MapPin, User, Star, Plus, CheckCircle, XCircle, ExternalLink, Copy, Check, Link2, FileText, CircleDot, LayoutGrid, List } from "lucide-react";
+import { Calendar, Clock, Video, MapPin, User, Star, Plus, CheckCircle, XCircle, ExternalLink, Copy, Check, Link2, FileText, CircleDot, LayoutGrid, List, Sparkles, TrendingUp, TrendingDown } from "lucide-react";
 import AddToCalendarButton from "@/components/AddToCalendarButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +39,38 @@ const item = fadeUp;
 
 function generateRoomId() {
   return `tawzeef-x-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function parseAIInterviewReport(notes: string | null) {
+  if (!notes || !notes.includes("--- تقييم الذكاء الاصطناعي للمقابلة ---")) return null;
+  
+  try {
+    const recommendation = notes.match(/التوصية:\s*(.*)/)?.[1] || "";
+    const scoreStr = notes.match(/التقييم العام:\s*(\d+)/)?.[1] || "";
+    const score = scoreStr ? parseInt(scoreStr) : null;
+    
+    // Extract sections
+    const summaryMatch = notes.match(/الملخص:\s*\n([\s\S]*?)(?=\n\nنقاط القوة:|$)/);
+    const summary = summaryMatch ? summaryMatch[1].trim() : "";
+    
+    const strengthsMatch = notes.match(/نقاط القوة:\s*\n([\s\S]*?)(?=\n\nنقاط الضعف:|$)/);
+    const strengths = strengthsMatch 
+      ? strengthsMatch[1].split("\n").map(s => s.replace(/^-\s*/, "").trim()).filter(Boolean)
+      : [];
+      
+    const weaknessesMatch = notes.match(/نقاط الضعف:\s*\n([\s\S]*?)(?=\n\nمهارات التواصل:|$)/);
+    const weaknesses = weaknessesMatch 
+      ? weaknessesMatch[1].split("\n").map(s => s.replace(/^-\s*/, "").trim()).filter(Boolean)
+      : [];
+      
+    const communicationMatch = notes.match(/مهارات التواصل:\s*\n([\s\S]*?)$/);
+    const communication = communicationMatch ? communicationMatch[1].trim() : "";
+    
+    return { recommendation, score, summary, strengths, weaknesses, communication };
+  } catch (e) {
+    console.error("Failed to parse AI interview report:", e);
+    return null;
+  }
 }
 
 export default function Interviews() {
@@ -344,12 +376,101 @@ export default function Interviews() {
                       {/* Notes & Transcript */}
                       {(interview.notes || (interview as any).transcript) && (
                         <div className="mt-3 pt-3 border-t border-border/30 space-y-2">
-                          {interview.notes && (
-                            <div className="flex items-start gap-2">
-                              <p className="text-xs text-muted-foreground flex-1">{interview.notes}</p>
-                              <SentimentBadge text={interview.notes} context={`ملاحظات مقابلة لوظيفة ${interview.position}`} />
-                            </div>
-                          )}
+                          {(() => {
+                            const report = parseAIInterviewReport(interview.notes);
+                            if (report) {
+                              return (
+                                <div className="bg-primary/[0.02] border border-primary/10 rounded-xl p-4 space-y-3 mt-2" dir="rtl">
+                                  <div className="flex items-center justify-between border-b border-border/50 pb-2 flex-wrap gap-2">
+                                    <div className="flex items-center gap-1.5">
+                                      <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+                                      <span className="text-xs font-bold text-foreground">تحليل المقابلة الذكي بالذكاء الاصطناعي</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className={cn(
+                                        "px-2.5 py-0.5 rounded-full text-[10px] font-bold border",
+                                        report.recommendation === "مقبول" || report.recommendation.includes("مقبول") ? "bg-green-500/10 text-green-700 border-green-200 dark:text-green-400 dark:border-green-500/20" :
+                                        report.recommendation === "مرفوض" || report.recommendation.includes("مرفوض") ? "bg-red-500/10 text-red-700 border-red-200 dark:text-red-400 dark:border-red-500/20" :
+                                        "bg-amber-500/10 text-amber-700 border-amber-200 dark:text-amber-400 dark:border-amber-500/20"
+                                      )}>
+                                        التوصية: {report.recommendation}
+                                      </span>
+                                      {report.score !== null && (
+                                        <span className={cn(
+                                          "px-2.5 py-0.5 rounded-full text-[10px] font-bold border",
+                                          report.score >= 80 ? "bg-green-500/10 text-green-700 border-green-200 dark:text-green-400 dark:border-green-500/20" :
+                                          report.score >= 50 ? "bg-amber-500/10 text-amber-700 border-amber-200 dark:text-amber-400 dark:border-amber-500/20" :
+                                          "bg-red-500/10 text-red-700 border-red-200 dark:text-red-400"
+                                        )}>
+                                          تقييم الأداء: {report.score}%
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {report.summary && (
+                                    <div className="space-y-1">
+                                      <h5 className="text-[11px] font-bold text-foreground">الملخص التنفيذي:</h5>
+                                      <p className="text-xs text-muted-foreground leading-relaxed bg-muted/20 p-2.5 rounded-lg border border-border/30">
+                                        {report.summary}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  <div className="grid sm:grid-cols-2 gap-3 pt-1">
+                                    {report.strengths.length > 0 && (
+                                      <div className="space-y-1">
+                                        <h5 className="text-[10px] font-bold text-green-600 dark:text-green-400 flex items-center gap-1">
+                                          <TrendingUp className="w-3.5 h-3.5" />نقاط القوة والميزات:
+                                        </h5>
+                                        <ul className="space-y-1 bg-green-500/[0.01] border border-green-500/10 rounded-lg p-2.5">
+                                          {report.strengths.map((str, idx) => (
+                                            <li key={idx} className="text-[11px] text-muted-foreground flex items-start gap-1">
+                                              <span className="w-1 h-1 rounded-full bg-green-500 mt-1.5 shrink-0" />
+                                              <span>{str}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+
+                                    {report.weaknesses.length > 0 && (
+                                      <div className="space-y-1">
+                                        <h5 className="text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                          <TrendingDown className="w-3.5 h-3.5" />نقاط التحسين والفجوات:
+                                        </h5>
+                                        <ul className="space-y-1 bg-amber-500/[0.01] border border-amber-500/10 rounded-lg p-2.5">
+                                          {report.weaknesses.map((weak, idx) => (
+                                            <li key={idx} className="text-[11px] text-muted-foreground flex items-start gap-1">
+                                              <span className="w-1 h-1 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                                              <span>{weak}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {report.communication && (
+                                    <div className="space-y-1 pt-1">
+                                      <h5 className="text-[11px] font-bold text-foreground">مهارات التواصل واللغة:</h5>
+                                      <p className="text-xs text-muted-foreground leading-relaxed">
+                                        {report.communication}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            }
+
+                            // Fallback to standard plain text notes
+                            return (
+                              <div className="flex items-start gap-2">
+                                <p className="text-xs text-muted-foreground flex-1 whitespace-pre-line">{interview.notes}</p>
+                                <SentimentBadge text={interview.notes} context={`ملاحظات مقابلة لوظيفة ${interview.position}`} />
+                              </div>
+                            );
+                          })()}
                           {(interview as any).transcript && (
                             <div className="bg-muted/30 rounded-lg p-2.5">
                               <div className="flex items-center gap-1.5 mb-1">

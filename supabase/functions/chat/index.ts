@@ -919,7 +919,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, resume_text, attached_files_text, model_override, disable_tools } = await req.json();
+    const { messages, resume_text, attached_files_text, model_override, disable_tools, stream } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("GEMINI_API_KEY or LOVABLE_API_KEY is not configured");
     const isDirectGemini = (LOVABLE_API_KEY.startsWith("AIza") || LOVABLE_API_KEY.startsWith("AQ."));
@@ -1000,19 +1000,28 @@ ${userContext}
 
     // ========== Compare-mode / disable_tools: pure streaming text ==========
     if (toolsDisabled) {
+      const isStream = stream !== false;
       const streamResponse = await fetch(API_URL, {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: effectiveFastModel, messages: [{ role: "system", content: systemPrompt }, ...actualMessages], stream: true }),
+        body: JSON.stringify({ model: effectiveFastModel, messages: [{ role: "system", content: systemPrompt }, ...actualMessages], stream: isStream }),
       });
-      if (!streamResponse.ok || !streamResponse.body) {
+      if (!streamResponse.ok) {
         const s = streamResponse.status;
         if (s === 429) return new Response(JSON.stringify({ error: "تم تجاوز حد الطلبات. حاول لاحقاً." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         if (s === 402) return new Response(JSON.stringify({ error: "يرجى إضافة رصيد للاستمرار." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         const err = await getResponseError(streamResponse);
         return new Response(JSON.stringify({ error: err }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      return new Response(streamResponse.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
+      if (isStream) {
+        if (!streamResponse.body) {
+          return new Response(JSON.stringify({ error: "No stream body" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        return new Response(streamResponse.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
+      } else {
+        const data = await streamResponse.json();
+        return new Response(JSON.stringify(data), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
 
     // ========== STEP 1: Detect intent ==========

@@ -107,10 +107,14 @@ function CandidateCard({ candidate, isDragging = false, response }: { candidate:
   const integrityScore = response?.integrity_score ?? parsedLog?.cheat_score;
 
   return (
-    <div className={cn(
-      "bg-card rounded-lg border border-border/50 p-3 transition-all group",
-      isDragging ? "shadow-xl rotate-2 opacity-90 scale-105" : "hover:shadow-sm hover:border-primary/20"
-    )}>
+    <motion.div
+      layout
+      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+      className={cn(
+        "bg-card rounded-lg border border-border/50 p-3 transition-all group",
+        isDragging ? "shadow-xl rotate-2 opacity-90 scale-105" : "hover:shadow-sm hover:border-primary/20"
+      )}
+    >
       <div className="flex items-start gap-2">
         <div className="mt-1 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors">
           <GripVertical className="w-3.5 h-3.5" />
@@ -177,7 +181,7 @@ function CandidateCard({ candidate, isDragging = false, response }: { candidate:
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -193,9 +197,16 @@ function DraggableCard({ candidate, response }: { candidate: any; response?: any
   } : undefined;
 
   return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing">
+    <motion.div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      layout
+      className="cursor-grab active:cursor-grabbing"
+    >
       <CandidateCard candidate={candidate} response={response} />
-    </div>
+    </motion.div>
   );
 }
 
@@ -479,6 +490,122 @@ export default function Pipeline() {
             }),
           }
         ).catch(console.error);
+      }
+
+      // 1. Auto-run AI Evaluation if configured and not evaluated yet
+      if (automationRules.auto_ai_evaluation && (candidate as any).ai_score == null) {
+        toast({ title: "🤖 أتمتة الذكاء الاصطناعي", description: `جاري تشغيل التقييم التلقائي لـ ${candidate.name}...` });
+        fetch(EVAL_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ candidateId, jobId: candidate.job_id }),
+        }).then(res => {
+          if (res.ok) {
+            toast({ title: `✅ اكتمل التقييم التلقائي لـ ${candidate.name}` });
+            queryClient.invalidateQueries({ queryKey: ["candidates"] });
+          }
+        }).catch(console.error);
+      }
+
+      // 2. Auto-send Assessment if configured and stage has linked assessment_id
+      const stageAssessmentId = (targetStageObj as any)?.assessment_id;
+      if (automationRules.auto_send_assessment !== false && stageAssessmentId && candidate.email) {
+        // Find assessment token & title
+        const assessment = (assessments || []).find(a => a.id === stageAssessmentId);
+        if (assessment) {
+          // Check if candidate has not completed it yet
+          const hasCompleted = (assessmentResponses || []).some(
+            r => r.assessment_id === stageAssessmentId && r.candidate_email === candidate.email && r.status === "completed"
+          );
+          if (!hasCompleted) {
+            toast({ title: "📝 أتمتة الاختبارات", description: `جاري إرسال اختبار "${assessment.title}" تلقائياً إلى ${candidate.name}...` });
+            
+            const trackingId = crypto.randomUUID();
+            supabase.from("email_tracking").insert({
+              user_id: user!.id,
+              candidate_id: candidate.id,
+              candidate_email: candidate.email,
+              email_type: "assessment",
+              subject: `مطلوب إكمال اختبار: ${assessment.title}`,
+              tracking_id: trackingId,
+            }).then(() => {
+              const assessmentLink = `${window.location.origin}/assessment/${assessment.token}`;
+              const trackingPixelUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/email-tracking-pixel?tid=${trackingId}`;
+              
+              fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                },
+                body: JSON.stringify({
+                  to: candidate.email,
+                  subject: `مطلوب إكمال اختبار: ${assessment.title}`,
+                  html: `
+                    <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <h2 style="color: #1a1a1a; margin-bottom: 16px;">مرحباً ${candidate.name}</h2>
+                      <p style="color: #555; font-size: 16px; line-height: 1.8;">
+                        يرجى إكمال الاختبار التالي كجزء من عملية التوظيف:
+                      </p>
+                      <p style="color: #555; font-size: 16px; font-weight: bold;">${assessment.title}</p>
+                      <div style="text-align: center; margin: 30px 0;">
+                        <a href="${assessmentLink}" 
+                           style="background-color: #16a34a; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: bold; display: inline-block;">
+                          ابدأ الاختبار الآن
+                        </a>
+                      </div>
+                      <p style="color: #999; font-size: 13px; margin-top: 30px;">
+                        أو انسخ الرابط التالي: <br/>
+                        <a href="${assessmentLink}" style="color: #16a34a;">${assessmentLink}</a>
+                      </p>
+                      <img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:none;" />
+                    </div>
+                  `,
+                  user_id: user?.id,
+                }),
+              }).then(emailRes => {
+                if (emailRes.ok) {
+                  toast({ title: "✅ تم إرسال رابط الاختبار تلقائياً بالبريد الإلكتروني" });
+                  refetchTracking();
+                }
+              }).catch(console.error);
+            });
+          }
+        }
+      }
+
+      // 3. Auto-create meeting/interview if configured
+      if (automationRules.auto_create_meeting) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const dateStr = tomorrow.toISOString().split('T')[0];
+        const timeStr = "10:00";
+        const meetingPlatform = automationRules.meeting_platform || "jitsi";
+        const meetingUrl = automationRules.custom_meeting_url || `https://meet.jit.si/${crypto.randomUUID()}`;
+        
+        toast({ title: "📅 أتمتة المقابلات", description: `جاري جدولة مقابلة تلقائية لـ ${candidate.name}...` });
+        
+        supabase.from("interviews").insert({
+          user_id: user!.id,
+          candidate_name: candidate.name,
+          position: candidate.role || "مقابلة تقييمية",
+          date: dateStr,
+          time: timeStr,
+          type: automationRules.interview_type || "عن بُعد",
+          interviewer: user?.email || "فريق التوظيف",
+          candidate_id: candidate.id,
+          meeting_url: meetingUrl,
+        } as any).then(({ error: interviewErr }) => {
+          if (!interviewErr) {
+            toast({ title: `✅ تم جدولة المقابلة تلقائياً (${meetingPlatform})` });
+            queryClient.invalidateQueries({ queryKey: ["interviews"] });
+          } else {
+            console.error("Auto interview creation failed:", interviewErr);
+          }
+        });
       }
     }
   };

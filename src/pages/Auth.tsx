@@ -5,8 +5,10 @@ import { useNavigate, useSearchParams, Navigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, Loader2, Shield, Zap, BarChart3, FileCheck, Briefcase, Sparkles, Building2, CheckCircle2, KeyRound, Monitor } from "lucide-react";
+import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, Loader2, Shield, Zap, BarChart3, FileCheck, Briefcase, Sparkles, Building2, CheckCircle2, KeyRound, Monitor, Check } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 /* ─── Device Trust Helpers ─── */
 const TRUST_KEY = "tawzeef-x_trusted_device";
@@ -69,7 +71,6 @@ const AuroraBackground = memo(function AuroraBackground() {
           animation: "spin-reverse-slow 90s linear infinite",
         }}
       />
-      {/* Dot grid */}
       <div className="absolute inset-0 opacity-[0.02]" style={{
         backgroundImage: "radial-gradient(circle, hsl(var(--foreground)) 1px, transparent 1px)",
         backgroundSize: "32px 32px",
@@ -81,235 +82,196 @@ const AuroraBackground = memo(function AuroraBackground() {
 /* ─── Live AI Recruiting Command Center Mockup (High Performance) ─── */
 const AICommandCenterWidget = memo(function AICommandCenterWidget() {
   const [parseProgress, setParseProgress] = useState(0);
-  const [chatState, setChatState] = useState<"parsing" | "analyzed" | "hired" | "reset">("parsing");
-  const [pipelineStage, setPipelineStage] = useState<"applied" | "shortlisted">("applied");
-  const [typedMessage, setTypedMessage] = useState("");
-  const [matchPercent, setMatchPercent] = useState(0);
+  const [phase, setPhase] = useState<"parsing" | "matched" | "completed">("parsing");
 
-  const targetMessage = "تم تحليل سيرة أحمد محمد الذاتية. المطابقة: 96% لدور مهندس برمجيات. نوصي بالمقابلة ✨";
-
-  // Throttled typing animation (GPU-friendly updates)
   useEffect(() => {
-    if (chatState === "analyzed") {
-      let index = 0;
-      setTypedMessage("");
-      const timer = setInterval(() => {
-        setTypedMessage((prev) => prev + targetMessage.charAt(index));
-        index++;
-        if (index >= targetMessage.length) {
-          clearInterval(timer);
-          setTimeout(() => {
-            setPipelineStage("shortlisted");
-            setChatState("hired");
-          }, 800);
-        }
-      }, 40);
-      return () => clearInterval(timer);
-    }
-  }, [chatState]);
-
-  // Main Loop & State Sync
-  useEffect(() => {
-    let cycleInterval: ReturnType<typeof setInterval>;
-    let percentInterval: ReturnType<typeof setInterval>;
-    let progressTimeout: ReturnType<typeof setTimeout>;
-
-    const startCycle = () => {
-      setChatState("parsing");
-      setPipelineStage("applied");
+    const cycle = () => {
+      setPhase("parsing");
       setParseProgress(0);
-      setMatchPercent(0);
-      setTypedMessage("");
 
-      // Trigger progress transition instantly using CSS transitions rather than state loops
-      progressTimeout = setTimeout(() => {
-        setParseProgress(100);
-      }, 50);
+      // Animate parsing progress to 100% over 3 seconds
+      const interval = setInterval(() => {
+        setParseProgress(p => {
+          if (p >= 100) {
+            clearInterval(interval);
+            setPhase("matched");
+            
+            // Advance to completed stepper after 3 more seconds
+            setTimeout(() => {
+              setPhase("completed");
+            }, 3000);
 
-      // Throttled match percentage counter: updates only 7 times total to reduce React repaints
-      let currentPercent = 0;
-      percentInterval = setInterval(() => {
-        currentPercent += 16;
-        if (currentPercent >= 96) {
-          currentPercent = 96;
-          clearInterval(percentInterval);
-          setChatState("analyzed"); // Trigger typed chat assistant
-        }
-        setMatchPercent(currentPercent);
-      }, 200);
+            return 100;
+          }
+          return p + 4;
+        });
+      }, 100);
+
+      return () => {
+        clearInterval(interval);
+      };
     };
-
-    startCycle();
-
-    // 11s total loop cycle
-    cycleInterval = setInterval(() => {
-      setChatState("reset");
-      setTimeout(startCycle, 500);
-    }, 11500);
+    
+    let cleanup = cycle();
+    const interval = setInterval(() => {
+      cleanup();
+      cleanup = cycle();
+    }, 12000);
 
     return () => {
-      clearInterval(cycleInterval);
-      clearInterval(percentInterval);
-      clearTimeout(progressTimeout);
+      cleanup();
+      clearInterval(interval);
     };
   }, []);
 
   return (
-    <div
-      className="w-full max-w-[420px] mx-auto rounded-3xl bg-white/[0.01] border border-white/[0.06] backdrop-blur-2xl p-6 shadow-[0_30px_80px_-15px_rgba(16,185,129,0.15)] relative overflow-hidden select-none will-change-transform transition-all duration-300 hover:scale-[1.015] hover:border-emerald-500/20 hover:shadow-[0_35px_90px_-15px_rgba(16,185,129,0.2)]"
-      style={{ transform: "translate3d(0,0,0)" }}
-    >
-      {/* Dynamic scanline overlay */}
-      {chatState === "parsing" && (
-        <div
-          className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent z-20 pointer-events-none shadow-[0_0_12px_2px_rgba(34,211,238,0.4)] will-change-transform"
-          style={{ animation: "scan-vertical 2s ease-in-out infinite" }}
-        />
-      )}
+    <div className="w-full max-w-[325px] mx-auto rounded-[20px] bg-white border border-slate-100 shadow-[0_12px_30px_rgba(0,0,0,0.02)] p-3 relative overflow-hidden select-none text-right">
+      {/* Top subtle gradient line */}
+      <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500" />
+      
+      {/* Background decoration blur */}
+      <div className="absolute -top-12 -right-12 w-20 h-20 rounded-full bg-emerald-500/5 filter blur-2xl pointer-events-none" />
+      <div className="absolute -bottom-12 -left-12 w-20 h-20 rounded-full bg-cyan-500/5 filter blur-3xl pointer-events-none" />
 
-      {/* Grid pattern background inside widget */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
-        backgroundImage: "linear-gradient(to bottom, white 1px, transparent 1px)",
-        backgroundSize: "100% 10px"
-      }} />
-
-      {/* Synchronized dashboard elements */}
-      <div className="space-y-5 relative z-10">
+      <div className="space-y-2.5 relative z-10">
         
-        {/* Row 1: Header + Active Parser Feed */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-white/35 uppercase tracking-wider">سجل العمليات الحية</span>
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[8px] font-black">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-              <span>مستشعر معالج الملفات</span>
-            </div>
+        {/* Header */}
+        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+          <div className="flex items-center gap-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] font-black text-slate-800">تحليل المطابقة الذكي (AI Match)</span>
           </div>
+          <span className="text-[7.5px] font-bold text-slate-400 tracking-wider">Engine v2</span>
+        </div>
 
-          <div className="p-3.5 rounded-2xl bg-white/[0.01] border border-white/[0.04] space-y-2.5">
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <FileCheck className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="text-[10px] font-bold text-white/80">cv_ahmed_software.pdf</span>
+        {/* Section 1: File Parsing (Always Fully Visible) */}
+        <div className="space-y-1">
+          <div className="flex justify-between items-center text-[8px] font-bold text-slate-500">
+            <span>تحليل السيرة الذاتية...</span>
+            <span className="font-black text-slate-700">{parseProgress}%</span>
+          </div>
+          <div className="p-2 rounded-lg bg-white border border-slate-100 flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-1.5 overflow-hidden">
+              <div className="w-6 h-6 rounded-md bg-cyan-50 flex items-center justify-center text-cyan-500 shrink-0">
+                <FileCheck className="w-3.5 h-3.5" />
               </div>
-              <span className="text-[10px] text-cyan-400 font-bold">{parseProgress}%</span>
+              <div className="text-right overflow-hidden">
+                <p className="text-[10px] font-bold text-slate-700 truncate">cv_ahmed_software.pdf</p>
+                <p className="text-[7.5px] text-slate-400">حجم الملف: 1.2 ميجابايت</p>
+              </div>
             </div>
-            
-            {/* Optimized progress bar using GPU-accelerated CSS transition */}
-            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-full transition-all duration-[1.5s] ease-out will-change-[width]"
-                style={{ width: `${parseProgress}%` }}
-              />
-            </div>
+            <Badge variant="secondary" className={`text-[7.5px] px-1 h-4 transition-all duration-300 ${parseProgress === 100 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/50' : 'bg-slate-50 text-slate-500'}`}>
+              {parseProgress === 100 ? "مكتمل ✅" : "جاري التحليل..."}
+            </Badge>
+          </div>
+          <div className="h-0.5 w-full bg-slate-100 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full transition-all duration-300" 
+              style={{ width: `${parseProgress}%` }}
+            />
           </div>
         </div>
 
-        {/* Row 2: AI Co-Pilot chat interaction */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-white/35 uppercase tracking-wider">مساعد المطابقة بالذكاء الاصطناعي</span>
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+        {/* Section 2: AI Matching & Skills Breakdown (Pre-rendered, opacity changes) */}
+        <div className={`space-y-2.5 transition-all duration-500 ${phase === "parsing" ? "opacity-35 blur-[0.5px] scale-[0.98]" : "opacity-100 blur-0 scale-100"}`}>
+          <span className="text-[8.5px] font-black text-slate-400 block pt-0.5">المطابقة والتصنيف الذكي</span>
+          
+          {/* Profile Card Header with matching ring */}
+          <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-50/50 border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-2">
+              <Avatar className="w-7 h-7 border border-white shadow-sm">
+                <AvatarFallback className="bg-gradient-to-tr from-emerald-400 to-cyan-400 text-white font-bold text-[8.5px]">أ م</AvatarFallback>
+              </Avatar>
+              <div className="text-right">
+                <h3 className="text-[10px] font-black text-slate-800">أحمد محمد</h3>
+                <p className="text-[7.5px] text-slate-400 font-bold">مطور برمجيات Senior</p>
+              </div>
+            </div>
+
+            {/* Match percentage gauge SVG */}
+            <div className="relative w-8 h-8 flex items-center justify-center shrink-0">
+              <svg className="w-full h-full transform -rotate-90">
+                <circle cx="16" cy="16" r="13" stroke="#f1f5f9" strokeWidth="2.5" fill="transparent" />
+                <circle cx="16" cy="16" r="13" stroke="url(#paint0_linear)" strokeWidth="2.5" fill="transparent" strokeDasharray="81" strokeDashoffset="3.24" strokeLinecap="round" />
+                <defs>
+                  <linearGradient id="paint0_linear" x1="0" y1="0" x2="1" y2="0">
+                    <stop stopColor="#10b981" />
+                    <stop offset="1" stopColor="#06b6d4" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="absolute text-center flex flex-col items-center">
+                <span className="text-[8px] font-black text-slate-800 leading-none">96%</span>
+                <span className="text-[4px] text-slate-400 font-bold leading-none mt-0.5">مطابقة</span>
+              </div>
+            </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] relative overflow-hidden min-h-[76px] flex flex-col justify-center">
-            <div className="absolute inset-0 bg-emerald-500/[0.01] pointer-events-none" />
-            
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner">
-                <Zap className="w-4 h-4" />
-              </div>
-              <div className="space-y-1 text-right">
-                <p className="text-[9px] font-bold text-emerald-400/70">Tawzeef-X Co-Pilot</p>
-                <div className="text-xs text-white/80 font-medium leading-relaxed">
-                  {chatState === "parsing" ? (
-                    <span className="inline-flex items-center gap-1 text-white/40">
-                      <Loader2 className="w-3 h-3 animate-spin text-white/40" />
-                      جاري استخراج وتصنيف المهارات البرمجية...
-                    </span>
-                  ) : (
-                    typedMessage
-                  )}
+          {/* Skills and Matching criteria breakdown */}
+          <div className="space-y-1">
+            {[
+              { title: "المهارات التقنية والبرمجية", percent: 98, color: "from-emerald-400 to-cyan-400" },
+              { title: "الخبرة والمشاريع السابقة", percent: 92, color: "from-cyan-400 to-blue-400" },
+              { title: "التوافق الثقافي للمؤسسة", percent: 95, color: "from-emerald-400 to-teal-400" }
+            ].map((item, idx) => (
+              <div key={idx} className="space-y-0.5">
+                <div className="flex justify-between items-center text-[7.5px] font-bold text-slate-600">
+                  <span>{item.title}</span>
+                  <span className="text-slate-800 font-black">{item.percent}%</span>
+                </div>
+                <div className="h-[2px] w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full bg-gradient-to-r ${item.color} rounded-full`}
+                    style={{ width: `${item.percent}%` }}
+                  />
                 </div>
               </div>
+            ))}
+          </div>
+
+          {/* Skill tags */}
+          <div className="flex flex-wrap gap-1 justify-start" dir="ltr">
+            {["React", "TypeScript", "Node.js", "Supabase", "SQL"].map((tag) => (
+              <span key={tag} className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200/40">
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          {/* AI Recommendation Quote box */}
+          <div className="p-2 rounded-lg bg-emerald-50/40 border border-emerald-100/50 relative overflow-hidden">
+            <div className="flex gap-1">
+              <Sparkles className="w-2.5 h-2.5 text-emerald-500 shrink-0 mt-0.5 animate-pulse" />
+              <div className="text-right">
+                <p className="text-[7.5px] font-black text-emerald-700">توصية الذكاء الاصطناعي:</p>
+                <p className="text-[8.5px] text-slate-700 leading-relaxed font-medium mt-0.5">
+                  أحمد يمتلك خبرة عميقة ومشاريع سابقة تطابق المتطلبات بدقة ممتازة. نوصي بجدولة مقابلة فنية فوراً.
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Row 3: Pipeline Kanban shifting card */}
-        <div className="space-y-2">
-          <span className="text-[10px] font-black text-white/35 uppercase tracking-wider">مراحل التوظيف الذكية</span>
-          <div className="grid grid-cols-2 gap-4 h-[76px]">
-            
-            {/* Column A: Applied */}
-            <div className="rounded-2xl border border-white/[0.02] bg-white/[0.005] p-2 flex flex-col gap-1.5 relative justify-center">
-              <span className="text-[8px] font-bold text-white/30 block mb-1 text-right">متقدمون</span>
-              
-              <AnimatePresence>
-                {pipelineStage === "applied" && (
-                  <motion.div
-                    layoutId="pipelineCard"
-                    className="p-2 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between will-change-transform"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ type: "spring", stiffness: 220, damping: 20 }}
-                  >
-                    <div className="flex items-center gap-1.5 overflow-hidden">
-                      <div className="w-5 h-5 rounded-md bg-white/5 flex items-center justify-center text-[8px] text-white/70">أ</div>
-                      <span className="text-[9px] font-bold text-white/80 truncate">أحمد محمد</span>
-                    </div>
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+        {/* Section 3: Status progression stepper (Pre-rendered, opacity/color changes) */}
+        <div className={`pt-2 border-t border-slate-100 flex items-center justify-between transition-all duration-500 ${phase === "parsing" ? "opacity-35 blur-[0.5px]" : "opacity-100 blur-0"}`}>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-[6.5px] font-bold">✓</div>
+            <span className="text-[8px] font-bold text-slate-500">تقديم الطلب</span>
+          </div>
+          <div className="w-4 h-[0.5px] bg-emerald-200" />
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-[6.5px] font-bold">✓</div>
+            <span className="text-[8px] font-bold text-slate-500">التصفية</span>
+          </div>
+          <div className="w-4 h-[0.5px] bg-slate-200" />
+          <div className="flex items-center gap-1">
+            <div className={`w-3 h-3 rounded-full flex items-center justify-center text-[6.5px] font-bold transition-all duration-500 ${phase === "completed" ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/20' : 'bg-slate-100 text-slate-400'}`}>
+              {phase === "completed" ? "✓" : "3"}
             </div>
-
-            {/* Column B: Shortlisted */}
-            <div className="rounded-2xl border border-white/[0.03] bg-emerald-500/[0.01] p-2 flex flex-col gap-1.5 relative justify-center">
-              <span className="text-[8px] font-bold text-emerald-400/40 block mb-1 text-right">مرشحون للمقابلة</span>
-              
-              <AnimatePresence>
-                {pipelineStage === "shortlisted" && (
-                  <motion.div
-                    layoutId="pipelineCard"
-                    className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between shadow-lg shadow-emerald-950/20 will-change-transform"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ type: "spring", stiffness: 220, damping: 20 }}
-                  >
-                    <div className="flex items-center gap-1.5 overflow-hidden">
-                      <div className="w-5 h-5 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[8px] font-black">أ</div>
-                      <span className="text-[9px] font-bold text-white/95 truncate">أحمد محمد</span>
-                    </div>
-                    <div className="flex items-center gap-1 bg-emerald-500/20 text-emerald-400 px-1 rounded text-[7px] font-black">96%</div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
+            <span className={`text-[8px] font-bold transition-all duration-500 ${phase === "completed" ? 'text-emerald-600' : 'text-slate-400'}`}>المقابلة</span>
           </div>
         </div>
 
-      </div>
-
-      {/* Floating stats metrics */}
-      <div
-        className="absolute top-1/2 -right-4 translate-y-[-100%] rounded-2xl bg-gradient-to-tr from-[#0d122b] to-[#1e295d]/80 border border-white/[0.08] backdrop-blur-2xl p-3 shadow-2xl pointer-events-none z-30 transition-all duration-500 will-change-transform"
-        style={{
-          transform: chatState === "hired" ? "translate3d(-10px, -20px, 0) scale(0.9)" : "translate3d(0, 0, 0) scale(0.82)"
-        }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-            <Zap className="w-4 h-4 animate-bounce" />
-          </div>
-          <div className="text-right">
-            <span className="text-[8px] text-white/40 block">سرعة التصفية</span>
-            <span className="text-xs font-black text-white leading-none">3X أسرع</span>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -332,15 +294,15 @@ const BrandingPanel = memo(function BrandingPanel() {
       className="hidden lg:flex flex-col justify-between h-full relative overflow-hidden p-14 select-none"
       onMouseMove={handleMouseMove}
     >
-      {/* Deep Obsidian background */}
-      <div className="absolute inset-0 bg-[#050711]" style={{
-        background: "radial-gradient(circle at 100% 0%, #0c0f24 0%, #050711 70%)"
+      {/* Soft emerald-teal light background */}
+      <div className="absolute inset-0 bg-[#f4fcf9]" style={{
+        background: "radial-gradient(circle at 100% 0%, #edfcf7 0%, #f4fbf8 70%)"
       }} />
 
       {/* Ambient neon light glow shapes (GPU Composited) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div
-          className="absolute w-[600px] h-[600px] rounded-full opacity-[0.15] mix-blend-screen filter blur-[110px] will-change-transform"
+          className="absolute w-[600px] h-[600px] rounded-full opacity-[0.06] filter blur-[110px] will-change-transform"
           style={{
             background: "radial-gradient(circle, #10b981 0%, transparent 70%)",
             top: "-10%",
@@ -349,7 +311,7 @@ const BrandingPanel = memo(function BrandingPanel() {
           }}
         />
         <div
-          className="absolute w-[500px] h-[500px] rounded-full opacity-[0.09] mix-blend-screen filter blur-[95px] will-change-transform"
+          className="absolute w-[500px] h-[500px] rounded-full opacity-[0.05] filter blur-[95px] will-change-transform"
           style={{
             background: "radial-gradient(circle, #06b6d4 0%, transparent 70%)",
             bottom: "10%",
@@ -360,14 +322,14 @@ const BrandingPanel = memo(function BrandingPanel() {
       </div>
 
       {/* Optimized Starry Particles using off-thread GPU animations */}
-      <div className="absolute inset-0 opacity-[0.16] pointer-events-none overflow-hidden">
+      <div className="absolute inset-0 opacity-[0.25] pointer-events-none overflow-hidden">
         {[...Array(10)].map((_, i) => (
           <div
             key={i}
-            className="absolute rounded-full bg-white floating-particle"
+            className="absolute rounded-full bg-emerald-400 floating-particle"
             style={{
-              width: `${(i % 2) + 1.2}px`,
-              height: `${(i % 2) + 1.2}px`,
+              width: `${(i % 2) + 2}px`,
+              height: `${(i % 2) + 2}px`,
               left: `${10 + i * 9}%`,
               top: `${15 + (i * 13) % 70}%`,
               ["--float-duration" as any]: `${7 + (i % 3) * 2}s`,
@@ -378,14 +340,14 @@ const BrandingPanel = memo(function BrandingPanel() {
       </div>
 
       {/* Grid mesh pattern */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
-        backgroundImage: `linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)`,
+      <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{
+        backgroundImage: `linear-gradient(to right, #10b981 1px, transparent 1px), linear-gradient(to bottom, #10b981 1px, transparent 1px)`,
         backgroundSize: '40px 40px'
       }} />
 
       {/* GPU accelerated cursor follow light */}
       <motion.div
-        className="absolute w-[450px] h-[450px] rounded-full pointer-events-none opacity-[0.22] will-change-transform"
+        className="absolute w-[450px] h-[450px] rounded-full pointer-events-none opacity-[0.12] will-change-transform"
         style={{
           x: mouseX,
           y: mouseY,
@@ -399,35 +361,35 @@ const BrandingPanel = memo(function BrandingPanel() {
         {/* Logo */}
         <div className="flex items-center gap-4">
           <div
-            className="w-13 h-13 rounded-2xl flex items-center justify-center border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl relative overflow-hidden group p-2 shadow-lg transition-transform duration-300 hover:scale-105 hover:rotate-[-2deg]"
+            className="w-13 h-13 rounded-2xl flex items-center justify-center border border-emerald-500/10 bg-white/80 backdrop-blur-xl relative overflow-hidden group p-2 shadow-sm transition-transform duration-300 hover:scale-105 hover:rotate-[-2deg]"
           >
             <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <img src={tawzeefLogo} alt="Tawzeef-X" className="w-9 h-9 object-contain relative z-10" />
           </div>
           <div className="flex flex-col">
-            <span className="text-xl font-black tracking-wide leading-tight text-white/95">Tawzeef-X</span>
-            <span className="text-[10px] font-bold tracking-[0.2em] text-emerald-400/50 uppercase">منصة التوظيف الذكية</span>
+            <span className="text-xl font-black tracking-wide leading-tight text-slate-800">Tawzeef-X</span>
+            <span className="text-[10px] font-bold tracking-[0.2em] text-emerald-600/60 uppercase">منصة التوظيف الذكية</span>
           </div>
         </div>
 
         {/* Hero copy */}
         <div className="space-y-5">
           <div
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/[0.07] bg-white/[0.03] backdrop-blur-xl transition-all duration-300 hover:border-emerald-500/25"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-emerald-500/10 bg-emerald-50/50 backdrop-blur-xl transition-all duration-300 hover:border-emerald-500/25"
           >
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            <span className="text-xs font-bold text-white/80">منصة التوظيف الذكية #1</span>
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+            <span className="text-xs font-bold text-emerald-800">منصة التوظيف الذكية #1</span>
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
           </div>
 
-          <h1 className="text-4xl xl:text-5xl font-black text-white leading-tight">
+          <h1 className="text-4xl xl:text-5xl font-black text-slate-800 leading-tight">
             وظّف الأفضل <br />
-            <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-600 bg-clip-text text-transparent">
               بذكاء وسرعة فائقة
             </span>
           </h1>
 
-          <p className="text-sm leading-relaxed text-white/50 max-w-[400px]">
+          <p className="text-sm leading-relaxed text-slate-500 max-w-[400px]">
             أتمتة كامل رحلة التوظيف بالذكاء الاصطناعي — من صياغة ونشر الوظيفة والبحث عن المرشحين والمطابقة الذكية، وحتى المقابلات وإرسال العروض.
           </p>
         </div>
@@ -440,9 +402,9 @@ const BrandingPanel = memo(function BrandingPanel() {
 
       {/* Bottom Stats Container */}
       <div
-        className="relative z-10 p-5 rounded-2xl border border-white/[0.05] bg-white/[0.01] backdrop-blur-2xl shadow-xl overflow-hidden"
+        className="relative z-10 p-5 rounded-2xl border border-emerald-500/10 bg-white/60 backdrop-blur-2xl shadow-sm overflow-hidden"
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-cyan-500/5 opacity-50" />
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/3 to-cyan-500/3 opacity-30" />
         <div className="flex items-center justify-between relative z-10 px-4">
           {[
             { val: "AI", label: "تقييم ذكي" },
@@ -451,10 +413,10 @@ const BrandingPanel = memo(function BrandingPanel() {
             { val: "3X", label: "أسرع توظيفاً" },
           ].map((s, i) => (
             <div key={i} className="text-center transition-transform duration-200 hover:scale-105">
-              <span className="text-2xl xl:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60 leading-none block">
+              <span className="text-2xl xl:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-slate-800 to-slate-600 leading-none block">
                 {s.val}
               </span>
-              <span className="text-[9px] font-bold text-white/40 block mt-1">
+              <span className="text-[9px] font-bold text-slate-400 block mt-1">
                 {s.label}
               </span>
             </div>
@@ -486,7 +448,7 @@ const SocialButtons = memo(function SocialButtons() {
           type="button"
           variant="outline"
           disabled={!!loadingProvider}
-          className="w-full h-11 rounded-xl text-xs font-bold gap-2.5 bg-card/60 border border-border hover:bg-muted/40 hover:border-primary/20 transition-all duration-300"
+          className="w-full h-11 rounded-xl text-xs font-bold gap-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 shadow-sm transition-all duration-300"
           onClick={() => handleOAuth("google")}
         >
           {loadingProvider === "google" ? (
@@ -508,13 +470,13 @@ const SocialButtons = memo(function SocialButtons() {
           type="button"
           variant="outline"
           disabled={!!loadingProvider}
-          className="w-full h-11 rounded-xl text-xs font-bold gap-2.5 bg-foreground text-background border border-foreground hover:bg-foreground/90 transition-all duration-300"
+          className="w-full h-11 rounded-xl text-xs font-bold gap-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 shadow-sm transition-all duration-300"
           onClick={() => handleOAuth("apple")}
         >
           {loadingProvider === "apple" ? (
-            <Loader2 className="w-4 h-4 animate-spin text-background" />
+            <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
           ) : (
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <svg className="w-4 h-4 text-slate-700" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
             </svg>
           )}
@@ -744,8 +706,8 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
   const inputClass = (field: string) =>
     `h-[48px] pr-11 rounded-xl text-[14px] font-medium transition-all duration-300 border-2 focus-visible:ring-0 focus-visible:ring-offset-0 ${
       focused(field)
-        ? "bg-card border-primary/50 shadow-[0_0_0_4px_rgba(16,185,129,0.08)]"
-        : "bg-muted/15 border-transparent hover:border-border/30"
+        ? "bg-[#0a0f1d] border-primary/60 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
+        : "bg-white/[0.03] border-white/[0.06] hover:border-white/[0.12]"
     } text-foreground placeholder:text-muted-foreground/35`;
 
   const iconClass = (field: string) =>
@@ -754,19 +716,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
     }`;
 
   return (
-    <div className="w-full max-w-[430px] mx-auto px-4 select-none">
-      {/* Mobile logo */}
-      <div className="lg:hidden text-center mb-8">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden p-2.5 bg-gradient-to-tr from-primary/10 to-accent/10 border border-primary/15">
-            <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
-          </div>
-          <div>
-            <h1 className="text-xl font-black text-foreground">Tawzeef-X</h1>
-            <p className="text-[10px] font-bold tracking-[0.25em] text-primary/60 uppercase">منصة التوظيف الذكية</p>
-          </div>
-        </div>
-      </div>
+    <div className="w-full max-w-[440px] mx-auto px-4 select-none">
 
       {/* Styled Sweeping Border Gradient Glassmorphism Container */}
       <div className="sweeping-border-card backdrop-blur-3xl shadow-2xl rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden shadow-[0_0_60px_-12px_rgba(16,185,129,0.12)]">
@@ -912,6 +862,15 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
           </motion.div>
         ) : (
           <div className="space-y-6">
+            {/* Branding Logo */}
+            <div className="flex flex-col items-center justify-center text-center pb-4 border-b border-slate-100/80 mb-6">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden p-2.5 bg-gradient-to-tr from-primary/10 to-accent/10 border border-primary/20 shadow-md">
+                <img src={tawzeefLogo} alt="Tawzeef-X" className="w-7 h-7 object-contain" />
+              </div>
+              <h1 className="text-lg font-black text-slate-800 mt-2">Tawzeef-X</h1>
+              <p className="text-[9px] font-bold tracking-[0.2em] text-primary/60 uppercase">منصة التوظيف الذكية</p>
+            </div>
+
             {/* Back link */}
             <div className="hidden lg:block">
               <a href="/" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-all duration-300 font-medium group">
@@ -1216,7 +1175,7 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen min-h-[100dvh] relative overflow-hidden" dir="rtl">
+    <div className="min-h-screen min-h-[100dvh] relative overflow-hidden bg-gradient-to-tr from-emerald-50/30 via-slate-50 to-cyan-50/30 text-slate-800" dir="rtl">
       {/* Styles for sweeping border gradient + off-thread hardware accelerated CSS animations */}
       <style>{`
         @keyframes gradient-sweep {
@@ -1227,8 +1186,8 @@ export default function Auth() {
         .sweeping-border-card {
           position: relative;
           border: 1.5px solid transparent;
-          background: linear-gradient(to bottom, hsl(var(--card)) 0%, hsl(var(--card)) 100%) padding-box,
-                      linear-gradient(135deg, hsl(var(--primary) / 0.3) 0%, hsl(var(--accent) / 0.1) 40%, hsl(var(--primary) / 0.4) 100%) border-box;
+          background: linear-gradient(to bottom, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.95) 100%) padding-box,
+                      linear-gradient(135deg, hsl(var(--primary) / 0.2) 0%, hsl(var(--accent) / 0.1) 40%, hsl(var(--primary) / 0.3) 100%) border-box;
           background-size: 200% 200%;
           animation: gradient-sweep 6s ease infinite;
         }

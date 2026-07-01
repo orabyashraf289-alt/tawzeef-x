@@ -192,7 +192,8 @@ export default function VideoRoom() {
               content: prompt
             }
           ],
-          disable_tools: true
+          disable_tools: true,
+          stream: false
         }
       });
 
