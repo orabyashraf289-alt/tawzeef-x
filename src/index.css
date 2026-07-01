@@ -249,9 +249,15 @@
   }
 
   html[lang="ar"] .tracking-tight,
-  html[dir="rtl"] .tracking-tight,
+  html[dir="rtl"] .tracking-tight {
+    letter-spacing: 0 !important;
+  }
+
   html[lang="ar"] .tracking-tighter,
-  html[dir="rtl"] .tracking-tighter,
+  html[dir="rtl"] .tracking-tighter {
+    letter-spacing: 0 !important;
+  }
+
   html[lang="ar"] .tracking-wide,
   html[dir="rtl"] .tracking-wide,
   html[lang="ar"] .tracking-wider,
