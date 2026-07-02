@@ -4,7 +4,7 @@ import AddJobDialog from "@/components/AddJobDialog";
 import { useUpdateJob } from "@/hooks/useJobs";
 import SARSymbol from "@/components/SARSymbol";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Briefcase, MapPin, Clock, Users, Calendar, DollarSign, Star, ChevronLeft, Share2, Edit, ExternalLink, ArrowLeft, Eye, Phone, Mail, Trash2, QrCode, Linkedin, Brain, Loader2, ClipboardCheck, Copy, Check, BarChart3, Link2, Sparkles, UserPlus } from "lucide-react";
+import { Briefcase, MapPin, Clock, Users, Calendar, DollarSign, Star, ChevronLeft, Share2, Edit, ExternalLink, ArrowLeft, Eye, Phone, Mail, Trash2, QrCode, Search, Linkedin, Brain, Loader2, ClipboardCheck, Copy, Check, BarChart3, Link2, Sparkles, UserPlus } from "lucide-react";
 import confetti from "canvas-confetti";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
