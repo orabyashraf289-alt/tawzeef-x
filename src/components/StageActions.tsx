@@ -196,6 +196,41 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
   const sendInterviewEmail = async (email: string, meetingUrl: string, date: string, time: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      
+      // Build ICS invite file content
+      const pad = (num: number) => String(num).padStart(2, "0");
+      const dt = new Date(`${date}T${time.slice(0, 5)}:00`);
+      
+      let startStr = "";
+      let endStr = "";
+      if (!isNaN(dt.getTime())) {
+        startStr = `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;
+        const endDt = new Date(dt.getTime() + 60 * 60000); // Default 60 mins duration
+        endStr = `${endDt.getFullYear()}${pad(endDt.getMonth() + 1)}${pad(endDt.getDate())}T${pad(endDt.getHours())}${pad(endDt.getMinutes())}00`;
+      } else {
+        const cleanDate = date.replace(/-/g, "");
+        const cleanTime = time.replace(/:/g, "").slice(0, 4);
+        startStr = `${cleanDate}T${cleanTime}00`;
+        endStr = `${cleanDate}T${String(Number(cleanTime) + 100).padStart(4, "0")}00`;
+      }
+      
+      const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}@tawzeef-x`;
+      const icsContent = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Tawzeef-X//Interview//AR",
+        "BEGIN:VEVENT",
+        `DTSTART:${startStr}`,
+        `DTEND:${endStr}`,
+        `SUMMARY:مقابلة شخصية - ${candidateRole || "وظيفة"}`,
+        `DESCRIPTION:دعوة لحضور مقابلة بخصوص وظيفة ${candidateRole || ""}. رابط اللقاء: ${meetingUrl}`,
+        `LOCATION:${meetingUrl}`,
+        `UID:${uid}`,
+        "STATUS:CONFIRMED",
+        "END:VEVENT",
+        "END:VCALENDAR"
+      ].join("\r\n");
+
       await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
         method: "POST",
         headers: {
@@ -212,8 +247,8 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
                 <h1 style="color: white; margin: 0; font-size: 22px;">دعوة لحضور مقابلة 🎯</h1>
               </div>
               <div style="background: white; padding: 28px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                <p style="font-size: 16px; color: #1e293b; margin-bottom: 8px;">مرحباً <strong>${candidateName}</strong>،</p>
-                <p style="font-size: 15px; color: #475569; line-height: 1.8;">يسعدنا إعلامك بأنه تمت جدولة مقابلة لك بخصوص وظيفة <strong>${candidateRole || ""}</strong>.</p>
+                <p style="font-size: 16px; color: #1e293b; margin-bottom: 8px;">مرحباً،</p>
+                <p style="font-size: 15px; color: #475569; line-height: 1.8;">يسعدنا إعلامك بأنه تمت جدولة مقابلة بخصوص وظيفة <strong>${candidateRole || ""}</strong>.</p>
                 <div style="background: #f1f5f9; padding: 16px 20px; border-radius: 10px; margin: 20px 0;">
                   <p style="margin: 4px 0; font-size: 14px; color: #334155;">📅 <strong>التاريخ:</strong> ${new Date(date).toLocaleDateString("ar-SA", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
                   <p style="margin: 4px 0; font-size: 14px; color: #334155;">⏰ <strong>الوقت:</strong> ${time}</p>
@@ -221,17 +256,25 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
                 <a href="${meetingUrl}" style="display: inline-block; background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-size: 15px; font-weight: bold; margin-top: 12px;">
                   🎥 انضم للمقابلة
                 </a>
+                <p style="font-size: 13px; color: #94a3b8; margin-top: 20px;">تم إرفاق ملف التقويم (invite.ics) لإضافته لتقويمك الشخصي مباشرة.</p>
                 <p style="font-size: 13px; color: #94a3b8; margin-top: 20px;">أو انسخ الرابط التالي:</p>
                 <p style="font-size: 12px; color: #64748b; word-break: break-all; background: #f8fafc; padding: 10px; border-radius: 6px;">${meetingUrl}</p>
               </div>
               <p style="text-align: center; font-size: 12px; color: #94a3b8; margin-top: 20px;">بالتوفيق! — فريق التوظيف</p>
             </div>
           `,
+          attachments: [
+            {
+              filename: "invite.ics",
+              content: icsContent,
+              contentType: "text/calendar",
+            }
+          ]
         }),
       });
-      toast({ title: "تم إرسال رابط المقابلة بالبريد للمرشح ✅" });
-    } catch {
-      console.error("Failed to send interview email");
+      toast({ title: "تم إرسال رابط المقابلة وملف التقويم بالبريد الإلكتروني ✅" });
+    } catch (e) {
+      console.error("Failed to send interview email:", e);
     }
   };
 
@@ -396,7 +439,7 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
         meeting_url: meetingUrl,
       },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
           setShowInterviewDialog(false);
           setInterviewForm({ date: "", time: "", interviewer: "", meeting_type: "jitsi", external_link: "" });
           queryClient.invalidateQueries({ queryKey: ["interviews"] });
@@ -404,6 +447,16 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
           // Auto-send email to candidate
           if (candidateEmail && meetingUrl) {
             sendInterviewEmail(candidateEmail, meetingUrl, interviewForm.date, interviewForm.time);
+          }
+
+          // Auto-send email to coordinator
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user?.email && meetingUrl) {
+              sendInterviewEmail(user.email, meetingUrl, interviewForm.date, interviewForm.time);
+            }
+          } catch (e) {
+            console.error("Failed to notify coordinator:", e);
           }
         },
       }
