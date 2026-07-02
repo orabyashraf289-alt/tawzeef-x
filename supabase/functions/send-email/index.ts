@@ -128,32 +128,40 @@ Deno.serve(async (req) => {
     const nodemailerAttachments = [];
     if (attachments && Array.isArray(attachments)) {
       for (const att of attachments) {
-        let attPath = att.path;
-        if (attPath && !attPath.startsWith("http://") && !attPath.startsWith("https://")) {
-          // Relative path: generate a signed URL from resumes bucket
-          let cleanPath = attPath;
-          if (cleanPath.startsWith("resumes/")) {
-            cleanPath = cleanPath.substring("resumes/".length);
-          }
-          try {
-            const { data, error } = await supabase.storage
-              .from("resumes")
-              .createSignedUrl(cleanPath, 3600);
-            
-            if (error) {
-              console.error(`Error generating signed URL for ${cleanPath}:`, error.message);
-            } else if (data?.signedUrl) {
-              attPath = data.signedUrl;
+        if (att.content) {
+          nodemailerAttachments.push({
+            filename: att.filename,
+            content: att.content,
+            contentType: att.contentType || "text/plain",
+          });
+        } else {
+          let attPath = att.path;
+          if (attPath && !attPath.startsWith("http://") && !attPath.startsWith("https://")) {
+            // Relative path: generate a signed URL from resumes bucket
+            let cleanPath = attPath;
+            if (cleanPath.startsWith("resumes/")) {
+              cleanPath = cleanPath.substring("resumes/".length);
             }
-          } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e);
-            console.error(`Exception generating signed URL for ${cleanPath}:`, msg);
+            try {
+              const { data, error } = await supabase.storage
+                .from("resumes")
+                .createSignedUrl(cleanPath, 3600);
+              
+              if (error) {
+                console.error(`Error generating signed URL for ${cleanPath}:`, error.message);
+              } else if (data?.signedUrl) {
+                attPath = data.signedUrl;
+              }
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : String(e);
+              console.error(`Exception generating signed URL for ${cleanPath}:`, msg);
+            }
           }
+          nodemailerAttachments.push({
+            filename: att.filename,
+            path: attPath,
+          });
         }
-        nodemailerAttachments.push({
-          filename: att.filename,
-          path: attPath,
-        });
       }
     }
 
