@@ -136,16 +136,16 @@ const phases: Phase[] = [
       {
         title: "تحسين نظام الاختبارات", titleEn: "Assessment System Enhancement", icon: FileQuestion,
         tasks: [
-          { key: "p2-q-types", title: "أنواع أسئلة جديدة (سحب وإفلات، مطابقة)", titleEn: "New question types (drag & drop, matching)", defaultDone: false, icon: FileQuestion },
-          { key: "p2-q-shared", title: "بنك أسئلة مشترك بين الفريق", titleEn: "Shared question bank across team", defaultDone: false, icon: Users },
-          { key: "p2-q-analytics", title: "تقارير تحليلية متقدمة للاختبارات", titleEn: "Advanced assessment analytics", defaultDone: false, icon: BarChart3 },
+          { key: "p2-q-types", title: "أنواع أسئلة جديدة (سحب وإفلات، مطابقة)", titleEn: "New question types (drag & drop, matching)", defaultDone: true, icon: FileQuestion },
+          { key: "p2-q-shared", title: "بنك أسئلة مشترك بين الفريق", titleEn: "Shared question bank across team", defaultDone: true, icon: Users },
+          { key: "p2-q-analytics", title: "تقارير تحليلية متقدمة للاختبارات", titleEn: "Advanced assessment analytics", defaultDone: true, icon: BarChart3 },
           { key: "p2-proctor", title: "مراقبة الغش أساسي", titleEn: "Basic proctoring (tab change)", defaultDone: true, icon: Shield },
         ],
       },
       {
         title: "تحسين الأمان", titleEn: "Security Enhancement", icon: Lock,
         tasks: [
-          { key: "p2-e2e", title: "تشفير البيانات الحساسة end-to-end", titleEn: "End-to-end encryption", defaultDone: false, icon: Lock },
+          { key: "p2-e2e", title: "تشفير البيانات الحساسة end-to-end", titleEn: "End-to-end encryption", defaultDone: true, icon: Lock },
           { key: "p2-sessions", title: "سجل جلسات تسجيل الدخول", titleEn: "Login session log", defaultDone: true, icon: Shield },
           { key: "p2-pw-policy", title: "سياسة كلمة مرور قابلة للتخصيص", titleEn: "Customizable password policy", defaultDone: true, icon: KeyRound },
           { key: "p2-suspicious", title: "تنبيهات أمنية عند تسجيل دخول مشبوه", titleEn: "Suspicious login alerts", defaultDone: true, icon: Shield },
