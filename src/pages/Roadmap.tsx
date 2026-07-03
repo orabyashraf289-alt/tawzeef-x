@@ -226,10 +226,10 @@ const phases: Phase[] = [
       {
         title: "تعدد الشركات", titleEn: "Multi-tenancy", icon: Building2,
         tasks: [
-          { key: "p4-isolation", title: "عزل بيانات كل شركة بالكامل", titleEn: "Full data isolation per tenant", defaultDone: false, icon: Shield },
-          { key: "p4-super-admin", title: "لوحة إدارة مركزية", titleEn: "Super Admin dashboard", defaultDone: false, icon: Building },
-          { key: "p4-branding", title: "إعدادات مخصصة لكل شركة", titleEn: "Custom branding per company", defaultDone: false, icon: Star },
-          { key: "p4-billing", title: "فوترة منفصلة لكل شركة", titleEn: "Per-company billing", defaultDone: false, icon: BarChart3 },
+          { key: "p4-isolation", title: "عزل بيانات كل شركة بالكامل", titleEn: "Full data isolation per tenant", defaultDone: true, icon: Shield },
+          { key: "p4-super-admin", title: "لوحة إدارة مركزية", titleEn: "Super Admin dashboard", defaultDone: true, icon: Building },
+          { key: "p4-branding", title: "إعدادات مخصصة لكل شركة", titleEn: "Custom branding per company", defaultDone: true, icon: Star },
+          { key: "p4-billing", title: "فوترة منفصلة لكل شركة", titleEn: "Per-company billing", defaultDone: true, icon: BarChart3 },
         ],
       },
       {
