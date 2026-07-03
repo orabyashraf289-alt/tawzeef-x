@@ -852,6 +852,11 @@ function CompanySection() {
 
   const { primaryColor, setPrimaryColor } = useTheme();
 
+  const [brandPrimary, setBrandPrimary] = useState("#0d9488");
+  const [brandAccent, setBrandAccent] = useState("#14b8a6");
+  const [brandFont, setBrandFont] = useState("Cairo, sans-serif");
+  const [brandQrForeground, setBrandQrForeground] = useState("#0f172a");
+
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("company_name, company_logo").eq("user_id", user.id).single().then(({ data }: any) => {
@@ -869,7 +874,7 @@ function CompanySection() {
         if (data?.company_id) {
           setCompanyId(data.company_id);
           supabase.from("companies")
-            .select("name, logo_url, website, industry, country, city, notes, e2e_encryption")
+            .select("name, logo_url, website, industry, country, city, notes, e2e_encryption, brand_settings")
             .eq("id", data.company_id)
             .maybeSingle()
             .then(({ data: compData }: any) => {
@@ -881,6 +886,14 @@ function CompanySection() {
                 setCity(compData.city || "");
                 setCountry(compData.country || "SA");
                 setE2eEnabled(!!compData.e2e_encryption);
+
+                if (compData.brand_settings) {
+                  const bs = compData.brand_settings;
+                  setBrandPrimary(bs.primaryColor || "#0d9488");
+                  setBrandAccent(bs.accentColor || "#14b8a6");
+                  setBrandFont(bs.fontFamily || "Cairo, sans-serif");
+                  setBrandQrForeground(bs.qrForeground || "#0f172a");
+                }
 
                 // Parse structured size and description from notes
                 const rawNotes = compData.notes;
@@ -963,7 +976,13 @@ function CompanySection() {
         city: city,
         country: country,
         notes: rawNotesString,
-        e2e_encryption: e2eEnabled
+        e2e_encryption: e2eEnabled,
+        brand_settings: {
+          primaryColor: brandPrimary,
+          accentColor: brandAccent,
+          fontFamily: brandFont,
+          qrForeground: brandQrForeground
+        }
       } as any).eq("id", companyId);
 
       if (compErr) {
@@ -983,7 +1002,13 @@ function CompanySection() {
         notes: rawNotesString,
         e2e_encryption: e2eEnabled,
         owner_user_id: user.id,
-        status: "active"
+        status: "active",
+        brand_settings: {
+          primaryColor: brandPrimary,
+          accentColor: brandAccent,
+          fontFamily: brandFont,
+          qrForeground: brandQrForeground
+        }
       } as any).select().single();
 
       if (compErr) {
@@ -1192,6 +1217,63 @@ function CompanySection() {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      <Separator className="opacity-50" />
+
+      {/* QR Poster Branding */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="font-bold text-sm text-foreground">
+            {locale === "en" ? "Branded QR Job Posters" : "الهوية البصرية لملصقات الـ QR للوظائف"}
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {locale === "en"
+              ? "Customize the visual theme, colors, and typography used for printing and sharing job QR codes"
+              : "تخصيص الهوية البصرية، الألوان، والخطوط المستخدمة في طباعة ومشاركة باركودات وملصقات التوظيف"}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <Label className="text-xs text-muted-foreground">{locale === "en" ? "Primary Brand Color" : "اللون الرئيسي للعلامة"}</Label>
+            <div className="flex gap-2 mt-1.5">
+              <Input type="color" value={brandPrimary} onChange={e => setBrandPrimary(e.target.value)} className="w-10 h-10 p-1.5 rounded-lg cursor-pointer shrink-0" />
+              <Input value={brandPrimary} onChange={e => setBrandPrimary(e.target.value)} placeholder="#0d9488" className="font-mono text-xs" />
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs text-muted-foreground">{locale === "en" ? "Accent Color" : "اللون المساعد (Accent)"}</Label>
+            <div className="flex gap-2 mt-1.5">
+              <Input type="color" value={brandAccent} onChange={e => setBrandAccent(e.target.value)} className="w-10 h-10 p-1.5 rounded-lg cursor-pointer shrink-0" />
+              <Input value={brandAccent} onChange={e => setBrandAccent(e.target.value)} placeholder="#14b8a6" className="font-mono text-xs" />
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs text-muted-foreground">{locale === "en" ? "QR Code Color" : "لون الباركود (QR Modules)"}</Label>
+            <div className="flex gap-2 mt-1.5">
+              <Input type="color" value={brandQrForeground} onChange={e => setBrandQrForeground(e.target.value)} className="w-10 h-10 p-1.5 rounded-lg cursor-pointer shrink-0" />
+              <Input value={brandQrForeground} onChange={e => setBrandQrForeground(e.target.value)} placeholder="#0f172a" className="font-mono text-xs" />
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs text-muted-foreground">{locale === "en" ? "Poster Font Family" : "نوع الخط للملصقات"}</Label>
+            <select
+              value={brandFont}
+              onChange={e => setBrandFont(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 mt-1.5"
+            >
+              <option value="Cairo, sans-serif">Cairo (الافتراضي)</option>
+              <option value="Tajawal, sans-serif">Tajawal</option>
+              <option value="Inter, sans-serif">Inter</option>
+              <option value="Outfit, sans-serif">Outfit</option>
+              <option value="Roboto, sans-serif">Roboto</option>
+            </select>
+          </div>
         </div>
       </div>
 
