@@ -170,21 +170,21 @@ const phases: Phase[] = [
       {
         title: "ذكاء اصطناعي متقدم", titleEn: "Advanced AI", icon: Brain,
         tasks: [
-          { key: "p3-video-ai", title: "تحليل فيديو المقابلات", titleEn: "Interview video analysis", defaultDone: false, icon: Brain },
+          { key: "p3-video-ai", title: "تحليل فيديو المقابلات", titleEn: "Interview video analysis", defaultDone: true, icon: Brain },
           { key: "p3-q-gen", title: "توليد أسئلة مقابلة بناءً على السيرة", titleEn: "Resume-based interview questions", defaultDone: true, icon: Sparkles },
-          { key: "p3-matching", title: "توصيات مرشحين ذكية", titleEn: "Smart candidate matching", defaultDone: false, icon: Star },
-          { key: "p3-summarize", title: "ملخص تلقائي للمقابلات", titleEn: "Auto-summarize interviews", defaultDone: false, icon: FileQuestion },
-          { key: "p3-predict", title: "تنبؤ بمعدل قبول العرض", titleEn: "Offer acceptance prediction", defaultDone: false, icon: TrendingUp },
+          { key: "p3-matching", title: "توصيات مرشحين ذكية", titleEn: "Smart candidate matching", defaultDone: true, icon: Star },
+          { key: "p3-summarize", title: "ملخص تلقائي للمقابلات", titleEn: "Auto-summarize interviews", defaultDone: true, icon: FileQuestion },
+          { key: "p3-predict", title: "تنبؤ بمعدل قبول العرض", titleEn: "Offer acceptance prediction", defaultDone: true, icon: TrendingUp },
         ],
       },
       {
         title: "تكاملات خارجية", titleEn: "External Integrations", icon: Link2,
         tasks: [
-          { key: "p3-linkedin", title: "ربط مباشر مع LinkedIn Recruiter API", titleEn: "LinkedIn Recruiter API integration", defaultDone: false, icon: Link2 },
-          { key: "p3-indeed", title: "ربط مع Indeed و Bayt.com", titleEn: "Indeed & Bayt.com integration", defaultDone: false, icon: Globe },
-          { key: "p3-hr", title: "تكامل مع أنظمة HR", titleEn: "HR system integration (SAP, Oracle)", defaultDone: false, icon: Building },
-          { key: "p3-slack", title: "تكامل مع Slack/Teams", titleEn: "Slack/Teams integration", defaultDone: false, icon: Zap },
-          { key: "p3-calendar", title: "ربط مع Google Calendar و Outlook", titleEn: "Google Calendar & Outlook integration", defaultDone: false, icon: Clock },
+          { key: "p3-linkedin", title: "ربط مباشر مع LinkedIn Recruiter API", titleEn: "LinkedIn Recruiter API integration", defaultDone: true, icon: Link2 },
+          { key: "p3-indeed", title: "ربط مع Indeed و Bayt.com", titleEn: "Indeed & Bayt.com integration", defaultDone: true, icon: Globe },
+          { key: "p3-hr", title: "تكامل مع أنظمة HR", titleEn: "HR system integration (SAP, Oracle)", defaultDone: true, icon: Building },
+          { key: "p3-slack", title: "تكامل مع Slack/Teams", titleEn: "Slack/Teams integration", defaultDone: true, icon: Zap },
+          { key: "p3-calendar", title: "ربط مع Google Calendar و Outlook", titleEn: "Google Calendar & Outlook integration", defaultDone: true, icon: Clock },
         ],
       },
       {
@@ -200,9 +200,9 @@ const phases: Phase[] = [
       {
         title: "تقارير متقدمة", titleEn: "Advanced Reports", icon: BarChart3,
         tasks: [
-          { key: "p3-cost", title: "تقرير تكلفة التوظيف", titleEn: "Cost per Hire report", defaultDone: false, icon: BarChart3 },
-          { key: "p3-ttf", title: "تقرير الوقت المستغرق للتوظيف", titleEn: "Time to Fill report", defaultDone: false, icon: Clock },
-          { key: "p3-source", title: "تقرير مصادر التوظيف", titleEn: "Sourcing channels report", defaultDone: false, icon: TrendingUp },
+          { key: "p3-cost", title: "تقرير تكلفة التوظيف", titleEn: "Cost per Hire report", defaultDone: true, icon: BarChart3 },
+          { key: "p3-ttf", title: "تقرير الوقت المستغرق للتوظيف", titleEn: "Time to Fill report", defaultDone: true, icon: Clock },
+          { key: "p3-source", title: "تقرير مصادر التوظيف", titleEn: "Sourcing channels report", defaultDone: true, icon: TrendingUp },
           { key: "p3-export", title: "تصدير تقارير PDF/Excel مجدولة", titleEn: "Scheduled PDF/Excel export", defaultDone: true, icon: FileQuestion },
           { key: "p3-kpi", title: "لوحة مؤشرات KPI تنفيذية", titleEn: "Executive KPI dashboard", defaultDone: true, icon: Target },
         ],
