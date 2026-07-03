@@ -238,7 +238,7 @@ const phases: Phase[] = [
           { key: "p4-field-perms", title: "صلاحيات على مستوى الحقول", titleEn: "Field-level permissions", defaultDone: false, icon: Lock },
           { key: "p4-dept-perms", title: "صلاحيات مخصصة لكل وظيفة/قسم", titleEn: "Per-job/department permissions", defaultDone: false, icon: KeyRound },
           { key: "p4-approvals", title: "سير عمل موافقات", titleEn: "Approval workflows", defaultDone: false, icon: Cog },
-          { key: "p4-compliance", title: "تدقيق متقدم مع تقارير امتثال", titleEn: "Advanced audit with compliance", defaultDone: false, icon: Shield },
+          { key: "p4-compliance", title: "تدقيق متقدم مع تقارير امتثال", titleEn: "Advanced audit with compliance", defaultDone: true, icon: Shield },
         ],
       },
       {
