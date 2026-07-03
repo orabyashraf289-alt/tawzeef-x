@@ -51,11 +51,24 @@ export function useMySubscription() {
   return useQuery({
     queryKey: ["my-subscription", user?.id],
     queryFn: async () => {
+      if (!user) return null;
+
+      // 1) Get company_id
+      const { data: memberData } = await supabase
+        .from("company_members" as any)
+        .select("company_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!memberData?.company_id) return null;
+
+      // 2) Get company subscription
       const { data, error } = await supabase
         .from("company_subscriptions" as any)
         .select("*")
-        .eq("user_id", user!.id)
+        .eq("company_id", memberData.company_id)
         .maybeSingle();
+
       if (error) throw error;
       return (data as any) as CompanySubscription | null;
     },
