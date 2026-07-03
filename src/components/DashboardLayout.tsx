@@ -56,7 +56,7 @@ const allNavItems = [
   { icon: UserCog, labelKey: "nav.team", path: "/team", roles: ["admin"], workspaces: ["enterprise"] },
   { icon: Building2, labelKey: "nav.adminCompanies", path: "/admin/companies", roles: ["admin"], workspaces: ["enterprise"] },
   { icon: Handshake, labelKey: "nav.adminAgencies", path: "/admin/agencies", roles: ["admin"], workspaces: ["enterprise"] },
-  { icon: Shield, labelKey: "nav.auditLog", path: "/audit-log", roles: ["admin"], workspaces: ["enterprise"] },
+  { icon: Shield, labelKey: "nav.auditLog", path: "/audit-log", roles: ["admin", "recruiter"], workspaces: ["enterprise"] },
   { icon: ShieldCheck, labelKey: "nav.qualityReport", path: "/admin/quality", roles: ["admin"], workspaces: ["enterprise"] },
   { icon: Map, labelKey: "nav.roadmap", path: "/roadmap", roles: ["admin"], workspaces: ["enterprise"] },
   { icon: GraduationCap, labelKey: "nav.tutorial", path: "/tutorial", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },

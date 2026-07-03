@@ -150,7 +150,7 @@ function AnimatedRoutes() {
 
         {/* Role-protected: admin only */}
         <Route path="/team" element={<RoleProtectedRoute allowedRoles={["admin"]}><TeamManagement /></RoleProtectedRoute>} />
-        <Route path="/audit-log" element={<RoleProtectedRoute allowedRoles={["admin"]}><AuditLog /></RoleProtectedRoute>} />
+        <Route path="/audit-log" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><AuditLog /></RoleProtectedRoute>} />
         <Route path="/admin/blog" element={<RoleProtectedRoute allowedRoles={["admin"]}><BlogAdmin /></RoleProtectedRoute>} />
         <Route path="/admin/companies" element={<RoleProtectedRoute allowedRoles={["admin"]}><AdminCompanies /></RoleProtectedRoute>} />
         <Route path="/admin/companies/:id" element={<RoleProtectedRoute allowedRoles={["admin"]}><AdminCompanyDetail /></RoleProtectedRoute>} />
