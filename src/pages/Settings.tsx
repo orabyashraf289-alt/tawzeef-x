@@ -873,14 +873,14 @@ function CompanySection() {
     supabase.from("company_members")
       .select("company_id, member_role")
       .eq("user_id", user.id)
-      .maybeSingle()
       .then(({ data }: any) => {
-        if (data?.company_id) {
-          setCompanyId(data.company_id);
-          setMemberRole(data.member_role || null);
+        const memberData = data && data.length > 0 ? data[0] : null;
+        if (memberData?.company_id) {
+          setCompanyId(memberData.company_id);
+          setMemberRole(memberData.member_role || null);
           supabase.from("companies")
             .select("name, logo_url, website, industry, country, city, notes, e2e_encryption, brand_settings")
-            .eq("id", data.company_id)
+            .eq("id", memberData.company_id)
             .maybeSingle()
             .then(({ data: compData }: any) => {
               if (compData) {
