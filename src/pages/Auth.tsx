@@ -706,13 +706,13 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
   const inputClass = (field: string) =>
     `h-[48px] pr-11 rounded-xl text-[14px] font-medium transition-all duration-300 border-2 focus-visible:ring-0 focus-visible:ring-offset-0 ${
       focused(field)
-        ? "bg-[#0a0f1d] border-primary/60 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
-        : "bg-white/[0.03] border-white/[0.06] hover:border-white/[0.12]"
-    } text-foreground placeholder:text-muted-foreground/35`;
+        ? "bg-white border-primary shadow-[0_0_0_4px_rgba(16,185,129,0.12)] text-slate-900"
+        : "bg-slate-50/50 border-slate-200/80 hover:border-slate-300 text-slate-700 placeholder:text-slate-400"
+    }`;
 
   const iconClass = (field: string) =>
     `absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-all duration-300 ${
-      focused(field) ? "text-primary scale-110" : "text-muted-foreground/45"
+      focused(field) ? "text-primary scale-110" : "text-slate-400"
     }`;
 
   return (
@@ -919,7 +919,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                   <div className="space-y-4">
                     {/* Account Type Toggle */}
                     <div className="space-y-1.5 text-right">
-                      <label className="text-[10px] font-bold text-muted-foreground tracking-wide block uppercase">
+                      <label className="text-xs font-semibold text-slate-600 tracking-wide block">
                         نوع الحساب
                       </label>
                       <div className="flex bg-muted/40 rounded-xl p-1 border border-border/30 relative h-[42px] select-none">
@@ -952,7 +952,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
                     {/* Full Name */}
                     <div className="space-y-1.5 text-right">
-                      <label className="text-[10px] font-bold text-muted-foreground tracking-wide block uppercase">
+                      <label className="text-xs font-semibold text-slate-600 tracking-wide block">
                         الاسم الكامل
                       </label>
                       <div className="relative">
@@ -978,7 +978,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                         transition={{ duration: 0.25 }}
                         className="space-y-1.5 text-right"
                       >
-                        <label className="text-[10px] font-bold text-muted-foreground tracking-wide block uppercase">
+                        <label className="text-xs font-semibold text-slate-600 tracking-wide block">
                           اسم الشركة / المؤسسة
                         </label>
                         <div className="relative">
@@ -1000,7 +1000,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
                 {/* Email */}
                 <div className="space-y-1.5 text-right">
-                  <label className="text-[10px] font-bold text-muted-foreground tracking-wide block uppercase">
+                  <label className="text-xs font-semibold text-slate-600 tracking-wide block">
                     البريد الإلكتروني
                   </label>
                   <div className="relative">
@@ -1021,7 +1021,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
                 {/* Password */}
                 <div className="space-y-1.5 text-right">
-                  <label className="text-[10px] font-bold text-muted-foreground tracking-wide block uppercase">
+                  <label className="text-xs font-semibold text-slate-600 tracking-wide block">
                     كلمة المرور
                   </label>
                   <div className="relative">
@@ -1186,10 +1186,11 @@ export default function Auth() {
         .sweeping-border-card {
           position: relative;
           border: 1.5px solid transparent;
-          background: linear-gradient(to bottom, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.95) 100%) padding-box,
-                      linear-gradient(135deg, hsl(var(--primary) / 0.2) 0%, hsl(var(--accent) / 0.1) 40%, hsl(var(--primary) / 0.3) 100%) border-box;
+          background: linear-gradient(to bottom, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.98) 100%) padding-box,
+                      linear-gradient(135deg, hsl(var(--primary) / 0.35) 0%, hsl(var(--accent) / 0.2) 50%, hsl(var(--primary) / 0.45) 100%) border-box;
           background-size: 200% 200%;
-          animation: gradient-sweep 6s ease infinite;
+          animation: gradient-sweep 8s ease infinite;
+          backdrop-filter: blur(20px);
         }
 
         /* GPU accelerated background sphere animations */
