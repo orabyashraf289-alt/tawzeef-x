@@ -220,6 +220,7 @@ export function useUpdateCompany() {
     onSuccess: (_, v) => {
       qc.invalidateQueries({ queryKey: ["all-companies"] });
       qc.invalidateQueries({ queryKey: ["company", v.id] });
+      qc.invalidateQueries({ queryKey: ["company-branches"] });
       toast({ title: "تم التحديث ✅" });
     },
     onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),

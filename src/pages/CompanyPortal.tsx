@@ -6,12 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { Building2, Briefcase, Users, FileText, Mail, Loader2, GitFork, Plus, MapPin, Phone } from "lucide-react";
-import { useMyCompanies, useCompanyStats, useMyCompanyRole, useCompanyBranches, useCreateCompanyBranch } from "@/hooks/useCompanies";
+import { Building2, Briefcase, Users, FileText, Mail, Loader2, GitFork, Plus, MapPin, Phone, Pencil, Camera, Info } from "lucide-react";
+import { useMyCompanies, useCompanyStats, useMyCompanyRole, useCompanyBranches, useCreateCompanyBranch, useUpdateCompany } from "@/hooks/useCompanies";
 import { useMyPendingInvitations, useAcceptInvitation, useDeclineInvitation } from "@/hooks/useCompanyInvitations";
 import CompanyInvitationsPanel from "@/components/CompanyInvitationsPanel";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 export default function CompanyPortal() {
   const { data: companies = [], isLoading } = useMyCompanies();
@@ -105,6 +109,7 @@ export default function CompanyPortal() {
 function CompanyBlock({ companyId, name, role }: { companyId: string; name: string; role: string }) {
   const { data: stats } = useCompanyStats(companyId);
   const { data: myRole } = useMyCompanyRole(companyId);
+  const { user } = useAuth();
   
   // Branches list query
   const { data: branches = [], isLoading: branchesLoading } = useCompanyBranches(companyId);
@@ -116,6 +121,10 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
   const [branchCity, setBranchCity] = useState("");
   const [branchEmail, setBranchEmail] = useState("");
   const [branchPhone, setBranchPhone] = useState("");
+  const [branchNotes, setBranchNotes] = useState("");
+  
+  // Edit Branch state
+  const [editingBranch, setEditingBranch] = useState<any | null>(null);
 
   const handleAddBranch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,6 +135,7 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
       city: branchCity || null,
       contact_email: branchEmail || null,
       contact_phone: branchPhone || null,
+      notes: branchNotes || null,
       parent_company_id: companyId
     });
 
@@ -133,6 +143,7 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
     setBranchCity("");
     setBranchEmail("");
     setBranchPhone("");
+    setBranchNotes("");
     setOpen(false);
   };
 
@@ -190,6 +201,10 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
                   <Label htmlFor="branchPhone">رقم هاتف الفرع</Label>
                   <Input id="branchPhone" value={branchPhone} onChange={e => setBranchPhone(e.target.value)} placeholder="05XXXXXXXX" />
                 </div>
+                <div className="space-y-1.5 text-right">
+                  <Label htmlFor="branchNotes">تفاصيل ووصف الفرع</Label>
+                  <Textarea id="branchNotes" value={branchNotes} onChange={e => setBranchNotes(e.target.value)} placeholder="اكتب تفاصيل إضافية أو عنوان الفرع بالتفصيل..." rows={3} />
+                </div>
                 <DialogFooter className="flex justify-end gap-2 mt-4">
                   <Button type="button" variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
                   <Button type="submit" disabled={createBranch.isPending}>
@@ -244,15 +259,39 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <AnimatePresence>
                 {branches.map((b) => (
-                  <motion.div key={b.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="p-3 bg-background border border-border/60 rounded-xl flex items-start gap-2.5 shadow-sm">
-                    <Building2 className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
-                    <div className="space-y-1 min-w-0">
-                      <p className="text-xs font-bold truncate text-foreground">{b.name}</p>
-                      <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
-                        {b.city && <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3" />{b.city}</span>}
-                        {b.contact_phone && <span className="flex items-center gap-0.5"><Phone className="w-3 h-3" />{b.contact_phone}</span>}
+                  <motion.div key={b.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="p-4 bg-background border border-border/60 rounded-xl flex flex-col justify-between shadow-sm relative group">
+                    <div className="flex items-start gap-3">
+                      {/* Logo or Default Icon */}
+                      <div className="w-10 h-10 rounded-lg bg-primary/5 flex items-center justify-center shrink-0 border border-border/40 overflow-hidden">
+                        {b.logo_url ? (
+                          <img src={b.logo_url} alt={b.name} className="w-full h-full object-contain" />
+                        ) : (
+                          <Building2 className="w-5 h-5 text-primary/70" />
+                        )}
+                      </div>
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <p className="text-xs font-bold truncate text-foreground pr-6">{b.name}</p>
+                        <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+                          {b.city && <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3 text-primary/75" />{b.city}</span>}
+                          {b.contact_phone && <span className="flex items-center gap-0.5"><Phone className="w-3 h-3 text-primary/75" />{b.contact_phone}</span>}
+                        </div>
+                        {b.notes && (
+                          <p className="text-[10px] text-muted-foreground bg-muted/30 p-1.5 rounded-lg border border-border/20 mt-1.5 line-clamp-2">
+                            {b.notes}
+                          </p>
+                        )}
                       </div>
                     </div>
+
+                    {/* Edit Branch trigger button */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-2 left-2 w-7 h-7 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                      onClick={() => setEditingBranch(b)}
+                    >
+                      <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                    </Button>
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -261,8 +300,148 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
         </Card>
       )}
 
+      {/* Edit Branch Dialog */}
+      {editingBranch && (
+        <EditBranchDialog
+          branch={editingBranch}
+          onClose={() => setEditingBranch(null)}
+        />
+      )}
+
       {/* Invitations panel only for owners */}
       {myRole === "owner" && <CompanyInvitationsPanel companyId={companyId} />}
     </Card>
+  );
+}
+
+function EditBranchDialog({ branch, onClose }: { branch: any; onClose: () => void }) {
+  const updateBranch = useUpdateCompany();
+  const { user } = useAuth();
+  
+  const [name, setName] = useState(branch.name || "");
+  const [city, setCity] = useState(branch.city || "");
+  const [email, setEmail] = useState(branch.contact_email || "");
+  const [phone, setPhone] = useState(branch.contact_phone || "");
+  const [notes, setNotes] = useState(branch.notes || "");
+  const [logoUrl, setLogoUrl] = useState(branch.logo_url || "");
+  const [uploading, setUploading] = useState(false);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${user.id}/branch_logo_${Math.random()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      setLogoUrl(data.publicUrl);
+      toast({ title: "تم رفع الشعار بنجاح ✅" });
+    } catch (err: any) {
+      console.error("Error uploading logo:", err.message);
+      toast({ title: "خطأ في رفع الصورة", description: err.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    await updateBranch.mutateAsync({
+      id: branch.id,
+      name,
+      city: city || null,
+      contact_email: email || null,
+      contact_phone: phone || null,
+      notes: notes || null,
+      logo_url: logoUrl || null
+    });
+
+    onClose();
+  };
+
+  return (
+    <Dialog open onOpenChange={open => !open && onClose()}>
+      <DialogContent className="max-w-md" dir="rtl">
+        <DialogHeader>
+          <DialogTitle className="text-right">تعديل بيانات الفرع</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleUpdate} className="space-y-4 py-2">
+          {/* Logo Upload Section */}
+          <div className="flex flex-col items-center gap-3 border-b border-border/40 pb-4">
+            <div className="relative w-20 h-20 rounded-xl bg-muted border border-border/50 flex items-center justify-center overflow-hidden group">
+              {logoUrl ? (
+                <img src={logoUrl} alt="Logo preview" className="w-full h-full object-contain" />
+              ) : (
+                <Building2 className="w-8 h-8 text-muted-foreground" />
+              )}
+              {uploading && (
+                <div className="absolute inset-0 bg-background/70 backdrop-blur-sm flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" size="sm" className="relative gap-1.5 text-xs" disabled={uploading}>
+                <Camera className="w-3.5 h-3.5" />
+                {logoUrl ? "تغيير الشعار" : "رفع شعار"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+              </Button>
+              {logoUrl && (
+                <Button type="button" variant="ghost" size="sm" className="text-destructive text-xs" onClick={() => setLogoUrl("")}>
+                  حذف
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-1.5 text-right">
+            <Label htmlFor="editName">اسم الفرع *</Label>
+            <Input id="editName" value={name} onChange={e => setName(e.target.value)} required />
+          </div>
+          <div className="space-y-1.5 text-right">
+            <Label htmlFor="editCity">المدينة</Label>
+            <Input id="editCity" value={city} onChange={e => setCity(e.target.value)} />
+          </div>
+          <div className="space-y-1.5 text-right">
+            <Label htmlFor="editEmail">البريد الإلكتروني للتواصل</Label>
+            <Input id="editEmail" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+          </div>
+          <div className="space-y-1.5 text-right">
+            <Label htmlFor="editPhone">رقم هاتف الفرع</Label>
+            <Input id="editPhone" value={phone} onChange={e => setPhone(e.target.value)} />
+          </div>
+          <div className="space-y-1.5 text-right">
+            <Label htmlFor="editNotes">تفاصيل ووصف الفرع</Label>
+            <Textarea id="editNotes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="العنوان التفصيلي، أوقات العمل، إلخ..." rows={3} />
+          </div>
+
+          <DialogFooter className="flex justify-end gap-2 mt-4">
+            <Button type="button" variant="outline" onClick={onClose}>إلغاء</Button>
+            <Button type="submit" disabled={updateBranch.isPending || uploading}>
+              {updateBranch.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "حفظ التغييرات"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
