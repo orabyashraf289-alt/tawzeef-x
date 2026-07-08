@@ -20,19 +20,17 @@ export default function RoleProtectedRoute({ children, allowedRoles, screenPath 
   if (loading || roleLoading || permLoading) return <PageSkeleton />;
   if (!user) return <Navigate to="/auth" replace />;
 
-  // Use DB-driven permissions via screenPath or current pathname
-  const pathToCheck = screenPath || location.pathname.replace(/\/[^/]+$/, "") || location.pathname;
-  
-  // Check DB permissions first
-  if (!hasScreenAccess(pathToCheck) && !hasScreenAccess(location.pathname)) {
-    // Fallback: also check allowedRoles for backward compatibility
-    if (allowedRoles && !allowedRoles.includes(role)) {
-      return <Unauthorized />;
-    }
-    if (!allowedRoles) {
-      return <Unauthorized />;
-    }
+  // 1) First check static allowed roles
+  if (allowedRoles && !allowedRoles.includes(role)) {
+    return <Unauthorized />;
   }
+
+  // 2) Check DB permissions
+  const pathToCheck = screenPath || location.pathname.replace(/\/[^/]+$/, "") || location.pathname;
+  if (!hasScreenAccess(pathToCheck) && !hasScreenAccess(location.pathname)) {
+    return <Unauthorized />;
+  }
+
 
   return <>{children}</>;
 }

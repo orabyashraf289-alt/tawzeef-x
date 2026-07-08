@@ -113,3 +113,30 @@ CREATE POLICY "Company owners update own subscription" ON public.company_subscri
 CREATE POLICY "System can insert company subscriptions" ON public.company_subscriptions
   FOR INSERT TO authenticated
   WITH CHECK (public.is_company_owner(company_id));
+
+
+-- ============================================================
+-- AUDITING MULTI-TENANCY: PER-COMPANY AUDIT LOGS
+-- ============================================================
+
+-- 1) Add company_id column to audit_log table
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS company_id uuid REFERENCES public.companies(id) ON DELETE CASCADE;
+
+-- 2) Backfill company_id on existing audit logs
+UPDATE public.audit_log al
+SET company_id = cm.company_id
+FROM public.company_members cm
+WHERE al.user_id = cm.user_id AND al.company_id IS NULL;
+
+-- 3) Attach trigger to auto-populate company_id BEFORE INSERT
+DROP TRIGGER IF EXISTS trg_set_audit_log_company_id ON public.audit_log;
+CREATE TRIGGER trg_set_audit_log_company_id BEFORE INSERT ON public.audit_log FOR EACH ROW EXECUTE FUNCTION public.set_row_company_id();
+
+-- 4) Update RLS Policies on audit_log so company members can view their own company's audit log
+DROP POLICY IF EXISTS "Admins can view audit log" ON public.audit_log;
+CREATE POLICY "Admins and company members view audit log" ON public.audit_log
+  FOR SELECT TO authenticated
+  USING (
+    public.has_role(auth.uid(), 'admin'::app_role) OR 
+    (company_id IS NOT NULL AND public.has_company_access(company_id))
+  );

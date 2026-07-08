@@ -265,3 +265,62 @@ export function useCompanyStats(companyId: string | undefined) {
     enabled: !!companyId,
   });
 }
+
+// Fetch all branches of a parent company
+export function useCompanyBranches(parentId: string | undefined) {
+  return useQuery({
+    queryKey: ["company-branches", parentId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("companies" as any)
+        .select("*")
+        .eq("parent_company_id", parentId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as unknown as Company[];
+    },
+    enabled: !!parentId,
+  });
+}
+
+// Create a branch for a parent company
+export function useCreateCompanyBranch() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (input: Partial<Company> & { parent_company_id: string }) => {
+      // 1) Insert branch company
+      const { data: comp, error: compErr } = await supabase
+        .from("companies" as any)
+        .insert({
+          ...input,
+          status: "active",
+          owner_user_id: user?.id || null
+        } as any)
+        .select()
+        .single();
+
+      if (compErr) throw compErr;
+
+      // 2) Add current user as owner of the branch in company_members
+      if (user) {
+        const { error: memErr } = await supabase
+          .from("company_members" as any)
+          .insert({
+            company_id: comp.id,
+            user_id: user.id,
+            member_role: "owner"
+          } as any);
+        if (memErr) throw memErr;
+      }
+
+      return comp as unknown as Company;
+    },
+    onSuccess: (_, v) => {
+      qc.invalidateQueries({ queryKey: ["company-branches", v.parent_company_id] });
+      qc.invalidateQueries({ queryKey: ["my-companies", user?.id] });
+      toast({ title: "تم إنشاء الفرع بنجاح ✅" });
+    },
+    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+  });
+}

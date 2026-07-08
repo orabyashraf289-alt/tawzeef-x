@@ -101,8 +101,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   const navItems = allNavItems.filter(item => {
     const workspaces = (item as any).workspaces || ["recruitment"];
-    return workspaces.includes(workspace) && hasScreenAccess(item.path);
+    const allowedRoles = (item as any).roles || ["admin", "recruiter", "reviewer"];
+    return workspaces.includes(workspace) && allowedRoles.includes(role) && hasScreenAccess(item.path);
   });
+
 
   const queryClient = useQueryClient();
 

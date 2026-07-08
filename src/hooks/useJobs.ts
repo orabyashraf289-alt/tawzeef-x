@@ -57,7 +57,28 @@ export function useAddJob() {
 
       // Auto-generate branded QR with the REAL apply URL (real job id) — non-blocking
       if (data?.id) {
-        const brand = loadBrandSettings();
+        let brand = loadBrandSettings();
+        try {
+          const { data: memberData } = await supabase
+            .from("company_members")
+            .select("company_id")
+            .eq("user_id", user!.id)
+            .maybeSingle();
+
+          if (memberData?.company_id) {
+            const { data: compData } = await supabase
+              .from("companies")
+              .select("brand_settings")
+              .eq("id", memberData.company_id)
+              .maybeSingle();
+            if (compData?.brand_settings) {
+              brand = { ...brand, ...(compData.brand_settings as any) };
+            }
+          }
+        } catch (err) {
+          console.warn("Could not fetch database brand settings, using default:", err);
+        }
+
         generateAndStoreJobQR({
           jobId: data.id,
           jobTitle: data.title,
