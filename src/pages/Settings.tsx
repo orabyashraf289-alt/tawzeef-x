@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   User, Mail, Shield, Calendar, Bell, Target, Settings2, Webhook, ChevronLeft,
-  Palette, KeyRound, Building2, Globe, Camera, Check, Linkedin, ExternalLink, Zap, Image, Trash2, GitBranch, Bookmark,
+  Palette, KeyRound, Building2, Globe, Camera, Check, Linkedin, ExternalLink, Zap, Image, Trash2, GitBranch, Bookmark, Users, Clock, Loader2
 } from "lucide-react";
 import SavedFiltersManager from "@/components/SavedFiltersManager";
 import EmailSettings from "@/components/EmailSettings";
@@ -24,7 +24,9 @@ import { Separator } from "@/components/ui/separator";
 import PipelineStagesManager from "@/components/PipelineStagesManager";
 import { useUserRole } from "@/hooks/useUserRole";
 import { checkPasswordStrength } from "@/lib/security";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useCompanyMembers, useRemoveCompanyMember } from "@/hooks/useCompanies";
+import { useCompanyInvitations, useCreateCompanyInvitation, useCancelInvitation } from "@/hooks/useCompanyInvitations";
 
 /* ─── Hiring Goals ─── */
 function HiringGoalsSection() {
@@ -841,6 +843,8 @@ function CompanySection() {
   const [companyName, setCompanyName] = useState("");
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [memberRole, setMemberRole] = useState<string | null>(null);
+  const { role: globalRole, isAdmin } = useUserRole();
   const [e2eEnabled, setE2eEnabled] = useState(false);
 
   const [website, setWebsite] = useState("");
@@ -867,12 +871,13 @@ function CompanySection() {
     });
 
     supabase.from("company_members")
-      .select("company_id")
+      .select("company_id, member_role")
       .eq("user_id", user.id)
       .maybeSingle()
       .then(({ data }: any) => {
         if (data?.company_id) {
           setCompanyId(data.company_id);
+          setMemberRole(data.member_role || null);
           supabase.from("companies")
             .select("name, logo_url, website, industry, country, city, notes, e2e_encryption, brand_settings")
             .eq("id", data.company_id)
@@ -1277,11 +1282,259 @@ function CompanySection() {
         </div>
       </div>
 
+      {companyId && (memberRole === "owner" || isAdmin) && (
+        <CompanyMembersSection companyId={companyId} />
+      )}
+
       <Separator className="opacity-50" />
 
       <Button onClick={handleSave} disabled={loading} className="gap-2">
         {loading ? (locale === "en" ? "Saving..." : "جاري الحفظ...") : <><Check className="w-4 h-4" />{locale === "en" ? "Save Changes" : "حفظ التغييرات"}</>}
       </Button>
+    </div>
+  );
+}
+
+function CompanyMembersSection({ companyId }: { companyId: string }) {
+  const { locale } = useI18n();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  
+  // 1) Fetch current company members
+  const { data: members = [], refetch: refetchMembers } = useQuery({
+    queryKey: ["settings-company-members", companyId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("company_members" as any)
+        .select("*")
+        .eq("company_id", companyId);
+      if (error) throw error;
+      
+      const enriched = await Promise.all(data.map(async (m: any) => {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("full_name, avatar_url, job_title")
+          .eq("user_id", m.user_id)
+          .maybeSingle();
+        return {
+          ...m,
+          name: prof?.full_name || "مستخدم غير معرف",
+          avatar_url: prof?.avatar_url || null,
+          job_title: prof?.job_title || ""
+        };
+      }));
+      return enriched;
+    },
+    enabled: !!companyId
+  });
+
+  // 2) Fetch invitations
+  const { data: invitations = [], refetch: refetchInvites } = useCompanyInvitations(companyId);
+
+  // Invite states
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"owner" | "hr" | "viewer">("hr");
+  const [inviting, setInviting] = useState(false);
+
+  const createInvite = useCreateCompanyInvitation();
+  const cancelInvite = useCancelInvitation();
+  const removeMember = useRemoveCompanyMember();
+
+  const handleSendInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim()) return;
+    setInviting(true);
+    try {
+      await createInvite.mutateAsync({
+        company_id: companyId,
+        email: inviteEmail.trim(),
+        member_role: inviteRole
+      });
+      setInviteEmail("");
+      refetchInvites();
+    } catch (err: any) {
+      // Error handled by hook
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleUpdateRole = async (memberId: string, newRole: string) => {
+    try {
+      const { error } = await supabase
+        .from("company_members" as any)
+        .update({ member_role: newRole })
+        .eq("id", memberId);
+      if (error) throw error;
+      toast({ title: locale === "en" ? "Role updated successfully" : "تم تحديث دور العضو بنجاح ✅" });
+      refetchMembers();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string, memberUserId: string) => {
+    if (memberUserId === user?.id) {
+      toast({ title: locale === "en" ? "You cannot remove yourself" : "لا يمكنك إزالة نفسك من الشركة", variant: "destructive" });
+      return;
+    }
+    // Check if they are the last owner
+    const owners = members.filter((m: any) => m.member_role === "owner");
+    const removingMember = members.find((m: any) => m.id === memberId);
+    if (removingMember?.member_role === "owner" && owners.length <= 1) {
+      toast({ title: locale === "en" ? "Cannot remove the only company owner" : "لا يمكن إزالة المالك الوحيد للشركة", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await removeMember.mutateAsync(memberId);
+      toast({ title: locale === "en" ? "Member removed" : "تم إزالة العضو بنجاح" });
+      refetchMembers();
+    } catch (err: any) {
+      // Error handled by hook
+    }
+  };
+
+  return (
+    <div className="space-y-6 pt-6 border-t border-border/40 text-right" dir="rtl">
+      <div>
+        <h3 className="font-bold text-sm text-foreground flex items-center gap-1.5">
+          <Users className="w-4 h-4 text-primary" />
+          {locale === "en" ? "Company Members & Team Management" : "إدارة أعضاء الفريق وموظفي الشركة"}
+        </h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {locale === "en" 
+            ? "Invite team members, manage permissions, and assign roles within the company" 
+            : "دعوة موظفي الشركة الجدد، وإدارة صلاحياتهم وأدوارهم الوظيفية"}
+        </p>
+      </div>
+
+      {/* Invite Member Form */}
+      <Card className="p-4 bg-muted/10 border-border/30 space-y-4">
+        <h4 className="text-xs font-bold text-foreground">{locale === "en" ? "Invite a New Member" : "دعوة عضو جديد للفريق"}</h4>
+        <form onSubmit={handleSendInvite} className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1 space-y-1">
+            <Label htmlFor="inviteEmail" className="text-[10px] text-muted-foreground">{locale === "en" ? "Email Address" : "البريد الإلكتروني"}</Label>
+            <Input
+              id="inviteEmail"
+              type="email"
+              placeholder="name@company.com"
+              value={inviteEmail}
+              onChange={e => setInviteEmail(e.target.value)}
+              className="h-9 text-xs text-right"
+              required
+            />
+          </div>
+          
+          <div className="w-full sm:w-36 space-y-1">
+            <Label htmlFor="inviteRole" className="text-[10px] text-muted-foreground">{locale === "en" ? "Role" : "الدور الوظيفي"}</Label>
+            <select
+              id="inviteRole"
+              value={inviteRole}
+              onChange={e => setInviteRole(e.target.value as any)}
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background file:border-0 file:bg-transparent file:text-xs file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="hr">{locale === "en" ? "HR Manager" : "مدير توظيف (HR)"}</option>
+              <option value="viewer">{locale === "en" ? "Viewer" : "مشاهد فقط"}</option>
+              <option value="owner">{locale === "en" ? "Owner" : "مالك الشركة"}</option>
+            </select>
+          </div>
+
+          <Button type="submit" disabled={inviting || createInvite.isPending} className="self-end h-9 text-xs">
+            {inviting || createInvite.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (locale === "en" ? "Send Invitation" : "إرسال الدعوة")}
+          </Button>
+        </form>
+      </Card>
+
+      {/* Pending Invitations list */}
+      {invitations.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-xs font-bold text-foreground flex items-center gap-1">
+            <Clock className="w-3.5 h-3.5 text-warning" />
+            {locale === "en" ? "Pending Invitations" : "الدعوات المعلقة بانتظار القبول"} ({invitations.length})
+          </h4>
+          <div className="space-y-1.5">
+            {invitations.map((inv: any) => (
+              <div key={inv.id} className="p-2.5 bg-background border border-border/50 rounded-xl flex items-center justify-between text-xs">
+                <div className="min-w-0 text-right">
+                  <p className="font-semibold truncate">{inv.email}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {locale === "en" ? "Role: " : "دور: "}{inv.member_role === "owner" ? "مالك" : inv.member_role === "hr" ? "HR" : "مشاهد"} • {locale === "en" ? "Invited by " : "بواسطة "}{inv.invited_by === user?.id ? "أنت" : "مسؤول آخر"}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive text-[11px] h-7 hover:bg-destructive/5"
+                  onClick={async () => {
+                    await cancelInvite.mutateAsync(inv.id);
+                    refetchInvites();
+                  }}
+                  disabled={cancelInvite.isPending}
+                >
+                  {cancelInvite.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : (locale === "en" ? "Cancel" : "إلغاء الدعوة")}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Current Team Members list */}
+      <div className="space-y-2.5">
+        <h4 className="text-xs font-bold text-foreground">{locale === "en" ? "Current Members" : "أعضاء الفريق الحاليين"} ({members.length})</h4>
+        <div className="grid grid-cols-1 gap-2">
+          {members.map((m: any) => {
+            const isMe = m.user_id === user?.id;
+            return (
+              <div key={m.id} className="p-3 bg-background border border-border/40 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden border border-border/30">
+                    {m.avatar_url ? (
+                      <img src={m.avatar_url} alt={m.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-4 h-4 text-primary" />
+                    )}
+                  </div>
+                  <div className="min-w-0 text-right">
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-semibold text-xs truncate">{m.name}</p>
+                      {isMe && <Badge variant="secondary" className="text-[9px] py-0 px-1 bg-primary/10 text-primary">{locale === "en" ? "You" : "أنت"}</Badge>}
+                    </div>
+                    {m.job_title && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{m.job_title}</p>}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 self-end sm:self-auto">
+                  {/* Role selection dropdown */}
+                  <select
+                    value={m.member_role}
+                    onChange={e => handleUpdateRole(m.id, e.target.value)}
+                    disabled={isMe}
+                    className="h-8 rounded-md border border-input bg-background px-2 py-0 text-[11px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-75 disabled:cursor-not-allowed"
+                  >
+                    <option value="hr">{locale === "en" ? "HR Manager" : "مدير توظيف (HR)"}</option>
+                    <option value="viewer">{locale === "en" ? "Viewer" : "مشاهد فقط"}</option>
+                    <option value="owner">{locale === "en" ? "Owner" : "مالك"}</option>
+                  </select>
+
+                  {/* Remove Member button */}
+                  {!isMe && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-8 h-8 rounded-lg text-destructive hover:bg-destructive/5"
+                      onClick={() => handleRemoveMember(m.id, m.user_id)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
