@@ -171,50 +171,60 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
           </div>
         </div>
 
-        {/* Add Branch Button for Company Owners */}
-        {myRole === "owner" && (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5 text-xs">
-                <Plus className="w-3.5 h-3.5" />
-                إضافة فرع للشركة
+        <div className="flex items-center gap-2">
+          {(myRole === "owner" || myRole === "hr") && (
+            <Link to="/settings?tab=company">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                <Pencil className="w-3.5 h-3.5" />
+                إعدادات الشركة
               </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md" dir="rtl">
-              <DialogHeader>
-                <DialogTitle className="text-right">إضافة فرع جديد للشركة</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleAddBranch} className="space-y-4 py-2">
-                <div className="space-y-1.5 text-right">
-                  <Label htmlFor="branchName">اسم الفرع *</Label>
-                  <Input id="branchName" value={branchName} onChange={e => setBranchName(e.target.value)} placeholder="مثال: فرع الرياض، فرع جدة" required />
-                </div>
-                <div className="space-y-1.5 text-right">
-                  <Label htmlFor="branchCity">المدينة</Label>
-                  <Input id="branchCity" value={branchCity} onChange={e => setBranchCity(e.target.value)} placeholder="الرياض، جدة..." />
-                </div>
-                <div className="space-y-1.5 text-right">
-                  <Label htmlFor="branchEmail">البريد الإلكتروني للتواصل</Label>
-                  <Input id="branchEmail" type="email" value={branchEmail} onChange={e => setBranchEmail(e.target.value)} placeholder="branch@company.com" />
-                </div>
-                <div className="space-y-1.5 text-right">
-                  <Label htmlFor="branchPhone">رقم هاتف الفرع</Label>
-                  <Input id="branchPhone" value={branchPhone} onChange={e => setBranchPhone(e.target.value)} placeholder="05XXXXXXXX" />
-                </div>
-                <div className="space-y-1.5 text-right">
-                  <Label htmlFor="branchNotes">تفاصيل ووصف الفرع</Label>
-                  <Textarea id="branchNotes" value={branchNotes} onChange={e => setBranchNotes(e.target.value)} placeholder="اكتب تفاصيل إضافية أو عنوان الفرع بالتفصيل..." rows={3} />
-                </div>
-                <DialogFooter className="flex justify-end gap-2 mt-4">
-                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-                  <Button type="submit" disabled={createBranch.isPending}>
-                    {createBranch.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "إضافة الفرع"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        )}
+            </Link>
+          )}
+
+          {myRole === "owner" && (
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-1.5 text-xs">
+                  <Plus className="w-3.5 h-3.5" />
+                  إضافة فرع للشركة
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md" dir="rtl">
+                <DialogHeader>
+                  <DialogTitle className="text-right">إضافة فرع جديد للشركة</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleAddBranch} className="space-y-4 py-2">
+                  <div className="space-y-1.5 text-right">
+                    <Label htmlFor="branchName">اسم الفرع *</Label>
+                    <Input id="branchName" value={branchName} onChange={e => setBranchName(e.target.value)} placeholder="مثال: فرع الرياض، فرع جدة" required />
+                  </div>
+                  <div className="space-y-1.5 text-right">
+                    <Label htmlFor="branchCity">المدينة</Label>
+                    <Input id="branchCity" value={branchCity} onChange={e => setBranchCity(e.target.value)} placeholder="الرياض، جدة..." />
+                  </div>
+                  <div className="space-y-1.5 text-right">
+                    <Label htmlFor="branchEmail">البريد الإلكتروني للتواصل</Label>
+                    <Input id="branchEmail" type="email" value={branchEmail} onChange={e => setBranchEmail(e.target.value)} placeholder="branch@company.com" />
+                  </div>
+                  <div className="space-y-1.5 text-right">
+                    <Label htmlFor="branchPhone">رقم هاتف الفرع</Label>
+                    <Input id="branchPhone" value={branchPhone} onChange={e => setBranchPhone(e.target.value)} placeholder="05XXXXXXXX" />
+                  </div>
+                  <div className="space-y-1.5 text-right">
+                    <Label htmlFor="branchNotes">تفاصيل ووصف الفرع</Label>
+                    <Textarea id="branchNotes" value={branchNotes} onChange={e => setBranchNotes(e.target.value)} placeholder="اكتب تفاصيل إضافية أو عنوان الفرع بالتفصيل..." rows={3} />
+                  </div>
+                  <DialogFooter className="flex justify-end gap-2 mt-4">
+                    <Button type="button" variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+                    <Button type="submit" disabled={createBranch.isPending}>
+                      {createBranch.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "إضافة الفرع"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       {/* Stats Cards */}

@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import WebhookSettings from "@/components/WebhookSettings";
 import { cn } from "@/lib/utils";
+import { useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -1710,7 +1711,15 @@ function PreferencesSection() {
 /* ─── Main Page ─── */
 export default function SettingsPage() {
   const { t, locale } = useI18n();
-  const [activeTab, setActiveTab] = useState("account");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tabParam || "account");
+
+  // Keep search param in sync with activeTab changes
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    setSearchParams({ tab: tabId });
+  };
 
   const settingsTabs = [
     { id: "account", label: t("settings.profile"), icon: User },
@@ -1754,7 +1763,7 @@ export default function SettingsPage() {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => handleTabChange(tab.id)}
                     className={cn(
                       "relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-colors text-right",
                       isActive
