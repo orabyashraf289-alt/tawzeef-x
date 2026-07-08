@@ -1282,8 +1282,8 @@ function CompanySection() {
         </div>
       </div>
 
-      {companyId && (memberRole === "owner" || isAdmin) && (
-        <CompanyMembersSection companyId={companyId} />
+      {companyId && (
+        <CompanyMembersSection companyId={companyId} memberRole={memberRole} isAdmin={isAdmin} />
       )}
 
       <Separator className="opacity-50" />
@@ -1295,11 +1295,13 @@ function CompanySection() {
   );
 }
 
-function CompanyMembersSection({ companyId }: { companyId: string }) {
+function CompanyMembersSection({ companyId, memberRole, isAdmin }: { companyId: string; memberRole: string | null; isAdmin: boolean }) {
   const { locale } = useI18n();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   
+  const canManage = memberRole === "owner" || isAdmin;
+
   // 1) Fetch current company members
   const { data: members = [], refetch: refetchMembers } = useQuery({
     queryKey: ["settings-company-members", companyId],
@@ -1410,44 +1412,51 @@ function CompanyMembersSection({ companyId }: { companyId: string }) {
       </div>
 
       {/* Invite Member Form */}
-      <Card className="p-4 bg-muted/10 border-border/30 space-y-4">
-        <h4 className="text-xs font-bold text-foreground">{locale === "en" ? "Invite a New Member" : "دعوة عضو جديد للفريق"}</h4>
-        <form onSubmit={handleSendInvite} className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 space-y-1">
-            <Label htmlFor="inviteEmail" className="text-[10px] text-muted-foreground">{locale === "en" ? "Email Address" : "البريد الإلكتروني"}</Label>
-            <Input
-              id="inviteEmail"
-              type="email"
-              placeholder="name@company.com"
-              value={inviteEmail}
-              onChange={e => setInviteEmail(e.target.value)}
-              className="h-9 text-xs text-right"
-              required
-            />
-          </div>
-          
-          <div className="w-full sm:w-36 space-y-1">
-            <Label htmlFor="inviteRole" className="text-[10px] text-muted-foreground">{locale === "en" ? "Role" : "الدور الوظيفي"}</Label>
-            <select
-              id="inviteRole"
-              value={inviteRole}
-              onChange={e => setInviteRole(e.target.value as any)}
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background file:border-0 file:bg-transparent file:text-xs file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="hr">{locale === "en" ? "HR Manager" : "مدير توظيف (HR)"}</option>
-              <option value="viewer">{locale === "en" ? "Viewer" : "مشاهد فقط"}</option>
-              <option value="owner">{locale === "en" ? "Owner" : "مالك الشركة"}</option>
-            </select>
-          </div>
+      {canManage ? (
+        <Card className="p-4 bg-muted/10 border-border/30 space-y-4">
+          <h4 className="text-xs font-bold text-foreground">{locale === "en" ? "Invite a New Member" : "دعوة عضو جديد للفريق"}</h4>
+          <form onSubmit={handleSendInvite} className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 space-y-1">
+              <Label htmlFor="inviteEmail" className="text-[10px] text-muted-foreground">{locale === "en" ? "Email Address" : "البريد الإلكتروني"}</Label>
+              <Input
+                id="inviteEmail"
+                type="email"
+                placeholder="name@company.com"
+                value={inviteEmail}
+                onChange={e => setInviteEmail(e.target.value)}
+                className="h-9 text-xs text-right"
+                required
+              />
+            </div>
+            
+            <div className="w-full sm:w-36 space-y-1">
+              <Label htmlFor="inviteRole" className="text-[10px] text-muted-foreground">{locale === "en" ? "Role" : "الدور الوظيفي"}</Label>
+              <select
+                id="inviteRole"
+                value={inviteRole}
+                onChange={e => setInviteRole(e.target.value as any)}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background file:border-0 file:bg-transparent file:text-xs file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="hr">{locale === "en" ? "HR Manager" : "مدير توظيف (HR)"}</option>
+                <option value="viewer">{locale === "en" ? "Viewer" : "مشاهد فقط"}</option>
+                <option value="owner">{locale === "en" ? "Owner" : "مالك الشركة"}</option>
+              </select>
+            </div>
 
-          <Button type="submit" disabled={inviting || createInvite.isPending} className="self-end h-9 text-xs">
-            {inviting || createInvite.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (locale === "en" ? "Send Invitation" : "إرسال الدعوة")}
-          </Button>
-        </form>
-      </Card>
+            <Button type="submit" disabled={inviting || createInvite.isPending} className="self-end h-9 text-xs">
+              {inviting || createInvite.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (locale === "en" ? "Send Invitation" : "إرسال الدعوة")}
+            </Button>
+          </form>
+        </Card>
+      ) : (
+        <Card className="p-3 bg-muted/5 border-border/20 text-xs text-muted-foreground flex items-center gap-2">
+          <Info className="w-4 h-4 text-primary shrink-0" />
+          <span>{locale === "en" ? "Only company owners can invite new members." : "إرسال الدعوات وإضافة الأعضاء متاح لمالك الشركة فقط."}</span>
+        </Card>
+      )}
 
       {/* Pending Invitations list */}
-      {invitations.length > 0 && (
+      {canManage && invitations.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-xs font-bold text-foreground flex items-center gap-1">
             <Clock className="w-3.5 h-3.5 text-warning" />
@@ -1510,7 +1519,7 @@ function CompanyMembersSection({ companyId }: { companyId: string }) {
                   <select
                     value={m.member_role}
                     onChange={e => handleUpdateRole(m.id, e.target.value)}
-                    disabled={isMe}
+                    disabled={isMe || !canManage}
                     className="h-8 rounded-md border border-input bg-background px-2 py-0 text-[11px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-75 disabled:cursor-not-allowed"
                   >
                     <option value="hr">{locale === "en" ? "HR Manager" : "مدير توظيف (HR)"}</option>
@@ -1519,7 +1528,7 @@ function CompanyMembersSection({ companyId }: { companyId: string }) {
                   </select>
 
                   {/* Remove Member button */}
-                  {!isMe && (
+                  {!isMe && canManage && (
                     <Button
                       variant="ghost"
                       size="icon"
