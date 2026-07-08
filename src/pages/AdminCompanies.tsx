@@ -33,7 +33,10 @@ export default function AdminCompanies() {
   const [industry, setIndustry] = useState("");
   const [membersFor, setMembersFor] = useState<{ id: string; name: string } | null>(null);
 
-  const filtered = companies.filter((c) =>
+  const parentCompanies = companies.filter((c) => !c.parent_company_id);
+  const branchesCount = companies.filter((c) => c.parent_company_id).length;
+
+  const filtered = parentCompanies.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     (c.contact_email || "").toLowerCase().includes(search.toLowerCase())
   );
@@ -44,7 +47,9 @@ export default function AdminCompanies() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-black">إدارة الشركات</h1>
-            <p className="text-sm text-muted-foreground mt-1">جميع الشركات العميلة في المنصة</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              جميع الشركات العميلة في المنصة ({parentCompanies.length} شركات رئيسية، {branchesCount} فروع)
+            </p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -88,60 +93,95 @@ export default function AdminCompanies() {
         {isLoading && <p className="text-sm text-muted-foreground">جارٍ التحميل...</p>}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((c, i) => (
-            <motion.div key={c.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-              <Card className="p-5 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                    {c.logo_url ? (
-                      <img src={c.logo_url} alt={c.name} className="w-full h-full object-contain rounded-xl" />
-                    ) : (
-                      <Building2 className="w-6 h-6 text-primary" />
+          {filtered.map((c, i) => {
+            const branches = companies.filter((b) => b.parent_company_id === c.id);
+            return (
+              <motion.div key={c.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+                <Card className="p-5 hover:shadow-md transition-shadow flex flex-col justify-between h-full">
+                  <div>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                        {c.logo_url ? (
+                          <img src={c.logo_url} alt={c.name} className="w-full h-full object-contain rounded-xl" />
+                        ) : (
+                          <Building2 className="w-6 h-6 text-primary" />
+                        )}
+                      </div>
+                      <Badge variant={c.status === "active" ? "default" : "secondary"} className="text-[10px]">
+                        {c.status === "active" ? "نشطة" : "معطلة"}
+                      </Badge>
+                    </div>
+                    <h3 className="font-bold text-base mb-1 truncate">{c.name}</h3>
+                    <p className="text-xs text-muted-foreground truncate mb-3">{c.contact_email || "—"}</p>
+                    <p className="text-xs text-muted-foreground mb-4">{c.industry || "بدون قطاع"}</p>
+
+                    {/* Nested Branches List */}
+                    {branches.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-border/40 text-right mb-4">
+                        <h4 className="text-[11px] font-bold text-foreground mb-1.5 flex items-center gap-1.5 justify-start">
+                          <Building2 className="w-3.5 h-3.5 text-primary" />
+                          <span>الفروع التابعة ({branches.length}):</span>
+                        </h4>
+                        <div className="space-y-1.5 max-h-28 overflow-y-auto pl-1">
+                          {branches.map((br) => (
+                            <div key={br.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-xl text-[11px] border border-border/20">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <Badge variant={br.status === "active" ? "default" : "secondary"} className="text-[8px] py-0 px-1 shrink-0">
+                                  {br.status === "active" ? "نشط" : "معطل"}
+                                </Badge>
+                                <span className="font-medium truncate max-w-[130px]">{br.name}</span>
+                              </div>
+                              <Link to={`/admin/companies/${br.id}`} title="فتح صفحة الفرع">
+                                <Button variant="ghost" size="icon" className="w-6 h-6 rounded-lg hover:bg-background">
+                                  <ExternalLink className="w-3 h-3 text-primary" />
+                                </Button>
+                              </Link>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <Badge variant={c.status === "active" ? "default" : "secondary"} className="text-[10px]">
-                    {c.status === "active" ? "نشطة" : "معطلة"}
-                  </Badge>
-                </div>
-                <h3 className="font-bold text-base mb-1 truncate">{c.name}</h3>
-                <p className="text-xs text-muted-foreground truncate mb-3">{c.contact_email || "—"}</p>
-                <p className="text-xs text-muted-foreground mb-4">{c.industry || "بدون قطاع"}</p>
-                <div className="grid grid-cols-2 gap-2 mb-2">
-                  <Link to={`/admin/companies/${c.id}`}>
-                    <Button variant="outline" size="sm" className="w-full gap-1.5">
-                      <ExternalLink className="w-3.5 h-3.5" />فتح
-                    </Button>
-                  </Link>
-                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setMembersFor({ id: c.id, name: c.name })}>
-                    <UsersIcon className="w-3.5 h-3.5" />الأعضاء
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={c.status === "active" ? "text-amber-600" : "text-emerald-600"}
-                    onClick={() => toggleStatus.mutate({ id: c.id, status: c.status === "active" ? "inactive" : "active" })}
-                  >
-                    <Power className="w-3.5 h-3.5 ml-1.5" />
-                    {c.status === "active" ? "تعطيل" : "تفعيل"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive"
-                    onClick={() => {
-                      if (confirm(`حذف الشركة "${c.name}"؟ سيؤدي إلى حذف كل بياناتها المرتبطة.`)) {
-                        deleteCompany.mutate(c.id);
-                      }
-                    }}
-                  >
-                    <Trash2 className="w-3.5 h-3.5 ml-1.5" />حذف
-                  </Button>
-                </div>
-              </Card>
-            </motion.div>
-          ))}
+
+                  <div className="mt-auto pt-2">
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <Link to={`/admin/companies/${c.id}`}>
+                        <Button variant="outline" size="sm" className="w-full gap-1.5">
+                          <ExternalLink className="w-3.5 h-3.5" />فتح
+                        </Button>
+                      </Link>
+                      <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setMembersFor({ id: c.id, name: c.name })}>
+                        <UsersIcon className="w-3.5 h-3.5" />الأعضاء
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={c.status === "active" ? "text-amber-600" : "text-emerald-600"}
+                        onClick={() => toggleStatus.mutate({ id: c.id, status: c.status === "active" ? "inactive" : "active" })}
+                      >
+                        <Power className="w-3.5 h-3.5 ml-1.5" />
+                        {c.status === "active" ? "تعطيل" : "تفعيل"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => {
+                          if (confirm(`حذف الشركة "${c.name}"؟ سيؤدي إلى حذف كل بياناتها وفروعها المرتبطة.`)) {
+                            deleteCompany.mutate(c.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 ml-1.5" />حذف
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            );
+          })}
         </div>
 
         {!isLoading && filtered.length === 0 && (

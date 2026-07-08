@@ -16,8 +16,8 @@ export interface Company {
   city: string | null;
   owner_user_id: string | null;
   status: string;
-  notes: string | null;
   created_at: string;
+  parent_company_id?: string | null;
 }
 
 export interface CompanyMember {
