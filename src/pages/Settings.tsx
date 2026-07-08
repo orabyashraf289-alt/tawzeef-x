@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   User, Mail, Shield, Calendar, Bell, Target, Settings2, Webhook, ChevronLeft,
-  Palette, KeyRound, Building2, Globe, Camera, Check, Linkedin, ExternalLink, Zap, Image, Trash2, GitBranch, Bookmark, Users, Clock, Loader2
+  Palette, KeyRound, Building2, Globe, Camera, Check, Linkedin, ExternalLink, Zap, Image, Trash2, GitBranch, Bookmark, Users, Clock, Loader2, Info
 } from "lucide-react";
 import SavedFiltersManager from "@/components/SavedFiltersManager";
 import EmailSettings from "@/components/EmailSettings";
@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import WebhookSettings from "@/components/WebhookSettings";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import PipelineStagesManager from "@/components/PipelineStagesManager";
 import { useUserRole } from "@/hooks/useUserRole";
