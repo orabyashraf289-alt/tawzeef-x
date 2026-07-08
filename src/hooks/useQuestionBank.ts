@@ -231,7 +231,12 @@ export function useQuestions(jobId?: string) {
 
         // Seed if empty
         if (!data || data.length === 0) {
+          const seedKey = `tawzeef_questions_seeded_${user.id}`;
+          if (localStorage.getItem(seedKey)) {
+            return [];
+          }
           console.log("Seeding default questions for user:", user.id);
+          localStorage.setItem(seedKey, "true");
           const seededQuestions = mockQuestions.map(q => ({
             user_id: user.id,
             job_id: q.job_id,
@@ -375,6 +380,10 @@ export function useDeleteQuestion() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["questions"] });
       toast({ title: "تم حذف السؤال" });
+    },
+    onError: (error: any) => {
+      console.error("Error deleting question:", error);
+      toast({ title: "خطأ في حذف السؤال", description: error.message, variant: "destructive" });
     },
   });
 }
@@ -526,7 +535,12 @@ export function useAssessments() {
 
         // Seed if empty
         if (!data || data.length === 0) {
+          const seedKey = `tawzeef_assessments_seeded_${user.id}`;
+          if (localStorage.getItem(seedKey)) {
+            return [];
+          }
           console.log("Seeding default assessments for user:", user.id);
+          localStorage.setItem(seedKey, "true");
           
           // First, get the user's questions in database (we need their real IDs in DB)
           const { data: dbQuestions } = await supabase
@@ -696,6 +710,10 @@ export function useDeleteAssessment() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["assessments"] });
       toast({ title: "تم حذف الاختبار" });
+    },
+    onError: (error: any) => {
+      console.error("Error deleting assessment:", error);
+      toast({ title: "خطأ في حذف الاختبار", description: error.message, variant: "destructive" });
     },
   });
 }
