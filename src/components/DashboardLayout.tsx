@@ -66,6 +66,7 @@ const allNavItems = [
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [navLoading, setNavLoading] = useState(false);
   const location = useLocation();
   const { signOut, user } = useAuth();
   const { role, isAdmin } = useUserRole();
@@ -140,6 +141,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     setMobileOpen(false);
     recordNavigation(location.pathname);
+    setNavLoading(true);
+    const t = setTimeout(() => setNavLoading(false), 500);
+    return () => clearTimeout(t);
   }, [location.pathname]);
 
   const SidebarContent = () => (
@@ -270,31 +274,42 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             >
               <div
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-200 text-[13px] font-medium relative",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 text-[13px] font-medium relative overflow-hidden",
                   isActive
-                    ? "bg-primary/8 text-primary"
-                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                    ? "text-primary font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {isActive && (
-                  <div
-                    className={cn(
-                      "absolute top-1/2 -translate-y-1/2 w-[3px] h-6 bg-primary rounded-full",
-                      dir === "rtl" ? "right-0" : "left-0"
-                    )}
+                  <motion.div
+                    layoutId="activeSidebarNav"
+                    className="absolute inset-0 bg-primary/8 rounded-xl"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}
-                <item.icon className={cn(
-                  "w-[18px] h-[18px] flex-shrink-0 transition-colors",
-                  isActive ? "text-primary" : ""
-                )} />
-                <span className="flex-1">{t(item.labelKey)}</span>
-                {item.path === "/notifications" && unreadNotifCount > 0 && (
-                  <span className="relative flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold shadow-sm">
-                    <span className="absolute inset-0 rounded-full bg-destructive animate-ping opacity-30" />
-                    <span className="relative">{unreadNotifCount > 99 ? "99+" : unreadNotifCount}</span>
-                  </span>
+                {isActive && (
+                  <motion.div
+                    layoutId="activeSidebarBorder"
+                    className={cn(
+                      "absolute top-1/2 -translate-y-1/2 w-[3px] h-6 bg-primary rounded-full z-10",
+                      dir === "rtl" ? "right-0" : "left-0"
+                    )}
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
                 )}
+                <span className="relative z-10 flex items-center gap-3 w-full">
+                  <item.icon className={cn(
+                    "w-[18px] h-[18px] flex-shrink-0 transition-colors relative z-10",
+                    isActive ? "text-primary" : ""
+                  )} />
+                  <span className="flex-1 relative z-10">{t(item.labelKey)}</span>
+                  {item.path === "/notifications" && unreadNotifCount > 0 && (
+                    <span className="relative z-10 flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold shadow-sm">
+                      <span className="absolute inset-0 rounded-full bg-destructive animate-ping opacity-30" />
+                      <span className="relative">{unreadNotifCount > 99 ? "99+" : unreadNotifCount}</span>
+                    </span>
+                  )}
+                </span>
               </div>
             </Link>
           );
@@ -448,11 +463,33 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
         
+        <AnimatePresence>
+          {navLoading && (
+            <motion.div
+              initial={{ width: "0%" }}
+              animate={{ width: "95%" }}
+              exit={{ width: "100%", opacity: 0 }}
+              transition={{ duration: 0.45, ease: "easeOut" }}
+              className="fixed top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-primary via-accent to-primary z-50 pointer-events-none"
+            />
+          )}
+        </AnimatePresence>
+
         <div
           data-tour="main-content"
           className="pb-16 lg:pb-0"
         >
-          {children}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
 
