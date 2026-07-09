@@ -30,6 +30,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Progress } from "@/components/ui/progress";
 import CandidateChecklistPanel from "@/components/CandidateChecklistPanel";
 import { encryptField, decryptField } from "@/lib/security";
+import { useI18n } from "@/contexts/I18nContext";
 
 
 const statusConfig: Record<string, { label: string; bg: string; dot: string }> = {
@@ -293,6 +294,7 @@ function InfoRow({ icon: Icon, label, value, copyable }: { icon: any; label: str
 
 export default function CandidateProfile() {
   const { id } = useParams();
+  const { locale } = useI18n();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: candidates } = useCandidates();
