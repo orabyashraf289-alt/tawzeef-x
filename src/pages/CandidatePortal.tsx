@@ -269,18 +269,25 @@ export default function CandidatePortal() {
                     <PipelineProgress currentStage={c.stage} stages={DEFAULT_STAGES} />
                   </div>
 
-                  {/* Skills */}
-                  {c.skills && c.skills.length > 0 && (
-                    <div className="px-5 pb-5">
-                      <div className="flex flex-wrap gap-1.5">
-                        {c.skills.map(skill => (
-                          <span key={skill} className="px-2.5 py-1 rounded-lg bg-primary/5 text-primary text-xs font-medium border border-primary/10">
-                            {skill}
-                          </span>
-                        ))}
+                  {(() => {
+                    const skillsArray = Array.isArray(c.skills)
+                      ? c.skills
+                      : typeof c.skills === "string"
+                        ? (c.skills as string).split(",").map(s => s.trim()).filter(Boolean)
+                        : [];
+                    if (skillsArray.length === 0) return null;
+                    return (
+                      <div className="px-5 pb-5">
+                        <div className="flex flex-wrap gap-1.5">
+                          {skillsArray.map(skill => (
+                            <span key={skill} className="px-2.5 py-1 rounded-lg bg-primary/5 text-primary text-xs font-medium border border-primary/10">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </motion.div>
               ))}
             </motion.div>

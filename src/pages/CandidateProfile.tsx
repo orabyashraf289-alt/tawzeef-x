@@ -731,28 +731,36 @@ export default function CandidateProfile() {
             )}
 
             {/* Skills */}
-            {candidate.skills && candidate.skills.length > 0 && (
-              <motion.div custom={5} variants={fadeUp} initial="hidden" animate="show" className="bg-card rounded-2xl border border-border/50 p-5 shadow-sm">
-                <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  المهارات
-                  <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-normal">{candidate.skills.length}</span>
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {candidate.skills.map((skill, i) => (
-                    <motion.span
-                      key={skill}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.3 + i * 0.03 }}
-                      className="px-3 py-1.5 rounded-lg bg-primary/[0.06] text-primary text-xs font-medium border border-primary/10 hover:border-primary/25 hover:bg-primary/[0.1] transition-all cursor-default"
-                    >
-                      {skill}
-                    </motion.span>
-                  ))}
-                </div>
-              </motion.div>
-            )}
+            {(() => {
+              const skillsArray = Array.isArray(candidate.skills)
+                ? candidate.skills
+                : typeof candidate.skills === "string"
+                  ? (candidate.skills as string).split(",").map(s => s.trim()).filter(Boolean)
+                  : [];
+              if (skillsArray.length === 0) return null;
+              return (
+                <motion.div custom={5} variants={fadeUp} initial="hidden" animate="show" className="bg-card rounded-2xl border border-border/50 p-5 shadow-sm">
+                  <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    المهارات
+                    <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-normal">{skillsArray.length}</span>
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {skillsArray.map((skill, i) => (
+                      <motion.span
+                        key={skill}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.3 + i * 0.03 }}
+                        className="px-3 py-1.5 rounded-lg bg-primary/[0.06] text-primary text-xs font-medium border border-primary/10 hover:border-primary/25 hover:bg-primary/[0.1] transition-all cursor-default"
+                      >
+                        {skill}
+                      </motion.span>
+                    ))}
+                  </div>
+                </motion.div>
+              );
+            })()}
 
             {/* AI Evaluation */}
             <motion.div custom={6} variants={fadeUp} initial="hidden" animate="show">
