@@ -9,7 +9,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const EMBED_MODEL = "google/gemini-3-flash-preview";
+const EMBED_MODEL = "google/gemini-2.0-flash";
 
 function buildCandidateText(c: any): string {
   return [
@@ -156,7 +156,7 @@ async function expandQueryWithAI(query: string): Promise<string> {
     const API_URL = isDirectGemini
       ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
       : "https://api.lovable.dev/v1/chat/completions";
-    const finalModel = isDirectGemini ? "gemini-2.5-flash" : EMBED_MODEL;
+    const finalModel = isDirectGemini ? "gemini-2.0-flash" : EMBED_MODEL;
     const resp = await fetch(API_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },

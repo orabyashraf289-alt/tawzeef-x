@@ -54,7 +54,7 @@ ${candidateExperience ? `- الخبرة: ${candidateExperience}` : ""}` : ""}
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: isDirectGemini ? "gemini-2.5-flash" : "google/gemini-2.5-flash",
+        model: isDirectGemini ? "gemini-2.0-flash" : "google/gemini-2.0-flash",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
       }),

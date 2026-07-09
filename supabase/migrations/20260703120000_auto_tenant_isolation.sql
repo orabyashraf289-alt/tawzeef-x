@@ -19,10 +19,12 @@ BEGIN
   END IF;
 
   -- 2) If company_id is still null and we have a job_id (e.g. applications/candidates applying to a job), get it from the job
-  IF _company_id IS NULL AND TG_TABLE_NAME IN ('applications', 'candidates') AND NEW.job_id IS NOT NULL THEN
-    SELECT company_id INTO _company_id 
-    FROM public.jobs 
-    WHERE id = NEW.job_id;
+  IF _company_id IS NULL AND TG_TABLE_NAME IN ('applications', 'candidates') THEN
+    IF NEW.job_id IS NOT NULL THEN
+      SELECT company_id INTO _company_id 
+      FROM public.jobs 
+      WHERE id = NEW.job_id;
+    END IF;
   END IF;
 
   -- 3) Apply the resolved company_id

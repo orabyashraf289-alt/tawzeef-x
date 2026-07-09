@@ -87,7 +87,7 @@ Distribute questions across difficulty levels: easy, medium, hard.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: isDirectGemini ? "gemini-2.5-flash" : "google/gemini-3-flash-preview",
+        model: isDirectGemini ? "gemini-2.0-flash" : "google/gemini-2.0-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

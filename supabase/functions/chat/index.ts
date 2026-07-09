@@ -9,8 +9,8 @@ const corsHeaders = {
 // ============================================================================
 // AI MODELS - Hybrid routing
 // ============================================================================
-const MODEL_FAST = "google/gemini-3-flash-preview";   // chat / Q&A / detection
-const MODEL_PRO = "google/gemini-2.5-pro";             // tool execution / reasoning
+const MODEL_FAST = "google/gemini-2.0-flash";   // chat / Q&A / detection
+const MODEL_PRO = "google/gemini-1.5-pro";             // tool execution / reasoning
 
 // ============================================================================
 // TOOL DEFINITIONS
@@ -929,12 +929,11 @@ serve(async (req) => {
 
     // Allowed models — anything else falls back to defaults
     const ALLOWED_MODELS = new Set([
-      "google/gemini-3-flash-preview",
-      "google/gemini-2.5-pro",
-      "google/gemini-2.5-flash",
-      "openai/gpt-5",
-      "openai/gpt-5-mini",
-      "openai/gpt-5-nano",
+      "google/gemini-2.0-flash",
+      "google/gemini-1.5-pro",
+      "google/gemini-1.5-flash",
+      "openai/gpt-4o",
+      "openai/gpt-4o-mini",
     ]);
     const overrideModel = typeof model_override === "string" && ALLOWED_MODELS.has(model_override)
       ? model_override
@@ -945,8 +944,8 @@ serve(async (req) => {
     if (isDirectGemini) {
       effectiveFastModel = effectiveFastModel.replace(/^(google|openai)\//i, "");
       effectiveProModel = effectiveProModel.replace(/^(google|openai)\//i, "");
-      if (effectiveFastModel === "gemini-3-flash-preview") effectiveFastModel = "gemini-2.5-flash";
-      if (effectiveProModel === "gemini-3-flash-preview") effectiveProModel = "gemini-2.5-pro";
+      if (effectiveFastModel === "gemini-3-flash-preview") effectiveFastModel = "gemini-2.0-flash";
+      if (effectiveProModel === "gemini-2.5-pro") effectiveProModel = "gemini-1.5-pro";
     }
     const toolsDisabled = disable_tools === true;
 

@@ -47,7 +47,7 @@ Return ONLY valid JSON with these fields. If you cannot determine a field, use r
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: isDirectGemini ? "gemini-2.5-flash-lite" : "google/gemini-2.5-flash-lite",
+        model: isDirectGemini ? "gemini-2.0-flash" : "google/gemini-2.0-flash",
         messages: [
           { role: "system", content: "You extract structured data from resumes. Always respond with valid JSON only." },
           { role: "user", content: prompt },
