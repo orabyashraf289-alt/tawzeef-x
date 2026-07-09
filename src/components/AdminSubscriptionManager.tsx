@@ -31,13 +31,17 @@ function useCompaniesList() {
 
       if (!cos || cos.length === 0) return [];
 
-      const companyIds = cos.map((c) => c.id);
+      // Filter main companies vs branches
+      const mainCompanies = cos.filter((c) => !c.parent_company_id);
+      const branches = cos.filter((c) => !!c.parent_company_id);
 
-      // Get all company owners
+      const mainCompanyIds = mainCompanies.map((c) => c.id);
+
+      // Get all company owners for main companies
       const { data: members } = await supabase
         .from("company_members" as any)
         .select("company_id, user_id, member_role")
-        .in("company_id", companyIds)
+        .in("company_id", mainCompanyIds)
         .eq("member_role", "owner");
 
       const ownerUserIds = (members || []).map((m: any) => m.user_id);
@@ -48,22 +52,28 @@ function useCompaniesList() {
         .select("*")
         .in("user_id", ownerUserIds);
 
-      // Get subscriptions
+      // Get subscriptions for main companies
       const { data: subs } = await supabase
         .from("company_subscriptions" as any)
         .select("*")
-        .in("company_id", companyIds);
+        .in("company_id", mainCompanyIds);
 
       // Get plans
       const { data: plans } = await supabase
         .from("subscription_plans" as any)
         .select("*");
 
-      return cos.map((c) => {
+      return mainCompanies.map((c) => {
         const member = (members || []).find((m: any) => m.company_id === c.id);
         const profile = member ? (profiles || []).find((p) => p.user_id === member.user_id) : null;
         const sub = (subs as any[] || []).find((s: any) => s.company_id === c.id);
         const plan = sub ? (plans as any[] || []).find((p: any) => p.id === sub.plan_id) : null;
+        
+        // Resolve branches list
+        const companyBranches = branches
+          .filter((b) => b.parent_company_id === c.id)
+          .map((b) => b.name || "فرع بدون اسم");
+
         return {
           companyId: c.id,
           companyName: c.name || "شركة بدون اسم",
@@ -71,6 +81,7 @@ function useCompaniesList() {
           joinedAt: c.created_at,
           subscription: sub,
           plan,
+          branches: companyBranches,
         };
       });
     },
@@ -174,7 +185,7 @@ export default function AdminSubscriptionManager() {
   };
 
   const filteredCompanies = (companies || []).filter(
-    (c) => !search || c.companyName.includes(search) || c.ownerName.includes(search)
+    (c) => !search || c.companyName.includes(search) || c.ownerName.includes(search) || (c.branches && c.branches.some((b: string) => b.includes(search)))
   );
 
   const planColors: Record<string, string> = {
@@ -326,7 +337,17 @@ export default function AdminSubscriptionManager() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold truncate text-foreground">{company.companyName}</p>
                     <p className="text-xs text-muted-foreground">المالك: {company.ownerName}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    {company.branches && company.branches.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1 items-center">
+                        <span className="text-[10px] text-muted-foreground font-semibold">الفروع:</span>
+                        {company.branches.map((bName: string, bi: number) => (
+                          <Badge key={bi} variant="secondary" className="text-[9px] px-1.5 py-0 bg-muted text-muted-foreground border-none">
+                            {bName}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1">
                       انضمت {new Date(company.joinedAt).toLocaleDateString("ar-SA")}
                       {company.subscription && (
                         <> · استخدمت {company.subscription.job_posts_used} من {company.subscription.job_posts_limit === -1 ? "∞" : company.subscription.job_posts_limit} منشور</>

@@ -62,11 +62,20 @@ export function useMySubscription() {
 
       if (!memberData?.company_id) return null;
 
+      // 1.5) Check if it has a parent company (it is a branch)
+      const { data: companyData } = await supabase
+        .from("companies")
+        .select("parent_company_id")
+        .eq("id", memberData.company_id)
+        .maybeSingle();
+
+      const targetCompanyId = companyData?.parent_company_id || memberData.company_id;
+
       // 2) Get company subscription
       const { data, error } = await supabase
         .from("company_subscriptions" as any)
         .select("*")
-        .eq("company_id", memberData.company_id)
+        .eq("company_id", targetCompanyId)
         .maybeSingle();
 
       if (error) throw error;
