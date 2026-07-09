@@ -78,6 +78,7 @@ function useCompaniesList() {
           companyId: c.id,
           companyName: c.name || "شركة بدون اسم",
           ownerName: profile?.full_name || "بدون اسم مالك",
+          ownerUserId: member?.user_id || null,
           joinedAt: c.created_at,
           subscription: sub,
           plan,
@@ -109,7 +110,7 @@ function useUpdatePlan() {
 function useAssignSubscription() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ companyId, planId, jobPostsLimit }: { companyId: string; planId: string; jobPostsLimit: number }) => {
+    mutationFn: async ({ companyId, ownerUserId, planId, jobPostsLimit }: { companyId: string; ownerUserId: string | null; planId: string; jobPostsLimit: number }) => {
       // Check if company has a subscription row
       const { data: existing } = await supabase
         .from("company_subscriptions" as any)
@@ -124,9 +125,17 @@ function useAssignSubscription() {
           .eq("company_id", companyId);
         if (error) throw error;
       } else {
+        const activeUserId = ownerUserId || (await supabase.auth.getUser()).data.user?.id;
         const { error } = await supabase
           .from("company_subscriptions" as any)
-          .insert({ company_id: companyId, plan_id: planId, job_posts_limit: jobPostsLimit, job_posts_used: 0, status: "active" } as any);
+          .insert({
+            company_id: companyId,
+            user_id: activeUserId,
+            plan_id: planId,
+            job_posts_limit: jobPostsLimit,
+            job_posts_used: 0,
+            status: "active"
+          } as any);
         if (error) throw error;
       }
     },
@@ -168,7 +177,7 @@ export default function AdminSubscriptionManager() {
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
   const [editForm, setEditForm] = useState({ price: 0, job_posts_limit: 0, name_ar: "" });
   const [search, setSearch] = useState("");
-  const [assignDialog, setAssignDialog] = useState<{ companyId: string; name: string } | null>(null);
+  const [assignDialog, setAssignDialog] = useState<{ companyId: string; name: string; ownerUserId: string | null } | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [editLimitDialog, setEditLimitDialog] = useState<{ companyId: string; name: string; current: number } | null>(null);
   const [newLimit, setNewLimit] = useState(0);
@@ -387,7 +396,7 @@ export default function AdminSubscriptionManager() {
                       size="sm"
                       className="text-xs gap-1"
                       onClick={() => {
-                        setAssignDialog({ companyId: company.companyId, name: company.companyName });
+                        setAssignDialog({ companyId: company.companyId, name: company.companyName, ownerUserId: company.ownerUserId });
                         setSelectedPlanId(company.plan?.id || "");
                       }}
                     >
@@ -439,6 +448,7 @@ export default function AdminSubscriptionManager() {
                   if (assignDialog && plan) {
                     assignSub.mutate({
                       companyId: assignDialog.companyId,
+                      ownerUserId: assignDialog.ownerUserId,
                       planId: plan.id,
                       jobPostsLimit: plan.job_posts_limit,
                     });
