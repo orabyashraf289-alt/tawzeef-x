@@ -531,7 +531,9 @@ export default function Pipeline() {
               email_type: "assessment",
               subject: `مطلوب إكمال اختبار: ${assessment.title}`,
               tracking_id: trackingId,
-            }).then(() => {
+            }).then(async () => {
+              const { data: { session } } = await supabase.auth.getSession();
+              const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
               const assessmentLink = `${window.location.origin}/assessment/${assessment.token}`;
               const trackingPixelUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/email-tracking-pixel?tid=${trackingId}`;
               
@@ -539,7 +541,7 @@ export default function Pipeline() {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
-                  Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                  Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                   to: candidate.email,
@@ -1126,13 +1128,16 @@ export default function Pipeline() {
                     const assessmentLink = `${window.location.origin}/assessment/${assessmentDialog.assessmentToken}`;
                     const trackingPixelUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/email-tracking-pixel?tid=${trackingId}`;
 
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
                     const res = await fetch(
                       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`,
                       {
                         method: "POST",
                         headers: {
                           "Content-Type": "application/json",
-                          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                          Authorization: `Bearer ${token}`,
                         },
                         body: JSON.stringify({
                           to: assessmentDialog.candidateEmail,

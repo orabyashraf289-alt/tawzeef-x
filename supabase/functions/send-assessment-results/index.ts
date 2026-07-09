@@ -90,10 +90,10 @@ Deno.serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     // Get assessment title
-    const supabase = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const supabase = createClient(supabaseUrl, serviceKey);
     const { data: assessment } = await supabase.from("assessments").select("title").eq("id", assessment_id).single();
 
     const subject = `نتائج اختبار: ${assessment?.title || "الاختبار"}`;
@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
     // Send via send-email function
     const resp = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
       body: JSON.stringify({ to: candidate_email, subject, html }),
     });
 

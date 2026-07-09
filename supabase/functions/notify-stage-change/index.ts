@@ -5,13 +5,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function sendEmail(supabaseUrl: string, anonKey: string, to: string, subject: string, html: string, userId?: string) {
+async function sendEmail(supabaseUrl: string, to: string, subject: string, html: string, userId?: string) {
   try {
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const resp = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${anonKey}`,
+        Authorization: `Bearer ${serviceKey}`,
       },
       body: JSON.stringify({ to, subject, html, user_id: userId }),
     });
@@ -122,9 +123,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Ownership check
-    if (candidate.user_id !== callerId) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
+    // Robust Authorization Check (BOLA Remediation)
+    const isOwner = candidate.user_id === callerId;
+    const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", callerId).eq("role", "admin").maybeSingle();
+    const isAdmin = !!roleData;
+    let hasCompanyAccess = false;
+    if (candidate.company_id) {
+      const { data: memberData } = await supabase.from("company_members").select("company_id").eq("company_id", candidate.company_id).eq("user_id", callerId).maybeSingle();
+      hasCompanyAccess = !!memberData;
+    }
+    if (!(isOwner || isAdmin || hasCompanyAccess)) {
+      return new Response(JSON.stringify({ error: "Forbidden: You do not have permission to modify this candidate" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -192,10 +201,10 @@ Deno.serve(async (req) => {
     if (candidate.email) {
       if (action === "reject") {
         const html = buildRejectionEmail(candidate.name, oldStage, rejectionReason || "", jobTitle);
-        await sendEmail(supabaseUrl, anonKey, candidate.email, `تحديث حالة طلبك${jobTitle ? ` - ${jobTitle}` : ''}`, html, candidate.user_id);
+        await sendEmail(supabaseUrl, candidate.email, `تحديث حالة طلبك${jobTitle ? ` - ${jobTitle}` : ''}`, html, candidate.user_id);
       } else if (action === "approve") {
         const html = buildApprovalEmail(candidate.name, newStage, jobTitle);
-        await sendEmail(supabaseUrl, anonKey, candidate.email, `تحديث حالة طلبك - ${stageLabels[newStage] || newStage}`, html, candidate.user_id);
+        await sendEmail(supabaseUrl, candidate.email, `تحديث حالة طلبك - ${stageLabels[newStage] || newStage}`, html, candidate.user_id);
 
         // Check if the new stage has a linked assessment and auto-send
         const { data: stageData } = await supabase
@@ -216,7 +225,7 @@ Deno.serve(async (req) => {
           if (assessment) {
             const assessmentUrl = `${supabaseUrl.replace('/rest/v1', '').replace('https://odtpjvmayutbwqhlbvsr.supabase.co', Deno.env.get('APP_URL') || 'https://ai-hire-buddy-22.lovable.app')}/assessment/${assessment.token}`;
             const assessmentHtml = buildAssessmentEmail(candidate.name, assessment.title, assessmentUrl, jobTitle);
-            await sendEmail(supabaseUrl, anonKey, candidate.email, `اختبار مطلوب: ${assessment.title}`, assessmentHtml, candidate.user_id);
+            await sendEmail(supabaseUrl, candidate.email, `اختبار مطلوب: ${assessment.title}`, assessmentHtml, candidate.user_id);
           }
         }
       }

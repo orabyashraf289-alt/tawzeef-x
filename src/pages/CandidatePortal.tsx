@@ -1,5 +1,5 @@
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -7,7 +7,7 @@ import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Check, Clock, Circle, Briefcase, MapPin, ArrowLeft, Shield, Star, Brain  } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import CandidateChatbot from "@/components/candidate-portal/CandidateChatbot";
 
 
@@ -95,11 +95,27 @@ function PipelineProgress({ currentStage, stages }: { currentStage: string; stag
 }
 
 export default function CandidatePortal() {
+  const [searchParams] = useSearchParams();
   const [searchType, setSearchType] = useState<"tracking" | "email">("tracking");
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [candidates, setCandidates] = useState<CandidateResult[] | null>(null);
   const [searched, setSearched] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
+  // Auto load tracking code from URL query parameter (?code=XYZ)
+  useEffect(() => {
+    const code = searchParams.get("code");
+    if (code) {
+      setSearchType("tracking");
+      setInput(code.trim());
+      // Trigger search using a timeout to allow component to render
+      setTimeout(() => {
+        const btn = document.querySelector("button.gap-2") as HTMLButtonElement;
+        if (btn) btn.click();
+      }, 300);
+    }
+  }, [searchParams]);
 
   const handleSearch = async () => {
     if (!input.trim()) {
@@ -109,6 +125,8 @@ export default function CandidatePortal() {
 
     setIsLoading(true);
     setSearched(true);
+    setEmailSent(false);
+    setCandidates(null);
     try {
       const body = searchType === "tracking"
         ? { trackingCode: input.trim() }
@@ -129,7 +147,12 @@ export default function CandidatePortal() {
       }
 
       const data = await resp.json();
-      setCandidates(data.candidates);
+      if (searchType === "email") {
+        setEmailSent(true);
+        toast({ title: "تم الإرسال 📧", description: data.message });
+      } else {
+        setCandidates(data.candidates);
+      }
     } catch (e: any) {
       toast({ title: "خطأ", description: e.message, variant: "destructive" });
       setCandidates(null);
@@ -209,12 +232,23 @@ export default function CandidatePortal() {
 
         {/* Results */}
         <AnimatePresence mode="wait">
-          {searched && !isLoading && !candidates && (
+          {emailSent && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              className="p-8 bg-card border border-border/50 rounded-2xl text-center space-y-4 shadow-sm">
+              <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary text-2xl">📧</div>
+              <h3 className="font-bold text-lg text-foreground">تم إرسال بريد إلكتروني بنجاح</h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+                إذا كان بريدك الإلكتروني مسجلاً في النظام، فقد أرسلنا إليك رسالة تحتوي على رموز التتبع الخاصة بك مع روابط الدخول المباشر. يرجى التحقق من صندوق الوارد والبريد المهمل (Spam).
+              </p>
+            </motion.div>
+          )}
+
+          {searched && !isLoading && !candidates && !emailSent && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="text-center py-12 bg-card rounded-2xl border border-border/50">
               <Search className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-foreground font-semibold">لم يتم العثور على نتائج</p>
-              <p className="text-sm text-muted-foreground mt-1">تأكد من رمز التتبع أو البريد الإلكتروني وحاول مرة أخرى</p>
+              <p className="text-sm text-muted-foreground mt-1">تأكد من رمز التتبع وحاول مرة أخرى</p>
             </motion.div>
           )}
 

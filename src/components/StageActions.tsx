@@ -196,6 +196,8 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
   const sendInterviewEmail = async (email: string, meetingUrl: string, date: string, time: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       
       // Build ICS invite file content
       const pad = (num: number) => String(num).padStart(2, "0");
@@ -235,7 +237,7 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           to: email,
@@ -281,11 +283,14 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
   const sendRescheduleEmail = async (email: string, meetingUrl: string, oldDate: string, oldTime: string, newDate: string, newTime: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
       await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           to: email,
@@ -322,11 +327,14 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
   const sendCancellationEmail = async (email: string, date: string, time: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
       await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           to: email,

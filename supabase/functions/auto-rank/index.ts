@@ -94,8 +94,18 @@ Deno.serve(async (req) => {
     // Fetch job + ownership check
     const { data: job, error: jobErr } = await supabase.from("jobs").select("*").eq("id", jobId).single();
     if (jobErr || !job) throw new Error("الوظيفة غير موجودة");
-    if (job.user_id !== callerId) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+    // Robust Authorization Check (BOLA Remediation)
+    const isOwner = job.user_id === callerId;
+    const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", callerId).eq("role", "admin").maybeSingle();
+    const isAdmin = !!roleData;
+    let hasCompanyAccess = false;
+    if (job.company_id) {
+      const { data: memberData } = await supabase.from("company_members").select("company_id").eq("company_id", job.company_id).eq("user_id", callerId).maybeSingle();
+      hasCompanyAccess = !!memberData;
+    }
+    if (!(isOwner || isAdmin || hasCompanyAccess)) {
+      return new Response(JSON.stringify({ error: "Forbidden: You do not have permission to access this job" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Fetch candidates for this job

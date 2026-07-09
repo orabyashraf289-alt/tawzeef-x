@@ -42,8 +42,18 @@ serve(async (req) => {
       .eq("id", candidateId)
       .single();
     if (candErr || !candidate) throw new Error("المرشح غير موجود");
-    if (candidate.user_id !== callerId) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+    // Robust Authorization Check (BOLA Remediation)
+    const isOwner = candidate.user_id === callerId;
+    const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", callerId).eq("role", "admin").maybeSingle();
+    const isAdmin = !!roleData;
+    let hasCompanyAccess = false;
+    if (candidate.company_id) {
+      const { data: memberData } = await supabase.from("company_members").select("company_id").eq("company_id", candidate.company_id).eq("user_id", callerId).maybeSingle();
+      hasCompanyAccess = !!memberData;
+    }
+    if (!(isOwner || isAdmin || hasCompanyAccess)) {
+      return new Response(JSON.stringify({ error: "Forbidden: You do not have permission to access this candidate" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Fetch job if provided

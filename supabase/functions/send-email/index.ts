@@ -54,6 +54,32 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace(/^Bearer\s+/i, "");
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Unauthorized: Missing token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    let isServiceCall = token === serviceKey;
+    let callerId: string | null = null;
+
+    if (!isServiceCall) {
+      const supabaseAnon = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+      const { data: { user }, error: userErr } = await supabaseAnon.auth.getUser(token);
+      if (userErr || !user) {
+        return new Response(JSON.stringify({ error: "Unauthorized: Invalid token" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      callerId = user.id;
+    }
+
     const body = (await req.json()) as EmailRequest;
     const { subject, html, user_id, notify_recruiter, attachments } = body;
     let { to } = body;
@@ -65,15 +91,32 @@ Deno.serve(async (req) => {
       );
     }
 
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      serviceKey
-    );
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    // If not service call, verify sender relationship to user_id
+    if (!isServiceCall && callerId) {
+      const targetUserId = user_id || callerId;
+      if (targetUserId !== callerId) {
+        // Check if caller is Super Admin
+        const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", callerId).eq("role", "admin").maybeSingle();
+        if (!roleData) {
+          // Check if same company
+          const { data: callerMember } = await supabase.from("company_members").select("company_id").eq("user_id", callerId).maybeSingle();
+          const { data: targetMember } = await supabase.from("company_members").select("company_id").eq("user_id", targetUserId).maybeSingle();
+          if (!callerMember || !targetMember || callerMember.company_id !== targetMember.company_id) {
+            return new Response(
+              JSON.stringify({ error: "Forbidden: Cannot send email using another user's credentials" }),
+              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        }
+      }
+    }
 
     // If notify_recruiter, resolve the recruiter's email
-    if (notify_recruiter && user_id && !to) {
-      const { data: userData } = await supabase.auth.admin.getUserById(user_id);
+    const smtpUserId = user_id || callerId;
+    if (notify_recruiter && smtpUserId && !to) {
+      const { data: userData } = await supabase.auth.admin.getUserById(smtpUserId);
       if (userData?.user?.email) {
         to = userData.user.email;
       } else {
@@ -99,11 +142,11 @@ Deno.serve(async (req) => {
     let smtpPass = Deno.env.get("GMAIL_APP_PASSWORD") || "";
     let senderName = "فريق التوظيف";
 
-    if (user_id) {
+    if (smtpUserId) {
       const { data: settings } = await supabase
         .from("email_settings")
         .select("*")
-        .eq("user_id", user_id)
+        .eq("user_id", smtpUserId)
         .eq("is_active", true)
         .maybeSingle();
 
