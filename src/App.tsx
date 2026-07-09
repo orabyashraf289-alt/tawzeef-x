@@ -2,9 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation, Outlet } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
-import PageTransition from "@/components/PageTransition";
+import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { I18nProvider } from "@/contexts/I18nContext";
@@ -80,13 +78,10 @@ function PageLoader() {
 }
 
 function RouteTransitionLayout() {
-  const location = useLocation();
   return (
-    <AnimatePresence mode="wait">
-      <PageTransition key={location.pathname}>
-        <Outlet />
-      </PageTransition>
-    </AnimatePresence>
+    <Suspense fallback={<PageLoader />}>
+      <Outlet />
+    </Suspense>
   );
 }
 
