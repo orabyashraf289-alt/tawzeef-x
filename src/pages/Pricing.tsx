@@ -5,7 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Check, Sparkles, Crown, Zap, ArrowLeft  } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
+import CheckoutModal from "@/components/CheckoutModal";
+import { useState } from "react";
 
 const planIcons: Record<string, any> = {
   free: Zap,
@@ -21,6 +24,15 @@ const planColors: Record<string, string> = {
 
 export default function Pricing() {
   const { data: plans, isLoading } = useSubscriptionPlans();
+  const { user } = useAuth();
+  const { role } = useUserRole();
+  const [selectedPlan, setSelectedPlan] = useState<{
+    id: string;
+    name: string;
+    name_ar: string;
+    price: number;
+    limit: number;
+  } | null>(null);
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -129,8 +141,15 @@ export default function Pricing() {
                     ))}
                   </ul>
 
-                  <Link to={`/auth?mode=signup&plan=${plan.name}`}>
+                  {user && (role === "recruiter" || role === "admin") ? (
                     <Button
+                      onClick={() => setSelectedPlan({
+                        id: plan.id,
+                        name: plan.name,
+                        name_ar: plan.name_ar,
+                        price: plan.price,
+                        limit: plan.job_posts_limit
+                      })}
                       className={`w-full h-12 rounded-xl text-sm font-bold ${
                         isPro
                           ? "bg-primary hover:bg-primary/90 text-primary-foreground"
@@ -141,9 +160,25 @@ export default function Pricing() {
                       variant={isPro || isBasic ? "default" : "outline"}
                       style={{ fontFamily: "'Cairo', sans-serif" }}
                     >
-                      {plan.price === 0 ? "ابدأ مجاناً" : "اشترك الآن"}
+                      {plan.price === 0 ? "الباقة الافتراضية" : "اشترك الآن"}
                     </Button>
-                  </Link>
+                  ) : (
+                    <Link to={`/auth?mode=signup&plan=${plan.name}`}>
+                      <Button
+                        className={`w-full h-12 rounded-xl text-sm font-bold ${
+                          isPro
+                            ? "bg-primary hover:bg-primary/90 text-primary-foreground"
+                            : isBasic
+                            ? "bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20"
+                            : ""
+                        }`}
+                        variant={isPro || isBasic ? "default" : "outline"}
+                        style={{ fontFamily: "'Cairo', sans-serif" }}
+                      >
+                        {plan.price === 0 ? "ابدأ مجاناً" : "اشترك الآن"}
+                      </Button>
+                    </Link>
+                  )}
                 </motion.div>
               );
             })}
@@ -165,6 +200,18 @@ export default function Pricing() {
           </p>
         </motion.div>
       </div>
+
+      {selectedPlan && (
+        <CheckoutModal
+          isOpen={!!selectedPlan}
+          onClose={() => setSelectedPlan(null)}
+          planId={selectedPlan.id}
+          planName={selectedPlan.name}
+          planNameAr={selectedPlan.name_ar}
+          price={selectedPlan.price}
+          limit={selectedPlan.limit}
+        />
+      )}
     </div>
   );
 }

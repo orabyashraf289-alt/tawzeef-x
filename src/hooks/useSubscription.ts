@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -95,4 +95,44 @@ export function useCanPostJob() {
     isLoading: sub.isLoading,
     subscription: sub.data,
   };
+}
+
+export function useUpgradeSubscription() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ planId, limit }: { planId: string; limit: number }) => {
+      if (!user) throw new Error("User not authenticated");
+
+      // 1) Get company_id
+      const { data: memberData } = await supabase
+        .from("company_members" as any)
+        .select("company_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!memberData?.company_id) throw new Error("No company found for user");
+
+      // 2) Update subscription
+      const { data, error } = await supabase
+        .from("company_subscriptions" as any)
+        .update({
+          plan_id: planId,
+          job_posts_limit: limit,
+          job_posts_used: 0,
+          updated_at: new Date().toISOString()
+        } as any)
+        .eq("company_id", memberData.company_id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-subscription", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["subscription-plans"] });
+    }
+  });
 }

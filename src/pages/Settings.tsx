@@ -12,6 +12,9 @@ import {
 import SavedFiltersManager from "@/components/SavedFiltersManager";
 import EmailSettings from "@/components/EmailSettings";
 import { useState, useEffect } from "react";
+import { useMySubscription, useSubscriptionPlans, useCanPostJob } from "@/hooks/useSubscription";
+import CheckoutModal from "@/components/CheckoutModal";
+import { Crown, FileDown, ArrowUpRight, DollarSign, Calendar as CalendarIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1708,6 +1711,219 @@ function PreferencesSection() {
   );
 }
 
+/* ─── Subscription & Billing Section ─── */
+function SubscriptionSection() {
+  const { t, locale } = useI18n();
+  const { data: activeSub, isLoading: isSubLoading } = useMySubscription();
+  const { data: plans, isLoading: isPlansLoading } = useSubscriptionPlans();
+  const { used, limit, remaining } = useCanPostJob();
+  const [selectedPlan, setSelectedPlan] = useState<{
+    id: string;
+    name: string;
+    name_ar: string;
+    price: number;
+    limit: number;
+  } | null>(null);
+
+  if (isSubLoading || isPlansLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  // Resolve active plan detail
+  const currentPlan = plans?.find(p => p.id === activeSub?.plan_id) || plans?.find(p => p.name === "free");
+  const isFree = currentPlan?.name === "free";
+  const isPro = currentPlan?.name === "pro";
+  const isBasic = currentPlan?.name === "basic";
+
+  const nextPlans = plans?.filter(p => {
+    if (isFree) return p.name !== "free";
+    if (isBasic) return p.name === "pro";
+    return false; // Pro is already highest
+  }) || [];
+
+  // Simulated invoice history
+  const invoices = [
+    { id: "INV-2026-003", date: "2026-07-09", amount: currentPlan?.price || 0, plan: currentPlan?.name_ar || "مجاني", status: "Paid" },
+    ...(currentPlan?.price && currentPlan.price > 0 ? [
+      { id: "INV-2026-002", date: "2026-06-09", amount: currentPlan.price, plan: currentPlan.name_ar, status: "Paid" },
+      { id: "INV-2026-001", date: "2026-05-09", amount: currentPlan.price, plan: currentPlan.name_ar, status: "Paid" }
+    ] : [])
+  ];
+
+  const handleDownloadInvoice = (invId: string) => {
+    toast({
+      title: "جاري توليد الفاتورة 📄",
+      description: `سيتم بدء تحميل الفاتورة ${invId} خلال ثوانٍ...`
+    });
+  };
+
+  const usagePercent = limit === -1 ? 0 : Math.min(100, Math.round((used / limit) * 100));
+
+  return (
+    <div className="space-y-8">
+      {/* Active Subscription Summary */}
+      <div className="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-2xl border border-slate-800 p-6 text-white shadow-md relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="flex justify-between items-start mb-6">
+          <div className="space-y-1">
+            <span className="text-xs font-semibold text-primary-foreground/60 uppercase tracking-wider">الباقة الحالية للشركة</span>
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-black">{currentPlan?.name_ar || "مجانية"}</h2>
+              <span className="px-2 py-0.5 rounded bg-primary/20 text-primary text-[10px] font-bold border border-primary/30">
+                {activeSub?.status === "active" ? "نشط" : "منتهي"}
+              </span>
+            </div>
+          </div>
+          <Crown className="w-8 h-8 text-primary animate-bounce" />
+        </div>
+
+        {/* Usage meters */}
+        <div className="space-y-3 mb-6">
+          <div className="flex justify-between text-xs text-slate-300">
+            <span>استهلاك منشورات التوظيف</span>
+            <span>
+              {limit === -1 ? "غير محدود" : `تم استهلاك ${used} من أصل ${limit} وظائف`}
+            </span>
+          </div>
+          {limit !== -1 && (
+            <div className="w-full bg-slate-800 rounded-full h-2">
+              <div
+                className="bg-primary h-2 rounded-full transition-all duration-500"
+                style={{ width: `${usagePercent}%` }}
+              />
+            </div>
+          )}
+          <p className="text-[10px] text-slate-400">
+            {limit === -1 
+              ? "باقة التوظيف الاحترافية تمنحك إمكانية نشر عدد غير محدود من الوظائف وجلب مرشحين بلا قيود."
+              : `يتبقى لك إنشاء ${remaining} منشورات توظيف نشطة في الباقة الحالية.`}
+          </p>
+        </div>
+
+        <div className="flex justify-between items-center text-xs text-slate-400 border-t border-slate-800/80 pt-4">
+          <div className="flex items-center gap-1">
+            <CalendarIcon className="w-3.5 h-3.5 text-primary" />
+            <span>تاريخ البدء: {new Date(activeSub?.starts_at || new Date()).toLocaleDateString("ar-SA")}</span>
+          </div>
+          <div>
+            <span>الدفع القادم: {activeSub?.expires_at ? new Date(activeSub.expires_at).toLocaleDateString("ar-SA") : "تجديد تلقائي شهري"}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Available Upgrades */}
+      {nextPlans.length > 0 && (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-base font-bold text-foreground">ترقية باقة الاشتراك</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">اختر الباقة المناسبة لزيادة منشورات التوظيف والاستفادة من مزايا الذكاء الاصطناعي الكاملة.</p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            {nextPlans.map(plan => (
+              <div key={plan.id} className="bg-card border border-border/80 rounded-xl p-5 flex flex-col justify-between hover:border-primary/40 transition-colors">
+                <div>
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-bold text-sm text-foreground">{plan.name_ar}</h4>
+                    <span className="text-sm font-black text-primary">{plan.price} SAR <span className="text-[10px] text-muted-foreground font-normal">/ شهرياً</span></span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-4">{plan.description}</p>
+                  <ul className="space-y-2 mb-5">
+                    {plan.features.slice(0, 3).map((feat, fi) => (
+                      <li key={fi} className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                        <span className="text-emerald-500 font-bold">✓</span> {feat}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <Button
+                  onClick={() => setSelectedPlan({
+                    id: plan.id,
+                    name: plan.name,
+                    name_ar: plan.name_ar,
+                    price: plan.price,
+                    limit: plan.job_posts_limit
+                  })}
+                  className="w-full text-xs font-bold gap-1"
+                  variant="outline"
+                >
+                  ترقية الآن
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Billing history table */}
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-base font-bold text-foreground">الفواتير وسجل الدفع</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">قائمة بجميع المعاملات المالية والفواتير الصادرة لحسابك.</p>
+        </div>
+
+        <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-right border-collapse text-xs">
+              <thead>
+                <tr className="bg-muted/40 text-muted-foreground border-b border-border/50">
+                  <th className="p-3 font-semibold">رقم الفاتورة</th>
+                  <th className="p-3 font-semibold">التاريخ</th>
+                  <th className="p-3 font-semibold">الباقة</th>
+                  <th className="p-3 font-semibold">المبلغ</th>
+                  <th className="p-3 font-semibold">الحالة</th>
+                  <th className="p-3 font-semibold text-left">تحميل</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {invoices.map(inv => (
+                  <tr key={inv.id} className="hover:bg-muted/10 transition-colors">
+                    <td className="p-3 font-medium text-foreground">{inv.id}</td>
+                    <td className="p-3 text-muted-foreground">{new Date(inv.date).toLocaleDateString("ar-SA")}</td>
+                    <td className="p-3 text-muted-foreground">{inv.plan}</td>
+                    <td className="p-3 font-bold text-foreground">{inv.amount} SAR</td>
+                    <td className="p-3">
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800">
+                        {inv.status === "Paid" ? "تم الدفع" : "معلق"}
+                      </span>
+                    </td>
+                    <td className="p-3 text-left">
+                      <button
+                        onClick={() => handleDownloadInvoice(inv.id)}
+                        className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <FileDown className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {selectedPlan && (
+        <CheckoutModal
+          isOpen={!!selectedPlan}
+          onClose={() => setSelectedPlan(null)}
+          planId={selectedPlan.id}
+          planName={selectedPlan.name}
+          planNameAr={selectedPlan.name_ar}
+          price={selectedPlan.price}
+          limit={selectedPlan.limit}
+        />
+      )}
+    </div>
+  );
+}
+
 /* ─── Main Page ─── */
 export default function SettingsPage() {
   const { t, locale } = useI18n();
@@ -1724,6 +1940,7 @@ export default function SettingsPage() {
   const settingsTabs = [
     { id: "account", label: t("settings.profile"), icon: User },
     { id: "company", label: "الشركة", icon: Building2 },
+    { id: "subscription", label: locale === "en" ? "Subscription & Billing" : "الاشتراك والفواتير", icon: Crown },
     { id: "preferences", label: locale === "en" ? "Preferences" : "تفضيلات المنصة", icon: Palette },
     { id: "pipeline", label: "مراحل التوظيف", icon: GitBranch },
     { id: "filters", label: "الفلاتر المحفوظة", icon: Bookmark },
@@ -1803,6 +2020,7 @@ export default function SettingsPage() {
                 >
                   {activeTab === "account" && <AccountSection />}
                   {activeTab === "company" && <CompanySection />}
+                  {activeTab === "subscription" && <SubscriptionSection />}
                   {activeTab === "preferences" && <PreferencesSection />}
                   {activeTab === "pipeline" && <PipelineStagesManager />}
                   {activeTab === "filters" && <SavedFiltersManager />}
