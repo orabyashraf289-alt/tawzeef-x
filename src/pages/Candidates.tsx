@@ -710,6 +710,20 @@ export default function Candidates() {
                           <Brain className="w-3 h-3" />—
                         </button>
                       )}
+                      {(() => {
+                        const teamAvg = c.candidate_scorecards && c.candidate_scorecards.length > 0
+                          ? (() => {
+                              const sum = c.candidate_scorecards.reduce((acc: number, s: any) => acc + s.rating, 0);
+                              return { avg: (sum / c.candidate_scorecards.length).toFixed(1), count: c.candidate_scorecards.length };
+                            })()
+                          : null;
+                        return teamAvg ? (
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-full mr-2" title="تقييم فريق العمل">
+                            <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                            {teamAvg.avg} ({teamAvg.count})
+                          </div>
+                        ) : null;
+                      })()}
                       <div className="flex items-center gap-0.5 mr-auto">
                         {Array.from({ length: 5 }).map((_, i) => (
                           <Star key={i} className={cn("w-3 h-3", i < (c.rating || 0) ? "fill-warning text-warning" : "text-border")} />
@@ -757,11 +771,26 @@ export default function Candidates() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1 mb-3">
+                      <div className="flex items-center gap-1 mb-3 flex-wrap">
                         {Array.from({ length: 5 }).map((_, i) => (
                           <Star key={i} className={cn("w-3.5 h-3.5", i < (c.rating || 0) ? "fill-warning text-warning" : "text-border")} />
                         ))}
                         <span className="text-[11px] text-muted-foreground mr-1">({c.rating || 0}/5)</span>
+
+                        {(() => {
+                          const teamAvg = c.candidate_scorecards && c.candidate_scorecards.length > 0
+                            ? (() => {
+                                const sum = c.candidate_scorecards.reduce((acc: number, s: any) => acc + s.rating, 0);
+                                return { avg: (sum / c.candidate_scorecards.length).toFixed(1), count: c.candidate_scorecards.length };
+                              })()
+                            : null;
+                          return teamAvg ? (
+                            <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full mr-2" title="تقييم فريق العمل">
+                              <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                              <span>تقييم الفريق: {teamAvg.avg} ({teamAvg.count})</span>
+                            </div>
+                          ) : null;
+                        })()}
                       </div>
 
                       {c.skills && c.skills.length > 0 && (

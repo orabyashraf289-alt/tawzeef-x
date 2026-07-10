@@ -19,6 +19,7 @@ import { useCandidates } from "@/hooks/useJobs";
 import { useStageTransitions } from "@/hooks/useStageTransitions";
 import { useActiveStages } from "@/hooks/usePipelineStages";
 import AIEvaluationCard from "@/components/AIEvaluationCard";
+import CandidateScorecardSection from "@/components/CandidateScorecardSection";
 import StageActions from "@/components/StageActions";
 import { SingleResponseProctoringDialog } from "@/components/question-bank/AssessmentResponsesDialog";
 import { motion } from "framer-motion";
@@ -771,6 +772,11 @@ export default function CandidateProfile() {
                 existingEvaluation={(candidate as any).ai_evaluation}
                 jobId={candidate.job_id}
               />
+            </motion.div>
+
+            {/* Candidate Scorecard Rating */}
+            <motion.div custom={6.2} variants={fadeUp} initial="hidden" animate="show">
+              <CandidateScorecardSection candidateId={candidate.id} />
             </motion.div>
 
             {/* Assessment Results */}

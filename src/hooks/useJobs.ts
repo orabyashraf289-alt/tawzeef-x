@@ -143,7 +143,7 @@ export function useCandidates() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("candidates")
-        .select("*")
+        .select("*, candidate_scorecards(rating)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -164,7 +164,7 @@ export function usePaginatedCandidates(page = 0, pageSize = 50) {
       const to = from + pageSize - 1;
       const { data, error, count } = await supabase
         .from("candidates")
-        .select("*", { count: "exact" })
+        .select("*, candidate_scorecards(rating)", { count: "exact" })
         .order("created_at", { ascending: false })
         .range(from, to);
       if (error) throw error;

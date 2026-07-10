@@ -143,6 +143,20 @@ function CandidateCard({ candidate, isDragging = false, response }: { candidate:
                 ))}
               </div>
             )}
+            {(() => {
+              const teamAvg = candidate.candidate_scorecards && candidate.candidate_scorecards.length > 0
+                ? (() => {
+                    const sum = candidate.candidate_scorecards.reduce((acc: number, s: any) => acc + s.rating, 0);
+                    return { avg: (sum / candidate.candidate_scorecards.length).toFixed(1), count: candidate.candidate_scorecards.length };
+                  })()
+                : null;
+              return teamAvg ? (
+                <Badge variant="outline" className="text-[9px] h-4 px-1 gap-0.5 bg-amber-500/10 text-amber-700 dark:text-amber-400 border-0" title="تقييم فريق العمل">
+                  <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                  {teamAvg.avg} ({teamAvg.count})
+                </Badge>
+              ) : null;
+            })()}
             {candidate.ai_score != null && (
               <Badge variant="outline" className={cn("text-[9px] h-4 px-1 gap-0.5 border-0",
                 candidate.ai_score >= 70 ? "bg-green-500/10 text-green-700 dark:text-green-400" :
