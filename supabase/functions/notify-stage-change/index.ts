@@ -81,6 +81,69 @@ function buildAssessmentEmail(candidateName: string, assessmentTitle: string, as
   </div>`;
 }
 
+async function getCustomTemplate(
+  supabase: any,
+  companyId: string | null,
+  templateType: "approval" | "rejection" | "assessment"
+) {
+  if (!companyId) return null;
+
+  const companyIds = [companyId];
+  try {
+    const { data: comp } = await supabase
+      .from("companies")
+      .select("parent_company_id")
+      .eq("id", companyId)
+      .maybeSingle();
+    if (comp?.parent_company_id) {
+      companyIds.push(comp.parent_company_id);
+    }
+  } catch (e) {
+    console.error("Failed to query parent company for template inheritance:", e);
+  }
+
+  for (const cid of companyIds.filter(Boolean)) {
+    const { data, error } = await supabase
+      .from("notification_templates")
+      .select("subject, body_html")
+      .eq("company_id", cid)
+      .eq("type", templateType)
+      .maybeSingle();
+    if (!error && data) {
+      return data;
+    }
+  }
+  return null;
+}
+
+function compileTemplate(
+  bodyHtml: string,
+  subjectText: string,
+  vars: {
+    candidateName: string;
+    stageName: string;
+    jobTitle: string;
+    rejectionReason?: string;
+    assessmentUrl?: string;
+    assessmentTitle?: string;
+  }
+) {
+  const replaceAll = (text: string) => {
+    return text
+      .replace(/{candidate_name}/g, vars.candidateName)
+      .replace(/{stage_name}/g, vars.stageName)
+      .replace(/{job_title}/g, vars.jobTitle)
+      .replace(/{rejection_reason}/g, vars.rejectionReason || "")
+      .replace(/{assessment_url}/g, vars.assessmentUrl || "")
+      .replace(/{assessment_title}/g, vars.assessmentTitle || "");
+  };
+
+  return {
+    subject: replaceAll(subjectText),
+    html: replaceAll(bodyHtml),
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -200,11 +263,36 @@ Deno.serve(async (req) => {
     // Send email to candidate
     if (candidate.email) {
       if (action === "reject") {
-        const html = buildRejectionEmail(candidate.name, oldStage, rejectionReason || "", jobTitle);
-        await sendEmail(supabaseUrl, candidate.email, `تحديث حالة طلبك${jobTitle ? ` - ${jobTitle}` : ''}`, html, candidate.user_id);
+        const customTpl = await getCustomTemplate(supabase, candidate.company_id, "rejection");
+        let subject = `تحديث حالة طلبك${jobTitle ? ` - ${jobTitle}` : ''}`;
+        let html = buildRejectionEmail(candidate.name, oldStage, rejectionReason || "", jobTitle);
+        
+        if (customTpl) {
+          const compiled = compileTemplate(customTpl.body_html, customTpl.subject, {
+            candidateName: candidate.name,
+            stageName: stageLabels[oldStage] || oldStage,
+            jobTitle,
+            rejectionReason: rejectionReason || "",
+          });
+          subject = compiled.subject;
+          html = compiled.html;
+        }
+        await sendEmail(supabaseUrl, candidate.email, subject, html, candidate.user_id);
       } else if (action === "approve") {
-        const html = buildApprovalEmail(candidate.name, newStage, jobTitle);
-        await sendEmail(supabaseUrl, candidate.email, `تحديث حالة طلبك - ${stageLabels[newStage] || newStage}`, html, candidate.user_id);
+        const customTpl = await getCustomTemplate(supabase, candidate.company_id, "approval");
+        let subject = `تحديث حالة طلبك - ${stageLabels[newStage] || newStage}`;
+        let html = buildApprovalEmail(candidate.name, newStage, jobTitle);
+
+        if (customTpl) {
+          const compiled = compileTemplate(customTpl.body_html, customTpl.subject, {
+            candidateName: candidate.name,
+            stageName: stageLabels[newStage] || newStage,
+            jobTitle,
+          });
+          subject = compiled.subject;
+          html = compiled.html;
+        }
+        await sendEmail(supabaseUrl, candidate.email, subject, html, candidate.user_id);
 
         // Check if the new stage has a linked assessment and auto-send
         const { data: stageData } = await supabase
@@ -224,8 +312,22 @@ Deno.serve(async (req) => {
 
           if (assessment) {
             const assessmentUrl = `${supabaseUrl.replace('/rest/v1', '').replace('https://odtpjvmayutbwqhlbvsr.supabase.co', Deno.env.get('APP_URL') || 'https://ai-hire-buddy-22.lovable.app')}/assessment/${assessment.token}`;
-            const assessmentHtml = buildAssessmentEmail(candidate.name, assessment.title, assessmentUrl, jobTitle);
-            await sendEmail(supabaseUrl, candidate.email, `اختبار مطلوب: ${assessment.title}`, assessmentHtml, candidate.user_id);
+            const customTpl = await getCustomTemplate(supabase, candidate.company_id, "assessment");
+            let subject = `اختبار مطلوب: ${assessment.title}`;
+            let html = buildAssessmentEmail(candidate.name, assessment.title, assessmentUrl, jobTitle);
+
+            if (customTpl) {
+              const compiled = compileTemplate(customTpl.body_html, customTpl.subject, {
+                candidateName: candidate.name,
+                stageName: stageLabels[newStage] || newStage,
+                jobTitle,
+                assessmentUrl,
+                assessmentTitle: assessment.title,
+              });
+              subject = compiled.subject;
+              html = compiled.html;
+            }
+            await sendEmail(supabaseUrl, candidate.email, subject, html, candidate.user_id);
           }
         }
       }

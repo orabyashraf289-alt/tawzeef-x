@@ -11,10 +11,11 @@ import {
 } from "lucide-react";
 import SavedFiltersManager from "@/components/SavedFiltersManager";
 import EmailSettings from "@/components/EmailSettings";
+import NotificationTemplatesSection from "@/components/NotificationTemplatesSection";
 import { useState, useEffect } from "react";
 import { useMySubscription, useSubscriptionPlans, useCanPostJob } from "@/hooks/useSubscription";
 import CheckoutModal from "@/components/CheckoutModal";
-import { Crown, FileDown, ArrowUpRight, DollarSign, Calendar as CalendarIcon } from "lucide-react";
+import { Crown, FileDown, ArrowUpRight, DollarSign, Calendar as CalendarIcon, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1949,6 +1950,7 @@ export default function SettingsPage() {
     { id: "notifications", label: t("settings.notifications"), icon: Bell },
     { id: "linkedin", label: t("settings.linkedin"), icon: Linkedin },
     { id: "email", label: t("settings.email"), icon: Mail },
+    { id: "templates", label: locale === "en" ? "Message Automation" : "أتمتة وقوالب الرسائل", icon: FileText },
     { id: "webhooks", label: t("settings.webhooks"), icon: Webhook },
   ];
 
@@ -2028,6 +2030,7 @@ export default function SettingsPage() {
                   {activeTab === "goals" && <HiringGoalsSection />}
                   {activeTab === "notifications" && <NotificationsSection />}
                   {activeTab === "email" && <EmailSettings />}
+                  {activeTab === "templates" && <NotificationTemplatesSection />}
                   {activeTab === "linkedin" && <LinkedInSection />}
                   {activeTab === "webhooks" && <WebhookSettings />}
                 </motion.div>
