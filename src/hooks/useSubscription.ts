@@ -53,23 +53,26 @@ export function useMySubscription() {
     queryFn: async () => {
       if (!user) return null;
 
-      // 1) Get company_id
-      const { data: memberData } = await supabase
+      // 1) Get all company memberships
+      const { data: memberRows, error: memberErr } = await supabase
         .from("company_members" as any)
         .select("company_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
+        .eq("user_id", user.id);
 
-      if (!memberData?.company_id) return null;
+      if (memberErr || !memberRows || memberRows.length === 0) return null;
 
-      // 1.5) Check if it has a parent company (it is a branch)
-      const { data: companyData } = await supabase
+      const companyIds = memberRows.map((r: any) => r.company_id);
+      const { data: companiesData } = await supabase
         .from("companies")
-        .select("parent_company_id")
-        .eq("id", memberData.company_id)
-        .maybeSingle();
+        .select("id, parent_company_id")
+        .in("id", companyIds);
 
-      const targetCompanyId = companyData?.parent_company_id || memberData.company_id;
+      if (!companiesData || companiesData.length === 0) return null;
+
+      // Prefer main company (parent_company_id is null)
+      const mainCompany = companiesData.find((c) => !c.parent_company_id);
+      const activeCompany = mainCompany || companiesData[0];
+      const targetCompanyId = activeCompany.parent_company_id || activeCompany.id;
 
       // 2) Get company subscription
       const { data, error } = await supabase
@@ -114,14 +117,26 @@ export function useUpgradeSubscription() {
     mutationFn: async ({ planId, limit }: { planId: string; limit: number }) => {
       if (!user) throw new Error("User not authenticated");
 
-      // 1) Get company_id
-      const { data: memberData } = await supabase
+      // 1) Get all company memberships
+      const { data: memberRows, error: memberErr } = await supabase
         .from("company_members" as any)
         .select("company_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
+        .eq("user_id", user.id);
 
-      if (!memberData?.company_id) throw new Error("No company found for user");
+      if (memberErr || !memberRows || memberRows.length === 0) throw new Error("No company found for user");
+
+      const companyIds = memberRows.map((r: any) => r.company_id);
+      const { data: companiesData } = await supabase
+        .from("companies")
+        .select("id, parent_company_id")
+        .in("id", companyIds);
+
+      if (!companiesData || companiesData.length === 0) throw new Error("No company found for user");
+
+      // Prefer main company (parent_company_id is null)
+      const mainCompany = companiesData.find((c) => !c.parent_company_id);
+      const activeCompany = mainCompany || companiesData[0];
+      const targetCompanyId = activeCompany.parent_company_id || activeCompany.id;
 
       // 2) Update subscription
       const { data, error } = await supabase
@@ -132,7 +147,7 @@ export function useUpgradeSubscription() {
           job_posts_used: 0,
           updated_at: new Date().toISOString()
         } as any)
-        .eq("company_id", memberData.company_id)
+        .eq("company_id", targetCompanyId)
         .select()
         .single();
 
