@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Bot, User, Loader2 } from "lucide-react";
+import { MessageCircle, X, Send, Bot, User, Loader2, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   role: "user" | "assistant";
@@ -26,22 +27,112 @@ interface CandidateChatbotProps {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/candidate-chatbot`;
 
 export default function CandidateChatbot({ candidateData }: CandidateChatbotProps) {
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: "مرحباً! 👋 أنا المساعد الذكي لبوابة المرشح.\n\nيمكنني مساعدتك بالإجابة على أسئلتك حول:\n- حالة طلبك\n- مراحل التوظيف\n- مواعيد المقابلات\n- أي استفسارات أخرى\n\nكيف يمكنني مساعدتك؟"
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isTtsEnabled, setIsTtsEnabled] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
+  // Set initial greeting
+  useEffect(() => {
+    setMessages([
+      {
+        role: "assistant",
+        content: `مرحباً بك${candidateData ? ` يا ${candidateData.name}` : ""}! 👋 أنا المساعد الذكي لبوابة المرشح.\n\nيمكنني مساعدتك بالإجابة على أسئلتك حول:\n- حالة طلبك الحالي\n- مراحل التوظيف وتفاصيلها\n- مواعيد المقابلات المقررة\n- أي استفسارات عامة عن الشركة\n\nكيف يمكنني مساعدتك اليوم؟`
+      }
+    ]);
+  }, [candidateData]);
+
+  // Scroll to bottom on new messages
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // 1) Speech Recognition Initialization
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = "ar-SA";
+
+      rec.onstart = () => setIsListening(true);
+      rec.onend = () => setIsListening(false);
+      rec.onerror = (e: any) => {
+        console.error("Speech recognition error:", e);
+        setIsListening(false);
+        toast({ title: "لم نتمكن من الاستماع", description: "يرجى التحقق من صلاحيات الميكروفون والمحاولة مرة أخرى.", variant: "destructive" });
+      };
+      rec.onresult = (event: any) => {
+        const text = event.results[0][0].transcript;
+        if (text) {
+          setInput(prev => (prev ? prev + " " + text : text));
+        }
+      };
+
+      recognitionRef.current = rec;
+    }
+  }, [toast]);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      toast({ title: "التعرف على الصوت غير مدعوم", description: "متصفحك الحالي لا يدعم ميزة الإدخال الصوتي باللغة العربية.", variant: "destructive" });
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        console.error("Failed to start speech recognition:", e);
+      }
+    }
+  };
+
+  // 2) Text-to-Speech synthesis
+  const speakText = (text: string) => {
+    if (!isTtsEnabled) return;
+
+    // Stop current speech
+    window.speechSynthesis.cancel();
+
+    // Clean markdown characters from text for natural speech synthesis
+    const cleanText = text
+      .replace(/[*#_\-`]/g, "") // Remove bold, headers, list dashes
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // Simplify link format to text only
+      .trim();
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = "ar-SA";
+
+    // Set voice to Arabic if available
+    const voices = window.speechSynthesis.getVoices();
+    const arVoice = voices.find(v => v.lang.startsWith("ar"));
+    if (arVoice) {
+      utterance.voice = arVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Stop reading and recording when chatbot closes
+  useEffect(() => {
+    if (!isOpen) {
+      window.speechSynthesis.cancel();
+      if (isListening && recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    }
+  }, [isOpen, isListening]);
 
   const handleSend = async () => {
     const text = input.trim();
@@ -88,7 +179,10 @@ export default function CandidateChatbot({ candidateData }: CandidateChatbotProp
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          speakText(assistantContent);
+          break;
+        }
         buffer += decoder.decode(value, { stream: true });
 
         let newlineIndex: number;
@@ -111,10 +205,12 @@ export default function CandidateChatbot({ candidateData }: CandidateChatbotProp
         }
       }
     } catch (e: any) {
+      const errMsg = "عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى لاحقاً.";
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: "عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى لاحقاً."
+        content: errMsg
       }]);
+      speakText(errMsg);
     } finally {
       setIsLoading(false);
     }
@@ -153,13 +249,34 @@ export default function CandidateChatbot({ candidateData }: CandidateChatbotProp
                   <Bot className="w-4 h-4 text-primary-foreground" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-primary-foreground">المساعد الذكي</h3>
-                  <p className="text-[10px] text-primary-foreground/70">متاح للمساعدة</p>
+                  <h3 className="text-sm font-bold text-primary-foreground">المساعد الذكي للمرشح</h3>
+                  <p className="text-[10px] text-primary-foreground/70">متاح للمساعدة الصوتية 🎙️</p>
                 </div>
               </div>
-              <button onClick={() => setIsOpen(false)} className="text-primary-foreground/70 hover:text-primary-foreground">
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !isTtsEnabled;
+                    setIsTtsEnabled(next);
+                    if (!next) {
+                      window.speechSynthesis.cancel();
+                    } else {
+                      toast({ title: "تم تفعيل القراءة الصوتية 🔊" });
+                    }
+                  }}
+                  className="text-primary-foreground/70 hover:text-primary-foreground p-1 rounded-lg hover:bg-primary-foreground/10 transition-colors"
+                  title={isTtsEnabled ? "كتم الصوت" : "تفعيل قراءة الردود"}
+                >
+                  {isTtsEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="text-primary-foreground/70 hover:text-primary-foreground p-1 rounded-lg hover:bg-primary-foreground/10 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Messages */}
@@ -178,7 +295,7 @@ export default function CandidateChatbot({ candidateData }: CandidateChatbotProp
                     {msg.role === "user" ? <User className="w-3.5 h-3.5 text-primary" /> : <Bot className="w-3.5 h-3.5 text-muted-foreground" />}
                   </div>
                   <div className={cn(
-                    "max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm",
+                    "max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm relative group",
                     msg.role === "user"
                       ? "bg-primary text-primary-foreground rounded-br-sm"
                       : "bg-muted text-foreground rounded-bl-sm"
@@ -186,6 +303,18 @@ export default function CandidateChatbot({ candidateData }: CandidateChatbotProp
                     <div className="prose prose-sm max-w-none dark:prose-invert [&>p]:m-0 [&>ul]:my-1 [&>ol]:my-1">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
+                    {msg.role === "assistant" && (
+                      <button
+                        onClick={() => {
+                          setIsTtsEnabled(true);
+                          speakText(msg.content);
+                        }}
+                        className="absolute bottom-1 left-2 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity p-0.5 rounded text-muted-foreground"
+                        title="اقرأ بصوت عالٍ"
+                      >
+                        <Volume2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               ))}
@@ -208,11 +337,22 @@ export default function CandidateChatbot({ candidateData }: CandidateChatbotProp
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleSend()}
-                  placeholder="اكتب سؤالك هنا..."
-                  className="text-sm"
+                  placeholder={isListening ? "جاري الاستماع والترجمة..." : "اكتب سؤالك هنا..."}
+                  className="text-sm flex-1"
                   disabled={isLoading}
                 />
-                <Button size="icon" onClick={handleSend} disabled={isLoading || !input.trim()} className="shrink-0">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant={isListening ? "destructive" : "outline"}
+                  onClick={toggleListening}
+                  className="shrink-0"
+                  disabled={isLoading}
+                  title={isListening ? "إيقاف الاستماع" : "التحدث بصوتك"}
+                >
+                  {isListening ? <MicOff className="w-4 h-4 animate-pulse" /> : <Mic className="w-4 h-4" />}
+                </Button>
+                <Button size="icon" onClick={handleSend} disabled={isLoading || (!input.trim() && !isListening)} className="shrink-0">
                   <Send className="w-4 h-4" />
                 </Button>
               </div>
