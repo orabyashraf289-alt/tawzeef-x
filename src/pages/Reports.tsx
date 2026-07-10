@@ -10,6 +10,7 @@ import { motion } from "framer-motion";
 import { useCandidates, useJobs, useInterviews } from "@/hooks/useJobs";
 import { useActiveStages } from "@/hooks/usePipelineStages";
 import { useOffers } from "@/hooks/useOffers";
+import { useMyCompanies, useCompanyBranches } from "@/hooks/useCompanies";
 import { useI18n } from "@/contexts/I18nContext";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -48,6 +49,52 @@ export default function Reports() {
   const [exporting, setExporting] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
   const { t, locale, dir } = useI18n();
+
+  const { data: myCompanies } = useMyCompanies();
+  const activeCompany = useMemo(() => {
+    return myCompanies?.find(c => !c.parent_company_id) || myCompanies?.[0];
+  }, [myCompanies]);
+
+  const { data: branches = [] } = useCompanyBranches(activeCompany?.id);
+
+  const branchesComparisonData = useMemo(() => {
+    if (!activeCompany) return [];
+
+    const list = [
+      activeCompany,
+      ...branches
+    ];
+
+    return list.map((c) => {
+      const compJobs = (jobs || []).filter(j => j.company_id === c.id);
+      const compJobIds = compJobs.map(j => j.id);
+
+      const compCandidates = (candidates || []).filter(cand => cand.company_id === c.id || compJobIds.includes(cand.job_id));
+      const compInterviews = (interviews || []).filter(i => compCandidates.some(cand => cand.id === i.candidate_id));
+      const hired = compCandidates.filter(cand => cand.status === "مقبول");
+
+      const avgDays = hired.length > 0
+        ? Math.round(hired.reduce((sum, cand) => sum + Math.max(Math.floor((new Date(cand.updated_at).getTime() - new Date(cand.created_at).getTime()) / 86400000), 1), 0) / hired.length)
+        : null;
+
+      const totalCandidates = compCandidates.length;
+      const hiredCount = hired.length;
+      const conversionRate = totalCandidates > 0 ? Math.round((hiredCount / totalCandidates) * 100) : 0;
+
+      return {
+        id: c.id,
+        name: c.name || (c.parent_company_id ? "فرع بدون اسم" : "الشركة الرئيسية"),
+        isBranch: !!c.parent_company_id,
+        jobsCount: compJobs.length,
+        candidatesCount: totalCandidates,
+        interviewsCount: compInterviews.length,
+        hiredCount,
+        conversionRate,
+        avgDaysToHire: avgDays,
+      };
+    });
+  }, [activeCompany, branches, jobs, candidates, interviews]);
+
   
   // Date filtering helper
   const isInRange = (dateStr: string) => {
@@ -626,6 +673,9 @@ export default function Reports() {
             <TabsTrigger value="weekly" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{locale === "en" ? "Weekly Activity" : "النشاط الأسبوعي"}</TabsTrigger>
             <TabsTrigger value="quality" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{locale === "en" ? "Quality Radar" : "رادار الجودة"}</TabsTrigger>
             <TabsTrigger value="hiringKPI" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{locale === "en" ? "Hiring KPIs" : "مؤشرات التوظيف"}</TabsTrigger>
+            {branchesComparisonData.length > 1 && (
+              <TabsTrigger value="branches" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{locale === "en" ? "Branch Comparison" : "مقارنة الفروع"}</TabsTrigger>
+            )}
           </TabsList>
 
           {/* Overview Tab */}
@@ -1325,6 +1375,115 @@ export default function Reports() {
               offers={allOffers}
               locale={locale}
             />
+          </TabsContent>
+
+          {/* Branch Comparison Tab */}
+          <TabsContent value="branches" className="space-y-4 mt-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Branch comparison Chart */}
+              <div className="glass-card-premium p-6 border border-border/30 bg-card/50 backdrop-blur-md rounded-2xl shadow-sm space-y-4">
+                <div>
+                  <h3 className="text-base font-bold text-foreground">
+                    {locale === "en" ? "Applications & Hires by Branch" : "المرشحون والتعيينات حسب الفرع"}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {locale === "en" ? "Comparison of applicant flow and actual hires across all branches" : "مقارنة كمية لتدفق المتقدمين والتعيينات الفعلية بين الفروع المختلفة"}
+                  </p>
+                </div>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={branchesComparisonData} margin={{ top: 20, right: 10, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border) / 0.3)" />
+                      <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <Bar dataKey="candidatesCount" name={locale === "en" ? "Candidates" : "المرشحون"} fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="hiredCount" name={locale === "en" ? "Hired" : "التعيينات"} fill="hsl(var(--success))" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Time to Hire comparison */}
+              <div className="glass-card-premium p-6 border border-border/30 bg-card/50 backdrop-blur-md rounded-2xl shadow-sm space-y-4">
+                <div>
+                  <h3 className="text-base font-bold text-foreground">
+                    {locale === "en" ? "Average Time to Hire (Days)" : "متوسط أيام التوظيف حسب الفرع"}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {locale === "en" ? "Speed of filling vacancies across branches (lower is better)" : "سرعة إغلاق الشواغر التوظيفية في الفروع بالأيام (الأقل هو الأفضل)"}
+                  </p>
+                </div>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={branchesComparisonData.map(b => ({ ...b, avgDaysToHire: b.avgDaysToHire || 0 }))} margin={{ top: 20, right: 10, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border) / 0.3)" />
+                      <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Bar dataKey="avgDaysToHire" name={locale === "en" ? "Average Days" : "متوسط الأيام"} fill="hsl(var(--warning))" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            {/* Branches Summary Table */}
+            <div className="glass-card-premium p-6 border border-border/30 bg-card/50 backdrop-blur-md rounded-2xl shadow-sm space-y-4">
+              <div>
+                <h3 className="text-base font-bold text-foreground">
+                  {locale === "en" ? "Detailed Branch Performance Metrics" : "مؤشرات أداء الفروع بالتفصيل"}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {locale === "en" ? "Comprehensive metrics comparing job creation, candidates, interviews and success rates" : "إحصائيات متكاملة تقارن بين حجم الإعلانات، المرشحين، المقابلات ونسب النجاح لكل فرع"}
+                </p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-right border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-muted/40 text-muted-foreground border-b border-border/50">
+                      <th className="p-3 font-semibold text-right">{locale === "en" ? "Branch Name" : "اسم الفرع / الشركة"}</th>
+                      <th className="p-3 font-semibold text-center">{locale === "en" ? "Job Posts" : "إعلانات الوظائف"}</th>
+                      <th className="p-3 font-semibold text-center">{locale === "en" ? "Total Candidates" : "إجمالي المرشحين"}</th>
+                      <th className="p-3 font-semibold text-center">{locale === "en" ? "Interviews" : "المقابلات"}</th>
+                      <th className="p-3 font-semibold text-center">{locale === "en" ? "Hired" : "التعيينات"}</th>
+                      <th className="p-3 font-semibold text-center">{locale === "en" ? "Conversion Rate" : "نسبة القبول"}</th>
+                      <th className="p-3 font-semibold text-center">{locale === "en" ? "Avg Days to Hire" : "متوسط أيام التوظيف"}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {branchesComparisonData.map((branch) => (
+                      <tr key={branch.id} className="hover:bg-muted/10 transition-colors">
+                        <td className="p-3 font-medium text-foreground">
+                          <div className="flex items-center gap-1.5">
+                            <span>{branch.name}</span>
+                            {branch.isBranch ? (
+                              <Badge variant="outline" className="text-[9px] px-1 py-0">{locale === "en" ? "Branch" : "فرع"}</Badge>
+                            ) : (
+                              <Badge variant="default" className="text-[9px] px-1 py-0">{locale === "en" ? "Main" : "الرئيسية"}</Badge>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3 text-center text-muted-foreground">{branch.jobsCount}</td>
+                        <td className="p-3 text-center text-muted-foreground">{branch.candidatesCount}</td>
+                        <td className="p-3 text-center text-muted-foreground">{branch.interviewsCount}</td>
+                        <td className="p-3 text-center text-muted-foreground font-semibold text-foreground">{branch.hiredCount}</td>
+                        <td className="p-3 text-center">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary">
+                            {branch.conversionRate}%
+                          </span>
+                        </td>
+                        <td className="p-3 text-center text-muted-foreground font-mono">
+                          {branch.avgDaysToHire ? `${branch.avgDaysToHire} يوم` : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
