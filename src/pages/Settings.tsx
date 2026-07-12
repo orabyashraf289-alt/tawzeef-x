@@ -1162,6 +1162,7 @@ function CompanySection() {
     supabase.from("company_members")
       .select("company_id, member_role")
       .eq("user_id", user.id)
+      .order("joined_at", { ascending: true })
       .then(({ data }: any) => {
         const memberData = data && data.length > 0 ? data[0] : null;
         if (memberData?.company_id) {
