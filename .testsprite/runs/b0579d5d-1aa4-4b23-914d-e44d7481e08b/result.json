@@ -1,0 +1,18 @@
+{
+  "testId": "a84cafe4-f8be-4934-8a61-419b0a57bc97",
+  "status": "blocked",
+  "startedAt": "2026-07-01T22:57:59.077Z",
+  "finishedAt": "2026-07-01T23:02:21.800Z",
+  "videoUrl": "https://testsprite-videos.s3.us-east-1.amazonaws.com/b4f8a4e8-3081-701e-828a-de7e88f452ed/1782946938445626//tmp/a3085b5a-cc65-4cc9-8c83-2e0c03a1a634/result.webm",
+  "failureAnalysisUrl": null,
+  "snapshotId": "snap_0987544641a3a4bb",
+  "runIdIfAvailable": "b0579d5d-1aa4-4b23-914d-e44d7481e08b",
+  "codeVersion": "v1",
+  "targetUrl": "https://22aebcf26e2217.lhr.life",
+  "targetUrlSource": "run",
+  "failedStepIndex": 6,
+  "failureKind": null,
+  "verdict": "blocked",
+  "executionStatus": "completed",
+  "summary": "Blocked before a verdict could be produced: TEST BLOCKED\n\nThe test could not be run because the application UI did not load (tunnel/infrastructure issue prevented reaching the feature).\n\nObservations:\n- The page only displayed the plain text: 'no tunnel here :(' and no application UI rendered.\n- The page had 0 interactive elements; the heading 'تحليل المطابقة الذكي (AI Match)' and an email input field were not present."
+}

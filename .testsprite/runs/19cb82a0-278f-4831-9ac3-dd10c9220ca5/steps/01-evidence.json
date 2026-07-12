@@ -1,0 +1,8 @@
+[
+  {
+    "kind": "snapshot",
+    "stepIndex": 1,
+    "summary": "Step 1 'Navigate to https://7f48b629ff5fd8.lhr.life' failed. Error: ❌ Failed to go to the start URL. Err: Navigation to https://7f48b629ff5fd8.lhr.life failed after 3 attempts: Browser showed error page on attempt 3",
+    "path": "steps/01-snapshot.html"
+  }
+]

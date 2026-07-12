@@ -1,0 +1,5 @@
+{
+  "rootCauseHypothesis": "TEST BLOCKED\n\nThe auth page could not be reached — the application did not load and displayed a tunnel error page.\n\nObservations:\n- The page displays 'no tunnel here :('\n- No interactive elements were present (no heading or email input visible)",
+  "recommendedFixTarget": null,
+  "evidence": []
+}

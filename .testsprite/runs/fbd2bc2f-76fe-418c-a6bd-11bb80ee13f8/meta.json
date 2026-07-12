@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "cli-v1",
+  "snapshotId": "snap_d6c8d45668381a91",
+  "testId": "a84cafe4-f8be-4934-8a61-419b0a57bc97",
+  "projectId": "c4a430f1-0bf0-4c92-90e5-562100ed1f04",
+  "codeVersion": "v1",
+  "runIdIfAvailable": "fbd2bc2f-76fe-418c-a6bd-11bb80ee13f8",
+  "targetUrl": "https://thirty-wings-bet.loca.lt",
+  "failedStepIndex": 3,
+  "failureKind": null,
+  "capturedAt": "2026-07-01T22:10:24.746Z",
+  "fetchedAt": "2026-07-01T22:10:38.014Z"
+}

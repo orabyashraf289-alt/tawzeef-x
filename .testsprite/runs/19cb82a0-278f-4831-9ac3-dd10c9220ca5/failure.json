@@ -1,0 +1,12 @@
+{
+  "rootCauseHypothesis": "❌ Failed to go to the start URL. Err: Navigation to https://7f48b629ff5fd8.lhr.life failed after 3 attempts: Browser showed error page on attempt 3",
+  "recommendedFixTarget": null,
+  "evidence": [
+    {
+      "kind": "snapshot",
+      "stepIndex": 1,
+      "url": "https://frontend-test-recordings-production.s3.us-east-1.amazonaws.com/raw_html/a84cafe4-f8be-4934-8a61-419b0a57bc97/003.html?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=ASIAZQ3DRZAIIRKEAJK6%2F20260701%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260701T221257Z&X-Amz-Expires=900&X-Amz-Security-Token=IQoJb3JpZ2luX2VjEBwaCXVzLWVhc3QtMSJHMEUCIQC3hw66wrm1wzFe1qgJmoIiIElZ8uUJIVA5Ihb4mhR0FAIgGWMHX2uUL9j1Q7YGQyOez6WpCXj%2BUFUstWEoi42w2PcqhAQI5f%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FARAAGgw2NTQ2NTQ0MjUxMDQiDKg3PAG8vswjjYoXVirYAzUzGrSvsEuh4cDvOqqbRtQa7CaSITN0%2Ba6E1qTCk4uboCzpnTxlC9IDf4z74xurOL9eDNYOK%2BxMNG%2BxTDhTxaItR91EM8kiYhO61%2FEAlAZtKJRCGpFu1QD8E1Fe2W1amWTAJckKDNYh8tTM7N6qYBLsIal9RfqVuY6x7BJbXD9HK5FNu4lHYS9C4WE%2F2jpyBRFq1QJR%2B6ZeEoMP6myVPsDumuD8yZvz0fu0L0DsrYsuwMUqfrgp0oIlPNIGD%2Foy2qwocuzbylci6x%2FBK5wSlPUSfsE6V43cjlDZ%2BucurKIPZNPI3ea6%2BDEHy8CDnECV%2BOR7AFtlrowHMcOZ%2BV7nwH77ImE6l2nU%2Bsqx%2BVopbOYKzs2VwocjhnA5GSqmtmL8BJkA3lUyhlo3eWfFDgqK1polELNo%2BX9oAD3Z%2Bf6dS%2Fu35Hdx6RR9H%2BQHbpouYpPY78HogD8XRIggnYJvk%2BWQh3v8MbSVkD9V13u02n3uivxmGJ4kICtO%2BvjZUQxGV1B0uvfGnX7hvKy6wQ%2BeFO5mBPiNC4dLEruKngZeyOkbvGjn96G%2BRMZKLuWnoNT80UwqeSZImKTchFZld3xyYvlUp%2BPuAZ9Q5xBgD3b%2FffrACAIdK4P%2BCZV8Ce4wiOGV0gY6pQH2goA%2BxLf3m%2B08EwyscAo%2FEPo0Hn%2FqmxN4sVEQ9f7qRyiA2rxl3XP6ID%2FwTm4SLwAhkCmLUrWvPqXVEecck2bxtfTh6z5bZxKUGdOR%2BqYjT3qlapLbEWAQGCZaTJBHtUW404xzvMtWKXUuU%2FYCOQfdkx3WcM5xHj59%2B64Qovtyc6v%2BCPWg7SVkYnbVIrEN0UW66mu6MchJHVXg%2B2kT2%2FyX7ogDDXo%3D&X-Amz-Signature=01e3385cb3f05d8a591586fa87ce8ecdaddaae2fadba16457e48d02fe4333f38&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+      "summary": "Step 1 'Navigate to https://7f48b629ff5fd8.lhr.life' failed. Error: ❌ Failed to go to the start URL. Err: Navigation to https://7f48b629ff5fd8.lhr.life failed after 3 attempts: Browser showed error page on attempt 3"
+    }
+  ]
+}

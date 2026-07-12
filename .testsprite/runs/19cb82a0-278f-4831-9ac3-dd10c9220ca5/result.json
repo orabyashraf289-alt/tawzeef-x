@@ -1,0 +1,18 @@
+{
+  "testId": "a84cafe4-f8be-4934-8a61-419b0a57bc97",
+  "status": "failed",
+  "startedAt": "2026-07-01T22:11:48.358Z",
+  "finishedAt": "2026-07-01T22:12:31.802Z",
+  "videoUrl": "https://testsprite-videos.s3.us-east-1.amazonaws.com/b4f8a4e8-3081-701e-828a-de7e88f452ed/1782943949133117//tmp/cad2ea81-fb99-4787-82c1-4c5241535432/result.webm",
+  "failureAnalysisUrl": null,
+  "snapshotId": "snap_17304612b5d46c65",
+  "runIdIfAvailable": "19cb82a0-278f-4831-9ac3-dd10c9220ca5",
+  "codeVersion": "v1",
+  "targetUrl": "https://7f48b629ff5fd8.lhr.life",
+  "targetUrlSource": "run",
+  "failedStepIndex": 1,
+  "failureKind": "network",
+  "verdict": "failed",
+  "executionStatus": "completed",
+  "summary": "Failed (network): ❌ Failed to go to the start URL. Err: Navigation to https://7f48b629ff5fd8.lhr.life failed after 3 attempts: Browser showed error page on attempt 3"
+}

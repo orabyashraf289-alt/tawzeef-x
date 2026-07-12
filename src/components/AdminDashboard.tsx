@@ -10,8 +10,9 @@ import {
   Kanban, Package, Bell, TrendingUp, Award, Target, FileText, ArrowUpRight,
   Activity, CheckCircle2, Clock, Eye, Maximize2, Minimize2, Shield,
   Zap, ChevronRight, Star, ArrowUp, ArrowDown, Timer, Globe, AlertTriangle,
-  Lock, Server, Sparkles, Video, ListChecks
+  Lock, Server, Sparkles, Video, ListChecks, Building2
 } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -259,6 +260,39 @@ export default function AdminDashboard() {
     return { total: subs.length, active, totalRevenue };
   }, [subscriptions]);
 
+  // Platform-wide companies stats (Super Admin only)
+  const { data: allCompaniesData } = useQuery({
+    queryKey: ["admin-platform-companies"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("companies")
+        .select("id, name, status, created_at, parent_company_id");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+    staleTime: 60000,
+  });
+
+  const platformStats = useMemo(() => {
+    const cos = allCompaniesData || [];
+    const mainCos = cos.filter((c: any) => !c.parent_company_id);
+    const active = mainCos.filter((c: any) => c.status === "active").length;
+    const inactive = mainCos.filter((c: any) => c.status !== "active").length;
+    const now = new Date();
+    const thisMonth = mainCos.filter((c: any) => {
+      const d = new Date(c.created_at);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }).length;
+    const lastMonth = mainCos.filter((c: any) => {
+      const d = new Date(c.created_at);
+      const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return d.getFullYear() === lm.getFullYear() && d.getMonth() === lm.getMonth();
+    }).length;
+    const growthPct = lastMonth > 0 ? Math.round(((thisMonth - lastMonth) / lastMonth) * 100) : thisMonth > 0 ? 100 : 0;
+    return { total: mainCos.length, active, inactive, thisMonth, lastMonth, growthPct };
+  }, [allCompaniesData]);
+
   // KPIs
   const kpis = useMemo(() => {
     const totalApplicants = allCandidates.length;
@@ -483,6 +517,92 @@ export default function AdminDashboard() {
                     <m.icon className={cn("w-4 h-4 mx-auto mb-1 transition-transform group-hover:scale-110", m.color)} />
                     <p className={cn("text-lg font-bold", m.color)}><AnimatedValue value={m.value} delay={i * 0.05} /></p>
                     <p className="text-[9px] text-muted-foreground leading-tight">{m.label}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* ══════════════════════════════════════════════════════════════
+            SUPER ADMIN: Platform-Wide Overview (all tenants)
+        ══════════════════════════════════════════════════════════════ */}
+        <motion.div variants={itemVariants}>
+          <Card className="glass-card-premium border-none shadow-lg relative overflow-hidden">
+            {/* gradient accent */}
+            <div className="absolute inset-0 bg-gradient-to-br from-destructive/5 via-transparent to-primary/5 pointer-events-none" />
+            <CardContent className="p-5 relative">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-destructive to-destructive/60 flex items-center justify-center shadow-md">
+                    <Crown className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-sm font-bold">{locale === "en" ? "Platform Overview — All Tenants" : "نظرة عامة على المنصة — جميع الشركات العميلة"}</span>
+                </div>
+                <Link to="/admin/companies" className="text-xs text-primary hover:underline flex items-center gap-1">
+                  {locale === "en" ? "Manage Companies" : "إدارة الشركات"} <ChevronRight className="w-3 h-3" />
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+                {[
+                  {
+                    label: locale === "en" ? "Total Tenants" : "إجمالي الشركات",
+                    value: platformStats.total,
+                    icon: Building2,
+                    color: "text-primary",
+                    bg: "bg-primary/10",
+                  },
+                  {
+                    label: locale === "en" ? "Active" : "نشطة",
+                    value: platformStats.active,
+                    icon: CheckCircle2,
+                    color: "text-success",
+                    bg: "bg-success/10",
+                  },
+                  {
+                    label: locale === "en" ? "Inactive" : "معطلة",
+                    value: platformStats.inactive,
+                    icon: AlertTriangle,
+                    color: "text-destructive",
+                    bg: "bg-destructive/10",
+                  },
+                  {
+                    label: locale === "en" ? "New This Month" : "جديدة هذا الشهر",
+                    value: platformStats.thisMonth,
+                    icon: TrendingUp,
+                    color: "text-warning",
+                    bg: "bg-warning/10",
+                  },
+                  {
+                    label: locale === "en" ? "Monthly Growth" : "نمو شهري",
+                    value: Math.abs(platformStats.growthPct),
+                    suffix: "%",
+                    icon: platformStats.growthPct >= 0 ? ArrowUp : ArrowDown,
+                    color: platformStats.growthPct >= 0 ? "text-success" : "text-destructive",
+                    bg: platformStats.growthPct >= 0 ? "bg-success/10" : "bg-destructive/10",
+                  },
+                  {
+                    label: locale === "en" ? "MRR (Est.)" : "إيراد شهري (تقديري)",
+                    value: subStats.totalRevenue,
+                    prefix: "",
+                    suffix: " ر.س",
+                    icon: Package,
+                    color: "text-accent",
+                    bg: "bg-accent/10",
+                  },
+                ].map((m, i) => (
+                  <motion.div
+                    key={i}
+                    whileHover={{ scale: 1.06, y: -3 }}
+                    transition={{ type: "spring", stiffness: 350, damping: 15 }}
+                    className={`rounded-xl p-3 text-center cursor-default glass-card-premium hover:shadow-lg ${m.bg}`}
+                  >
+                    <m.icon className={`w-4 h-4 mx-auto mb-1.5 ${m.color}`} />
+                    <p className={`text-xl font-bold tabular-nums ${m.color}`}>
+                      {(m as any).prefix || ""}<AnimatedValue value={m.value} delay={i * 0.06} />{(m as any).suffix || ""}
+                    </p>
+                    <p className="text-[9px] text-muted-foreground leading-tight mt-0.5">{m.label}</p>
                   </motion.div>
                 ))}
               </div>

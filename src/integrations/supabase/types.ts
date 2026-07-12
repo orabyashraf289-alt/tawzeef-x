@@ -1467,6 +1467,13 @@ export type Database = {
           updated_at: string
           user_id: string
           zapier_webhook_url: string
+          access_token: string | null
+          expires_at: string | null
+          linkedin_urn: string | null
+          linkedin_name: string | null
+          linkedin_avatar: string | null
+          custom_client_id: string | null
+          custom_client_secret: string | null
         }
         Insert: {
           created_at?: string
@@ -1475,6 +1482,13 @@ export type Database = {
           updated_at?: string
           user_id: string
           zapier_webhook_url?: string
+          access_token?: string | null
+          expires_at?: string | null
+          linkedin_urn?: string | null
+          linkedin_name?: string | null
+          linkedin_avatar?: string | null
+          custom_client_id?: string | null
+          custom_client_secret?: string | null
         }
         Update: {
           created_at?: string
@@ -1483,6 +1497,13 @@ export type Database = {
           updated_at?: string
           user_id?: string
           zapier_webhook_url?: string
+          access_token?: string | null
+          expires_at?: string | null
+          linkedin_urn?: string | null
+          linkedin_name?: string | null
+          linkedin_avatar?: string | null
+          custom_client_id?: string | null
+          custom_client_secret?: string | null
         }
         Relationships: []
       }

@@ -1,0 +1,5 @@
+{
+  "rootCauseHypothesis": "TEST BLOCKED\n\nThe test could not be run because the application UI did not load (tunnel/infrastructure issue prevented reaching the feature).\n\nObservations:\n- The page only displayed the plain text: 'no tunnel here :(' and no application UI rendered.\n- The page had 0 interactive elements; the heading 'تحليل المطابقة الذكي (AI Match)' and an email input field were not present.",
+  "recommendedFixTarget": null,
+  "evidence": []
+}

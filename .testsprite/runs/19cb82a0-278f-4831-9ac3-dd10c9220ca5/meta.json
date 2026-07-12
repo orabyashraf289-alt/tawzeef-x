@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "cli-v1",
+  "snapshotId": "snap_17304612b5d46c65",
+  "testId": "a84cafe4-f8be-4934-8a61-419b0a57bc97",
+  "projectId": "c4a430f1-0bf0-4c92-90e5-562100ed1f04",
+  "codeVersion": "v1",
+  "runIdIfAvailable": "19cb82a0-278f-4831-9ac3-dd10c9220ca5",
+  "targetUrl": "https://7f48b629ff5fd8.lhr.life",
+  "failedStepIndex": 1,
+  "failureKind": "network",
+  "capturedAt": "2026-07-01T22:12:31.802Z",
+  "fetchedAt": "2026-07-01T22:12:56.582Z"
+}

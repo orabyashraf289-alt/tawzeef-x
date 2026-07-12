@@ -1,0 +1,5 @@
+{
+  "rootCauseHypothesis": "TEST BLOCKED\n\nThe auth page could not be reached — a localtunnel interstitial is preventing access to the application UI.\n\nObservations:\n- The page shows the localtunnel warning with the host IP (154.236.237.195), an IP input field, and a 'Continue' button.\n- The requested Arabic heading 'تحليل المطابقة الذكي (AI Match)' is not visible on the current page.\n- No email input field or auth form is visible because the interstitial must be completed to reach the site content.",
+  "recommendedFixTarget": null,
+  "evidence": []
+}

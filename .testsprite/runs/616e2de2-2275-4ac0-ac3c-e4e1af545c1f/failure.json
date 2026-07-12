@@ -1,0 +1,5 @@
+{
+  "rootCauseHypothesis": "TEST BLOCKED\n\nThe test could not be run — the /auth page did not render and the UI could not be reached.\n\nObservations:\n- The /auth page loaded a blank viewport with no interactive elements visible.\n- The expected heading 'تحليل المطابقة الذكي (AI Match)' and any email input field were not present.",
+  "recommendedFixTarget": null,
+  "evidence": []
+}

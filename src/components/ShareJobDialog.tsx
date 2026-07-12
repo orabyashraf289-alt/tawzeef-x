@@ -36,8 +36,34 @@ export default function ShareJobDialog({ open, onClose, jobTitle, jobId, isNewJo
   const [downloadingSvg, setDownloadingSvg] = useState(false);
   const qrRef = useRef<HTMLDivElement>(null);
 
+  // LinkedIn Direct Posting States
+  const [isLinkedInConnected, setIsLinkedInConnected] = useState(false);
+  const [linkedinProfileName, setLinkedinProfileName] = useState<string | null>(null);
+  const [postingToLinkedIn, setPostingToLinkedIn] = useState(false);
+  const [directPosted, setDirectPosted] = useState(false);
+
   const applyUrl = getApplyUrl(jobId);
   const ogUrl = getOgApplyUrl(jobId);
+
+  // Check LinkedIn connection on open
+  useEffect(() => {
+    if (!open || !user) return;
+    supabase
+      .from("linkedin_settings" as any)
+      .select("access_token, linkedin_urn, linkedin_name")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data && data.access_token && data.linkedin_urn) {
+          setIsLinkedInConnected(true);
+          setLinkedinProfileName(data.linkedin_name || null);
+        } else {
+          setIsLinkedInConnected(false);
+          setLinkedinProfileName(null);
+        }
+      });
+  }, [open, user]);
 
   // Fetch stored QR when dialog opens
   useEffect(() => {
@@ -67,6 +93,46 @@ export default function ShareJobDialog({ open, onClose, jobTitle, jobId, isNewJo
     } else {
       setLinkedInShared(true);
       toast({ title: t("share.linkedInOpened") });
+    }
+  };
+
+  // Direct Publish Action via API Function
+  const handleDirectPublishLinkedIn = async () => {
+    if (!jobId) return;
+    setPostingToLinkedIn(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      if (!token) throw new Error("Authentication token not found. Please log in.");
+
+      const response = await fetch("https://rlfewneisuezsamhosct.supabase.co/functions/v1/linkedin-post", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ job_id: jobId })
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to post to LinkedIn");
+      }
+
+      setDirectPosted(true);
+      toast({
+        title: "🎉 تم النشر بنجاح!",
+        description: "تمت مشاركة الوظيفة مباشرة على صفحتك المهنية في LinkedIn."
+      });
+    } catch (err: any) {
+      toast({
+        title: "❌ فشل النشر المباشر",
+        description: err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setPostingToLinkedIn(false);
     }
   };
 
@@ -247,6 +313,44 @@ export default function ShareJobDialog({ open, onClose, jobTitle, jobId, isNewJo
                 </div>
                 {linkedInShared ? <CheckCircle className="w-5 h-5 text-[#0A66C2] shrink-0" /> : <ExternalLink className="w-4 h-4 text-muted-foreground shrink-0" />}
               </motion.button>
+
+              {isLinkedInConnected && (
+                <div className="rounded-xl border border-[#0A66C2]/30 bg-[#0A66C2]/5 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-[#0A66C2] flex items-center justify-center shrink-0">
+                        <Linkedin className="w-3.5 h-3.5 text-white" />
+                      </div>
+                      <span className="text-xs font-bold text-foreground">
+                        حساب LinkedIn مرتبط: <span className="text-[#0A66C2]">{linkedinProfileName}</span>
+                      </span>
+                    </div>
+                    <Badge variant="outline" className="border-[#0A66C2]/20 text-[#0A66C2] text-[10px]">مفعّل</Badge>
+                  </div>
+                  <Button
+                    onClick={handleDirectPublishLinkedIn}
+                    disabled={postingToLinkedIn || directPosted}
+                    className="w-full bg-[#0A66C2] hover:bg-[#0A66C2]/90 text-white gap-2 font-bold text-xs shadow-sm h-10"
+                  >
+                    {postingToLinkedIn ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        جاري النشر المباشر...
+                      </>
+                    ) : directPosted ? (
+                      <>
+                        <CheckCircle className="w-4 h-4 text-white" />
+                        تم النشر بنجاح! ✅
+                      </>
+                    ) : (
+                      <>
+                        <Megaphone className="w-4 h-4 text-white" />
+                        نشر الوظيفة مباشرة على صفحتك الآن
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
 
               <div className="grid grid-cols-4 gap-2">
                 <button onClick={handleShareWhatsApp} className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/50 hover:border-green-500/20 hover:bg-green-500/5 transition-all">

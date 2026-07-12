@@ -1,0 +1,18 @@
+{
+  "testId": "a84cafe4-f8be-4934-8a61-419b0a57bc97",
+  "status": "blocked",
+  "startedAt": "2026-07-01T22:40:34.696Z",
+  "finishedAt": "2026-07-01T22:42:02.659Z",
+  "videoUrl": "https://testsprite-videos.s3.us-east-1.amazonaws.com/b4f8a4e8-3081-701e-828a-de7e88f452ed/1782945721735407//tmp/db60d600-035e-4946-9ead-ef5327b2a642/result.webm",
+  "failureAnalysisUrl": null,
+  "snapshotId": "snap_08339c92cc16bbb1",
+  "runIdIfAvailable": "b18c0a5a-405f-4804-aa8e-e617c2be981f",
+  "codeVersion": "v1",
+  "targetUrl": "https://964b26b38b03b6.lhr.life",
+  "targetUrlSource": "run",
+  "failedStepIndex": 3,
+  "failureKind": null,
+  "verdict": "blocked",
+  "executionStatus": "completed",
+  "summary": "Blocked before a verdict could be produced: TEST BLOCKED\n\nThe auth page could not be reached — the application did not load and displayed a tunnel error page.\n\nObservations:\n- The page displays 'no tunnel here :('\n- No interactive elements were present (no heading or email input visible)"
+}

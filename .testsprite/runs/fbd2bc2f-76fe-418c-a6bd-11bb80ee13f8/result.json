@@ -1,0 +1,18 @@
+{
+  "testId": "a84cafe4-f8be-4934-8a61-419b0a57bc97",
+  "status": "blocked",
+  "startedAt": "2026-07-01T22:08:53.203Z",
+  "finishedAt": "2026-07-01T22:10:24.746Z",
+  "videoUrl": "https://testsprite-videos.s3.us-east-1.amazonaws.com/b4f8a4e8-3081-701e-828a-de7e88f452ed/1782943824462812//tmp/4c439158-cf8a-478b-b949-f3f380fda6ff/result.webm",
+  "failureAnalysisUrl": null,
+  "snapshotId": "snap_d6c8d45668381a91",
+  "runIdIfAvailable": "fbd2bc2f-76fe-418c-a6bd-11bb80ee13f8",
+  "codeVersion": "v1",
+  "targetUrl": "https://thirty-wings-bet.loca.lt",
+  "targetUrlSource": "run",
+  "failedStepIndex": 3,
+  "failureKind": null,
+  "verdict": "blocked",
+  "executionStatus": "completed",
+  "summary": "Blocked before a verdict could be produced: TEST BLOCKED\n\nThe auth page could not be reached — a localtunnel interstitial is preventing access to the application UI.\n\nObservations:\n- The page shows the localtunnel warning with the host IP (154.236.237.195), an IP input field, and a 'Continue' button.\n- The requested Arabic heading 'تحليل المطابقة الذكي (AI Match)' is not visible on the current page.\n- No email input field or auth form is visible because the interstitial must be completed to rea…"
+}

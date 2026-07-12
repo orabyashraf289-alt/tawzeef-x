@@ -156,12 +156,26 @@ export default function JobSeekerDashboard() {
     enabled: !!user,
   });
 
+  const profileQuery = useQuery({
+    queryKey: ["my-profile", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, job_title")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data || null;
+    },
+    enabled: !!user,
+  });
+
   useEffect(() => {
     if (resumeQuery.data) {
       const r = resumeQuery.data;
       setForm({
-        fullName: r.full_name || "",
-        jobTitle: r.job_title || "",
+        fullName: r.full_name || profileQuery.data?.full_name || "",
+        jobTitle: r.job_title || profileQuery.data?.job_title || "",
         phone: r.phone || "",
         email: r.email || user?.email || "",
         location: r.location || "",
@@ -175,9 +189,14 @@ export default function JobSeekerDashboard() {
       setLanguages(r.languages || []);
       setLinks(r.links || []);
     } else if (user) {
-      setForm(prev => ({ ...prev, email: user.email || "" }));
+      setForm(prev => ({
+        ...prev,
+        email: user.email || "",
+        fullName: profileQuery.data?.full_name || "",
+        jobTitle: profileQuery.data?.job_title || "",
+      }));
     }
-  }, [resumeQuery.data, user]);
+  }, [resumeQuery.data, profileQuery.data, user]);
 
   const saveMutation = useMutation({
     mutationFn: async (resumeData: any) => {

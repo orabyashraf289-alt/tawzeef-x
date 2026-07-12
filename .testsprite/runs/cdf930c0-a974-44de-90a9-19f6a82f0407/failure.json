@@ -1,0 +1,5 @@
+{
+  "rootCauseHypothesis": "TEST BLOCKED\n\nThe test could not be run — the site returns a host-block page that prevents reaching the application UI or performing the requested checks.\n\nObservations:\n- The page displayed: \"Blocked request. This host (\\\"a2422106c4b53d.lhr.life\\\") is not allowed.\" (message visible in page content and screenshot).\n- No interactive elements, no Arabic heading 'تحليل المطابقة الذكي (AI Match)', and no email input field were present on the page.\n- The page suggests adding the host to `server.allowedHosts` in vite.config.js, indicating a server-side host allowlist blocking the request.",
+  "recommendedFixTarget": null,
+  "evidence": []
+}

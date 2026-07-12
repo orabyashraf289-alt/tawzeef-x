@@ -1,15 +1,20 @@
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, Building2, Briefcase, Users, Calendar, FileText, Handshake, Activity, Power } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronRight, Building2, Briefcase, Users, Calendar, FileText, Handshake, Activity, Power, CreditCard, Sparkles } from "lucide-react";
 import { useCompany, useCompanyStats, useCompanyMembers, useToggleCompanyStatus } from "@/hooks/useCompanies";
 import { useAgencyAssignments } from "@/hooks/useAgencies";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import CompanyInvitationsPanel from "@/components/CompanyInvitationsPanel";
+import { toast } from "@/hooks/use-toast";
 
 
 export default function AdminCompanyDetail() {
@@ -19,6 +24,87 @@ export default function AdminCompanyDetail() {
   const { data: members = [] } = useCompanyMembers(id);
   const { data: assignments = [] } = useAgencyAssignments(undefined, id);
   const toggleStatus = useToggleCompanyStatus();
+
+  // Subscription management states
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
+  const [customLimit, setCustomLimit] = useState<number>(2);
+  const [customExpiry, setCustomExpiry] = useState<string>("");
+  const [isUpdatingSub, setIsUpdatingSub] = useState<boolean>(false);
+
+  // Fetch subscription plans
+  const { data: plans = [] } = useQuery({
+    queryKey: ["admin-subscription-plans"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("subscription_plans" as any)
+        .select("*")
+        .eq("is_active", true)
+        .order("sort_order");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch company subscription
+  const { data: companySubscription, refetch: refetchSubscription } = useQuery({
+    queryKey: ["admin-company-subscription", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("company_subscriptions" as any)
+        .select("*, subscription_plans(name, name_ar)")
+        .eq("company_id", id)
+        .maybeSingle();
+      if (error) throw error;
+      return data || null;
+    },
+    enabled: !!id,
+  });
+
+  // Sync state variables once subscription data is fetched
+  useEffect(() => {
+    if (companySubscription) {
+      setSelectedPlanId(companySubscription.plan_id || "");
+      setCustomLimit(companySubscription.job_posts_limit ?? 2);
+      if (companySubscription.expires_at) {
+        setCustomExpiry(new Date(companySubscription.expires_at).toISOString().split("T")[0]);
+      } else {
+        setCustomExpiry("");
+      }
+    }
+  }, [companySubscription]);
+
+  const handleUpdateSubscription = async () => {
+    if (!id || !selectedPlanId) return;
+    setIsUpdatingSub(true);
+    try {
+      let ownerUserId = company?.owner_user_id || companySubscription?.user_id;
+      if (!ownerUserId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        ownerUserId = user?.id;
+      }
+
+      const { error } = await supabase
+        .from("company_subscriptions" as any)
+        .upsert({
+          company_id: id,
+          plan_id: selectedPlanId,
+          job_posts_limit: customLimit,
+          expires_at: customExpiry ? new Date(customExpiry).toISOString() : null,
+          user_id: ownerUserId,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: "company_id"
+        });
+
+      if (error) throw error;
+      toast({ title: "تم تحديث الباقة بنجاح ✅" });
+      refetchSubscription();
+    } catch (err: any) {
+      toast({ title: "خطأ في التحديث", description: err.message, variant: "destructive" });
+    } finally {
+      setIsUpdatingSub(false);
+    }
+  };
 
   // Recent jobs + recent candidates summary
   const { data: recentJobs = [] } = useQuery({
@@ -233,6 +319,87 @@ export default function AdminCompanyDetail() {
               ))}
             </div>
           )}
+        </Card>
+
+        {/* Subscription & Packages Manager Card */}
+        <Card className="p-6 text-right" dir="rtl">
+          <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
+            <CreditCard className="w-4 h-4 text-primary" />
+            إدارة باقة الاشتراك والحدود (لوحة السوبر أدمن)
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
+              <span className="text-xs text-muted-foreground block mb-1">الباقة الحالية</span>
+              <span className="font-extrabold text-base text-foreground">
+                {companySubscription?.subscription_plans?.name_ar || companySubscription?.subscription_plans?.name || "بدون باقة نشطة (مجاني مؤقت)"}
+              </span>
+            </div>
+            <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
+              <span className="text-xs text-muted-foreground block mb-1">إعلانات الوظائف المستخدمة</span>
+              <span className="font-extrabold text-base text-foreground">
+                {companySubscription?.job_posts_used ?? 0} / {companySubscription?.job_posts_limit === -1 ? "لا محدود" : (companySubscription?.job_posts_limit ?? 2)}
+              </span>
+            </div>
+            <div className="bg-muted/30 p-4 rounded-xl border border-border/40">
+              <span className="text-xs text-muted-foreground block mb-1">تاريخ انتهاء الاشتراك</span>
+              <span className="font-extrabold text-base text-foreground">
+                {companySubscription?.expires_at ? new Date(companySubscription.expires_at).toLocaleDateString("ar-SA") : "لا ينتهي"}
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-primary/[0.02] border border-primary/10 rounded-xl p-4 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">اختر الباقة</Label>
+                <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
+                  <SelectTrigger className="h-10 text-xs">
+                    <SelectValue placeholder="اختر الباقة..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {plans.map((p: any) => (
+                      <SelectItem key={p.id} value={p.id} className="text-xs">
+                        {p.name_ar || p.name} ({p.price} ر.س/{p.billing_period})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">حد الوظائف المتاحة</Label>
+                <Input
+                  type="number"
+                  value={customLimit}
+                  onChange={(e) => setCustomLimit(parseInt(e.target.value) || 0)}
+                  placeholder="مثال: 5"
+                  className="h-10 text-xs text-right"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">تاريخ الانتهاء</Label>
+                <Input
+                  type="date"
+                  value={customExpiry}
+                  onChange={(e) => setCustomExpiry(e.target.value)}
+                  className="h-10 text-xs text-right"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button
+                onClick={handleUpdateSubscription}
+                disabled={isUpdatingSub || !selectedPlanId}
+                size="sm"
+                className="gap-1.5 font-bold"
+              >
+                {isUpdatingSub ? "جاري الحفظ..." : "حفظ وتحديث الاشتراك"}
+              </Button>
+            </div>
+          </div>
         </Card>
 
         <CompanyInvitationsPanel companyId={id!} />

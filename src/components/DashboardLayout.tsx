@@ -76,19 +76,60 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { showTour, startTour, endTour } = useOnboardingTour();
   useKeyboardShortcuts();
   const { open: cmdOpen, setOpen: setCmdOpen } = useCommandPalette();
-  const { data: profile } = useQuery({
+  const { data: headerData, isLoading: headerLoading } = useQuery({
     queryKey: ["my-profile", user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("full_name, avatar_url, job_title, company_name, company_logo").eq("user_id", user!.id).maybeSingle();
-      return data as { full_name: string | null; avatar_url: string | null; job_title: string | null; company_name: string | null; company_logo: string | null } | null;
+      if (!user) return null;
+
+      // 1) Fetch profile details
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, avatar_url, job_title")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      // 2) Fetch active company via company_members ordered by joined_at to be deterministic
+      const { data: memberRows } = await supabase
+        .from("company_members")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .order("joined_at", { ascending: true });
+
+      let companyName = "";
+      let companyLogo = "";
+
+      if (memberRows && memberRows.length > 0) {
+        const { data: company } = await supabase
+          .from("companies")
+          .select("name, logo_url")
+          .eq("id", memberRows[0].company_id)
+          .maybeSingle();
+
+        if (company) {
+          companyName = company.name || "";
+          companyLogo = company.logo_url || "";
+        }
+      }
+
+      return {
+        full_name: profile?.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || "",
+        displayName: profile?.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || "",
+        avatarUrl: profile?.avatar_url || null,
+        jobTitle: profile?.job_title || null,
+        companyName,
+        companyLogo,
+        company_name: companyName,
+        company_logo: companyLogo,
+      };
     },
     enabled: !!user,
   });
-  const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "";
-  const avatarUrl = profile?.avatar_url || null;
-  const jobTitle = (profile as any)?.job_title || null;
-  const companyName = profile?.company_name || user?.user_metadata?.company_name || "";
-  const companyLogo = profile?.company_logo || "";
+
+  const displayName = headerData?.displayName || "";
+  const avatarUrl = headerData?.avatarUrl || null;
+  const jobTitle = headerData?.jobTitle || null;
+  const companyName = headerData?.companyName || "";
+  const companyLogo = headerData?.companyLogo || "";
 
   const [workspace, setWorkspace] = useState<"recruitment" | "enterprise">(() => {
     return (localStorage.getItem("active-workspace") as any) || "recruitment";
@@ -152,19 +193,30 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <div className="flex items-center justify-between gap-3 px-5 h-16 border-b border-border/60 shrink-0">
         <Link to="/dashboard" className="flex items-center gap-3 group">
           <div>
-            {companyLogo ? (
+            {headerLoading ? (
+              <div className="w-9 h-9 rounded-xl bg-muted animate-pulse" />
+            ) : companyLogo ? (
               <img src={companyLogo} alt={companyName || "شعار الشركة"} className="w-9 h-9 object-contain rounded-xl border border-border/30" />
             ) : (
               <img src={tawzeefLogo} alt="Tawzeef-X" className="w-9 h-9 object-contain" />
             )}
           </div>
           <div className="flex flex-col">
-            <span className="text-[15px] font-black text-foreground leading-tight tracking-wide">
-              {companyName || "Tawzeef-X"}
-            </span>
-            <span className="text-[10px] font-semibold text-primary/50 tracking-[0.15em] uppercase">
-              {companyName ? "منصة التوظيف" : "منصة التوظيف"}
-            </span>
+            {headerLoading ? (
+              <div className="space-y-1.5 py-0.5">
+                <div className="w-24 h-3.5 bg-muted rounded animate-pulse" />
+                <div className="w-16 h-2.5 bg-muted rounded animate-pulse" />
+              </div>
+            ) : (
+              <>
+                <span className="text-[15px] font-black text-foreground leading-tight tracking-wide">
+                  {companyName || "Tawzeef-X"}
+                </span>
+                <span className="text-[10px] font-semibold text-primary/50 tracking-[0.15em] uppercase">
+                  منصة التوظيف
+                </span>
+              </>
+            )}
           </div>
         </Link>
         <button onClick={() => setMobileOpen(false)} className="lg:hidden text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted transition-colors">
@@ -364,25 +416,38 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <div className="px-3.5 py-3 flex items-center gap-3 rounded-2xl bg-gradient-to-br from-card to-muted/20 border border-border/60 shadow-sm relative overflow-hidden group hover:border-primary/20 hover:shadow-md transition-all duration-300">
             <div className="absolute top-0 right-0 w-8 h-8 bg-primary/5 rounded-full blur-xl pointer-events-none" />
             <div className="relative shrink-0">
-              {avatarUrl ? (
+              {headerLoading ? (
+                <div className="w-10 h-10 rounded-xl bg-muted animate-pulse border border-border/50" />
+              ) : avatarUrl ? (
                 <img src={avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover border border-border/70" />
               ) : (
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 border border-border/70 flex items-center justify-center">
                   <Users className="w-4.5 h-4.5 text-primary/80" />
                 </div>
               )}
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-success ring-2 ring-background flex items-center justify-center">
-                <span className="absolute inset-0 rounded-full bg-success animate-ping opacity-75" />
-              </span>
+              {!headerLoading && (
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-success ring-2 ring-background flex items-center justify-center">
+                  <span className="absolute inset-0 rounded-full bg-success animate-ping opacity-75" />
+                </span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-foreground font-bold truncate tracking-wide">{displayName}</p>
-              <p className="text-[9px] text-muted-foreground truncate leading-tight mt-0.5">{jobTitle || t("role.employee")}</p>
-              <div className="mt-1">
-                <Badge variant="outline" className="text-[8px] px-1.5 py-0 bg-primary/5 border-primary/20 text-primary font-bold">
-                  {roleLabels[role] || role}
-                </Badge>
-              </div>
+              {headerLoading ? (
+                <div className="space-y-1.5 py-0.5">
+                  <div className="w-20 h-3 bg-muted rounded animate-pulse" />
+                  <div className="w-12 h-2.5 bg-muted rounded animate-pulse" />
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs text-foreground font-bold truncate tracking-wide">{displayName}</p>
+                  <p className="text-[9px] text-muted-foreground truncate leading-tight mt-0.5">{jobTitle || t("role.recruiter")}</p>
+                  <div className="mt-1">
+                    <Badge variant="outline" className="text-[8px] px-1.5 py-0 bg-primary/5 border-primary/20 text-primary font-bold">
+                      {roleLabels[role] || role}
+                    </Badge>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

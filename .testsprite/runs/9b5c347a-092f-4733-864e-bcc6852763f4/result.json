@@ -1,0 +1,18 @@
+{
+  "testId": "a84cafe4-f8be-4934-8a61-419b0a57bc97",
+  "status": "blocked",
+  "startedAt": "2026-07-01T22:48:55.884Z",
+  "finishedAt": "2026-07-01T22:52:38.275Z",
+  "videoUrl": "https://testsprite-videos.s3.us-east-1.amazonaws.com/b4f8a4e8-3081-701e-828a-de7e88f452ed/1782946358052446//tmp/ee47fccf-00c1-4c6e-91cf-7d250ff30f69/result.webm",
+  "failureAnalysisUrl": null,
+  "snapshotId": "snap_9338f08c857c77d3",
+  "runIdIfAvailable": "9b5c347a-092f-4733-864e-bcc6852763f4",
+  "codeVersion": "v1",
+  "targetUrl": "https://22aebcf26e2217.lhr.life",
+  "targetUrlSource": "run",
+  "failedStepIndex": 4,
+  "failureKind": null,
+  "verdict": "blocked",
+  "executionStatus": "completed",
+  "summary": "Blocked before a verdict could be produced: TEST BLOCKED\n\nThe /auth page could not be reached or rendered, so the test could not be executed.\n\nObservations:\n- The /auth page rendered blank with no visible content or interactive elements.\n- Searches found 0 matches for the heading 'تحليل المطابقة الذكي (AI Match)' and no input elements were present.\n- Multiple reloads and waits did not change the page state."
+}

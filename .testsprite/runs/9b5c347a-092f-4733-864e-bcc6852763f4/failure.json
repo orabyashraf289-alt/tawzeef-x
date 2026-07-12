@@ -1,0 +1,5 @@
+{
+  "rootCauseHypothesis": "TEST BLOCKED\n\nThe /auth page could not be reached or rendered, so the test could not be executed.\n\nObservations:\n- The /auth page rendered blank with no visible content or interactive elements.\n- Searches found 0 matches for the heading 'تحليل المطابقة الذكي (AI Match)' and no input elements were present.\n- Multiple reloads and waits did not change the page state.",
+  "recommendedFixTarget": null,
+  "evidence": []
+}
