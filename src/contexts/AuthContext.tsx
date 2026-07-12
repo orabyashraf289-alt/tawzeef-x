@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface AuthContextType {
   session: Session | null;
@@ -16,6 +17,7 @@ export const useAuth = () => useContext(AuthContext);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -36,7 +38,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.removeItem("tawzeef-x_trusted_device");
     } catch {}
+    
+    // Clear React Query cache
+    try {
+      queryClient.clear();
+    } catch (err) {
+      console.error("Error clearing query client cache:", err);
+    }
+
     await supabase.auth.signOut();
+    
+    // Redirect to login page and trigger clean state reload
+    window.location.href = "/auth";
   };
 
   return (
