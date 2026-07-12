@@ -5,14 +5,5 @@
       "destination": "/index.html"
     }
   ],
-  "services": {
-    "frontend": {
-      "routePrefix": "/",
-      "framework": "vite"
-    },
-    "backend": {
-      "entrypoint": "backend",
-      "routePrefix": "/_/backend"
-    }
-  }
+  "framework": "vite"
 }
