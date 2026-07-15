@@ -179,15 +179,41 @@ Deno.serve(async (req) => {
 
     // 3) Fallback to any active email settings in the database (global platform default fallback)
     if (!settings) {
-      const { data: globalFallback } = await adminClient
+      let { data: fallback } = await adminClient
         .from("email_settings")
         .select("*")
+        .eq("config_type", "password_reset")
         .eq("is_active", true)
-        .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle();
-      if (globalFallback) {
-        settings = globalFallback;
+
+      if (!fallback) {
+        const { data: generalFallback } = await adminClient
+          .from("email_settings")
+          .select("*")
+          .eq("config_type", "general")
+          .eq("is_active", true)
+          .limit(1)
+          .maybeSingle();
+        if (generalFallback) {
+          fallback = generalFallback;
+        }
+      }
+
+      if (!fallback) {
+        const { data: ultimateFallback } = await adminClient
+          .from("email_settings")
+          .select("*")
+          .eq("is_active", true)
+          .limit(1)
+          .maybeSingle();
+        if (ultimateFallback) {
+          fallback = ultimateFallback;
+        }
+      }
+
+      if (fallback) {
+        settings = fallback;
       }
     }
 

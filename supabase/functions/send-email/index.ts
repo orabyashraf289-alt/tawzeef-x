@@ -203,15 +203,41 @@ Deno.serve(async (req) => {
       }
 
       if (!settings) {
-        const { data: globalFallback } = await supabase
+        let { data: fallback } = await supabase
           .from("email_settings")
           .select("*")
+          .eq("config_type", configType)
           .eq("is_active", true)
-          .order("created_at", { ascending: true })
           .limit(1)
           .maybeSingle();
-        if (globalFallback) {
-          settings = globalFallback;
+
+        if (!fallback && configType !== "general") {
+          const { data: generalFallback } = await supabase
+            .from("email_settings")
+            .select("*")
+            .eq("config_type", "general")
+            .eq("is_active", true)
+            .limit(1)
+            .maybeSingle();
+          if (generalFallback) {
+            fallback = generalFallback;
+          }
+        }
+
+        if (!fallback) {
+          const { data: ultimateFallback } = await supabase
+            .from("email_settings")
+            .select("*")
+            .eq("is_active", true)
+            .limit(1)
+            .maybeSingle();
+          if (ultimateFallback) {
+            fallback = ultimateFallback;
+          }
+        }
+
+        if (fallback) {
+          settings = fallback;
         }
       }
 
