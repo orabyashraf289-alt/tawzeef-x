@@ -67,13 +67,17 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const adminClient = createClient(supabaseUrl, serviceKey);
 
-    // Find user by email
-    const { data: userList, error: listError } = await adminClient.auth.admin.listUsers();
-    if (listError) throw listError;
+    // Find user by email directly from auth.users to avoid listUsers pagination limit
+    const authDbClient = createClient(supabaseUrl, serviceKey, {
+      db: { schema: "auth" },
+    });
+    const { data: targetUser, error: findError } = await authDbClient
+      .from("users")
+      .select("id, email")
+      .eq("email", normalizedEmail)
+      .maybeSingle();
 
-    const targetUser = userList.users.find(
-      (u) => u.email?.toLowerCase() === normalizedEmail
-    );
+    if (findError) throw findError;
     
     // To prevent email enumeration, return success even if user not found, but don't send email
     if (!targetUser) {
