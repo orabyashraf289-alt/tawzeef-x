@@ -177,6 +177,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    // 3) Fallback to any active email settings in the database (global platform default fallback)
+    if (!settings) {
+      const { data: globalFallback } = await adminClient
+        .from("email_settings")
+        .select("*")
+        .eq("is_active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (globalFallback) {
+        settings = globalFallback;
+      }
+    }
+
     if (settings) {
       smtpHost = settings.smtp_host;
       smtpPort = settings.smtp_port;
