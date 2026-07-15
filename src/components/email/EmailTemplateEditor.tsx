@@ -26,54 +26,151 @@ interface EmailTemplate {
 
 const CATEGORIES = [
   { value: "general", label: "عام" },
-  { value: "interview", label: "مقابلات" },
-  { value: "offer", label: "عروض" },
-  { value: "rejection", label: "رفض" },
-  { value: "welcome", label: "ترحيب" },
-  { value: "followup", label: "متابعة" },
+  { value: "otp", label: "رمز التحقق (OTP)" },
+  { value: "password_reset", label: "استعادة كلمة المرور" },
+  { value: "interview", label: "مقابلات العمل" },
+  { value: "offer", label: "عروض العمل" },
+  { value: "rejection", label: "الاعتذار والرفض" },
+  { value: "welcome_company", label: "ترحيب بالشركات" },
+  { value: "welcome_employee", label: "ترحيب بالموظفين" },
+  { value: "application_confirmation", label: "تأكيد استلام الطلب" },
+  { value: "support", label: "الدعم الفني" },
 ];
 
 const DEFAULT_TEMPLATES: Partial<EmailTemplate>[] = [
   {
-    name: "دعوة مقابلة",
-    subject: "دعوة لإجراء مقابلة - {{position}}",
-    body_html: `<div dir="rtl" style="font-family: 'Segoe UI', Tahoma, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background: #ffffff; border-radius: 12px;">
-  <h2 style="color: #148358;">دعوة لإجراء مقابلة</h2>
-  <p>عزيزي/عزيزتي {{name}}،</p>
-  <p>نود إبلاغك بأنه تم اختيارك لإجراء مقابلة لوظيفة <strong>{{position}}</strong>.</p>
-  <p>📅 التاريخ: {{date}}<br/>⏰ الوقت: {{time}}</p>
+    name: "رمز التحقق لتسجيل الدخول (OTP)",
+    subject: "رمز التحقق الخاص بك: {{otp_code}}",
+    body_html: `<div dir="rtl" style="font-family: 'Segoe UI', Tahoma, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+  <div style="text-align: center; margin-bottom: 20px;">
+    <h2 style="color: #1e40af; margin: 0; font-size: 22px;">رمز التحقق لتسجيل الدخول</h2>
+    <p style="color: #6b7280; font-size: 14px; margin-top: 5px;">استخدم الرمز التالي لإكمال عملية تسجيل الدخول إلى Tawzeef-X</p>
+  </div>
+  <div style="background: #f3f4f6; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
+    <span style="font-family: monospace; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #1e293b;">{{otp_code}}</span>
+  </div>
+  <p style="color: #4b5563; font-size: 13px; text-align: center;">هذا الرمز صالح لمدة 10 دقائق فقط. لا تشارك هذا الرمز مع أي شخص أياً كان.</p>
+</div>`,
+    category: "otp",
+    variables: ["otp_code"],
+  },
+  {
+    name: "رابط استعادة كلمة المرور",
+    subject: "طلب إعادة تعيين كلمة المرور الخاصة بك",
+    body_html: `<div dir="rtl" style="font-family: 'Segoe UI', Tahoma, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+  <div style="text-align: center; margin-bottom: 20px;">
+    <h2 style="color: #1e40af; margin: 0; font-size: 22px;">إعادة تعيين كلمة المرور</h2>
+    <p style="color: #6b7280; font-size: 14px; margin-top: 5px;">تلقينا طلباً لإعادة تعيين كلمة مرور حسابك.</p>
+  </div>
+  <p style="color: #4b5563; font-size: 14px; line-height: 1.6;">إذا قمت بطلب إعادة التعيين بنفسك، يرجى النقر فوق الزر أدناه لتعيين كلمة مرور جديدة:</p>
+  <div style="text-align: center; margin: 25px 0;">
+    <a href="{{reset_link}}" style="background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 14px; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);">تعيين كلمة مرور جديدة</a>
+  </div>
+  <p style="color: #9ca3af; font-size: 11px; text-align: center; margin-top: 20px;">إذا لم تقم بطلب هذا الإجراء، يمكنك تجاهل هذا البريد الإلكتروني بأمان.</p>
+</div>`,
+    category: "password_reset",
+    variables: ["reset_link"],
+  },
+  {
+    name: "تأكيد استلام طلب توظيف",
+    subject: "تأكيد استلام طلبك لوظيفة {{job_title}}",
+    body_html: `<div dir="rtl" style="font-family: 'Segoe UI', Tahoma, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+  <h2 style="color: #10b981;">تم استلام طلبك بنجاح!</h2>
+  <p>عزيزي/عزيزتي {{candidate_name}}،</p>
+  <p>شكراً لاهتمامك بالانضمام إلى <strong>{{company_name}}</strong> وتقديمك على وظيفة <strong>{{job_title}}</strong>.</p>
+  <p>نريد تأكيد أننا استلمنا طلب التوظيف والسيرة الذاتية الخاصة بك بنجاح. سيقوم فريق التوظيف بمراجعة ملفك وسنتواصل معك قريباً في حال التوافق.</p>
+  <p style="margin-top: 30px;">مع أطيب تمنياتنا لك بالتوفيق،<br/>فريق التوظيف في {{company_name}}</p>
+</div>`,
+    category: "application_confirmation",
+    variables: ["candidate_name", "job_title", "company_name"],
+  },
+  {
+    name: "دعوة لإجراء مقابلة",
+    subject: "دعوة لإجراء مقابلة - {{job_title}}",
+    body_html: `<div dir="rtl" style="font-family: 'Segoe UI', Tahoma, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+  <h2 style="color: #2563eb;">دعوة لإجراء مقابلة شخصية</h2>
+  <p>عزيزي/عزيزتي {{candidate_name}}،</p>
+  <p>يسعدنا إبلاغك بأنه تم ترشيحك لإجراء مقابلة لوظيفة <strong>{{job_title}}</strong> مع شركة <strong>{{company_name}}</strong>.</p>
+  <div style="background: #f8fafc; border-radius: 8px; padding: 15px; margin: 20px 0; border-right: 4px solid #2563eb;">
+    <p style="margin: 5px 0;">📅 موعد المقابلة: <strong>{{scheduled_at}}</strong></p>
+  </div>
+  <p>يرجى الانضمام للمقابلة عبر الرابط التالي في الموعد المحدد:</p>
+  <div style="text-align: center; margin: 20px 0;">
+    <a href="{{interview_link}}" style="background: #2563eb; color: #ffffff; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-weight: bold; display: inline-block;">الانضمام للمقابلة</a>
+  </div>
   <p>نتطلع للقائك!</p>
   <p>مع أطيب التحيات،<br/>فريق التوظيف</p>
 </div>`,
     category: "interview",
-    variables: ["name", "position", "date", "time"],
+    variables: ["candidate_name", "job_title", "company_name", "scheduled_at", "interview_link"],
   },
   {
-    name: "رسالة رفض",
-    subject: "بخصوص طلبك لوظيفة {{position}}",
-    body_html: `<div dir="rtl" style="font-family: 'Segoe UI', Tahoma, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background: #ffffff; border-radius: 12px;">
-  <h2 style="color: #374151;">شكراً لاهتمامك</h2>
-  <p>عزيزي/عزيزتي {{name}}،</p>
-  <p>شكراً لتقديمك على وظيفة <strong>{{position}}</strong>. بعد مراجعة دقيقة، قررنا المضي قدماً مع مرشحين آخرين.</p>
-  <p>نقدر وقتك واهتمامك، ونتمنى لك التوفيق.</p>
-  <p>مع أطيب التحيات،<br/>فريق التوظيف</p>
+    name: "عرض عمل (Offer Letter)",
+    subject: "عرض عمل لوظيفة {{job_title}} في {{company_name}}",
+    body_html: `<div dir="rtl" style="font-family: 'Segoe UI', Tahoma, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+  <h2 style="color: #059669;">🎉 تهانينا! عرض عمل جديد</h2>
+  <p>عزيزي/عزيزتي {{candidate_name}}،</p>
+  <p>يسعدنا تقديم هذا العرض الوظيفي الرسمي لك للانضمام إلى <strong>{{company_name}}</strong> في منصب <strong>{{job_title}}</strong>.</p>
+  <p>يرجى الاطلاع على كامل تفاصيل وبنود العرض والموافقة عليه عبر الرابط التالي:</p>
+  <div style="text-align: center; margin: 25px 0;">
+    <a href="{{offer_link}}" style="background: #059669; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 14px;">عرض وتوقيع العقد</a>
+  </div>
+  <p>نحن متحمسون جداً لانضمامك إلينا والمساهمة في نجاحاتنا القادمة!</p>
+  <p>مع أطيب التحيات،<br/>فريق التوظيف في {{company_name}}</p>
 </div>`,
-    category: "rejection",
-    variables: ["name", "position"],
+    category: "offer",
+    variables: ["candidate_name", "job_title", "company_name", "offer_link"],
   },
   {
-    name: "ترحيب بموظف جديد",
-    subject: "أهلاً وسهلاً {{name}} - مرحباً في الفريق! 🎉",
-    body_html: `<div dir="rtl" style="font-family: 'Segoe UI', Tahoma, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background: #ffffff; border-radius: 12px;">
-  <h2 style="color: #148358;">🎉 أهلاً وسهلاً في الفريق!</h2>
-  <p>عزيزي/عزيزتي {{name}}،</p>
-  <p>يسعدنا انضمامك إلينا في قسم <strong>{{department}}</strong>.</p>
-  <p>📅 تاريخ البدء: {{start_date}}</p>
-  <p>نتطلع للعمل معك!</p>
-  <p>مع أطيب التحيات،<br/>فريق الموارد البشرية</p>
+    name: "تأكيد تذكرة دعم فني",
+    subject: "تم استلام تذكرتك بنجاح #{{ticket_id}}",
+    body_html: `<div dir="rtl" style="font-family: 'Segoe UI', Tahoma, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+  <h2 style="color: #4b5563;">مرحباً {{user_name}}،</h2>
+  <p>نود إخطارك بأنه تم فتح تذكرة دعم فني جديدة برقم <strong>#{{ticket_id}}</strong> لمتابعة طلبك.</p>
+  <div style="background: #f9fafb; border: 1px solid #f3f4f6; border-radius: 8px; padding: 15px; margin: 20px 0;">
+    <strong style="color: #374151;">تفاصيل طلبك:</strong>
+    <p style="color: #4b5563; font-size: 13px; margin: 8px 0 0 0;">{{issue_description}}</p>
+  </div>
+  <p>سيقوم أحد ممثلي الدعم الفني بمراجعة طلبك والرد عليك في أقرب وقت ممكن.</p>
+  <p>مع أطيب التحيات،<br/>فريق الدعم الفني</p>
 </div>`,
-    category: "welcome",
-    variables: ["name", "department", "start_date"],
+    category: "support",
+    variables: ["user_name", "ticket_id", "issue_description"],
+  },
+  {
+    name: "ترحيب بصاحب الشركة الجديد",
+    subject: "أهلاً بك في Tawzeef-X! 🎉 حسابك جاهز",
+    body_html: `<div dir="rtl" style="font-family: 'Segoe UI', Tahoma, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+  <h2 style="color: #1e40af; text-align: center;">🎉 مرحباً بك في Tawzeef-X!</h2>
+  <p>عزيزي <strong>{{owner_name}}</strong>،</p>
+  <p>يسعدنا انضمام شركتكم الموقرة <strong>{{company_name}}</strong> إلى منصتنا.</p>
+  <p>تم إعداد حسابك كمدير وصاحب للشركة بنجاح. يمكنك الآن:</p>
+  <ul style="color: #4b5563; line-height: 1.8;">
+    <li>إضافة وإدارة الوظائف الشاغرة.</li>
+    <li>دعوة فريق العمل وإدارة الصلاحيات.</li>
+    <li>متابعة طلبات التوظيف وإجراء المقابلات.</li>
+  </ul>
+  <p style="margin-top: 35px;">مع أطيب التمنيات بالنجاح والتوفيق،<br/>فريق عمل Tawzeef-X</p>
+</div>`,
+    category: "welcome_company",
+    variables: ["owner_name", "company_name"],
+  },
+  {
+    name: "دعوة موظف جديد للانضمام",
+    subject: "دعوة للانضمام إلى فريق {{company_name}} على Tawzeef-X",
+    body_html: `<div dir="rtl" style="font-family: 'Segoe UI', Tahoma, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+  <h2 style="color: #2563eb;">دعوة انضمام لفريق العمل</h2>
+  <p>مرحباً <strong>{{employee_name}}</strong>،</p>
+  <p>لقد تمت دعوتك من قبل مدير النظام للانضمام إلى فريق عمل <strong>{{company_name}}</strong> على منصة التوظيف Tawzeef-X.</p>
+  <p>يرجى النقر على الرابط التالي لقبول الدعوة وإنشاء حسابك للبدء في استخدام لوحة التحكم:</p>
+  <div style="text-align: center; margin: 25px 0;">
+    <a href="{{invitation_link}}" style="background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: bold; display: inline-block;">قبول الدعوة وتفعيل الحساب</a>
+  </div>
+  <p>نتمنى لك تجربة عمل مميزة معنا!</p>
+  <p>مع أطيب التحيات،<br/>إدارة {{company_name}}</p>
+</div>`,
+    category: "welcome_employee",
+    variables: ["employee_name", "company_name", "invitation_link"],
   },
 ];
 

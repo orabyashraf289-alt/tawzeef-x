@@ -46,6 +46,7 @@ interface EmailRequest {
   user_id?: string;
   notify_recruiter?: boolean;
   email_type?: string;
+  variables?: Record<string, string>;
   attachments?: Array<{ filename: string; path: string }>;
 }
 
@@ -82,12 +83,12 @@ Deno.serve(async (req) => {
     }
 
     const body = (await req.json()) as EmailRequest;
-    const { subject, html, user_id, notify_recruiter, email_type, attachments } = body;
+    const { subject, html, user_id, notify_recruiter, email_type, variables, attachments } = body;
     let { to } = body;
 
-    if (!subject || !html) {
+    if ((!subject || !html) && (!user_id || !email_type)) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: subject, html" }),
+        JSON.stringify({ error: "Missing required fields: (subject & html) or (user_id & email_type)" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -131,6 +132,39 @@ Deno.serve(async (req) => {
     if (!to) {
       return new Response(
         JSON.stringify({ error: "Missing 'to' email address" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Resolve email template if email_type is provided
+    let emailSubject = subject || "";
+    let emailHtml = html || "";
+
+    if (smtpUserId && email_type) {
+      const { data: dbTemplate } = await supabase
+        .from("email_templates")
+        .select("subject, body_html")
+        .eq("user_id", smtpUserId)
+        .eq("category", email_type)
+        .maybeSingle();
+
+      if (dbTemplate) {
+        emailSubject = dbTemplate.subject;
+        emailHtml = dbTemplate.body_html;
+      }
+    }
+
+    // Replace variables in subject and body
+    if (variables && typeof variables === "object") {
+      for (const [key, val] of Object.entries(variables)) {
+        emailSubject = emailSubject.replaceAll(`{{${key}}}`, val || "");
+        emailHtml = emailHtml.replaceAll(`{{${key}}}`, val || "");
+      }
+    }
+
+    if (!emailSubject || !emailHtml) {
+      return new Response(
+        JSON.stringify({ error: "Could not resolve email subject or body. Make sure to provide it or set up the matching template." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -243,8 +277,8 @@ Deno.serve(async (req) => {
         await transporter.sendMail({
           from: `"${senderName}" <${smtpUser}>`,
           to,
-          subject,
-          html,
+          subject: emailSubject,
+          html: emailHtml,
           attachments: nodemailerAttachments.length > 0 ? nodemailerAttachments : undefined,
         });
         emailSent = true;
@@ -272,8 +306,8 @@ Deno.serve(async (req) => {
       await transporter.sendMail({
         from: `"Tawzeef-X" <${defaultUser}>`,
         to,
-        subject,
-        html,
+        subject: emailSubject,
+        html: emailHtml,
         attachments: nodemailerAttachments.length > 0 ? nodemailerAttachments : undefined,
       });
       emailSent = true;

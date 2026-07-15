@@ -194,7 +194,8 @@ Deno.serve(async (req) => {
 
     const resetUrl = `${req.headers.get("origin") || "https://ai-hire-buddy-22.lovable.app"}/reset-password?token=${token}&email=${encodeURIComponent(normalizedEmail)}`;
 
-    const html = `
+    let emailSubject = "إعادة تعيين كلمة المرور - Tawzeef-X";
+    let emailHtml = `
       <div style="margin:0;padding:32px 16px;background:#f6f8fb;font-family:Arial,sans-serif;direction:rtl;text-align:right;">
         <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e7ecf3;border-radius:20px;padding:32px;box-shadow:0 10px 30px rgba(15,23,42,0.06);">
           <div style="display:inline-block;padding:8px 14px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700;">استعادة الحساب</div>
@@ -209,6 +210,18 @@ Deno.serve(async (req) => {
         </div>
       </div>
     `;
+
+    const { data: dbTemplate } = await adminClient
+      .from("email_templates")
+      .select("subject, body_html")
+      .eq("user_id", userId)
+      .eq("category", "password_reset")
+      .maybeSingle();
+
+    if (dbTemplate) {
+      emailSubject = dbTemplate.subject.replaceAll("{{reset_link}}", resetUrl);
+      emailHtml = dbTemplate.body_html.replaceAll("{{reset_link}}", resetUrl);
+    }
 
     let emailSent = false;
     let customSmtpUsed = false;
@@ -226,8 +239,8 @@ Deno.serve(async (req) => {
         await transporter.sendMail({
           from: `"${senderName}" <${smtpUser}>`,
           to: normalizedEmail,
-          subject: "إعادة تعيين كلمة المرور - Tawzeef-X",
-          html,
+          subject: emailSubject,
+          html: emailHtml,
         });
         emailSent = true;
         console.log(`Password reset email sent to ${normalizedEmail} via custom SMTP: ${smtpHost}`);
@@ -254,8 +267,8 @@ Deno.serve(async (req) => {
       await transporter.sendMail({
         from: `"Tawzeef-X" <${defaultUser}>`,
         to: normalizedEmail,
-        subject: "إعادة تعيين كلمة المرور - Tawzeef-X",
-        html,
+        subject: emailSubject,
+        html: emailHtml,
       });
       emailSent = true;
       console.log(`Password reset email sent to ${normalizedEmail} via system default SMTP (Custom SMTP was ${customSmtpUsed ? "invalid" : "not configured"})`);
