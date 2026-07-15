@@ -14,14 +14,17 @@ export default function ResetPassword() {
   const [showPassword, setShowPassword] = useState(false);
   const [success, setSuccess] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [token, setToken] = useState("");
+  const [email, setEmail] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for recovery token in URL hash
-    const hash = window.location.hash;
-    if (hash && hash.includes("type=recovery")) {
-      // Supabase handles session automatically
-    }
+    // Check for recovery token in query parameters
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get("token") || "";
+    const e = params.get("email") || "";
+    setToken(t);
+    setEmail(e);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,13 +37,21 @@ export default function ResetPassword() {
       toast({ title: "خطأ", description: "كلمة المرور يجب أن تكون 6 أحرف على الأقل", variant: "destructive" });
       return;
     }
+    if (!token || !email) {
+      toast({ title: "خطأ", description: "رابط إعادة تعيين كلمة المرور غير صالح أو منتهي الصلاحية", variant: "destructive" });
+      return;
+    }
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
+      const { data, error } = await supabase.functions.invoke("execute-password-reset", {
+        body: { email, token, password },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
       setSuccess(true);
-      setTimeout(() => navigate("/dashboard"), 2500);
+      setTimeout(() => navigate("/auth?mode=login"), 2500);
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message, variant: "destructive" });
     } finally {

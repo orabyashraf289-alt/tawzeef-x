@@ -6,7 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Server, Lock, Loader2, CheckCircle2, Send, Mail } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Server, Lock, Loader2, CheckCircle2, Send, Mail, Settings } from "lucide-react";
+
+const CONFIG_TYPES = [
+  { id: "general", label: "إعدادات SMTP العامة (الافتراضية)" },
+  { id: "otp", label: "رمز التحقق لتسجيل الدخول (OTP)" },
+  { id: "password_reset", label: "استعادة كلمة المرور" },
+  { id: "hiring", label: "مراسلات التوظيف والعروض (المرشحين)" },
+  { id: "welcome", label: "ترحيب بالعميل الجديد (أصحاب الشركات)" },
+  { id: "onboarding", label: "ترحيب بالموظف الجديد عند التسجيل" },
+  { id: "support", label: "الدعم الفني والشكاوى" },
+];
 
 export default function EmailSettingsForm() {
   const { user } = useAuth();
@@ -15,6 +26,7 @@ export default function EmailSettingsForm() {
   const [testing, setTesting] = useState(false);
   const [exists, setExists] = useState(false);
   const [passwordChanged, setPasswordChanged] = useState(false);
+  const [configType, setConfigType] = useState("general");
   const [settings, setSettings] = useState({
     smtp_host: "smtp.gmail.com",
     smtp_port: 465,
@@ -28,9 +40,10 @@ export default function EmailSettingsForm() {
   useEffect(() => {
     if (!user) return;
     (async () => {
+      setLoading(true);
       try {
         const { data, error } = await supabase.functions.invoke("manage-smtp", {
-          body: { action: "load" },
+          body: { action: "load", config_type: configType },
         });
         if (data?.settings) {
           setSettings({
@@ -43,13 +56,27 @@ export default function EmailSettingsForm() {
             is_active: data.settings.is_active,
           });
           setExists(true);
+          setPasswordChanged(false);
+        } else {
+          // Reset to defaults for new configuration type
+          setSettings({
+            smtp_host: "smtp.gmail.com",
+            smtp_port: 465,
+            smtp_secure: true,
+            smtp_user: "",
+            smtp_password: "",
+            sender_name: configType === "support" ? "دعم Tawzeef-X" : "فريق التوظيف",
+            is_active: true,
+          });
+          setExists(false);
+          setPasswordChanged(false);
         }
       } catch (err) {
         console.error("Failed to load email settings:", err);
       }
       setLoading(false);
     })();
-  }, [user]);
+  }, [user, configType]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,13 +84,13 @@ export default function EmailSettingsForm() {
     setSaving(true);
 
     try {
-      const payload = { ...settings };
+      const payload = { ...settings, config_type: configType };
       if (exists && !passwordChanged) {
         delete (payload as any).smtp_password;
       }
 
       const { data, error } = await supabase.functions.invoke("manage-smtp", {
-        body: { action: "save", settings: payload },
+        body: { action: "save", settings: payload, config_type: configType },
       });
 
       if (error) throw error;
@@ -80,15 +107,17 @@ export default function EmailSettingsForm() {
     if (!user?.email) return;
     setTesting(true);
     try {
+      const typeLabel = CONFIG_TYPES.find(t => t.id === configType)?.label || configType;
       const { error } = await supabase.functions.invoke("send-email", {
         body: {
           to: user.email,
-          subject: "اختبار إعدادات البريد الإلكتروني",
+          subject: `اختبار إعدادات البريد الإلكتروني: ${typeLabel}`,
           html: `<div dir="rtl" style="font-family: 'Segoe UI', Tahoma, Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
             <h2 style="color: #10b981; text-align: center;">✅ تم الاتصال بنجاح</h2>
-            <p style="color: #374151; text-align: center;">إعدادات البريد الإلكتروني تعمل بشكل صحيح</p>
+            <p style="color: #374151; text-align: center;">إعدادات البريد الإلكتروني للنوع (${typeLabel}) تعمل بشكل صحيح.</p>
           </div>`,
           user_id: user.id,
+          email_type: configType,
         },
       });
       if (error) throw error;
@@ -121,6 +150,25 @@ export default function EmailSettingsForm() {
       </div>
 
       <form onSubmit={handleSave} className="space-y-4">
+        <div className="space-y-1.5">
+          <Label className="text-xs flex items-center gap-1.5">
+            <Settings className="w-3.5 h-3.5 text-primary" />
+            غرض استخدام خادم البريد (SMTP Configuration Use Case)
+          </Label>
+          <Select value={configType} onValueChange={setConfigType}>
+            <SelectTrigger className="w-full mt-1">
+              <SelectValue placeholder="اختر نوع تهيئة البريد" />
+            </SelectTrigger>
+            <SelectContent>
+              {CONFIG_TYPES.map(type => (
+                <SelectItem key={type.id} value={type.id}>
+                  {type.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label className="text-xs flex items-center gap-1.5">

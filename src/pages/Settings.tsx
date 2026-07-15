@@ -163,6 +163,7 @@ function AccountSection() {
     await supabase.from("profiles").update({ avatar_url: newUrl } as any).eq("user_id", user.id);
     setAvatarUrl(newUrl);
     queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
+    queryClient.invalidateQueries({ queryKey: ["layout-profile", user.id] });
     toast({ title: t("settings.avatarUpdated") });
     setUploading(false);
   };
@@ -173,6 +174,7 @@ function AccountSection() {
     await supabase.from("profiles").update({ avatar_url: null } as any).eq("user_id", user.id);
     setAvatarUrl(null);
     queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
+    queryClient.invalidateQueries({ queryKey: ["layout-profile", user.id] });
     toast({ title: t("settings.avatarRemoved") });
     setUploading(false);
   };
@@ -185,6 +187,7 @@ function AccountSection() {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
+      queryClient.invalidateQueries({ queryKey: ["layout-profile", user.id] });
       toast({ title: t("settings.profileSaved") });
     }
     setLoading(false);
@@ -1233,6 +1236,7 @@ function CompanySection() {
     }
     setCompanyLogo(newUrl);
     queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
+    queryClient.invalidateQueries({ queryKey: ["layout-profile", user.id] });
     toast({ title: locale === "en" ? "Logo updated ✅" : "تم تحديث الشعار ✅" });
     setUploading(false);
   };
@@ -1246,6 +1250,7 @@ function CompanySection() {
     }
     setCompanyLogo(null);
     queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
+    queryClient.invalidateQueries({ queryKey: ["layout-profile", user.id] });
     toast({ title: locale === "en" ? "Logo removed" : "تم إزالة الشعار" });
     setUploading(false);
   };
@@ -1260,9 +1265,25 @@ function CompanySection() {
       return;
     }
 
+    // Check if a company was just created by the database trigger
+    let activeCompanyId = companyId;
+    if (!activeCompanyId) {
+      const { data: memberRows } = await supabase
+        .from("company_members")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .order("joined_at", { ascending: false });
+      
+      const latestMember = memberRows && memberRows.length > 0 ? memberRows[0] : null;
+      if (latestMember?.company_id) {
+        activeCompanyId = latestMember.company_id;
+        setCompanyId(activeCompanyId);
+      }
+    }
+
     const rawNotesString = JSON.stringify({ size: companySize, description: notes });
 
-    if (companyId) {
+    if (activeCompanyId) {
       const { error: compErr } = await supabase.from("companies").update({
         name: companyName,
         logo_url: companyLogo,
@@ -1278,7 +1299,7 @@ function CompanySection() {
           fontFamily: brandFont,
           qrForeground: brandQrForeground
         }
-      } as any).eq("id", companyId);
+      } as any).eq("id", activeCompanyId);
 
       if (compErr) {
         toast({ title: "Error updating company settings", description: compErr.message, variant: "destructive" });
@@ -1334,6 +1355,7 @@ function CompanySection() {
     }
 
     queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
+    queryClient.invalidateQueries({ queryKey: ["layout-profile", user.id] });
     toast({ title: locale === "en" ? "Company info saved ✅" : "تم حفظ بيانات الشركة ✅" });
     setLoading(false);
   };

@@ -111,10 +111,14 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Auto-detect and fix Port / Secure mismatch
+    // If port is 587 or 25, we MUST set secure to false (Nodemailer uses STARTTLS automatically).
+    const isSecureConnection = (smtpPort === 465) ? true : (smtpPort === 587 || smtpPort === 25 ? false : smtpSecure);
+
     const transporter = nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
-      secure: smtpSecure,
+      secure: isSecureConnection,
       auth: { user: smtpUser, pass: smtpPass },
     });
 

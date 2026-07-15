@@ -77,14 +77,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   useKeyboardShortcuts();
   const { open: cmdOpen, setOpen: setCmdOpen } = useCommandPalette();
   const { data: headerData, isLoading: headerLoading } = useQuery({
-    queryKey: ["my-profile", user?.id],
+    queryKey: ["layout-profile", user?.id],
     queryFn: async () => {
       if (!user) return null;
 
       // 1) Fetch profile details
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, avatar_url, job_title")
+        .select("full_name, avatar_url, job_title, company_name, company_logo")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -111,6 +111,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         }
       }
 
+      // Fallback to profiles table if companies table query returns empty
+      if (!companyName && profile?.company_name) {
+        companyName = profile.company_name;
+      }
+      if (!companyLogo && profile?.company_logo) {
+        companyLogo = profile.company_logo;
+      }
+
       return {
         full_name: profile?.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || "",
         displayName: profile?.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || "",
@@ -125,11 +133,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     enabled: !!user,
   });
 
-  const displayName = headerData?.displayName || "";
+  const displayName = headerData?.displayName || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "";
   const avatarUrl = headerData?.avatarUrl || null;
-  const jobTitle = headerData?.jobTitle || null;
-  const companyName = headerData?.companyName || "";
-  const companyLogo = headerData?.companyLogo || "";
+  const jobTitle = headerData?.jobTitle || user?.user_metadata?.job_title || null;
+  const companyName = headerData?.companyName || user?.user_metadata?.company_name || "";
+  const companyLogo = headerData?.companyLogo || user?.user_metadata?.company_logo || "";
 
   const [workspace, setWorkspace] = useState<"recruitment" | "enterprise">(() => {
     return (localStorage.getItem("active-workspace") as any) || "recruitment";

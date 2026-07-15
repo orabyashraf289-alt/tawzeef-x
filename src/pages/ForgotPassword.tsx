@@ -17,10 +17,11 @@ export default function ForgotPassword() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      const { data, error } = await supabase.functions.invoke("request-password-reset", {
+        body: { email },
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       setSent(true);
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message, variant: "destructive" });

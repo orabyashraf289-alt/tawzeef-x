@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 import React from "react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { mockSession, mockUser } from "@/test/mocks/supabase";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Mock supabase client
 const mockSignUp = vi.fn();
@@ -38,6 +39,21 @@ function AuthConsumer() {
   );
 }
 
+const renderWithQueryClient = (ui: React.ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      {ui}
+    </QueryClientProvider>
+  );
+};
+
 describe("AuthContext", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -47,7 +63,7 @@ describe("AuthContext", () => {
   it("starts with loading=true and user=null", async () => {
     mockGetSession.mockResolvedValue({ data: { session: null } });
     await act(async () => {
-      render(
+      renderWithQueryClient(
         <AuthProvider>
           <AuthConsumer />
         </AuthProvider>
@@ -58,7 +74,7 @@ describe("AuthContext", () => {
 
   it("provides user after session is resolved", async () => {
     mockGetSession.mockResolvedValue({ data: { session: mockSession } });
-    render(
+    renderWithQueryClient(
       <AuthProvider>
         <AuthConsumer />
       </AuthProvider>
@@ -72,7 +88,7 @@ describe("AuthContext", () => {
     // This time, getSession returns null but the callback fires with a session
     mockGetSession.mockResolvedValue({ data: { session: null } });
     
-    const { getByTestId } = render(
+    const { getByTestId } = renderWithQueryClient(
       <AuthProvider>
         <AuthConsumer />
       </AuthProvider>
@@ -96,7 +112,7 @@ describe("AuthContext", () => {
 
   it("calls signOut correctly", async () => {
     mockGetSession.mockResolvedValue({ data: { session: mockSession } });
-    render(
+    renderWithQueryClient(
       <AuthProvider>
         <AuthConsumer />
       </AuthProvider>
@@ -113,7 +129,7 @@ describe("AuthContext", () => {
   it("clears user on SIGNED_OUT event", async () => {
     mockGetSession.mockResolvedValue({ data: { session: mockSession } });
     await act(async () => {
-      render(
+      renderWithQueryClient(
         <AuthProvider>
           <AuthConsumer />
         </AuthProvider>

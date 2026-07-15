@@ -49,61 +49,15 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-function generateCode() {
-  const random = crypto.getRandomValues(new Uint32Array(1))[0] % 900000;
-  return String(100000 + random).padStart(6, "0");
-}
-
 async function sha256(input: string) {
   const buffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
   return Array.from(new Uint8Array(buffer)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-// ── IP-based Rate Limiting ──
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
-const RATE_LIMIT_MAX = 3; // max 3 requests per IP per minute
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return false;
-  }
-
-  entry.count++;
-  if (entry.count > RATE_LIMIT_MAX) {
-    return true;
-  }
-  return false;
-}
-
-// Cleanup stale entries every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, entry] of rateLimitMap) {
-    if (now > entry.resetAt) rateLimitMap.delete(ip);
-  }
-}, 5 * 60_000);
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // Extract client IP
-    const clientIp =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      req.headers.get("cf-connecting-ip") ||
-      req.headers.get("x-real-ip") ||
-      "unknown";
-
-    if (isRateLimited(clientIp)) {
-      console.warn(`Rate limited IP: ${clientIp}`);
-      return json({ error: "تم تجاوز الحد المسموح من الطلبات. حاول بعد دقيقة" }, 429);
-    }
-
     const { email } = await req.json();
     const normalizedEmail = normalizeEmail(String(email || ""));
 
@@ -120,25 +74,30 @@ Deno.serve(async (req) => {
     const targetUser = userList.users.find(
       (u) => u.email?.toLowerCase() === normalizedEmail
     );
-    if (!targetUser) return json({ error: "لم يتم العثور على حساب بهذا البريد" }, 400);
+    
+    // To prevent email enumeration, return success even if user not found, but don't send email
+    if (!targetUser) {
+      console.log(`Password reset requested for non-existent email: ${normalizedEmail}`);
+      return json({ success: true, message: "إذا كان البريد الإلكتروني مسجلاً لدينا، فستتلقى رابطاً لإعادة تعيين كلمة المرور." });
+    }
 
     const userId = targetUser.id;
-    const code = generateCode();
-    const codeHash = await sha256(code);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const token = crypto.randomUUID();
+    const tokenHash = await sha256(token);
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins
 
-    // Invalidate previous challenges
+    // Invalidate previous reset tokens for this user
     await adminClient
-      .from("login_otp_challenges")
+      .from("password_reset_tokens")
       .update({ consumed_at: new Date().toISOString() })
       .eq("email", normalizedEmail)
       .eq("user_id", userId)
       .is("consumed_at", null);
 
-    const { error: insertError } = await adminClient.from("login_otp_challenges").insert({
+    const { error: insertError } = await adminClient.from("password_reset_tokens").insert({
       user_id: userId,
       email: normalizedEmail,
-      code_hash: codeHash,
+      token_hash: tokenHash,
       expires_at: expiresAt,
     });
     if (insertError) throw insertError;
@@ -151,12 +110,12 @@ Deno.serve(async (req) => {
     let smtpPass = Deno.env.get("GMAIL_APP_PASSWORD") || "";
     let senderName = "Tawzeef-X";
 
-    // 1) Find user's direct email settings for OTP, fallback to general
+    // 1) Find user's direct email settings for password_reset, fallback to general
     let { data: settings } = await adminClient
       .from("email_settings")
       .select("*")
       .eq("user_id", userId)
-      .eq("config_type", "otp")
+      .eq("config_type", "password_reset")
       .eq("is_active", true)
       .maybeSingle();
 
@@ -173,7 +132,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2) If not found, try to find settings of their company owner for OTP or general
+    // 2) If not found, try to find settings of their company owner for password_reset or general
     if (!settings) {
       const { data: member } = await adminClient
         .from("company_members")
@@ -194,7 +153,7 @@ Deno.serve(async (req) => {
             .from("email_settings")
             .select("*")
             .eq("user_id", ownerMember.user_id)
-            .eq("config_type", "otp")
+            .eq("config_type", "password_reset")
             .eq("is_active", true)
             .maybeSingle();
           
@@ -233,16 +192,20 @@ Deno.serve(async (req) => {
     // If port is 587 or 25, we MUST set secure to false (Nodemailer uses STARTTLS automatically).
     const isSecureConnection = (smtpPort === 465) ? true : (smtpPort === 587 || smtpPort === 25 ? false : smtpSecure);
 
+    const resetUrl = `${req.headers.get("origin") || "https://ai-hire-buddy-22.lovable.app"}/reset-password?token=${token}&email=${encodeURIComponent(normalizedEmail)}`;
+
     const html = `
-      <div style="margin:0;padding:32px 16px;background:#f6f8fb;font-family:Arial,sans-serif;direction:rtl;">
+      <div style="margin:0;padding:32px 16px;background:#f6f8fb;font-family:Arial,sans-serif;direction:rtl;text-align:right;">
         <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e7ecf3;border-radius:20px;padding:32px;box-shadow:0 10px 30px rgba(15,23,42,0.06);">
-          <div style="display:inline-block;padding:8px 14px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700;">التحقق بخطوتين</div>
-          <h1 style="margin:18px 0 10px;color:#0f172a;font-size:28px;line-height:1.4;">رمز التحقق لتسجيل الدخول</h1>
-          <p style="margin:0 0 20px;color:#475569;font-size:15px;line-height:1.9;">استخدم الرمز التالي لإكمال تسجيل الدخول إلى <strong>Tawzeef-X</strong>. صلاحية الرمز 10 دقائق.</p>
-          <div style="margin:28px 0;padding:18px;border-radius:18px;background:linear-gradient(135deg,#dbeafe,#f0fdfa);text-align:center;border:1px solid #cbd5e1;">
-            <div style="font-size:40px;line-height:1;letter-spacing:12px;font-weight:800;color:#0f172a;direction:ltr;">${code}</div>
+          <div style="display:inline-block;padding:8px 14px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700;">استعادة الحساب</div>
+          <h1 style="margin:18px 0 10px;color:#0f172a;font-size:28px;line-height:1.4;">طلب إعادة تعيين كلمة المرور</h1>
+          <p style="margin:0 0 20px;color:#475569;font-size:15px;line-height:1.9;">لقد تلقينا طلباً لإعادة تعيين كلمة المرور لحسابك في <strong>Tawzeef-X</strong>. انقر فوق الزر أدناه لتعيين كلمة مرور جديدة. صلاحية هذا الرابط 15 دقيقة.</p>
+          <div style="margin:28px 0;text-align:center;">
+            <a href="${resetUrl}" style="display:inline-block;padding:14px 32px;border-radius:12px;background:#1d4ed8;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">إعادة تعيين كلمة المرور</a>
           </div>
-          <p style="margin:0;color:#64748b;font-size:13px;line-height:1.8;">إذا لم تحاول تسجيل الدخول، يمكنك تجاهل هذه الرسالة بأمان.</p>
+          <p style="margin:0 0 20px;color:#64748b;font-size:13px;line-height:1.8;">إذا لم يعمل الزر، يمكنك نسخ الرابط التالي ولصقه في متصفحك:</p>
+          <p style="margin:0 0 28px;color:#1d4ed8;font-size:13px;word-break:break-all;direction:ltr;text-align:left;">${resetUrl}</p>
+          <p style="margin:0;color:#64748b;font-size:13px;line-height:1.8;">إذا لم تطلب إعادة تعيين كلمة المرور، يرجى تجاهل هذا البريد الإلكتروني بأمان.</p>
         </div>
       </div>
     `;
@@ -263,13 +226,13 @@ Deno.serve(async (req) => {
         await transporter.sendMail({
           from: `"${senderName}" <${smtpUser}>`,
           to: normalizedEmail,
-          subject: "رمز التحقق لتسجيل الدخول - Tawzeef-X",
+          subject: "إعادة تعيين كلمة المرور - Tawzeef-X",
           html,
         });
         emailSent = true;
-        console.log(`OTP sent to ${normalizedEmail} via custom SMTP: ${smtpHost}`);
+        console.log(`Password reset email sent to ${normalizedEmail} via custom SMTP: ${smtpHost}`);
       } catch (err: any) {
-        console.warn(`Custom SMTP failed (${err.message}). Falling back to default system SMTP...`);
+        console.warn(`Custom SMTP failed for password reset (${err.message}). Falling back to default system SMTP...`);
       }
     }
 
@@ -291,16 +254,16 @@ Deno.serve(async (req) => {
       await transporter.sendMail({
         from: `"Tawzeef-X" <${defaultUser}>`,
         to: normalizedEmail,
-        subject: "رمز التحقق لتسجيل الدخول - Tawzeef-X",
+        subject: "إعادة تعيين كلمة المرور - Tawzeef-X",
         html,
       });
       emailSent = true;
-      console.log(`OTP sent to ${normalizedEmail} via system default SMTP (Custom SMTP was ${customSmtpUsed ? "invalid" : "not configured"})`);
+      console.log(`Password reset email sent to ${normalizedEmail} via system default SMTP (Custom SMTP was ${customSmtpUsed ? "invalid" : "not configured"})`);
     }
 
-    return json({ success: true });
+    return json({ success: true, message: "إذا كان البريد الإلكتروني مسجلاً لدينا، فستتلقى رابطاً لإعادة تعيين كلمة المرور." });
   } catch (error: any) {
-    console.error("request-login-otp error:", error);
-    return json({ error: error.message || "حدث خطأ أثناء إرسال الرمز" }, 500);
+    console.error("request-password-reset error:", error);
+    return json({ error: error.message || "حدث خطأ أثناء معالجة الطلب" }, 500);
   }
 });

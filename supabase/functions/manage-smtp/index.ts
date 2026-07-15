@@ -92,11 +92,13 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceKey);
     const encKey = await deriveKey(serviceKey);
 
-    const { action, settings } = await req.json();
+    const { action, settings, config_type } = await req.json();
+    const configType = config_type || settings?.config_type || "general";
 
     if (action === "save") {
       const payload: Record<string, any> = {
         user_id: userId,
+        config_type: configType,
         smtp_host: settings.smtp_host,
         smtp_port: settings.smtp_port,
         smtp_secure: settings.smtp_secure,
@@ -106,7 +108,7 @@ Deno.serve(async (req) => {
       };
 
       // Only encrypt and update password if provided
-      if (settings.smtp_password) {
+      if (settings.smtp_password && settings.smtp_password !== "••••••••") {
         payload.smtp_password = await encrypt(settings.smtp_password, encKey);
       }
 
@@ -114,16 +116,20 @@ Deno.serve(async (req) => {
         .from("email_settings")
         .select("id")
         .eq("user_id", userId)
+        .eq("config_type", configType)
         .maybeSingle();
 
       let error;
       if (existing) {
-        // Don't overwrite password if not provided
-        if (!settings.smtp_password) delete payload.smtp_password;
+        // Don't overwrite password if not provided or masked
+        if (!settings.smtp_password || settings.smtp_password === "••••••••") {
+          delete payload.smtp_password;
+        }
         ({ error } = await adminClient
           .from("email_settings")
           .update(payload)
-          .eq("user_id", userId));
+          .eq("user_id", userId)
+          .eq("config_type", configType));
       } else {
         if (!payload.smtp_password) {
           throw new Error("كلمة المرور مطلوبة عند الإعداد لأول مرة");
@@ -144,6 +150,7 @@ Deno.serve(async (req) => {
         .from("email_settings")
         .select("*")
         .eq("user_id", userId)
+        .eq("config_type", configType)
         .maybeSingle();
 
       if (data) {

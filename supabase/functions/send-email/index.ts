@@ -45,6 +45,7 @@ interface EmailRequest {
   html: string;
   user_id?: string;
   notify_recruiter?: boolean;
+  email_type?: string;
   attachments?: Array<{ filename: string; path: string }>;
 }
 
@@ -81,7 +82,7 @@ Deno.serve(async (req) => {
     }
 
     const body = (await req.json()) as EmailRequest;
-    const { subject, html, user_id, notify_recruiter, attachments } = body;
+    const { subject, html, user_id, notify_recruiter, email_type, attachments } = body;
     let { to } = body;
 
     if (!subject || !html) {
@@ -141,14 +142,31 @@ Deno.serve(async (req) => {
     let smtpUser = Deno.env.get("GMAIL_USER") || "";
     let smtpPass = Deno.env.get("GMAIL_APP_PASSWORD") || "";
     let senderName = "فريق التوظيف";
+    let hasCustomSettings = false;
 
     if (smtpUserId) {
-      const { data: settings } = await supabase
+      const configType = email_type || "hiring";
+      
+      let { data: settings } = await supabase
         .from("email_settings")
         .select("*")
         .eq("user_id", smtpUserId)
+        .eq("config_type", configType)
         .eq("is_active", true)
         .maybeSingle();
+
+      if (!settings && configType !== "general") {
+        const { data: generalSettings } = await supabase
+          .from("email_settings")
+          .select("*")
+          .eq("user_id", smtpUserId)
+          .eq("config_type", "general")
+          .eq("is_active", true)
+          .maybeSingle();
+        if (generalSettings) {
+          settings = generalSettings;
+        }
+      }
 
       if (settings) {
         smtpHost = settings.smtp_host;
@@ -156,15 +174,12 @@ Deno.serve(async (req) => {
         smtpSecure = settings.smtp_secure;
         smtpUser = settings.smtp_user;
         senderName = settings.sender_name;
+        hasCustomSettings = true;
 
         // Decrypt the stored password
         const encKey = await deriveKey(serviceKey);
         smtpPass = await decrypt(settings.smtp_password, encKey);
       }
-    }
-
-    if (!smtpUser || !smtpPass) {
-      throw new Error("Email credentials not configured. Please set up SMTP settings in the app.");
     }
 
     // Map attachments if provided
@@ -208,22 +223,62 @@ Deno.serve(async (req) => {
       }
     }
 
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpSecure,
-      auth: { user: smtpUser, pass: smtpPass },
-    });
+    // Auto-detect and fix Port / Secure mismatch
+    // If port is 587 or 25, we MUST set secure to false (Nodemailer uses STARTTLS automatically).
+    const isSecureConnection = (smtpPort === 465) ? true : (smtpPort === 587 || smtpPort === 25 ? false : smtpSecure);
 
-    await transporter.sendMail({
-      from: `"${senderName}" <${smtpUser}>`,
-      to,
-      subject,
-      html,
-      attachments: nodemailerAttachments.length > 0 ? nodemailerAttachments : undefined,
-    });
+    let emailSent = false;
+    let customSmtpUsed = false;
 
-    console.log(`Email sent successfully to ${to} via ${smtpHost}`);
+    if (hasCustomSettings && smtpUser && smtpPass) {
+      customSmtpUsed = true;
+      try {
+        const transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: isSecureConnection,
+          auth: { user: smtpUser, pass: smtpPass },
+        });
+
+        await transporter.sendMail({
+          from: `"${senderName}" <${smtpUser}>`,
+          to,
+          subject,
+          html,
+          attachments: nodemailerAttachments.length > 0 ? nodemailerAttachments : undefined,
+        });
+        emailSent = true;
+        console.log(`Email sent successfully to ${to} via custom SMTP ${smtpHost}`);
+      } catch (err: any) {
+        console.warn(`Custom SMTP sending failed (${err.message}). Falling back to system default SMTP...`);
+      }
+    }
+
+    if (!emailSent) {
+      const defaultUser = Deno.env.get("GMAIL_USER") || "";
+      const defaultPass = Deno.env.get("GMAIL_APP_PASSWORD") || "";
+
+      if (!defaultUser || !defaultPass) {
+        throw new Error("System default email credentials are not configured");
+      }
+
+      const transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        auth: { user: defaultUser, pass: defaultPass },
+      });
+
+      await transporter.sendMail({
+        from: `"Tawzeef-X" <${defaultUser}>`,
+        to,
+        subject,
+        html,
+        attachments: nodemailerAttachments.length > 0 ? nodemailerAttachments : undefined,
+      });
+      emailSent = true;
+      console.log(`Email sent successfully to ${to} via system default SMTP (Custom SMTP was ${customSmtpUsed ? "invalid" : "not configured"})`);
+    }
 
     return new Response(
       JSON.stringify({ success: true, message: `Email sent to ${to}` }),
