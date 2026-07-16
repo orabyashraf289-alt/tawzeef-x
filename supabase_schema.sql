@@ -3899,3 +3899,13 @@ USING (
   AND (auth.uid()::text = (storage.foldername(name))[1])
 );
 
+
+-- =========================================================================
+-- MIGRATION: 20260716000000_grant_rls_functions.sql
+-- =========================================================================
+
+-- Grant execute permissions on functions used in RLS policies to public, anon, and authenticated roles
+GRANT EXECUTE ON FUNCTION public.has_company_access(uuid) TO public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.has_role(uuid, app_role) TO public, anon, authenticated;
+
+
