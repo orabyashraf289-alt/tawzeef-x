@@ -1842,7 +1842,8 @@ BEGIN
 
   INSERT INTO public.candidates (
     user_id, name, email, phone, role, experience, 
-    summary, stage, status, source, job_id, resume_url
+    summary, stage, status, source, job_id, resume_url,
+    company_id, agency_id
   ) VALUES (
     _job.user_id,
     NEW.name,
@@ -1855,8 +1856,15 @@ BEGIN
     'قيد المراجعة',
     'نموذج التقديم',
     _job.id,
-    NEW.resume_url
+    NEW.resume_url,
+    _job.company_id,
+    _job.agency_id
   );
+
+  -- Copy company_id to the application row itself (since trigger is AFTER INSERT)
+  UPDATE public.applications
+  SET company_id = _job.company_id
+  WHERE id = NEW.id;
 
   INSERT INTO public.notifications (user_id, title, description, type)
   VALUES (
