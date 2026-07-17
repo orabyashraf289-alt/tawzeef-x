@@ -165,7 +165,10 @@ export default function Careers() {
   const filtered = useMemo(() => {
     return (jobs || []).filter(j => {
       const q = search.trim().toLowerCase();
-      const matchSearch = !q || j.title.toLowerCase().includes(q) || j.department.toLowerCase().includes(q) || j.location.toLowerCase().includes(q);
+      const matchSearch = !q || 
+        j.title.toLowerCase().includes(q) || 
+        (j.department && j.department.toLowerCase().includes(q)) || 
+        (j.location && j.location.toLowerCase().includes(q));
       const matchDept = department === "all" || j.department === department;
       const matchType = type === "all" || j.type === type;
       const matchLoc = location === "all" || j.location === location;
