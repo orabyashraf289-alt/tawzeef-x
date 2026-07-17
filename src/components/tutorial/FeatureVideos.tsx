@@ -147,18 +147,25 @@ export default function FeatureVideos() {
       let blob: Blob;
       if (data instanceof Blob) {
         blob = data;
-      } else {
-        // Handle raw array buffer
-        blob = new Blob([data as any], { type: "audio/mpeg" });
-      }
-
-      if (blob.size < 100) {
-        // Attempt to parse error if it returned fallback JSON
-        const text = await blob.text();
-        const parsed = JSON.parse(text);
-        if (parsed.error) {
-          throw new Error(parsed.error);
+        if (blob.size < 500) {
+          try {
+            const text = await blob.text();
+            const parsed = JSON.parse(text);
+            if (parsed.fallback || parsed.error) {
+              throw new Error(parsed.details || parsed.error || "ElevenLabs synthesis failed");
+            }
+          } catch (e) {
+            // Not valid JSON, process as audio
+          }
         }
+      } else {
+        if (data && typeof data === "object") {
+          const anyData = data as any;
+          if (anyData.fallback || anyData.error) {
+            throw new Error(anyData.details || anyData.error || "ElevenLabs synthesis failed");
+          }
+        }
+        blob = new Blob([data as any], { type: "audio/mpeg" });
       }
 
       const url = URL.createObjectURL(blob);
