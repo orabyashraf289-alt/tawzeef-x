@@ -2,6 +2,7 @@ import { useI18n } from "@/contexts/I18nContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
+import { useRef, useState, useEffect } from "react";
 import {
   Bot, Brain, FileSearch, Users, MessageSquare, Sparkles, Zap,
   ArrowRight, CheckCircle2, Star, BarChart3, Lightbulb, Target,
@@ -76,6 +77,56 @@ const aiAdvantages = [
 
 export default function AIGuide() {
   const { t, locale } = useI18n();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const audioUrl = "/videos/tawzeef-x-ai-audio.mp3";
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !audioUrl) return;
+
+    const audio = audioElement || new Audio(audioUrl);
+    if (!audioElement) {
+      setAudioElement(audio);
+    }
+    video.muted = true;
+
+    const handlePlay = () => {
+      audio.currentTime = video.currentTime;
+      audio.play().catch(console.warn);
+    };
+
+    const handlePause = () => {
+      audio.pause();
+    };
+
+    const handleSeeking = () => {
+      audio.currentTime = video.currentTime;
+    };
+
+    const handleVolume = () => {
+      audio.volume = video.volume;
+    };
+
+    video.addEventListener("play", handlePlay);
+    video.addEventListener("pause", handlePause);
+    video.addEventListener("seeking", handleSeeking);
+    video.addEventListener("volumechange", handleVolume);
+
+    audio.volume = video.volume;
+    audio.currentTime = video.currentTime;
+    if (!video.paused) {
+      audio.play().catch(console.warn);
+    }
+
+    return () => {
+      video.removeEventListener("play", handlePlay);
+      video.removeEventListener("pause", handlePause);
+      video.removeEventListener("seeking", handleSeeking);
+      video.removeEventListener("volumechange", handleVolume);
+      audio.pause();
+    };
+  }, [audioUrl, audioElement]);
 
   return (
     <div className="space-y-8">
@@ -88,6 +139,7 @@ export default function AIGuide() {
         <Card className="border-0 shadow-sm overflow-hidden">
           <CardContent className="p-0">
             <video
+              ref={videoRef}
               src="/videos/tawzeef-x-ai-guide.mp4"
               controls
               playsInline

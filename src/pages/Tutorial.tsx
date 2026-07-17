@@ -11,6 +11,7 @@ import {
   PlayCircle, BookOpen, HelpCircle, Lightbulb, ArrowRight, Shield, Bell, UserCheck, Video,
   Mail, Globe, Zap, CheckCircle2, GitBranch, Keyboard, Layers, Trophy, Sparkles,
 } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
 import PracticalExamples from "@/components/tutorial/PracticalExamples";
 import KeyboardShortcuts from "@/components/tutorial/KeyboardShortcuts";
 import UseCases from "@/components/tutorial/UseCases";
@@ -57,6 +58,56 @@ const faqKeys = [
 
 export default function Tutorial() {
   const { t, locale } = useI18n();
+  const welcomeVideoRef = useRef<HTMLVideoElement>(null);
+  const welcomeAudioUrl = "/videos/tawzeef-x-tutorial-main-audio.mp3";
+  const [welcomeAudio, setWelcomeAudio] = useState<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const video = welcomeVideoRef.current;
+    if (!video || !welcomeAudioUrl) return;
+
+    const audio = welcomeAudio || new Audio(welcomeAudioUrl);
+    if (!welcomeAudio) {
+      setWelcomeAudio(audio);
+    }
+    video.muted = true;
+
+    const handlePlay = () => {
+      audio.currentTime = video.currentTime;
+      audio.play().catch(console.warn);
+    };
+
+    const handlePause = () => {
+      audio.pause();
+    };
+
+    const handleSeeking = () => {
+      audio.currentTime = video.currentTime;
+    };
+
+    const handleVolume = () => {
+      audio.volume = video.volume;
+    };
+
+    video.addEventListener("play", handlePlay);
+    video.addEventListener("pause", handlePause);
+    video.addEventListener("seeking", handleSeeking);
+    video.addEventListener("volumechange", handleVolume);
+
+    audio.volume = video.volume;
+    audio.currentTime = video.currentTime;
+    if (!video.paused) {
+      audio.play().catch(console.warn);
+    }
+
+    return () => {
+      video.removeEventListener("play", handlePlay);
+      video.removeEventListener("pause", handlePause);
+      video.removeEventListener("seeking", handleSeeking);
+      video.removeEventListener("volumechange", handleVolume);
+      audio.pause();
+    };
+  }, [welcomeAudioUrl, welcomeAudio]);
 
   return (
     <DashboardLayout>
@@ -96,6 +147,7 @@ export default function Tutorial() {
             >
               <div className="rounded-xl overflow-hidden shadow-lg border border-border/50">
                 <video
+                  ref={welcomeVideoRef}
                   src="/videos/tawzeef-x-tutorial-main.mp4"
                   controls
                   loop

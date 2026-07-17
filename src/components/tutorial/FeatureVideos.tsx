@@ -18,16 +18,16 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 const featureVideos = [
-  { key: "jobs", icon: Briefcase, color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20", src: "/videos/tawzeef-x-jobs.mp4", category: "core", duration: "2:15" },
-  { key: "candidates", icon: Users, color: "text-emerald-500", bg: "bg-emerald-500/10", border: "border-emerald-500/20", src: "/videos/tawzeef-x-candidates.mp4", category: "core", duration: "3:05" },
-  { key: "pipeline", icon: Kanban, color: "text-violet-500", bg: "bg-violet-500/10", border: "border-violet-500/20", src: "/videos/tawzeef-x-pipeline.mp4", category: "core", duration: "1:50" },
-  { key: "interviews", icon: Calendar, color: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/20", src: "/videos/tawzeef-x-interviews.mp4", category: "core", duration: "2:40" },
-  { key: "offers", icon: FileText, color: "text-rose-500", bg: "bg-rose-500/10", border: "border-rose-500/20", src: "/videos/tawzeef-x-offers.mp4", category: "core", duration: "2:00" },
-  { key: "ai", icon: Bot, color: "text-cyan-500", bg: "bg-cyan-500/10", border: "border-cyan-500/20", src: "/videos/tawzeef-x-ai-guide.mp4", category: "ai", duration: "4:20" },
-  { key: "reports", icon: BarChart3, color: "text-orange-500", bg: "bg-orange-500/10", border: "border-orange-500/20", src: "/videos/tawzeef-x-reports.mp4", category: "advanced", duration: "3:10" },
-  { key: "hiring", icon: Target, color: "text-pink-500", bg: "bg-pink-500/10", border: "border-pink-500/20", src: "/videos/tawzeef-x-hiring.mp4", category: "advanced", duration: "1:45" },
-  { key: "share", icon: Share2, color: "text-indigo-500", bg: "bg-indigo-500/10", border: "border-indigo-500/20", src: "/videos/tawzeef-x-share.mp4", category: "advanced", duration: "2:10" },
-  { key: "settings", icon: Settings, color: "text-slate-500", bg: "bg-slate-500/10", border: "border-slate-500/20", src: "/videos/tawzeef-x-settings.mp4", category: "advanced", duration: "2:55" },
+  { key: "jobs", icon: Briefcase, color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20", src: "/videos/tawzeef-x-jobs.mp4", audioSrc: "/videos/tawzeef-x-jobs-audio.mp3", category: "core", duration: "2:15" },
+  { key: "candidates", icon: Users, color: "text-emerald-500", bg: "bg-emerald-500/10", border: "border-emerald-500/20", src: "/videos/tawzeef-x-candidates.mp4", audioSrc: "/videos/tawzeef-x-candidates-audio.mp3", category: "core", duration: "3:05" },
+  { key: "pipeline", icon: Kanban, color: "text-violet-500", bg: "bg-violet-500/10", border: "border-violet-500/20", src: "/videos/tawzeef-x-pipeline.mp4", audioSrc: "/videos/tawzeef-x-pipeline-audio.mp3", category: "core", duration: "1:50" },
+  { key: "interviews", icon: Calendar, color: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/20", src: "/videos/tawzeef-x-interviews.mp4", audioSrc: "/videos/tawzeef-x-interviews-audio.mp3", category: "core", duration: "2:40" },
+  { key: "offers", icon: FileText, color: "text-rose-500", bg: "bg-rose-500/10", border: "border-rose-500/20", src: "/videos/tawzeef-x-offers.mp4", audioSrc: "/videos/tawzeef-x-offers-audio.mp3", category: "core", duration: "2:00" },
+  { key: "ai", icon: Bot, color: "text-cyan-500", bg: "bg-cyan-500/10", border: "border-cyan-500/20", src: "/videos/tawzeef-x-ai-guide.mp4", audioSrc: "/videos/tawzeef-x-ai-audio.mp3", category: "ai", duration: "4:20" },
+  { key: "reports", icon: BarChart3, color: "text-orange-500", bg: "bg-orange-500/10", border: "border-orange-500/20", src: "/videos/tawzeef-x-reports.mp4", audioSrc: "/videos/tawzeef-x-reports-audio.mp3", category: "advanced", duration: "3:10" },
+  { key: "hiring", icon: Target, color: "text-pink-500", bg: "bg-pink-500/10", border: "border-pink-500/20", src: "/videos/tawzeef-x-hiring.mp4", audioSrc: "/videos/tawzeef-x-hiring-audio.mp3", category: "advanced", duration: "1:45" },
+  { key: "share", icon: Share2, color: "text-indigo-500", bg: "bg-indigo-500/10", border: "border-indigo-500/20", src: "/videos/tawzeef-x-share.mp4", audioSrc: "/videos/tawzeef-x-share-audio.mp3", category: "advanced", duration: "2:10" },
+  { key: "settings", icon: Settings, color: "text-slate-500", bg: "bg-slate-500/10", border: "border-slate-500/20", src: "/videos/tawzeef-x-settings.mp4", audioSrc: "/videos/tawzeef-x-settings-audio.mp3", category: "advanced", duration: "2:55" },
 ];
 
 export default function FeatureVideos() {
@@ -40,7 +40,7 @@ export default function FeatureVideos() {
   // ElevenLabs Voiceover states
   const videoRef = useRef<HTMLVideoElement>(null);
   const [scriptText, setScriptText] = useState("");
-  const [selectedVoiceId, setSelectedVoiceId] = useState("AZnzlk1XipRD3TQA3GNg"); // Mimi as default Arabic/Multilingual voice
+  const [selectedVoiceId, setSelectedVoiceId] = useState("Xb7hH8MSUJpSbSDYk0k2"); // Alice as default voice (active on user's account)
   const [customVoiceId, setCustomVoiceId] = useState("");
   const [generatingTts, setGeneratingTts] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -56,9 +56,9 @@ export default function FeatureVideos() {
 
   useEffect(() => {
     setScriptText(defaultScript);
-    // Reset audio state when switching videos
-    setAudioUrl(null);
-    setSyncVoiceover(false);
+    // Load pre-generated audio if exists
+    setAudioUrl(activeVideo.audioSrc || null);
+    setSyncVoiceover(!!activeVideo.audioSrc); // Auto-enable sync if we have pre-generated audio
     if (audioElement) {
       audioElement.pause();
       setAudioElement(null);
