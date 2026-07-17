@@ -431,7 +431,7 @@ const BrandingPanel = memo(function BrandingPanel() {
 const SocialButtons = memo(function SocialButtons() {
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
 
-  const handleOAuth = async (provider: "google" | "apple") => {
+  const handleOAuth = async (provider: "google" | "apple" | "azure") => {
     setLoadingProvider(provider);
     try {
       const { error } = await lovable.auth.signInWithOAuth(provider, { redirect_uri: window.location.origin });
@@ -442,13 +442,13 @@ const SocialButtons = memo(function SocialButtons() {
   };
 
   return (
-    <div className="flex gap-3">
-      <div className="flex-1 transition-all duration-200 hover:scale-[1.015] active:scale-[0.985]">
+    <div className="grid grid-cols-3 gap-2">
+      <div className="transition-all duration-200 hover:scale-[1.015] active:scale-[0.985]">
         <Button
           type="button"
           variant="outline"
           disabled={!!loadingProvider}
-          className="w-full h-11 rounded-xl text-xs font-bold gap-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 shadow-sm transition-all duration-300"
+          className="w-full h-11 rounded-xl text-xs font-bold gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 shadow-sm transition-all duration-300 px-1"
           onClick={() => handleOAuth("google")}
         >
           {loadingProvider === "google" ? (
@@ -465,12 +465,12 @@ const SocialButtons = memo(function SocialButtons() {
         </Button>
       </div>
 
-      <div className="flex-1 transition-all duration-200 hover:scale-[1.015] active:scale-[0.985]">
+      <div className="transition-all duration-200 hover:scale-[1.015] active:scale-[0.985]">
         <Button
           type="button"
           variant="outline"
           disabled={!!loadingProvider}
-          className="w-full h-11 rounded-xl text-xs font-bold gap-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 shadow-sm transition-all duration-300"
+          className="w-full h-11 rounded-xl text-xs font-bold gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 shadow-sm transition-all duration-300 px-1"
           onClick={() => handleOAuth("apple")}
         >
           {loadingProvider === "apple" ? (
@@ -481,6 +481,28 @@ const SocialButtons = memo(function SocialButtons() {
             </svg>
           )}
           Apple
+        </Button>
+      </div>
+
+      <div className="transition-all duration-200 hover:scale-[1.015] active:scale-[0.985]">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!!loadingProvider}
+          className="w-full h-11 rounded-xl text-xs font-bold gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 shadow-sm transition-all duration-300 px-1"
+          onClick={() => handleOAuth("azure")}
+        >
+          {loadingProvider === "azure" ? (
+            <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+          ) : (
+            <svg className="w-4 h-4" viewBox="0 0 23 23">
+              <path fill="#F25022" d="M1 1h10v10H1z" />
+              <path fill="#7FBA00" d="M12 1h10v10H12z" />
+              <path fill="#00A4EF" d="M1 12h10v10H1z" />
+              <path fill="#FFB900" d="M12 12h10v10H12z" />
+            </svg>
+          )}
+          Microsoft
         </Button>
       </div>
     </div>
