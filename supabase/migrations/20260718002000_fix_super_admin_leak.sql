@@ -1,18 +1,50 @@
 -- =========================================================================
--- 1) DEFINE IS_SUPER_ADMIN FUNCTION AND UPDATE SYSTEM ACCESS FUNCTIONS
+-- 1) REPAIR SCHEMA INCONSISTENCIES: ENSURE AUDIT_LOG HAS COMPANY_ID
+-- =========================================================================
+
+-- Ensure company_id column exists on audit_log
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS company_id uuid REFERENCES public.companies(id) ON DELETE CASCADE;
+
+-- Create index for audit_log company_id
+CREATE INDEX IF NOT EXISTS idx_audit_log_company_id ON public.audit_log(company_id);
+
+-- Attach trigger to auto-populate company_id on audit_log
+DROP TRIGGER IF EXISTS trg_set_audit_log_company_id ON public.audit_log;
+CREATE TRIGGER trg_set_audit_log_company_id BEFORE INSERT ON public.audit_log FOR EACH ROW EXECUTE FUNCTION public.set_row_company_id();
+
+-- Backfill company_id on existing audit logs
+UPDATE public.audit_log al
+SET company_id = cm.company_id
+FROM public.company_members cm
+WHERE al.user_id = cm.user_id AND al.company_id IS NULL;
+
+
+-- =========================================================================
+-- 2) DEFINE IS_SUPER_ADMIN FUNCTION AND UPDATE SYSTEM ACCESS FUNCTIONS
 -- =========================================================================
 
 CREATE OR REPLACE FUNCTION public.is_super_admin(_user_id uuid)
 RETURNS boolean
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
 AS $$
-  SELECT EXISTS (
+BEGIN
+  -- Fast path: if checking current session user, use JWT metadata to avoid auth.users table join issues
+  IF _user_id = auth.uid() AND (auth.jwt() ->> 'email') = 'ctraining801@gmail.com' THEN
+    RETURN EXISTS (
+      SELECT 1 FROM public.user_roles ur
+      WHERE ur.user_id = _user_id AND ur.role = 'admin'::app_role
+    );
+  END IF;
+
+  -- Fallback: query auth.users if checking a different user ID or if JWT is not present
+  RETURN EXISTS (
     SELECT 1 FROM public.user_roles ur
     JOIN auth.users u ON u.id = ur.user_id
     WHERE ur.user_id = _user_id 
       AND ur.role = 'admin'::app_role 
       AND u.email = 'ctraining801@gmail.com'
   );
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.has_company_access(_company_id uuid)
@@ -46,7 +78,7 @@ AS $$
 $$;
 
 -- =========================================================================
--- 2) REWRITE GLOBAL ADMIN BYPASS RLS POLICIES
+-- 3) REWRITE GLOBAL ADMIN BYPASS RLS POLICIES
 -- =========================================================================
 
 -- Jobs
@@ -204,7 +236,7 @@ CREATE POLICY "Admins and company members view audit log" ON public.audit_log
   FOR SELECT TO authenticated
   USING (
     public.is_super_admin(auth.uid()) OR 
-    public.has_company_access(company_id)
+    (company_id IS NOT NULL AND public.has_company_access(company_id))
   );
 
 -- Role Permissions
