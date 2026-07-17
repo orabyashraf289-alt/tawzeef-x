@@ -1,9 +1,10 @@
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import { Link } from "react-router-dom";
-import { Users, Bot, ArrowLeft, TrendingUp, Shield, Globe, CheckCircle2, Zap, Star, Briefcase, FileText, BarChart3, Video, Sparkles, Award, Play, ArrowUpRight, MousePointerClick, Layout, MessageSquare, Calendar, Send, Menu, X  } from "lucide-react";
+import { Users, Bot, ArrowLeft, TrendingUp, Shield, Globe, CheckCircle2, Zap, Star, Briefcase, FileText, BarChart3, Video, Sparkles, Award, Play, ArrowUpRight, MousePointerClick, Layout, MessageSquare, Calendar, Send, Menu, X, Sun, Moon, ChevronDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, useScroll, useTransform, AnimatePresence, useInView, useMotionValue, useSpring, useMotionTemplate } from "framer-motion";
 import { useRef, useState, useEffect, useCallback } from "react";
+import { useTheme } from "@/contexts/ThemeContext";
 
 import { supabase } from "@/integrations/supabase/client";
 
@@ -836,7 +837,511 @@ function HeroDashboardMockup() {
   );
 }
 
+/* ─── AI Resume Parser Playground ─── */
+const sampleResumes = [
+  {
+    id: "dev",
+    title: "مطور واجهات (React)",
+    name: "سليم الوهيبي",
+    experience: "3 سنوات",
+    skills: ["React", "TypeScript", "TailwindCSS", "Next.js", "REST APIs"],
+    score: 94,
+    fit: "مطابق تماماً",
+    summary: "مطور واجهات ذو خبرة قوية في بناء تطبيقات الويب التفاعلية والمحسّنة. يمتلك خبرة عملية بمكتبات إدارة الحالة وأداء تطبيقات React.",
+  },
+  {
+    id: "designer",
+    title: "مصمم واجهات UX/UI",
+    name: "مروة العبدالله",
+    experience: "5 سنوات",
+    skills: ["Figma", "Design Systems", "Prototyping", "User Research", "Wireframing"],
+    score: 89,
+    fit: "مناسب جداً",
+    summary: "مصممة تجربة مستخدم شغوفة بتبسيط العمليات المعقدة. قادت بنجاح عملية بناء وتطوير أنظمة التصميم لـ 3 منتجات تقنية.",
+  },
+  {
+    id: "sales",
+    title: "مسؤول مبيعات وتطوير أعمال",
+    name: "خالد بن الوليد",
+    experience: "سنتان",
+    skills: ["B2B Sales", "Negotiation", "CRM", "Lead Generation", "Public Speaking"],
+    score: 76,
+    fit: "يحتاج مقابلة",
+    summary: "أخصائي مبيعات يتميز بمهارات تواصل عالية وإقناع. حقق نمواً بنسبة 120% في الربع الأخير للشركة السابقة.",
+  },
+];
+
+function AiResumeParserPlayground() {
+  const [selectedCv, setSelectedCv] = useState(sampleResumes[0]);
+  const [isScanning, setIsScanning] = useState(false);
+  const [showResult, setShowResult] = useState(true);
+
+  const handleSelectCv = (cv: typeof sampleResumes[0]) => {
+    if (isScanning) return;
+    setIsScanning(true);
+    setShowResult(false);
+    setTimeout(() => {
+      setSelectedCv(cv);
+      setIsScanning(false);
+      setShowResult(true);
+    }, 2000);
+  };
+
+  return (
+    <div className="bg-muted/15 border border-border/80 rounded-3xl p-6 md:p-10 max-w-5xl mx-auto shadow-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+        
+        {/* Selector Panel */}
+        <div className="lg:col-span-5 flex flex-col justify-between">
+          <div className="space-y-4">
+            <h3 className="text-xl font-bold text-foreground">اختر سيرة ذاتية لتجربة الفرز التلقائي:</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              اختر أحد النماذج الجاهزة أدناه لترى كيف يقوم الذكاء الاصطناعي بتحليلها واستخراج البيانات بدقة متناهية وفي ثوانٍ معدودة.
+            </p>
+            <div className="space-y-3 pt-2">
+              {sampleResumes.map((cv) => (
+                <button
+                  key={cv.id}
+                  onClick={() => handleSelectCv(cv)}
+                  disabled={isScanning}
+                  className={`w-full text-right p-4 rounded-2xl border transition-all flex items-center justify-between ${
+                    selectedCv.id === cv.id
+                      ? "bg-primary/8 border-primary text-primary font-bold shadow-sm"
+                      : "bg-card border-border hover:border-primary/30 text-foreground hover:bg-muted/30"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${
+                      selectedCv.id === cv.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    }`}>
+                      {cv.name[0]}
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold">{cv.name}</div>
+                      <div className="text-xs text-muted-foreground font-medium mt-0.5">{cv.title}</div>
+                    </div>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${selectedCv.id === cv.id ? "rotate-90 text-primary" : "-rotate-90 text-muted-foreground"}`} />
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="pt-6 border-t border-border/60 mt-6 lg:mt-0 flex items-center gap-3 text-xs text-muted-foreground bg-muted/20 p-4 rounded-2xl">
+            <Sparkles className="w-4 h-4 text-primary shrink-0 animate-pulse" />
+            <span>يمكن للباحثين عن عمل تحميل ملف PDF مباشرة وسيتولى الـ AI الباقي.</span>
+          </div>
+        </div>
+
+        {/* Scanner and Results Panel */}
+        <div className="lg:col-span-7 bg-card border border-border rounded-2xl p-6 relative overflow-hidden flex flex-col justify-center min-h-[380px]">
+          
+          {/* Laser Scanner animation */}
+          {isScanning && (
+            <div className="absolute inset-0 z-10 bg-background/40 backdrop-blur-[2px] flex flex-col items-center justify-center">
+              <motion.div
+                initial={{ top: "0%" }}
+                animate={{ top: "100%" }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute inset-x-0 h-0.5 bg-primary shadow-[0_0_15px_4px_rgba(59,130,246,0.6)]"
+              />
+              <Bot className="w-12 h-12 text-primary animate-bounce mb-3" />
+              <span className="text-xs font-bold text-foreground animate-pulse font-mono">AI IS PARSING RESUME...</span>
+            </div>
+          )}
+
+          {/* Results view */}
+          <AnimatePresence mode="wait">
+            {showResult && (
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                className="space-y-6"
+              >
+                {/* Header info */}
+                <div className="flex items-start justify-between border-b border-border/60 pb-4">
+                  <div>
+                    <h4 className="text-lg font-bold text-foreground">{selectedCv.name}</h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">{selectedCv.title}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">الخبرة: {selectedCv.experience}</p>
+                  </div>
+                  <div className="text-left">
+                    <div className={`text-3xl font-black ${
+                      selectedCv.score >= 90 ? "text-green-600 dark:text-green-400" :
+                      selectedCv.score >= 80 ? "text-primary" : "text-amber-600 dark:text-amber-400"
+                    }`}>
+                      {selectedCv.score}%
+                    </div>
+                    <div className="text-[10px] text-muted-foreground font-bold mt-1">تطابق المهارات</div>
+                  </div>
+                </div>
+
+                {/* Summary */}
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-bold text-muted-foreground">الملخص المستخلص بالـ AI:</span>
+                  <p className="text-xs text-foreground/90 leading-relaxed bg-muted/30 p-3.5 rounded-xl border border-border/40 font-medium">
+                    {selectedCv.summary}
+                  </p>
+                </div>
+
+                {/* Skills Grid */}
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold text-muted-foreground">المهارات المكتشفة:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedCv.skills.map((skill, idx) => (
+                      <span
+                        key={idx}
+                        className="text-[10px] font-bold bg-primary/6 text-primary border border-primary/10 px-3 py-1.5 rounded-lg"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Match evaluation status */}
+                <div className="flex items-center justify-between pt-4 border-t border-border/60">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-success live-breathing-indicator" />
+                    <span className="text-xs text-muted-foreground font-semibold">حالة المطابقة:</span>
+                  </div>
+                  <span className={`text-xs font-bold px-3 py-1.5 rounded-full border ${
+                    selectedCv.fit === "مطابق تماماً" ? "bg-green-500/10 text-green-700 border-green-200 dark:text-green-400 dark:border-green-500/20" :
+                    selectedCv.fit === "مناسب جداً" ? "bg-primary/10 text-primary border-primary/20" :
+                    "bg-amber-500/10 text-amber-700 border-amber-200 dark:text-amber-400 dark:border-amber-500/20"
+                  }`}>
+                    {selectedCv.fit}
+                  </span>
+                </div>
+
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+/* ─── Branded Career Page Previewer ─── */
+function BrandedCareerPagePreviewer() {
+  const [companyName, setCompanyName] = useState("التقنية الرقمية");
+  const [primaryColor, setPrimaryColor] = useState("#2563eb");
+  const [accentColor, setAccentColor] = useState("#10b981");
+
+  return (
+    <div className="bg-muted/15 border border-border/80 rounded-3xl p-6 md:p-10 max-w-5xl mx-auto shadow-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+        
+        {/* Editor controls */}
+        <div className="lg:col-span-5 flex flex-col justify-between space-y-6">
+          <div className="space-y-4">
+            <h3 className="text-xl font-bold text-foreground">شاهد كيف ستظهر صفحة التوظيف بهويتك:</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              قم بتعديل الاسم والألوان أدناه لتشاهد معاينة فورية لصفحة التوظيف المهنية الخاصة بشركتك (White-Label Careers Page).
+            </p>
+            
+            <div className="space-y-4 pt-2">
+              {/* Company Name */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">اسم الشركة:</label>
+                <input
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  className="w-full bg-card border border-border rounded-xl px-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary/50"
+                  placeholder="أدخل اسم شركتك"
+                />
+              </div>
+
+              {/* Color Pickers */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-foreground">اللون الأساسي:</label>
+                  <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-1.5">
+                    <input
+                      type="color"
+                      value={primaryColor}
+                      onChange={(e) => setPrimaryColor(e.target.value)}
+                      className="w-8 h-8 rounded-lg border-0 cursor-pointer overflow-hidden bg-transparent"
+                    />
+                    <span className="text-[10px] font-mono text-muted-foreground uppercase">{primaryColor}</span>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-foreground">اللون الفرعي:</label>
+                  <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-1.5">
+                    <input
+                      type="color"
+                      value={accentColor}
+                      onChange={(e) => setAccentColor(e.target.value)}
+                      className="w-8 h-8 rounded-lg border-0 cursor-pointer overflow-hidden bg-transparent"
+                    />
+                    <span className="text-[10px] font-mono text-muted-foreground uppercase">{accentColor}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 text-xs text-muted-foreground flex items-start gap-2.5">
+            <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+            <span>يمكنك ربط صفحة التوظيف بنطاق مخصص (Custom Domain) مثل careers.yourcompany.com.</span>
+          </div>
+        </div>
+
+        {/* Live Mock View */}
+        <div className="lg:col-span-7 bg-card border border-border rounded-2xl p-6 relative overflow-hidden flex flex-col min-h-[380px] shadow-inner">
+          {/* Header of Mock Portal */}
+          <div className="flex items-center justify-between border-b border-border/60 pb-3 mb-5">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold text-white" style={{ backgroundColor: primaryColor }}>
+                {companyName[0] || "ش"}
+              </div>
+              <span className="text-xs font-bold text-foreground">{companyName || "اسم شركتك"}</span>
+            </div>
+            <span className="text-[10px] text-muted-foreground font-semibold">بوابة التوظيف</span>
+          </div>
+
+          {/* Job Card Hero Preview */}
+          <div className="rounded-xl p-5 mb-5 flex flex-col justify-center items-center text-center relative overflow-hidden" style={{ backgroundColor: `${primaryColor}0c`, border: `1px solid ${primaryColor}22` }}>
+            <h4 className="text-sm font-black text-foreground mb-1">انضم إلى فريق {companyName}</h4>
+            <p className="text-[10px] text-muted-foreground">استكشف الفرص الوظيفية المتاحة وابدأ مسيرتك معنا</p>
+          </div>
+
+          {/* Job Card */}
+          <div className="border border-border/80 rounded-xl p-4 bg-muted/10 space-y-3">
+            <div className="flex justify-between items-start">
+              <div>
+                <h5 className="text-xs font-bold text-foreground">أخصائي تطوير برمجيات</h5>
+                <p className="text-[10px] text-muted-foreground mt-0.5">قسم هندسة البرمجيات • الرياض</p>
+              </div>
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border" style={{ color: accentColor, backgroundColor: `${accentColor}11`, borderColor: `${accentColor}33` }}>
+                دوام كامل
+              </span>
+            </div>
+            <div className="flex items-center justify-between pt-3 border-t border-border/50">
+              <span className="text-[9px] text-muted-foreground">خبرة 3+ سنوات</span>
+              <button className="text-[10px] font-bold px-4 py-1.5 rounded-lg text-white transition-opacity hover:opacity-90" style={{ backgroundColor: primaryColor }}>
+                قدّم الآن
+              </button>
+            </div>
+          </div>
+
+          {/* Footer watermark */}
+          <div className="mt-auto pt-4 border-t border-border/40 flex justify-between items-center text-[9px] text-muted-foreground">
+            <span>جميع الحقوق محفوظة © {companyName}</span>
+            <span className="font-mono">Powered by Tawzeef-X</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+/* ─── Recruitment ROI Calculator ─── */
+function RecruitmentRoiCalculator() {
+  const [hiresCount, setHiresCount] = useState(5);
+  const [resumesPerJob, setResumesPerJob] = useState(100);
+  const [hourlyRate, setHourlyRate] = useState(100);
+
+  // Calculations
+  const totalResumes = hiresCount * resumesPerJob;
+  // Manual hours spent: assuming 5 mins (0.08 hours) per CV manually
+  const manualHours = Math.round(totalResumes * 0.08);
+  // Time saved with AI (80%)
+  const hoursSaved = Math.round(manualHours * 0.8);
+  // Money saved monthly: hours saved * recruiter hourly rate
+  const moneySaved = hoursSaved * hourlyRate;
+
+  return (
+    <div className="bg-muted/15 border border-border/80 rounded-3xl p-6 md:p-10 max-w-5xl mx-auto shadow-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+        
+        {/* Sliders Input Panel */}
+        <div className="lg:col-span-5 space-y-6">
+          <h3 className="text-xl font-bold text-foreground">احسب العائد والتوفير لشركتك:</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            قم بتحريك المؤشرات أدناه بناءً على حجم التوظيف الحالي لديك لحساب الوقت والأموال التي ستوفرها المنصة لك شهرياً.
+          </p>
+
+          <div className="space-y-5 pt-2">
+            {/* Hires per month */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-bold text-foreground">
+                <span>التوظيفات الشهرية:</span>
+                <span className="text-primary">{hiresCount} موظفين</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="50"
+                value={hiresCount}
+                onChange={(e) => setHiresCount(Number(e.target.value))}
+                className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+              />
+            </div>
+
+            {/* Resumes per job */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-bold text-foreground">
+                <span>السير الذاتية لكل وظيفة:</span>
+                <span className="text-primary">{resumesPerJob} سيرة</span>
+              </div>
+              <input
+                type="range"
+                min="10"
+                max="500"
+                step="10"
+                value={resumesPerJob}
+                onChange={(e) => setResumesPerJob(Number(e.target.value))}
+                className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+              />
+            </div>
+
+            {/* Recruiter Hourly Rate */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-bold text-foreground">
+                <span>تكلفة ساعة التوظيف (ريال):</span>
+                <span className="text-primary">{hourlyRate} ر.س / ساعة</span>
+              </div>
+              <input
+                type="range"
+                min="50"
+                max="500"
+                step="10"
+                value={hourlyRate}
+                onChange={(e) => setHourlyRate(Number(e.target.value))}
+                className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Results Panel */}
+        <div className="lg:col-span-7 bg-card border border-border rounded-2xl p-6 md:p-8 flex flex-col justify-between">
+          <div className="space-y-6">
+            <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">مؤشرات التوفير المتوقعة:</h4>
+            
+            <div className="grid grid-cols-2 gap-4">
+              {/* Hours Saved */}
+              <div className="bg-muted/20 border border-border/40 p-4 rounded-2xl text-right">
+                <div className="text-xs text-muted-foreground">ساعات العمل الموفرة</div>
+                <div className="text-3xl font-black text-primary mt-1">{hoursSaved} <span className="text-xs font-bold">ساعة</span></div>
+                <p className="text-[10px] text-muted-foreground mt-1">توفير 80% من وقت الفرز</p>
+              </div>
+
+              {/* Hiring Speed */}
+              <div className="bg-muted/20 border border-border/40 p-4 rounded-2xl text-right">
+                <div className="text-xs text-muted-foreground">سرعة إتمام التوظيف</div>
+                <div className="text-3xl font-black text-success mt-1">5x <span className="text-xs font-bold">أسرع</span></div>
+                <p className="text-[10px] text-muted-foreground mt-1">فلترة فورية وتصنيف ذكي</p>
+              </div>
+            </div>
+
+            {/* Total Money Saved Monthly */}
+            <div className="bg-primary/5 border border-primary/10 p-5 rounded-2xl text-center relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-primary/5 blur-xl pointer-events-none" />
+              <div className="text-xs text-muted-foreground font-bold">التوفير المالي الشهري التقريبي</div>
+              <div className="text-4xl md:text-5xl font-black text-gradient mt-2 tabular-nums">
+                {moneySaved.toLocaleString()} <span className="text-sm font-black text-foreground">ريال سعودي</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
+                تقليل التكاليف الإدارية عبر أتمتة الفرز والمقابلات وتوثيق المستندات رقمياً.
+              </p>
+            </div>
+          </div>
+
+          <div className="text-[10px] text-center text-muted-foreground mt-6 pt-4 border-t border-border/40">
+            * الحسابات تقريبية بناءً على متوسط إنتاجية موظفي الموارد البشرية ومعدل دقة الذكاء الاصطناعي بالمنصة.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+/* ─── Interactive FAQ Accordion ─── */
+const faqItems = [
+  {
+    q: "كيف يقوم الذكاء الاصطناعي بفلترة السير الذاتية وتصنيفها؟",
+    a: "يقوم محرك الذكاء الاصطناعي بتحليل النصوص واستخراج المهارات والخبرات بدقة، ثم يطابقها بمتطلبات الوظيفة ونقاط التقييم المحددة ليعطيك درجة توافق تفصيلية مع ملخص تنفيذي ونقاط القوة والضعف لكل مرشح.",
+  },
+  {
+    q: "هل بيانات المرشحين والشركات آمنة ومحمية؟",
+    a: "نعم، نطبق نظام حماية صارم على مستوى قاعدة البيانات (Row-Level Security) مع تشفير تام للملفات الحساسة والسير الذاتية في وحدات تخزين معزولة لكل شركة لضمان سرية البيانات بالكامل.",
+  },
+  {
+    q: "هل يمكنني تخصيص الهوية ومراحل التوظيف الخاصة بصفحة شركتي؟",
+    a: "بالتأكيد! يمكنك رفع شعار شركتك، تحديد ألوان الهوية الخاصة بك، وتعديل مراحل التوظيف (مثل: تقديم الطلب، التقييم التقني، مقابلة الفيديو، العرض الوظيفي) لتناسب هيكل التوظيف الخاص بك تماماً.",
+  },
+  {
+    q: "هل تدعم المنصة ربط البيانات مع الأنظمة الخارجية؟",
+    a: "نعم، تدعم المنصة استخدام الويب هوكس (Webhooks) لإرسال إشعارات فورية لأنظمتك الخارجية وتكاملات ممتازة مع Zapier و n8n لأتمتة سير العمل بالكامل.",
+  },
+  {
+    q: "هل هناك فترة تجريبية مجانية للمنصة؟",
+    a: "نعم، يمكنك البدء مجاناً والحصول على صلاحية كاملة لتجربة الفرز الذكي ونشر الوظائف واستكشاف لوحة التحكم دون الحاجة لإدخال أي بيانات دفع.",
+  },
+];
+
+function InteractiveFaqAccordion() {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  const toggleIndex = (idx: number) => {
+    setOpenIndex(prev => (prev === idx ? null : idx));
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-3.5">
+      {faqItems.map((item, idx) => {
+        const isOpen = openIndex === idx;
+        return (
+          <div
+            key={idx}
+            className="bg-card border border-border/80 rounded-2xl overflow-hidden transition-all duration-300 hover:border-primary/20"
+          >
+            <button
+              onClick={() => toggleIndex(idx)}
+              className="w-full text-right p-5 flex items-center justify-between gap-4 focus:outline-none"
+            >
+              <span className="text-sm font-bold text-foreground leading-relaxed">{item.q}</span>
+              <motion.div
+                animate={{ rotate: isOpen ? 180 : 0 }}
+                transition={{ duration: 0.25 }}
+                className="text-muted-foreground shrink-0"
+              >
+                <ChevronDown className="w-4 h-4" />
+              </motion.div>
+            </button>
+            <AnimatePresence initial={false}>
+              {isOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <div className="px-5 pb-5 pt-1 text-xs text-muted-foreground leading-[1.8] border-t border-border/40 font-medium">
+                    {item.a}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function LandingPage() {
+  const { theme, setTheme } = useTheme();
   const heroRef = useRef<HTMLElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
@@ -908,6 +1413,15 @@ export default function LandingPage() {
               <Link to="/install" className="hover:text-foreground transition-colors">تثبيت التطبيق</Link>
             </div>
             <div className="hidden md:flex items-center gap-2">
+              {/* Desktop Theme Switcher */}
+              <button
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="w-9 h-9 rounded-full border border-border/70 bg-background/45 backdrop-blur-md hover:bg-muted transition-colors flex items-center justify-center text-foreground mr-1"
+                aria-label="Toggle theme"
+              >
+                {theme === "dark" ? <Sun className="w-4 h-4 text-warning" /> : <Moon className="w-4 h-4" />}
+              </button>
+
               <Link to="/auth?mode=login">
                 <Button variant="ghost" size="sm" className="text-xs font-bold h-9 px-4 rounded-full hover:bg-muted/40 text-muted-foreground hover:text-foreground">تسجيل الدخول</Button>
               </Link>
@@ -929,7 +1443,7 @@ export default function LandingPage() {
           </div>
         </div>
       </motion.nav>
-
+ 
       {/* Mobile Menu Drawer */}
       <AnimatePresence>
         {isMobileMenuOpen && (
@@ -957,7 +1471,18 @@ export default function LandingPage() {
                   </a>
                 ))}
                 <Link to="/portal" onClick={() => setIsMobileMenuOpen(false)} className="text-foreground hover:text-primary text-base font-bold transition-colors py-2.5 border-b border-border/40">بوابة المرشح</Link>
-                <Link to="/install" onClick={() => setIsMobileMenuOpen(false)} className="text-foreground hover:text-primary text-base font-bold transition-colors py-2.5">تثبيت التطبيق</Link>
+                <Link to="/install" onClick={() => setIsMobileMenuOpen(false)} className="text-foreground hover:text-primary text-base font-bold transition-colors py-2.5 border-b border-border/40">تثبيت التطبيق</Link>
+                {/* Mobile Theme Toggle */}
+                <button
+                  onClick={() => {
+                    setTheme(theme === "dark" ? "light" : "dark");
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between text-foreground hover:text-primary text-base font-bold transition-colors py-2.5"
+                >
+                  <span>{theme === "dark" ? "الوضع المضيء" : "الوضع الداكن"}</span>
+                  {theme === "dark" ? <Sun className="w-4 h-4 text-warning" /> : <Moon className="w-4 h-4" />}
+                </button>
               </div>
               <div className="flex flex-col gap-3 pt-3 border-t border-border">
                 <Link to="/auth?mode=login" onClick={() => setIsMobileMenuOpen(false)}>
@@ -1101,6 +1626,20 @@ export default function LandingPage() {
 
           </div>
         </motion.div>
+      </section>
+
+      {/* AI Resume Parser Playground Section */}
+      <section className="py-24 bg-background relative overflow-hidden">
+        <div className="container mx-auto px-6">
+          <SectionHeader
+            badge="تجربة حية"
+            badgeColor="primary"
+            title="جرّب الفرز بالذكاء الاصطناعي"
+            highlight="في ثوانٍ"
+            description="شاهد كيف يقوم النظام بتحليل السير الذاتية ومطابقتها للمتطلبات الوظيفية فوراً"
+          />
+          <AiResumeParserPlayground />
+        </div>
       </section>
 
       {/* Stats with parallax */}
@@ -1275,6 +1814,34 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Branded Career Page Previewer Section */}
+      <section className="py-24 bg-muted/5 relative overflow-hidden">
+        <div className="container mx-auto px-6">
+          <SectionHeader
+            badge="هوية مخصصة"
+            badgeColor="primary"
+            title="صفحة توظيف تحمل"
+            highlight="هوية شركتك"
+            description="أنشئ بوابة توظيف كاملة متوافقة مع ألوان وتصميم علامتك التجارية بخطوات بسيطة"
+          />
+          <BrandedCareerPagePreviewer />
+        </div>
+      </section>
+
+      {/* Recruitment ROI Calculator Section */}
+      <section className="py-24 bg-background relative overflow-hidden">
+        <div className="container mx-auto px-6">
+          <SectionHeader
+            badge="حاسبة التوفير"
+            badgeColor="accent"
+            title="احسب حجم"
+            highlight="الوقت والمال الموفرين"
+            description="اكتشف مدى الكفاءة التي ستضيفها منصة Tawzeef-X لشركتك"
+          />
+          <RecruitmentRoiCalculator />
+        </div>
+      </section>
+
       {/* Interactive Demo */}
       <section id="demo" className="py-28 container mx-auto px-6">
         <SectionHeader
@@ -1368,6 +1935,20 @@ export default function LandingPage() {
               </button>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-24 bg-muted/5 relative overflow-hidden">
+        <div className="container mx-auto px-6">
+          <SectionHeader
+            badge="الأسئلة الشائعة"
+            badgeColor="primary"
+            title="الأسئلة الأكثر"
+            highlight="شيوعاً"
+            description="إجابات تفصيلية على كل تساؤلاتك حول منصة Tawzeef-X"
+          />
+          <InteractiveFaqAccordion />
         </div>
       </section>
 
