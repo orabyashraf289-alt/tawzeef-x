@@ -1,15 +1,20 @@
 import { useI18n } from "@/contexts/I18nContext";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Briefcase, Users, Calendar, FileText, Play, Kanban, Bot, 
   BarChart3, Target, Share2, Settings, Search, CheckCircle2, 
-  Clock, Award, BookOpen, ChevronLeft, ChevronRight
+  Clock, Award, BookOpen, ChevronLeft, ChevronRight,
+  Volume2, VolumeX, Download, Mic, Music, Loader2
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { useUserRole } from "@/hooks/useUserRole";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 const featureVideos = [
@@ -27,9 +32,146 @@ const featureVideos = [
 
 export default function FeatureVideos() {
   const { t, locale, dir } = useI18n();
+  const { isAdmin } = useUserRole();
   const [activeVideo, setActiveVideo] = useState(featureVideos[0]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+
+  // ElevenLabs Voiceover states
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [scriptText, setScriptText] = useState("");
+  const [selectedVoiceId, setSelectedVoiceId] = useState("AZnzlk1XipRD3TQA3GNg"); // Mimi as default Arabic/Multilingual voice
+  const [customVoiceId, setCustomVoiceId] = useState("");
+  const [generatingTts, setGeneratingTts] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [syncVoiceover, setSyncVoiceover] = useState(false);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+
+  const defaultScript = useMemo(() => {
+    const title = t(`tutorial.feat.${activeVideo.key}.title`);
+    const desc = t(`tutorial.feat.${activeVideo.key}.desc`);
+    const steps = t(`tutorial.feat.${activeVideo.key}.steps`).split("|").join(". ");
+    return `${title}. ${desc} إليك الخطوات الرئيسية: ${steps}`;
+  }, [activeVideo.key, t]);
+
+  useEffect(() => {
+    setScriptText(defaultScript);
+    // Reset audio state when switching videos
+    setAudioUrl(null);
+    setSyncVoiceover(false);
+    if (audioElement) {
+      audioElement.pause();
+      setAudioElement(null);
+    }
+  }, [defaultScript, activeVideo.key]);
+
+  // Video-Audio Synchronization Effect
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !audioUrl || !syncVoiceover) {
+      if (video) video.muted = false;
+      if (audioElement) {
+        audioElement.pause();
+      }
+      return;
+    }
+
+    const audio = audioElement || new Audio(audioUrl);
+    if (!audioElement) {
+      setAudioElement(audio);
+    }
+    audio.src = audioUrl;
+    video.muted = true;
+
+    const handlePlay = () => {
+      audio.currentTime = video.currentTime;
+      audio.play().catch(console.warn);
+    };
+
+    const handlePause = () => {
+      audio.pause();
+    };
+
+    const handleSeeking = () => {
+      audio.currentTime = video.currentTime;
+    };
+
+    const handleVolume = () => {
+      audio.volume = video.volume;
+    };
+
+    video.addEventListener("play", handlePlay);
+    video.addEventListener("pause", handlePause);
+    video.addEventListener("seeking", handleSeeking);
+    video.addEventListener("volumechange", handleVolume);
+
+    audio.volume = video.volume;
+    audio.currentTime = video.currentTime;
+    if (!video.paused) {
+      audio.play().catch(console.warn);
+    }
+
+    return () => {
+      video.removeEventListener("play", handlePlay);
+      video.removeEventListener("pause", handlePause);
+      video.removeEventListener("seeking", handleSeeking);
+      video.removeEventListener("volumechange", handleVolume);
+      audio.pause();
+    };
+  }, [audioUrl, syncVoiceover, audioElement]);
+
+  const handleGenerateVoiceover = async () => {
+    if (!scriptText.trim()) {
+      toast({ title: locale === "en" ? "Error" : "خطأ", description: locale === "en" ? "Please enter script text" : "يرجى كتابة نص التعليق الصوتي", variant: "destructive" });
+      return;
+    }
+
+    setGeneratingTts(true);
+    setAudioUrl(null);
+    setSyncVoiceover(false);
+
+    const voice = selectedVoiceId === "custom" ? customVoiceId : selectedVoiceId;
+    if (selectedVoiceId === "custom" && !customVoiceId.trim()) {
+      toast({ title: locale === "en" ? "Error" : "خطأ", description: locale === "en" ? "Please enter custom Voice ID" : "يرجى إدخال معرف الصوت المخصص", variant: "destructive" });
+      setGeneratingTts(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke("elevenlabs-tts", {
+        body: { text: scriptText, voiceId: voice }
+      });
+
+      if (error) throw error;
+
+      let blob: Blob;
+      if (data instanceof Blob) {
+        blob = data;
+      } else {
+        // Handle raw array buffer
+        blob = new Blob([data as any], { type: "audio/mpeg" });
+      }
+
+      if (blob.size < 100) {
+        // Attempt to parse error if it returned fallback JSON
+        const text = await blob.text();
+        const parsed = JSON.parse(text);
+        if (parsed.error) {
+          throw new Error(parsed.error);
+        }
+      }
+
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+      setSyncVoiceover(true); // Auto-enable sync to let them hear it immediately
+      toast({ title: locale === "en" ? "Success" : "تم بنجاح ✅", description: locale === "en" ? "AI Voiceover generated successfully!" : "تم توليد التعليق الصوتي بالذكاء الاصطناعي بنجاح!" });
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: locale === "en" ? "Generation Failed" : "فشل توليد الصوت", description: e.message, variant: "destructive" });
+    } finally {
+      setGeneratingTts(false);
+    }
+  };
   const [watchedVideos, setWatchedVideos] = useState<string[]>(() => {
     try {
       const stored = localStorage.getItem("tawzeef-watched-videos");
@@ -116,6 +258,7 @@ export default function FeatureVideos() {
             <CardContent className="p-0">
               <div className="relative aspect-video bg-black group">
                 <video
+                  ref={videoRef}
                   key={activeVideo.key}
                   src={activeVideo.src}
                   controls
@@ -154,6 +297,179 @@ export default function FeatureVideos() {
                   </Button>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* ElevenLabs AI Voiceover Studio */}
+          <Card className="border border-primary/20 bg-gradient-to-br from-primary/5 via-card to-accent/5 shadow-md overflow-hidden mt-6">
+            <CardHeader className="pb-3 border-b border-border/40">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                    <Mic className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-sm font-bold text-foreground">
+                      {locale === "en" ? "ElevenLabs AI Voiceover Studio" : "استوديو التعليق الصوتي بالذكاء الاصطناعي (ElevenLabs)"}
+                    </CardTitle>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {locale === "en" 
+                        ? "Generate custom AI narration and synchronize it with this video tutorial" 
+                        : "ولّد تعليقاً صوتياً احترافياً بالذكاء الاصطناعي وقم بمزامنته مع هذا الدرس"}
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-[10px] border-primary/30 text-primary font-bold">
+                  {locale === "en" ? "Admin Settings" : "إعدادات المسؤول"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4">
+              {/* Script Textarea */}
+              <div className="space-y-1.5 text-right" dir={dir}>
+                <label className="text-xs font-bold text-muted-foreground">
+                  {locale === "en" ? "Voiceover Script" : "نص السيناريو والتعليق الصوتي"}
+                </label>
+                <Textarea
+                  value={scriptText}
+                  onChange={(e) => setScriptText(e.target.value)}
+                  placeholder={locale === "en" ? "Enter the script text..." : "اكتب النص الذي سيقوله المعلق الصوتي..."}
+                  className="min-h-[100px] text-xs leading-relaxed resize-y"
+                />
+              </div>
+
+              {/* Voice Selector & Actions */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-right" dir={dir}>
+                {/* Voice Selection */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-muted-foreground">
+                    {locale === "en" ? "Select AI Voice" : "اختر صوت الذكاء الاصطناعي"}
+                  </label>
+                  <select
+                    value={selectedVoiceId}
+                    onChange={(e) => setSelectedVoiceId(e.target.value)}
+                    className="w-full h-9 rounded-lg border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="AZnzlk1XipRD3TQA3GNg">ميمي (عربي/متعدد اللغات - Mimi)</option>
+                    <option value="pNInz6obpgq5epaNsJ15">راشيل (متعدد اللغات - Rachel)</option>
+                    <option value="EXAVITQu4vr4xnSDxMaL">سارة (إنجليزي - Sarah)</option>
+                    <option value="ErXwobaYiN019PkySvjV">أنطوني (صوت رجالي - Antoni)</option>
+                    <option value="custom">أدخل Voice ID مخصص...</option>
+                  </select>
+                </div>
+
+                {/* Custom Voice ID Input */}
+                {selectedVoiceId === "custom" && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-muted-foreground">
+                      {locale === "en" ? "Custom ElevenLabs Voice ID" : "معرّف الصوت الخاص (Voice ID)"}
+                    </label>
+                    <Input
+                      value={customVoiceId}
+                      onChange={(e) => setCustomVoiceId(e.target.value)}
+                      placeholder="e.g. EXAVITQu4vr4xnSDxMaL"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Generation Control */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <Button
+                  onClick={handleGenerateVoiceover}
+                  disabled={generatingTts}
+                  className="gap-2 text-xs font-bold shrink-0 min-w-[150px]"
+                >
+                  {generatingTts ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {locale === "en" ? "Generating..." : "جاري التوليد..."}
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="w-4 h-4" />
+                      {locale === "en" ? "Generate Voiceover" : "توليد التعليق الصوتي"}
+                    </>
+                  )}
+                </Button>
+
+                {/* Status indicator and audio controls */}
+                {audioUrl && (
+                  <div className="flex flex-wrap items-center gap-3 bg-muted/30 p-2 rounded-xl border border-border/40 w-full sm:w-auto">
+                    {/* Play/Pause control for testing audio alone */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="w-8 h-8 text-primary hover:bg-primary/10 rounded-lg"
+                        onClick={() => {
+                          if (audioElement) {
+                            if (audioElement.paused) audioElement.play().catch(console.warn);
+                            else audioElement.pause();
+                          } else {
+                            const audio = new Audio(audioUrl);
+                            setAudioElement(audio);
+                            audio.play().catch(console.warn);
+                          }
+                        }}
+                      >
+                        <Music className="w-4 h-4" />
+                      </Button>
+                      <span className="text-[10px] font-semibold text-muted-foreground">
+                        {locale === "en" ? "Test Track" : "معاينة الصوت"}
+                      </span>
+                    </div>
+
+                    <div className="h-4 w-px bg-border/80 hidden sm:block" />
+
+                    {/* Sync toggle */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant={syncVoiceover ? "default" : "outline"}
+                        className="h-7 text-[10px] font-bold px-2.5 rounded-lg gap-1.5"
+                        onClick={() => setSyncVoiceover(!syncVoiceover)}
+                      >
+                        {syncVoiceover ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                        {syncVoiceover 
+                          ? (locale === "en" ? "Mute Video & Play Sync" : "مزامنة الصوت نشطة 🔊") 
+                          : (locale === "en" ? "Sync with Video" : "مزامنة مع الفيديو")}
+                      </Button>
+                    </div>
+
+                    {/* Download button */}
+                    <a
+                      href={audioUrl}
+                      download={`tawzeef-x-${activeVideo.key}-voiceover.mp3`}
+                      className="p-1.5 rounded-lg bg-background hover:bg-muted border border-border/40 text-muted-foreground hover:text-foreground transition-colors"
+                      title={locale === "en" ? "Download MP3" : "تحميل ملف MP3"}
+                    >
+                      <Download className="w-4 h-4" />
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {/* Waveform Visualization Overlay during generation */}
+              {generatingTts && (
+                <div className="flex items-center justify-center gap-1.5 py-4 bg-muted/10 rounded-xl border border-dashed border-primary/20">
+                  <span className="text-xs text-primary font-bold animate-pulse mr-2">
+                    {locale === "en" ? "ElevenLabs is synthesizing voice..." : "تقوم ElevenLabs بتركيب تعليقك الصوتي الآن..."}
+                  </span>
+                  {[...Array(6)].map((_, i) => (
+                    <span
+                      key={i}
+                      className="w-1 bg-primary rounded-full animate-bounce"
+                      style={{
+                        height: `${Math.random() * 20 + 8}px`,
+                        animationDelay: `${i * 0.15}s`,
+                        animationDuration: "0.6s"
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
