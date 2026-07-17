@@ -147,14 +147,14 @@ export const FeatureVideo: React.FC<{ feature: string }> = ({ feature }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Scene 1: Title (frames 0-90)
+  // Scene 1: Title (frames 0-150)
   const titleScale = spring({ frame, fps, config: { damping: 12, stiffness: 100 } });
-  const titleOpacity = interpolate(frame, [0, 25], [0, 1], { extrapolateRight: "clamp" });
-  const subtitleOpacity = interpolate(frame, [25, 50], [0, 1], { extrapolateRight: "clamp" });
-  const lineWidth = interpolate(frame, [40, 70], [0, 200], { extrapolateRight: "clamp" });
+  const titleOpacity = interpolate(frame, [0, 50], [0, 1], { extrapolateRight: "clamp" });
+  const subtitleOpacity = interpolate(frame, [50, 100], [0, 1], { extrapolateRight: "clamp" });
+  const lineWidth = interpolate(frame, [80, 140], [0, 200], { extrapolateRight: "clamp" });
 
-  // Scene 2: Steps (frames 90-240)
-  // Scene 3: Summary (frames 240-300)
+  // Scene 2: Steps (frames 150-480)
+  // Scene 3: Summary (frames 480-600)
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.bg }}>
@@ -167,7 +167,7 @@ export const FeatureVideo: React.FC<{ feature: string }> = ({ feature }) => {
       }} />
 
       {/* Scene 1: Title */}
-      <Sequence from={0} durationInFrames={90}>
+      <Sequence from={0} durationInFrames={150}>
         <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
           <div style={{
             fontSize: 72, transform: `scale(${titleScale})`, opacity: titleOpacity,
@@ -196,18 +196,18 @@ export const FeatureVideo: React.FC<{ feature: string }> = ({ feature }) => {
       </Sequence>
 
       {/* Scene 2: Steps */}
-      <Sequence from={90} durationInFrames={150}>
+      <Sequence from={150} durationInFrames={330}>
         <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: 100 }}>
           <div style={{
             fontSize: 36, fontWeight: 700, color: COLORS.text, fontFamily: "sans-serif",
-            marginBottom: 50, opacity: interpolate(frame - 90, [0, 20], [0, 1], { extrapolateRight: "clamp" }),
+            marginBottom: 50, opacity: interpolate(frame - 150, [0, 40], [0, 1], { extrapolateRight: "clamp" }),
           }}>
             How it <span style={{ color: config.color }}>Works</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%", maxWidth: 900 }}>
             {config.steps.map((step, i) => {
-              const delay = 15 + i * 20;
-              const localFrame = frame - 90;
+              const delay = 30 + i * 40;
+              const localFrame = frame - 150;
               const s = spring({ frame: localFrame - delay, fps, config: { damping: 15, stiffness: 120 } });
               const x = interpolate(s, [0, 1], [-60, 0]);
               const opacity = interpolate(s, [0, 1], [0, 1]);
@@ -252,10 +252,10 @@ export const FeatureVideo: React.FC<{ feature: string }> = ({ feature }) => {
       </Sequence>
 
       {/* Scene 3: Summary / CTA */}
-      <Sequence from={240} durationInFrames={60}>
+      <Sequence from={480} durationInFrames={120}>
         <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
           {(() => {
-            const localFrame = frame - 240;
+            const localFrame = frame - 480;
             const s = spring({ frame: localFrame, fps, config: { damping: 10 } });
             const pulse = 1 + Math.sin(localFrame * 0.1) * 0.03;
             return (
@@ -282,7 +282,7 @@ export const FeatureVideo: React.FC<{ feature: string }> = ({ feature }) => {
                 <div style={{
                   fontSize: 22, color: config.color, fontFamily: "sans-serif",
                   fontWeight: 600, marginTop: 12,
-                  opacity: interpolate(localFrame, [15, 35], [0, 1], { extrapolateRight: "clamp" }),
+                  opacity: interpolate(localFrame, [30, 70], [0, 1], { extrapolateRight: "clamp" }),
                 }}>
                   {config.titleAr}
                 </div>

@@ -45,24 +45,24 @@ export const AIDetailVideo: React.FC = () => {
         transform: `translate(${Math.cos(frame * 0.012) * 30}px, ${Math.sin(frame * 0.01) * 25}px)`,
       }} />
 
-      {/* Scene 1: AI Intro (0-120) */}
-      <Sequence from={0} durationInFrames={120}>
+      {/* Scene 1: AI Intro (0-200) */}
+      <Sequence from={0} durationInFrames={200}>
         <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
           {(() => {
             const localFrame = frame;
             const brainScale = spring({ frame: localFrame, fps, config: { damping: 10, stiffness: 80 } });
             const brainPulse = 1 + Math.sin(localFrame * 0.08) * 0.04;
-            const titleOp = interpolate(localFrame, [15, 40], [0, 1], { extrapolateRight: "clamp" });
-            const subtitleOp = interpolate(localFrame, [35, 60], [0, 1], { extrapolateRight: "clamp" });
-            const lineW = interpolate(localFrame, [50, 80], [0, 300], { extrapolateRight: "clamp" });
-            const badgeOp = interpolate(localFrame, [60, 80], [0, 1], { extrapolateRight: "clamp" });
+            const titleOp = interpolate(localFrame, [30, 80], [0, 1], { extrapolateRight: "clamp" });
+            const subtitleOp = interpolate(localFrame, [70, 120], [0, 1], { extrapolateRight: "clamp" });
+            const lineW = interpolate(localFrame, [100, 160], [0, 300], { extrapolateRight: "clamp" });
+            const badgeOp = interpolate(localFrame, [120, 160], [0, 1], { extrapolateRight: "clamp" });
 
             // Floating particles
             const particles = Array.from({ length: 6 }, (_, i) => ({
               x: Math.sin(localFrame * 0.02 + i * 1.2) * (200 + i * 40),
               y: Math.cos(localFrame * 0.015 + i * 0.8) * (150 + i * 30),
               size: 6 + i * 2,
-              opacity: interpolate(localFrame, [10 + i * 5, 30 + i * 5], [0, 0.3], { extrapolateRight: "clamp" }),
+              opacity: interpolate(localFrame, [20 + i * 10, 60 + i * 10], [0, 0.3], { extrapolateRight: "clamp" }),
             }));
 
             return (
@@ -114,12 +114,12 @@ export const AIDetailVideo: React.FC = () => {
         </AbsoluteFill>
       </Sequence>
 
-      {/* Scene 2: Features Grid (120-360) */}
-      <Sequence from={120} durationInFrames={240}>
+      {/* Scene 2: Features Grid (200-560) */}
+      <Sequence from={200} durationInFrames={360}>
         <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: 80 }}>
           {(() => {
-            const localFrame = frame - 120;
-            const headerOp = interpolate(localFrame, [0, 20], [0, 1], { extrapolateRight: "clamp" });
+            const localFrame = frame - 200;
+            const headerOp = interpolate(localFrame, [0, 40], [0, 1], { extrapolateRight: "clamp" });
 
             return (
               <>
@@ -136,13 +136,13 @@ export const AIDetailVideo: React.FC = () => {
                   width: "100%", maxWidth: 1000,
                 }}>
                   {aiFeatures.map((f, i) => {
-                    const delay = 15 + i * 25;
+                    const delay = 30 + i * 35;
                     const s = spring({ frame: localFrame - delay, fps, config: { damping: 14, stiffness: 120 } });
                     const xDir = i % 2 === 0 ? -1 : 1;
                     const x = interpolate(s, [0, 1], [80 * xDir, 0]);
                     const opacity = interpolate(s, [0, 1], [0, 1]);
-                    const highlight = localFrame > delay + 30 && localFrame < delay + 60;
-                    const glowAmount = highlight ? interpolate(localFrame, [delay + 30, delay + 45, delay + 60], [0, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 0;
+                    const highlight = localFrame > delay + 40 && localFrame < delay + 80;
+                    const glowAmount = highlight ? interpolate(localFrame, [delay + 40, delay + 60, delay + 80], [0, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 0;
 
                     return (
                       <div key={f.title} style={{
@@ -187,12 +187,12 @@ export const AIDetailVideo: React.FC = () => {
         </AbsoluteFill>
       </Sequence>
 
-      {/* Scene 3: AI Workflow (360-480) */}
-      <Sequence from={360} durationInFrames={120}>
+      {/* Scene 3: AI Workflow (560-780) */}
+      <Sequence from={560} durationInFrames={220}>
         <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: 80 }}>
           {(() => {
-            const localFrame = frame - 360;
-            const headerOp = interpolate(localFrame, [0, 20], [0, 1], { extrapolateRight: "clamp" });
+            const localFrame = frame - 560;
+            const headerOp = interpolate(localFrame, [0, 40], [0, 1], { extrapolateRight: "clamp" });
 
             return (
               <>
@@ -211,7 +211,7 @@ export const AIDetailVideo: React.FC = () => {
 
                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                   {workflowSteps.map((step, i) => {
-                    const delay = 15 + i * 15;
+                    const delay = 30 + i * 25;
                     const s = spring({ frame: localFrame - delay, fps, config: { damping: 15, stiffness: 100 } });
                     const scale = interpolate(s, [0, 1], [0.5, 1]);
                     const opacity = interpolate(s, [0, 1], [0, 1]);
@@ -268,15 +268,15 @@ export const AIDetailVideo: React.FC = () => {
         </AbsoluteFill>
       </Sequence>
 
-      {/* Scene 4: Outro (480-570) */}
-      <Sequence from={480} durationInFrames={90}>
+      {/* Scene 4: Outro (780-900) */}
+      <Sequence from={780} durationInFrames={120}>
         <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
           {(() => {
-            const localFrame = frame - 480;
+            const localFrame = frame - 780;
             const s = spring({ frame: localFrame, fps, config: { damping: 10 } });
             const pulse = 1 + Math.sin(localFrame * 0.08) * 0.03;
-            const tagOp = interpolate(localFrame, [25, 45], [0, 1], { extrapolateRight: "clamp" });
-            const featOp = interpolate(localFrame, [40, 60], [0, 1], { extrapolateRight: "clamp" });
+            const tagOp = interpolate(localFrame, [40, 80], [0, 1], { extrapolateRight: "clamp" });
+            const featOp = interpolate(localFrame, [60, 100], [0, 1], { extrapolateRight: "clamp" });
 
             return (
               <>

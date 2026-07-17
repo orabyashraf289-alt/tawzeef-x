@@ -43,35 +43,35 @@ export const MainVideo = () => {
       </AbsoluteFill>
 
       <TransitionSeries>
-        <TransitionSeries.Sequence durationInFrames={150}>
+        <TransitionSeries.Sequence durationInFrames={250}>
           <IntroScene />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
           presentation={fade()}
           timing={springTiming({ config: { damping: 200 }, durationInFrames: 20 })}
         />
-        <TransitionSeries.Sequence durationInFrames={150}>
+        <TransitionSeries.Sequence durationInFrames={250}>
           <FeaturesScene />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
           presentation={slide({ direction: "from-right" })}
           timing={springTiming({ config: { damping: 200 }, durationInFrames: 20 })}
         />
-        <TransitionSeries.Sequence durationInFrames={150}>
+        <TransitionSeries.Sequence durationInFrames={250}>
           <WorkflowScene />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
           presentation={fade()}
           timing={springTiming({ config: { damping: 200 }, durationInFrames: 20 })}
         />
-        <TransitionSeries.Sequence durationInFrames={150}>
+        <TransitionSeries.Sequence durationInFrames={250}>
           <AIScene />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
           presentation={fade()}
           timing={springTiming({ config: { damping: 200 }, durationInFrames: 20 })}
         />
-        <TransitionSeries.Sequence durationInFrames={180}>
+        <TransitionSeries.Sequence durationInFrames={300}>
           <OutroScene />
         </TransitionSeries.Sequence>
       </TransitionSeries>

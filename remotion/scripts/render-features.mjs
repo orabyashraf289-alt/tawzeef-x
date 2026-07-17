@@ -11,12 +11,12 @@ const bundled = await bundle({
 });
 
 const browser = await openBrowser("chrome", {
-  browserExecutable: process.env.PUPPETEER_EXECUTABLE_PATH ?? "/nix/var/nix/profiles/sandbox/bin/chromium",
+  browserExecutable: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
   chromiumOptions: { args: ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"] },
   chromeMode: "chrome-for-testing",
 });
 
-const features = ["pipeline", "ai", "reports", "hiring", "share", "settings"];
+const features = ["jobs", "candidates", "pipeline", "interviews", "offers", "ai", "reports", "hiring", "share", "settings"];
 
 for (const feat of features) {
   console.log(`Rendering ${feat}...`);
@@ -26,16 +26,17 @@ for (const feat of features) {
     puppeteerInstance: browser,
   });
 
+  const destPath = path.resolve(__dirname, "../../public/videos/tawzeef-x-" + feat + ".mp4");
   await renderMedia({
     composition,
     serveUrl: bundled,
     codec: "h264",
-    outputLocation: `/dev-server/public/videos/tawzeef-x-${feat}.mp4`,
+    outputLocation: destPath,
     puppeteerInstance: browser,
     muted: true,
     concurrency: 1,
   });
-  console.log(`Done: ${feat}`);
+  console.log(`Done: ${feat} -> saved to ${destPath}`);
 }
 
 await browser.close({ silent: false });

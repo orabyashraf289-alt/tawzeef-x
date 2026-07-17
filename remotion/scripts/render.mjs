@@ -11,7 +11,7 @@ const bundled = await bundle({
 });
 
 const browser = await openBrowser("chrome", {
-  browserExecutable: process.env.PUPPETEER_EXECUTABLE_PATH ?? "/nix/var/nix/profiles/sandbox/bin/chromium",
+  browserExecutable: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
   chromiumOptions: { args: ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"] },
   chromeMode: "chrome-for-testing",
 });
@@ -22,15 +22,16 @@ const composition = await selectComposition({
   puppeteerInstance: browser,
 });
 
+const destPath = path.resolve(__dirname, "../../public/videos/tawzeef-x-tutorial-main.mp4");
 await renderMedia({
   composition,
   serveUrl: bundled,
   codec: "h264",
-  outputLocation: "/dev-server/public/videos/tawzeef-x-tutorial-main.mp4",
+  outputLocation: destPath,
   puppeteerInstance: browser,
   muted: true,
   concurrency: 1,
 });
 
 await browser.close({ silent: false });
-console.log("Done! Output: /dev-server/public/videos/tawzeef-x-tutorial-main.mp4");
+console.log(`Done! Output saved to: ${destPath}`);
