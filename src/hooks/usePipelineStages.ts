@@ -15,6 +15,7 @@ export interface PipelineStage {
   automation_rules?: any;
   assessment_id?: string | null;
   assigned_user_ids?: string[];
+  sla_hours?: number;
 }
 
 export interface TransitionRules {
@@ -53,7 +54,6 @@ export function usePipelineStages() {
       const { data, error } = await supabase
         .from("pipeline_stages" as any)
         .select("*")
-        .eq("user_id", user!.id)
         .order("sort_order", { ascending: true });
       if (error) throw error;
       return (data as any[]) as PipelineStage[];
@@ -102,7 +102,6 @@ export function useAllSubStages() {
       const { data, error } = await supabase
         .from("pipeline_sub_stages" as any)
         .select("*")
-        .eq("user_id", user!.id)
         .order("sort_order", { ascending: true });
       if (error) throw error;
       return (data as any[]).map(d => ({
@@ -171,7 +170,7 @@ export function useStageMutations() {
       await supabase
         .from("pipeline_stages" as any)
         .update({ is_default: false } as any)
-        .eq("user_id", user!.id);
+        .neq("id", id);
       const { error } = await supabase
         .from("pipeline_stages" as any)
         .update({ is_default: true } as any)
@@ -197,7 +196,7 @@ export function useStageMutations() {
       await supabase
         .from("pipeline_stages" as any)
         .delete()
-        .eq("user_id", user!.id);
+        .neq("id", "00000000-0000-0000-0000-000000000000");
       const rows = templateStages.map((s, i) => ({
         user_id: user!.id,
         ...s,
@@ -259,6 +258,46 @@ export function useSubStageMutations() {
   });
 
   return { addSubStage, updateSubStage, deleteSubStage };
+}
+
+export function useCandidateStageActions() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+
+  const rejectCandidate = useMutation({
+    mutationFn: async ({ candidateId, reason }: { candidateId: string; reason: string }) => {
+      const { error } = await supabase
+        .from("candidates")
+        .update({ status: 'مرفوض', stage: 'مرفوض', rejection_reason: reason } as any)
+        .eq("id", candidateId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["candidates"] }),
+  });
+
+  const deferCandidate = useMutation({
+    mutationFn: async ({ candidateId }: { candidateId: string }) => {
+      const { error } = await supabase
+        .from("candidates")
+        .update({ status: 'مؤجل', is_deferred: true } as any)
+        .eq("id", candidateId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["candidates"] }),
+  });
+
+  const restoreCandidate = useMutation({
+    mutationFn: async ({ candidateId, stage }: { candidateId: string; stage: string }) => {
+      const { error } = await supabase
+        .from("candidates")
+        .update({ status: 'قيد المراجعة', stage, is_deferred: false, rejection_reason: null } as any)
+        .eq("id", candidateId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["candidates"] }),
+  });
+
+  return { rejectCandidate, deferCandidate, restoreCandidate };
 }
 
 // Pipeline stage templates

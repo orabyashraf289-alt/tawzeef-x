@@ -29,6 +29,9 @@ const en: Record<string, string> = {
   "unauthorized.title": "Access Denied",
   "unauthorized.description": "You don't have the required permissions to access this page. Contact your system administrator if you believe this is an error.",
   "unauthorized.backToDashboard": "Back to Dashboard",
+  "recruitmentPipelineStages.noPermissionToMove": "You do not have permission to move candidates between stages.",
+  "recruitmentPipelineStages.noPermissionToEdit": "You do not have permission to edit recruitment stages.",
+  "recruitmentPipelineStages.noPermissionToView": "You do not have permission to view this page.",
 
   "role.admin": "Admin",
   "role.recruiter": "Recruiter",

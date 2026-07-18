@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, FunnelChart, Funnel, LabelList, Cell, LineChart, Line, PieChart, Pie } from "recharts";
-import { TrendingUp, Clock, Users, ArrowRight, BarChart3 } from "lucide-react";
+import { TrendingUp, Clock, Users, ArrowRight, BarChart3, XOctagon, Pause, Hourglass } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -67,6 +67,37 @@ export default function PipelineAnalytics({ stages, candidates, dir }: PipelineA
 
   // Total stats
   const totalCandidates = candidates.length;
+
+  const rejectionCount = useMemo(() => {
+    return candidates.filter(c => c.status === "مرفوض" || c.stage === "مرفوض").length;
+  }, [candidates]);
+
+  const rejectionRate = useMemo(() => {
+    if (totalCandidates === 0) return 0;
+    return Math.round((rejectionCount / totalCandidates) * 100);
+  }, [rejectionCount, totalCandidates]);
+
+  const deferredCount = useMemo(() => {
+    return candidates.filter(c => c.status === "مؤجل" || c.is_deferred).length;
+  }, [candidates]);
+
+  const deferredRate = useMemo(() => {
+    if (totalCandidates === 0) return 0;
+    return Math.round((deferredCount / totalCandidates) * 100);
+  }, [deferredCount, totalCandidates]);
+
+  const avgStageTimeDays = useMemo(() => {
+    if (totalCandidates === 0) return 0;
+    const now = new Date().getTime();
+    const activeCandidates = candidates.filter(c => c.status !== "مرفوض" && c.status !== "مؤجل");
+    if (activeCandidates.length === 0) return 0;
+    const total = activeCandidates.reduce((sum: number, c: any) => {
+      const entered = c.stage_entered_at ? new Date(c.stage_entered_at).getTime() : new Date(c.created_at).getTime();
+      return sum + Math.max(1, Math.round((now - entered) / 86400000));
+    }, 0);
+    return Math.round(total / activeCandidates.length);
+  }, [candidates, totalCandidates]);
+
   const avgOverallDays = useMemo(() => {
     if (candidates.length === 0) return 0;
     const total = candidates.reduce((sum: number, c: any) => {
@@ -94,7 +125,7 @@ export default function PipelineAnalytics({ stages, candidates, dir }: PipelineA
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <Card className="border-border/50">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
@@ -119,12 +150,34 @@ export default function PipelineAnalytics({ stages, candidates, dir }: PipelineA
         </Card>
         <Card className="border-border/50">
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-500/10">
-              <Clock className="w-5 h-5 text-amber-600" />
+            <div className="p-2 rounded-lg bg-destructive/10">
+              <XOctagon className="w-5 h-5 text-destructive" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{avgOverallDays}</p>
-              <p className="text-xs text-muted-foreground">متوسط الأيام (كلي)</p>
+              <p className="text-2xl font-bold text-foreground">{rejectionRate}%</p>
+              <p className="text-xs text-muted-foreground">معدل الرفض</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-500/10">
+              <Pause className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-foreground">{deferredRate}%</p>
+              <p className="text-xs text-muted-foreground">معدل التأجيل</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-indigo-500/10">
+              <Hourglass className="w-5 h-5 text-indigo-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-foreground">{avgStageTimeDays} يوم</p>
+              <p className="text-xs text-muted-foreground">متوسط البقاء بمرحلة</p>
             </div>
           </CardContent>
         </Card>

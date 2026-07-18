@@ -5,6 +5,7 @@ import { useCandidates, useJobs, useInterviews } from "@/hooks/useJobs";
 import { useActiveStages, usePipelineStages, type TransitionRules } from "@/hooks/usePipelineStages";
 import { useRecordTransition } from "@/hooks/useStageTransitions";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
@@ -100,7 +101,27 @@ function DroppableColumn({ stage, children, count, label, totalCandidates, avgDa
   );
 }
 
-function CandidateCard({ candidate, isDragging = false, response }: { candidate: any; isDragging?: boolean; response?: any }) {
+function CandidateCard({
+  candidate,
+  isDragging = false,
+  response,
+  isSelected = false,
+  onToggleSelect,
+  onReject,
+  onDefer,
+  onRestore,
+  stageSlaHours = 0
+}: {
+  candidate: any;
+  isDragging?: boolean;
+  response?: any;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
+  onReject?: (id: string, name: string) => void;
+  onDefer?: (id: string) => void;
+  onRestore?: (id: string, originalStage: string) => void;
+  stageSlaHours?: number;
+}) {
   const parsedLog = response?.tab_switch_log
     ? (typeof response.tab_switch_log === "string" ? JSON.parse(response.tab_switch_log) : response.tab_switch_log)
     : null;
@@ -111,14 +132,29 @@ function CandidateCard({ candidate, isDragging = false, response }: { candidate:
       layout
       transition={{ type: "spring", stiffness: 300, damping: 25 }}
       className={cn(
-        "bg-card rounded-lg border border-border/50 p-3 transition-all group",
-        isDragging ? "shadow-xl rotate-2 opacity-90 scale-105" : "hover:shadow-sm hover:border-primary/20"
+        "bg-card rounded-lg border p-3 transition-all group",
+        isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-border/50 hover:shadow-sm hover:border-primary/20",
+        isDragging ? "shadow-xl rotate-2 opacity-90 scale-105" : ""
       )}
     >
       <div className="flex items-start gap-2">
-        <div className="mt-1 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors">
-          <GripVertical className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-1 shrink-0 mt-1">
+          {onToggleSelect && (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={(e) => {
+                e.stopPropagation();
+                onToggleSelect();
+              }}
+              className="rounded border-border text-primary focus:ring-primary w-3.5 h-3.5 cursor-pointer bg-transparent"
+            />
+          )}
+          <div className="text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors cursor-grab">
+            <GripVertical className="w-3.5 h-3.5" />
+          </div>
         </div>
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5">
             <Avatar className="w-7 h-7 border border-border">
@@ -179,6 +215,36 @@ function CandidateCard({ candidate, isDragging = false, response }: { candidate:
                 </Badge>
               )
             )}
+
+            {/* SLA Badge */}
+            {(() => {
+              if (!candidate.stage_entered_at || !stageSlaHours) return null;
+              const entryDate = new Date(candidate.stage_entered_at).getTime();
+              const now = Date.now();
+              const elapsedHours = (now - entryDate) / (1000 * 60 * 60);
+              const remainingHours = stageSlaHours - elapsedHours;
+              const isOverdue = remainingHours <= 0;
+
+              return (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[9px] h-4 px-1 gap-0.5 border-0 font-medium",
+                    isOverdue 
+                      ? "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 animate-pulse" 
+                      : remainingHours <= 24 
+                        ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                        : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                  )}
+                  title={isOverdue ? `تجاوز الحد الأقصى للمرحلة بـ ${Math.round(elapsedHours - stageSlaHours)} ساعة` : `الوقت المتبقي في هذه المرحلة`}
+                >
+                  <Clock className="w-2.5 h-2.5" />
+                  {isOverdue 
+                    ? `متأخر (${Math.round(elapsedHours - stageSlaHours)}س)` 
+                    : `متبقي (${Math.round(remainingHours)}س)`}
+                </Badge>
+              );
+            })()}
           </div>
 
           {candidate.skills && candidate.skills.length > 0 && (
@@ -193,13 +259,85 @@ function CandidateCard({ candidate, isDragging = false, response }: { candidate:
               )}
             </div>
           )}
+
+          {/* Card Actions (visible on hover) */}
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end gap-1.5 mt-2 pt-1.5 border-t border-border/40">
+            {candidate.status === "مرفوض" || candidate.is_deferred === true || candidate.status === "مؤجل" ? (
+              onRestore && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-6 h-6 rounded-md hover:bg-green-500/10 hover:text-green-600"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onRestore(candidate.id, "تقديم الطلب");
+                  }}
+                  title="استعادة المرشح إلى نشط"
+                >
+                  <Check className="w-3.5 h-3.5 text-green-500" />
+                </Button>
+              )
+            ) : (
+              <>
+                {onDefer && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-6 h-6 rounded-md hover:bg-amber-500/10 hover:text-amber-600"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      onDefer(candidate.id);
+                    }}
+                    title="تأجيل المرشح"
+                  >
+                    <Clock className="w-3.5 h-3.5 text-amber-500" />
+                  </Button>
+                )}
+                {onReject && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-6 h-6 rounded-md hover:bg-red-500/10 hover:text-red-600"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      onReject(candidate.id, candidate.name);
+                    }}
+                    title="رفض المرشح"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </motion.div>
   );
 }
 
-function DraggableCard({ candidate, response }: { candidate: any; response?: any }) {
+function DraggableCard({
+  candidate,
+  response,
+  isSelected,
+  onToggleSelect,
+  onReject,
+  onDefer,
+  onRestore,
+  stageSlaHours
+}: {
+  candidate: any;
+  response?: any;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
+  onReject?: (id: string, name: string) => void;
+  onDefer?: (id: string) => void;
+  onRestore?: (id: string, originalStage: string) => void;
+  stageSlaHours?: number;
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: candidate.id,
   });
@@ -219,7 +357,16 @@ function DraggableCard({ candidate, response }: { candidate: any; response?: any
       layout
       className="cursor-grab active:cursor-grabbing"
     >
-      <CandidateCard candidate={candidate} response={response} />
+      <CandidateCard
+        candidate={candidate}
+        response={response}
+        isSelected={isSelected}
+        onToggleSelect={onToggleSelect}
+        onReject={onReject}
+        onDefer={onDefer}
+        onRestore={onRestore}
+        stageSlaHours={stageSlaHours}
+      />
     </motion.div>
   );
 }
@@ -232,6 +379,8 @@ export default function Pipeline() {
   const activeStages = useActiveStages();
   const { data: allStages } = usePipelineStages();
   const { user } = useAuth();
+  const { role, isAdmin, isRecruiter } = useUserRole();
+  const canMoveCandidates = isAdmin || isRecruiter;
 
   // Fetch assessment responses for gating
   const { data: assessmentResponses } = useQuery({
@@ -263,10 +412,17 @@ export default function Pipeline() {
 
   const recordTransition = useRecordTransition();
   const queryClient = useQueryClient();
+  const { rejectCandidate, deferCandidate, restoreCandidate } = useCandidateStageActions();
+
   const [activeId, setActiveId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [jobFilter, setJobFilter] = useState("all");
   const [scoreFilter, setScoreFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<"active" | "deferred" | "rejected">("active");
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
+  const [rejectionTarget, setRejectionTarget] = useState<{ candidateId: string; candidateName: string } | null>(null);
+  const [rejectionReasonText, setRejectionReasonText] = useState("");
+
   const [viewMode, setViewMode] = useState<"kanban" | "timeline" | "analytics">("kanban");
   const [timelineSort, setTimelineSort] = useState<"newest" | "oldest" | "ai_score">("newest");
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; candidateId: string; candidateName: string; stageId: string; stageLabel: string } | null>(null);
@@ -290,11 +446,17 @@ export default function Pipeline() {
   });
 
   const STAGES = useMemo(() => {
-    if (activeStages.length > 0) {
-      return activeStages.map(s => ({ id: s.name, label: s.name, color: s.color }));
+    let baseStages = activeStages.length > 0
+      ? activeStages.map(s => ({ id: s.name, label: s.name, color: s.color, sla_hours: s.sla_hours || 0 }))
+      : FALLBACK_STAGES.map(s => ({ ...s, sla_hours: 0 }));
+
+    if (statusFilter === "rejected") {
+      baseStages = [...baseStages, { id: "مرفوض", label: "مرفوض", color: "#ef4444", sla_hours: 0 }];
+    } else if (statusFilter === "deferred") {
+      baseStages = [...baseStages, { id: "مؤجل", label: "مؤجل", color: "#f59e0b", sla_hours: 0 }];
     }
-    return FALLBACK_STAGES;
-  }, [activeStages]);
+    return baseStages;
+  }, [activeStages, statusFilter]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -309,9 +471,20 @@ export default function Pipeline() {
         (scoreFilter === "high" && (c.ai_score ?? 0) >= 70) ||
         (scoreFilter === "med" && (c.ai_score ?? 0) >= 40 && (c.ai_score ?? 0) < 70) ||
         (scoreFilter === "low" && (c.ai_score ?? 0) < 40 && c.ai_score != null);
-      return matchesSearch && matchesJob && matchesScore;
+
+      const isDeferred = c.is_deferred === true || c.status === "مؤجل";
+      const isRejected = c.status === "مرفوض" || c.stage === "مرفوض";
+
+      if (statusFilter === "rejected") {
+        return matchesSearch && matchesJob && matchesScore && isRejected;
+      }
+      if (statusFilter === "deferred") {
+        return matchesSearch && matchesJob && matchesScore && isDeferred;
+      }
+      // default: active
+      return matchesSearch && matchesJob && matchesScore && !isRejected && !isDeferred;
     });
-  }, [candidates, search, jobFilter, scoreFilter]);
+  }, [candidates, search, jobFilter, scoreFilter, statusFilter]);
 
   const grouped = useMemo(() => {
     const map: Record<string, any[]> = {};
@@ -417,6 +590,18 @@ export default function Pipeline() {
     const candidate = (candidates || []).find(c => c.id === candidateId);
     if (!candidate || candidate.stage === newStage) return;
 
+    if (newStage === "مرفوض") {
+      setRejectionTarget({ candidateId, candidateName: candidate.name });
+      setRejectionReasonText("");
+      return;
+    }
+
+    if (newStage === "مؤجل") {
+      deferCandidate.mutate({ candidateId });
+      toast({ title: `تم نقل ${candidate.name} إلى المؤجلين ⏸️` });
+      return;
+    }
+
     // Check transition rules
     const ruleViolation = checkTransitionRules(candidate, newStage);
     if (ruleViolation) {
@@ -443,13 +628,17 @@ export default function Pipeline() {
     const candidate = (candidates || []).find(c => c.id === candidateId);
     if (!candidate) return;
 
-    queryClient.setQueryData(["candidates", candidate.user_id], (old: any[] | undefined) =>
-      old?.map(c => c.id === candidateId ? { ...c, stage: toStage } : c)
+    const nowIso = new Date().toISOString();
+    queryClient.setQueryData(["candidates", user?.id], (old: any[] | undefined) =>
+      old?.map(c => c.id === candidateId ? { ...c, stage: toStage, stage_entered_at: nowIso } : c)
     );
 
     const { error } = await supabase
       .from("candidates")
-      .update({ stage: toStage })
+      .update({ 
+        stage: toStage,
+        stage_entered_at: nowIso
+      })
       .eq("id", candidateId);
 
     if (error) {
@@ -713,6 +902,17 @@ export default function Pipeline() {
               <SelectItem value="low">{t("pipeline.lowScore")}</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+            <SelectTrigger className="w-full sm:w-44 h-9 text-xs">
+              <Users className="w-3.5 h-3.5 text-muted-foreground shrink-0 me-1.5" />
+              <SelectValue placeholder={dir === "rtl" ? "حالة المرشح" : "Candidate Status"} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">{dir === "rtl" ? "المرشحون النشطون" : "Active Candidates"}</SelectItem>
+              <SelectItem value="deferred">{dir === "rtl" ? "المرشحون المؤجلون" : "Deferred Candidates"}</SelectItem>
+              <SelectItem value="rejected">{dir === "rtl" ? "المرشحون المرفوضون" : "Rejected Candidates"}</SelectItem>
+            </SelectContent>
+          </Select>
           {viewMode === "timeline" && (
             <Select value={timelineSort} onValueChange={(v: any) => setTimelineSort(v)}>
               <SelectTrigger className="w-full sm:w-44 h-9 text-xs">
@@ -795,7 +995,25 @@ export default function Pipeline() {
                   ) : (
                     grouped[stage.id]?.map((candidate) => {
                       const response = (assessmentResponses || []).find(r => r.candidate_email === candidate.email);
-                      return <DraggableCard key={candidate.id} candidate={candidate} response={response} />;
+                      return (
+                        <DraggableCard
+                          key={candidate.id}
+                          candidate={candidate}
+                          response={response}
+                          onReject={(id, name) => setRejectionTarget({ candidateId: id, candidateName: name })}
+                          onDefer={(id) => deferCandidate.mutate({ candidateId: id })}
+                          onRestore={(id, stage) => restoreCandidate.mutate({ candidateId: id, stage })}
+                          stageSlaHours={stage.sla_hours}
+                          isSelected={selectedCandidateIds.includes(candidate.id)}
+                          onToggleSelect={() => {
+                            setSelectedCandidateIds(prev =>
+                              prev.includes(candidate.id)
+                                ? prev.filter(x => x !== candidate.id)
+                                : [...prev, candidate.id]
+                            );
+                          }}
+                        />
+                      );
                     })
                   )}
                 </DroppableColumn>
@@ -1213,6 +1431,132 @@ export default function Pipeline() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Rejection Reason Dialog */}
+      <Dialog open={!!rejectionTarget} onOpenChange={(open) => !open && setRejectionTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              {dir === "rtl" ? "تأكيد رفض المرشح" : "Confirm Candidate Rejection"}
+            </DialogTitle>
+            <DialogDescription>
+              {dir === "rtl" 
+                ? `يرجى إدخال سبب رفض المرشح: ${rejectionTarget?.candidateName}` 
+                : `Please enter the reason for rejecting: ${rejectionTarget?.candidateName}`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Textarea
+              placeholder={dir === "rtl" ? "أدخل سبب الرفض هنا..." : "Enter rejection reason here..."}
+              value={rejectionReasonText}
+              onChange={(e) => setRejectionReasonText(e.target.value)}
+              className="min-h-[100px]"
+            />
+          </div>
+          <DialogFooter className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setRejectionTarget(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                if (rejectionTarget) {
+                  const ids = rejectionTarget.candidateId.split(",");
+                  ids.forEach(id => {
+                    rejectCandidate.mutate({ 
+                      candidateId: id, 
+                      reason: rejectionReasonText 
+                    });
+                  });
+                  toast({ title: dir === "rtl" ? "تم رفض المرشحين وحفظ السبب" : "Candidates rejected successfully" });
+                  setRejectionTarget(null);
+                  setSelectedCandidateIds([]);
+                }
+              }}
+            >
+              {dir === "rtl" ? "تأكيد الرفض" : "Confirm Rejection"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Floating Bulk Actions Bar */}
+      {selectedCandidateIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-background/95 backdrop-blur border border-border shadow-2xl rounded-full px-6 py-3 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="text-xs font-semibold shrink-0">
+            {dir === "rtl" 
+              ? `تم تحديد ${selectedCandidateIds.length} مرشحين` 
+              : `${selectedCandidateIds.length} candidates selected`}
+          </div>
+          <div className="h-4 w-px bg-border shrink-0" />
+          <div className="flex items-center gap-2">
+            {/* Bulk Move Stage */}
+            <Select onValueChange={(stageId) => {
+              selectedCandidateIds.forEach(id => {
+                const candidate = filteredCandidates.find(c => c.id === id);
+                if (candidate && candidate.stage !== stageId) {
+                  executeTransition(id, candidate.stage, stageId, "نقل جماعي");
+                }
+              });
+              toast({ title: dir === "rtl" ? "تم نقل المرشحين المحددين" : "Selected candidates moved successfully" });
+              setSelectedCandidateIds([]);
+            }}>
+              <SelectTrigger className="h-8 text-xs px-2.5 rounded-full bg-primary/5 text-primary border-0 font-medium">
+                <SelectValue placeholder={dir === "rtl" ? "نقل جماعي للمرحلة" : "Bulk Move Stage"} />
+              </SelectTrigger>
+              <SelectContent>
+                {activeStages.map(s => (
+                  <SelectItem key={s.name} value={s.name}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Bulk Defer */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs rounded-full gap-1 border-amber-500/20 hover:bg-amber-500/10 hover:text-amber-600"
+              onClick={() => {
+                selectedCandidateIds.forEach(id => {
+                  deferCandidate.mutate({ candidateId: id });
+                });
+                toast({ title: dir === "rtl" ? "تم تأجيل المرشحين المحددين" : "Selected candidates deferred" });
+                setSelectedCandidateIds([]);
+              }}
+            >
+              <Clock className="w-3.5 h-3.5 text-amber-500" />
+              {dir === "rtl" ? "تأجيل" : "Defer"}
+            </Button>
+
+            {/* Bulk Reject */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs rounded-full gap-1 border-red-500/20 hover:bg-red-500/10 hover:text-red-600"
+              onClick={() => {
+                setRejectionTarget({ 
+                  candidateId: selectedCandidateIds.join(","),
+                  candidateName: dir === "rtl" ? "جميع المحددين" : "all selected candidates" 
+                });
+                setRejectionReasonText("");
+              }}
+            >
+              <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+              {dir === "rtl" ? "رفض" : "Reject"}
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs rounded-full"
+              onClick={() => setSelectedCandidateIds([])}
+            >
+              {dir === "rtl" ? "إلغاء" : "Cancel"}
+            </Button>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

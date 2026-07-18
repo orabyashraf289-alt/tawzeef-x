@@ -145,6 +145,7 @@ export default function StageDetailPanel({ stage, onClose, compact = false }: St
   const [emailTemplate, setEmailTemplate] = useState(automationRules.email_template || "");
   const [autoAdvance, setAutoAdvance] = useState(!!automationRules.auto_advance);
   const [webhookUrl, setWebhookUrl] = useState(automationRules.webhook_url || "");
+  const [slaHours, setSlaHours] = useState((stage as any).sla_hours || 0);
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -227,6 +228,7 @@ export default function StageDetailPanel({ stage, onClose, compact = false }: St
         assessment_id: linkedAssessment && linkedAssessment !== "none" ? linkedAssessment : null,
         automation_rules: fullAutomationRules,
         assigned_user_ids: assignedUsers,
+        sla_hours: slaHours,
       } as any);
 
       toast({ title: "تم حفظ جميع إعدادات المرحلة ✅" });
@@ -659,6 +661,26 @@ export default function StageDetailPanel({ stage, onClose, compact = false }: St
               <Input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)}
                 placeholder="https://your-api.com/webhook" className="h-9 text-sm font-mono" dir="ltr" />
               <p className="text-[10px] text-muted-foreground">سيتم إرسال إشعار HTTP عند انتقال مرشح لهذه المرحلة</p>
+            </div>
+
+            <div className="space-y-2 bg-muted/30 rounded-xl p-3 border border-border/20">
+              <p className="text-sm font-semibold flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber-500" /> حد زمني للمرحلة (SLA)
+              </p>
+              <p className="text-[10px] text-muted-foreground">تحديد الحد الأقصى بالساعات للمرشح في هذه المرحلة. سيظهر تنبيه بصري عند التجاوز.</p>
+              <div className="flex items-center gap-3">
+                <Slider value={[slaHours]} onValueChange={v => setSlaHours(v[0])}
+                  min={0} max={168} step={1} className="flex-1" />
+                <Badge variant="outline" className="text-xs shrink-0 min-w-[80px] justify-center">
+                  {slaHours === 0 ? 'بدون حد' : slaHours <= 24 ? `${slaHours} ساعة` : `${Math.round(slaHours / 24)} يوم`}
+                </Badge>
+              </div>
+              {slaHours > 0 && (
+                <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-500/10 rounded-lg p-2.5">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  سيظهر تنبيه بصري على بطاقة المرشح إذا تجاوز {slaHours <= 24 ? `${slaHours} ساعة` : `${Math.round(slaHours / 24)} يوم`} في هذه المرحلة
+                </div>
+              )}
             </div>
           </div>
         </TabsContent>

@@ -29,6 +29,9 @@ const ar: Record<string, string> = {
   "unauthorized.title": "ليس لديك صلاحية",
   "unauthorized.description": "لا تملك الصلاحيات اللازمة للوصول إلى هذه الصفحة. تواصل مع مدير النظام إذا كنت تعتقد أن هذا خطأ.",
   "unauthorized.backToDashboard": "العودة للوحة التحكم",
+  "recruitmentPipelineStages.noPermissionToMove": "ليس لديك صلاحية لنقل المترشحين بين المراحل.",
+  "recruitmentPipelineStages.noPermissionToEdit": "ليس لديك صلاحية لتعديل مراحل التوظيف.",
+  "recruitmentPipelineStages.noPermissionToView": "ليس لديك صلاحية لعرض هذه الصفحة.",
 
   "role.admin": "مدير",
   "role.recruiter": "مُوظّف",
