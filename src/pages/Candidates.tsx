@@ -139,9 +139,9 @@ export default function Candidates() {
   const { t, locale, dir } = useI18n();
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
-  const { data: candidatesResult, isLoading } = usePaginatedCandidates(page, PAGE_SIZE);
-  const candidates = candidatesResult?.data;
-  const totalCount = candidatesResult?.count || 0;
+  const { data: allCandidatesData, isLoading } = useCandidates();
+  const candidates = allCandidatesData || [];
+  const totalCount = candidates.length;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
   const { data: jobs } = useJobs();
   const queryClient = useQueryClient();

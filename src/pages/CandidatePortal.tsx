@@ -9,7 +9,7 @@ import { Search, Check, Clock, Circle, Briefcase, MapPin, ArrowLeft, Shield, Sta
 import { cn } from "@/lib/utils";
 import { Link, useSearchParams } from "react-router-dom";
 import CandidateChatbot from "@/components/candidate-portal/CandidateChatbot";
-
+import { supabase } from "@/integrations/supabase/client";
 
 const PORTAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/candidate-portal`;
 
@@ -123,14 +123,19 @@ export default function CandidatePortal() {
       return;
     }
 
+    const cleanInput = input.trim();
     setIsLoading(true);
     setSearched(true);
     setEmailSent(false);
     setCandidates(null);
+
+    let foundCandidates: CandidateResult[] = [];
+
+    // 1. Try remote Edge Function first
     try {
       const body = searchType === "tracking"
-        ? { trackingCode: input.trim() }
-        : { email: input.trim() };
+        ? { trackingCode: cleanInput }
+        : { email: cleanInput };
 
       const resp = await fetch(PORTAL_URL, {
         method: "POST",
@@ -141,24 +146,81 @@ export default function CandidatePortal() {
         body: JSON.stringify(body),
       });
 
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(err.error || "فشل البحث");
+      if (resp.ok) {
+        const data = await resp.json();
+        if (searchType === "email") {
+          setEmailSent(true);
+          toast({ title: "تم الإرسال 📧", description: data.message });
+          setIsLoading(false);
+          return;
+        } else if (data.candidates && data.candidates.length > 0) {
+          foundCandidates = data.candidates;
+        }
       }
-
-      const data = await resp.json();
-      if (searchType === "email") {
-        setEmailSent(true);
-        toast({ title: "تم الإرسال 📧", description: data.message });
-      } else {
-        setCandidates(data.candidates);
-      }
-    } catch (e: any) {
-      toast({ title: "خطأ", description: e.message, variant: "destructive" });
-      setCandidates(null);
-    } finally {
-      setIsLoading(false);
+    } catch (e) {
+      console.warn("Candidate portal edge function warning, falling back to direct database query:", e);
     }
+
+    // 2. Direct Database Fallback Search if Edge Function returns no results
+    if (foundCandidates.length === 0) {
+      try {
+        let candQuery = supabase.from("candidates").select("*, jobs(title)");
+        let appQuery = supabase.from("applications").select("*, jobs(title)");
+
+        if (searchType === "tracking") {
+          candQuery = candQuery.or(`tracking_code.ilike.${cleanInput},id.eq.${cleanInput}`);
+          appQuery = appQuery.or(`tracking_code.ilike.${cleanInput},id.eq.${cleanInput}`);
+        } else {
+          candQuery = candQuery.ilike("email", cleanInput);
+          appQuery = appQuery.ilike("email", cleanInput);
+        }
+
+        const [{ data: candsData }, { data: appsData }] = await Promise.all([candQuery, appQuery]);
+
+        const mappedCands: CandidateResult[] = (candsData || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          role: c.role || c.jobs?.title || "متقدم للوظيفة",
+          stage: c.stage || "تقديم الطلب",
+          status: c.status || "جديد",
+          skills: c.skills || null,
+          trackingCode: c.tracking_code || c.id?.slice(0, 8).toUpperCase(),
+          appliedAt: c.created_at,
+          jobTitle: c.jobs?.title || c.role || null,
+          aiScore: c.ai_score || null,
+        }));
+
+        const mappedApps: CandidateResult[] = (appsData || [])
+          .filter(a => !mappedCands.some(mc => mc.id === a.id || (mc.trackingCode && mc.trackingCode === a.tracking_code)))
+          .map((a: any) => ({
+            id: a.id,
+            name: a.name,
+            role: a.specialty || a.jobs?.title || "متقدم للوظيفة",
+            stage: "تقديم الطلب",
+            status: a.status || "جديد",
+            skills: a.skills || null,
+            trackingCode: a.tracking_code || a.id?.slice(0, 8).toUpperCase(),
+            appliedAt: a.created_at,
+            jobTitle: a.jobs?.title || a.specialty || null,
+            aiScore: null,
+          }));
+
+        foundCandidates = [...mappedCands, ...mappedApps];
+      } catch (dbErr) {
+        console.error("Direct candidate database query exception:", dbErr);
+      }
+    }
+
+    if (foundCandidates.length > 0) {
+      setCandidates(foundCandidates);
+    } else {
+      setCandidates([]);
+      if (searchType === "tracking") {
+        toast({ title: "خطأ", description: "لم يتم العثور على طلبات. تأكد من رمز التتبع أو البريد الإلكتروني.", variant: "destructive" });
+      }
+    }
+
+    setIsLoading(false);
   };
 
   return (
