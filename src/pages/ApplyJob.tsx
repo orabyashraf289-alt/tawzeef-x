@@ -262,6 +262,7 @@ export default function ApplyJob() {
       resume_url: resumeUrl,
       skills: skills.length > 0 ? skills : null,
       specialty: form.specialty || null,
+      tracking_code: generatedTrackingCode,
     };
 
     let finalTrackingCode = generatedTrackingCode;

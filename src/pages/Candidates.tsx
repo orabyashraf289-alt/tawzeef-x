@@ -399,6 +399,31 @@ export default function Candidates() {
     }
   }, [autoTriggered, candidates]);
 
+  // Realtime subscription for instant updates when any candidate or application is added
+  useEffect(() => {
+    const channel = supabase
+      .channel("candidates-realtime-sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "candidates" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["candidates"] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "applications" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["candidates"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   const allJobs = jobs || [];
   const stages = useMemo(() => [...new Set((candidates || []).map(c => c.stage).filter(Boolean))], [candidates]);
 
