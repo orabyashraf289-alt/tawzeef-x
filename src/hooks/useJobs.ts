@@ -227,19 +227,39 @@ export function useCandidates() {
         }
       }
 
-      // 2. Fetch candidates table
-      const { data: candidatesData, error: candError } = await supabase
-        .from("candidates")
-        .select("*, candidate_scorecards(rating)")
-        .order("created_at", { ascending: false });
-
-      if (candError) throw candError;
+      // 2. Fetch candidates table with fail-safe fallback
+      let candidatesData: any[] | null = null;
+      try {
+        const { data, error: candError } = await supabase
+          .from("candidates")
+          .select("*, candidate_scorecards(rating)")
+          .order("created_at", { ascending: false });
+        if (candError) throw candError;
+        candidatesData = data;
+      } catch (err) {
+        console.warn("Failed candidate scorecards join query, falling back to plain candidates select:", err);
+        const { data } = await supabase
+          .from("candidates")
+          .select("*")
+          .order("created_at", { ascending: false });
+        candidatesData = data || [];
+      }
 
       // 3. Fetch applications table to ensure no applied candidate is missed
-      const { data: appsData } = await supabase
-        .from("applications")
-        .select("*, jobs(title)")
-        .order("created_at", { ascending: false });
+      let appsData: any[] | null = null;
+      try {
+        const { data } = await supabase
+          .from("applications")
+          .select("*, jobs(title)")
+          .order("created_at", { ascending: false });
+        appsData = data;
+      } catch (e) {
+        const { data } = await supabase
+          .from("applications")
+          .select("*")
+          .order("created_at", { ascending: false });
+        appsData = data;
+      }
 
       if (!appsData || appsData.length === 0) {
         return candidatesData || [];
