@@ -840,7 +840,7 @@ export default function Candidates() {
                             </button>
                           )}
                         </div>
-                        <div className="flex gap-1.5">
+                        <div className="flex items-center gap-1.5">
                           {c.email && (
                             <a href={`mailto:${c.email}`} className="w-7 h-7 rounded-lg bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all">
                               <Mail className="w-3.5 h-3.5" />
@@ -851,6 +851,12 @@ export default function Candidates() {
                               <Phone className="w-3.5 h-3.5" />
                             </a>
                           )}
+                          <Link
+                            to={`/candidates/${c.id}`}
+                            className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline bg-primary/10 hover:bg-primary/20 text-primary px-2.5 py-1 rounded-lg transition-colors mr-1"
+                          >
+                            مراحل الاعتماد ➔
+                          </Link>
                         </div>
                       </div>
                     </div>
