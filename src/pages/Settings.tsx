@@ -11,13 +11,14 @@ import {
   ChevronDown, ChevronUp
 } from "lucide-react";
 import SavedFiltersManager from "@/components/SavedFiltersManager";
+import CompanyTaxonomyManager from "@/components/CompanyTaxonomyManager";
 import BillingHistory from "@/components/BillingHistory";
 import EmailSettings from "@/components/EmailSettings";
 import NotificationTemplatesSection from "@/components/NotificationTemplatesSection";
 import { useState, useEffect } from "react";
 import { useMySubscription, useSubscriptionPlans, useCanPostJob } from "@/hooks/useSubscription";
 import CheckoutModal from "@/components/CheckoutModal";
-import { Crown, FileDown, ArrowUpRight, DollarSign, Calendar as CalendarIcon, FileText } from "lucide-react";
+import { Crown, FileDown, ArrowUpRight, DollarSign, Calendar as CalendarIcon, FileText, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -2192,6 +2193,7 @@ export default function SettingsPage() {
     { id: "subscription", label: locale === "en" ? "Subscription & Billing" : "الاشتراك والفواتير", icon: Crown },
     { id: "preferences", label: locale === "en" ? "Preferences" : "تفضيلات المنصة", icon: Palette },
     { id: "pipeline", label: "مراحل التوظيف", icon: GitBranch },
+    { id: "taxonomy", label: "الأقسام والمواقع والخبرات", icon: Layers },
     { id: "filters", label: "الفلاتر المحفوظة", icon: Bookmark },
     { id: "security", label: t("settings.security"), icon: Shield },
     { id: "goals", label: t("settings.hiringGoals"), icon: Target },
@@ -2259,7 +2261,7 @@ export default function SettingsPage() {
             transition={{ delay: 0.1 }}
             className="flex-1 min-w-0"
           >
-            <div className={cn("bg-card rounded-2xl border border-border/50 p-5 sm:p-7", activeTab === "pipeline" ? "w-full" : "max-w-4xl")}>
+            <div className={cn("bg-card rounded-2xl border border-border/50 p-5 sm:p-7", activeTab === "pipeline" || activeTab === "taxonomy" ? "w-full" : "max-w-4xl")}>
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}
@@ -2273,6 +2275,7 @@ export default function SettingsPage() {
                   {activeTab === "subscription" && <SubscriptionSection />}
                   {activeTab === "preferences" && <PreferencesSection />}
                   {activeTab === "pipeline" && <PipelineStagesManager />}
+                  {activeTab === "taxonomy" && <CompanyTaxonomyManager />}
                   {activeTab === "filters" && <SavedFiltersManager />}
                   {activeTab === "security" && <SecuritySection />}
                   {activeTab === "goals" && <HiringGoalsSection />}
