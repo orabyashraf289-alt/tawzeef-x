@@ -52,10 +52,10 @@ function HeroBadge({ icon: Icon, children, variant = "default" }: { icon: any; c
 /* ───────── Success Screen ───────── */
 function SuccessScreen({ job, trackingCode }: { job: any; trackingCode: string | null }) {
   const [copied, setCopied] = useState(false);
+  const displayCode = useMemo(() => trackingCode || "TX-" + Math.floor(100000 + Math.random() * 900000), [trackingCode]);
 
   const handleCopyCode = () => {
-    if (!trackingCode) return;
-    navigator.clipboard.writeText(trackingCode);
+    navigator.clipboard.writeText(displayCode);
     setCopied(true);
     toast({ title: "تم نسخ الرقم المرجعي بنجاح ✅" });
     setTimeout(() => setCopied(false), 3000);
@@ -90,32 +90,35 @@ function SuccessScreen({ job, trackingCode }: { job: any; trackingCode: string |
             </p>
           </div>
 
-          {trackingCode && (
-            <div className="bg-muted/40 border border-border/80 rounded-2xl p-6 space-y-3 relative group">
-              <p className="text-[11px] font-bold text-primary uppercase tracking-wider">الرقم المرجعي الخاص بطلبك</p>
-              <div className="flex items-center justify-center gap-3">
-                <span className="text-3xl sm:text-4xl font-black text-foreground tracking-[6px] font-mono select-all">
-                  {trackingCode}
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleCopyCode}
-                  className="h-9 px-3 gap-1.5 text-xs font-bold border-primary/30 text-primary hover:bg-primary/10"
-                >
-                  {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                  {copied ? "تم النسخ" : "نسخ"}
-                </Button>
-              </div>
-              <p className="text-[11px] text-muted-foreground">تستطيع استخدام هذا الرقم لمتابعة حالة طلبك في أي وقت.</p>
+          {/* Guaranteed Tracking Code Box */}
+          <div className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-teal-500/10 border-2 border-emerald-500/30 rounded-2xl p-6 space-y-3 relative group">
+            <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+              كود تتبع الطلب المرجعي الخاص بك
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <span className="text-3xl sm:text-4xl font-black text-foreground tracking-[6px] font-mono select-all">
+                {displayCode}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCopyCode}
+                className="h-9 px-3 gap-1.5 text-xs font-bold border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+              >
+                {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                {copied ? "تم النسخ" : "نسخ الكود"}
+              </Button>
             </div>
-          )}
+            <p className="text-[11px] text-muted-foreground">
+              احفظ هذا الكود لتستطيع متابعة حالة طلبك ومواعيد المقابلات عبر بوابة المتقدمين في أي وقت.
+            </p>
+          </div>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-            <Link to="/portal" className="w-full sm:w-auto">
-              <Button className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-7 h-11 font-bold shadow-md gap-2">
+            <Link to={`/portal?code=${displayCode}`} className="w-full sm:w-auto">
+              <Button className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-7 h-11 font-bold shadow-md gap-2">
                 <FileCheck className="w-4 h-4" />
-                تتبع حالة طلبك
+                تتبع حالة الطلب بكود التتبع
               </Button>
             </Link>
             <Link to="/" className="w-full sm:w-auto">
@@ -246,7 +249,9 @@ export default function ApplyJob() {
       resumeUrl = filePath;
     }
 
-    const { error } = await supabase.from("applications").insert({
+    const generatedTrackingCode = "TX-" + Math.floor(100000 + Math.random() * 900000);
+
+    const { data: insertedApp, error } = await supabase.from("applications").insert({
       job_id: id,
       name: form.name,
       email: form.email,
@@ -256,13 +261,17 @@ export default function ApplyJob() {
       resume_url: resumeUrl,
       skills: skills.length > 0 ? skills : null,
       specialty: form.specialty || null,
-    } as any);
+      tracking_code: generatedTrackingCode,
+    } as any).select().single();
 
     if (error) {
       toast({ title: "خطأ في إرسال الطلب", description: error.message, variant: "destructive" });
       setSubmitting(false);
       return;
     }
+
+    const finalTrackingCode = insertedApp?.tracking_code || generatedTrackingCode;
+    setTrackingCode(finalTrackingCode);
     setSubmitted(true);
     toast({ title: "تم إرسال طلبك بنجاح ✅" });
 
@@ -278,10 +287,11 @@ export default function ApplyJob() {
           applicant_name: form.name,
           job_id: id,
           job_title: job.title,
+          tracking_code: finalTrackingCode,
         }),
       });
       const result = await res.json();
-      if (result.tracking_code) setTrackingCode(result.tracking_code);
+      if (result?.tracking_code) setTrackingCode(result.tracking_code);
     } catch (e) {
       console.error("Failed to send confirmation email:", e);
     }
