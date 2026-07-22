@@ -18,7 +18,7 @@ import {
   FileText, FileSearch, Phone, Code, Users, Briefcase, Circle,
   LayoutTemplate, Download, Upload,
   Mail, Target, Award, Heart, ThumbsUp, AlertTriangle,
-  Eye, Star, Timer, Search, SlidersHorizontal, List, Kanban, Save, ArrowUpDown, Pencil, BarChart3
+  Eye, Star, Timer, Search, SlidersHorizontal, List, Kanban, Save, ArrowUpDown, Pencil, BarChart3, Zap
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
