@@ -209,7 +209,7 @@ export default function AddJobDialog({ open, onClose, onAdd, initialData, submit
     onClose();
   };
 
-  const selectedChainObj = approvalChains.find(c => c.name === form.approvalChain);
+  const selectedChainObj = (approvalChains || []).find(c => c.name === form.approvalChain);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">

@@ -228,13 +228,16 @@ export function useCompanyTaxonomy() {
 
   return {
     departments,
-    departmentNames: departments.map(d => d.name),
+    departmentNames: (departments || []).map(d => d.name),
     locations,
-    locationNames: locations.map(l => l.name),
+    locationNames: (locations || []).map(l => l.name),
     experienceLevels,
-    experienceLevelNames: experienceLevels.map(e => e.name),
+    experienceLevelNames: (experienceLevels || []).map(e => e.name),
+    approvalChains: approvalChains || DEFAULT_APPROVAL_CHAINS,
+    approvalChainNames: (approvalChains || DEFAULT_APPROVAL_CHAINS).map(c => c.name),
     addQuickDepartment,
     addQuickLocation,
     addQuickExperienceLevel,
+    addQuickApprovalChain,
   };
 }
