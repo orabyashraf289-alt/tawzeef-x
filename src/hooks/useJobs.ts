@@ -141,15 +141,83 @@ export function useCandidates() {
   return useQuery({
     queryKey: ["candidates", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: candidatesData, error: candError } = await supabase
         .from("candidates")
         .select("*, candidate_scorecards(rating)")
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+
+      if (candError) throw candError;
+
+      // Also fetch applications to ensure any candidate submitted via public apply link is merged & synced
+      const { data: appsData } = await supabase
+        .from("applications")
+        .select("*, jobs(title)")
+        .order("created_at", { ascending: false });
+
+      if (!appsData || appsData.length === 0) {
+        return candidatesData || [];
+      }
+
+      const existingCandKeys = new Set((candidatesData || []).map(c => `${(c.email || "").toLowerCase()}_${c.job_id}`));
+      const existingCandIds = new Set((candidatesData || []).map(c => c.id));
+
+      const missingApps = appsData.filter(a => {
+        const key = `${(a.email || "").toLowerCase()}_${a.job_id}`;
+        return !existingCandKeys.has(key) && !existingCandIds.has(a.id);
+      });
+
+      if (missingApps.length === 0) {
+        return candidatesData || [];
+      }
+
+      // Convert missing applications into Candidate format for instant HR visibility
+      const convertedApps = missingApps.map(a => ({
+        id: a.id,
+        name: a.name,
+        email: a.email,
+        phone: a.phone,
+        job_id: a.job_id,
+        role: (a as any).jobs?.title || a.specialty || "متقدم جديد",
+        stage: "تقديم الطلب",
+        status: a.status || "جديد",
+        experience: a.experience,
+        resume_url: a.resume_url,
+        skills: a.skills,
+        summary: a.cover_letter,
+        source: "رابط التقديم المباشر",
+        tracking_code: (a as any).tracking_code || null,
+        created_at: a.created_at,
+        candidate_scorecards: [],
+      }));
+
+      // Background persistence into candidates table
+      (async () => {
+        try {
+          const rowsToInsert = missingApps.map(a => ({
+            name: a.name,
+            email: a.email,
+            phone: a.phone,
+            job_id: a.job_id,
+            role: (a as any).jobs?.title || a.specialty || "متقدم جديد",
+            stage: "تقديم الطلب",
+            status: a.status || "جديد",
+            experience: a.experience,
+            resume_url: a.resume_url,
+            skills: a.skills,
+            summary: a.cover_letter,
+            source: "رابط التقديم المباشر",
+            tracking_code: (a as any).tracking_code || null,
+          }));
+          await supabase.from("candidates").insert(rowsToInsert as any);
+        } catch (e) {
+          console.warn("Background auto-sync candidates warning:", e);
+        }
+      })();
+
+      return [...(candidatesData || []), ...convertedApps];
     },
     enabled: !!user,
-    staleTime: 60 * 1000,
+    staleTime: 10 * 1000,
     gcTime: 5 * 60 * 1000,
   });
 }
@@ -162,18 +230,53 @@ export function usePaginatedCandidates(page = 0, pageSize = 50) {
     queryFn: async () => {
       const from = page * pageSize;
       const to = from + pageSize - 1;
-      const { data, error, count } = await supabase
+
+      const { data: candidatesData, error, count } = await supabase
         .from("candidates")
         .select("*, candidate_scorecards(rating)", { count: "exact" })
         .order("created_at", { ascending: false })
         .range(from, to);
+
       if (error) throw error;
-      return { data: data || [], count: count || 0, page, pageSize };
+
+      // Fetch applications to ensure no applied candidates are missed
+      const { data: appsData } = await supabase
+        .from("applications")
+        .select("*, jobs(title)")
+        .order("created_at", { ascending: false });
+
+      if (!appsData || appsData.length === 0) {
+        return { data: candidatesData || [], count: count || 0, page, pageSize };
+      }
+
+      const existingCandKeys = new Set((candidatesData || []).map(c => `${(c.email || "").toLowerCase()}_${c.job_id}`));
+      const missingApps = appsData.filter(a => !existingCandKeys.has(`${(a.email || "").toLowerCase()}_${a.job_id}`));
+
+      const convertedApps = missingApps.map(a => ({
+        id: a.id,
+        name: a.name,
+        email: a.email,
+        phone: a.phone,
+        job_id: a.job_id,
+        role: (a as any).jobs?.title || a.specialty || "متقدم جديد",
+        stage: "تقديم الطلب",
+        status: a.status || "جديد",
+        experience: a.experience,
+        resume_url: a.resume_url,
+        skills: a.skills,
+        summary: a.cover_letter,
+        source: "رابط التقديم المباشر",
+        tracking_code: (a as any).tracking_code || null,
+        created_at: a.created_at,
+        candidate_scorecards: [],
+      }));
+
+      const allMerged = [...(candidatesData || []), ...convertedApps];
+      return { data: allMerged, count: (count || 0) + convertedApps.length, page, pageSize };
     },
     enabled: !!user,
-    // Keep previous page visible while next loads → no flicker on pagination
     placeholderData: keepPreviousData,
-    staleTime: 60 * 1000,
+    staleTime: 10 * 1000,
     gcTime: 5 * 60 * 1000,
   });
 }

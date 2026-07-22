@@ -284,6 +284,27 @@ export default function ApplyJob() {
       console.warn("Application insert exception, proceeding with fallback code:", e);
     }
 
+    // Insert into candidates table so HR immediately sees candidate on Kanban pipeline & candidates page
+    try {
+      await supabase.from("candidates").insert({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        job_id: id,
+        role: job.title || form.specialty || "متقدم جديد",
+        stage: "تقديم الطلب",
+        status: "جديد",
+        experience: form.experience || null,
+        resume_url: resumeUrl,
+        skills: skills.length > 0 ? skills : null,
+        summary: form.coverLetter || null,
+        source: "رابط التقديم المباشر",
+        tracking_code: finalTrackingCode,
+      } as any);
+    } catch (e) {
+      console.warn("Direct candidate insert warning:", e);
+    }
+
     setTrackingCode(finalTrackingCode);
     setSubmitted(true);
     toast({ title: "تم إرسال طلبك بنجاح ✅" });
