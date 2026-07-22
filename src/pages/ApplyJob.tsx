@@ -253,6 +253,7 @@ export default function ApplyJob() {
 
     const payload: any = {
       job_id: id,
+      company_id: job?.company_id || null,
       name: form.name,
       email: form.email,
       phone: form.phone,
@@ -284,14 +285,16 @@ export default function ApplyJob() {
       console.warn("Application insert exception, proceeding with fallback code:", e);
     }
 
-    // Insert into candidates table so HR immediately sees candidate on Kanban pipeline & candidates page
+    // Insert into candidates table with job.user_id & job.company_id so RLS permits recruiter to see candidate
     try {
       await supabase.from("candidates").insert({
         name: form.name,
         email: form.email,
         phone: form.phone,
         job_id: id,
-        role: job.title || form.specialty || "متقدم جديد",
+        user_id: job?.user_id || null,
+        company_id: job?.company_id || null,
+        role: job?.title || form.specialty || "متقدم جديد",
         stage: "تقديم الطلب",
         status: "جديد",
         experience: form.experience || null,

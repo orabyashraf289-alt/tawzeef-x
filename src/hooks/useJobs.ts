@@ -191,28 +191,32 @@ export function useCandidates() {
       }));
 
       // Background persistence into candidates table
-      (async () => {
-        try {
-          const rowsToInsert = missingApps.map(a => ({
-            name: a.name,
-            email: a.email,
-            phone: a.phone,
-            job_id: a.job_id,
-            role: (a as any).jobs?.title || a.specialty || "متقدم جديد",
-            stage: "تقديم الطلب",
-            status: a.status || "جديد",
-            experience: a.experience,
-            resume_url: a.resume_url,
-            skills: a.skills,
-            summary: a.cover_letter,
-            source: "رابط التقديم المباشر",
-            tracking_code: (a as any).tracking_code || null,
-          }));
-          await supabase.from("candidates").insert(rowsToInsert as any);
-        } catch (e) {
-          console.warn("Background auto-sync candidates warning:", e);
-        }
-      })();
+      if (user?.id) {
+        (async () => {
+          try {
+            const rowsToInsert = missingApps.map(a => ({
+              name: a.name,
+              email: a.email,
+              phone: a.phone,
+              job_id: a.job_id,
+              user_id: user.id,
+              company_id: (a as any).company_id || null,
+              role: (a as any).jobs?.title || a.specialty || "متقدم جديد",
+              stage: "تقديم الطلب",
+              status: a.status || "جديد",
+              experience: a.experience,
+              resume_url: a.resume_url,
+              skills: a.skills,
+              summary: a.cover_letter,
+              source: "رابط التقديم المباشر",
+              tracking_code: (a as any).tracking_code || null,
+            }));
+            await supabase.from("candidates").insert(rowsToInsert as any);
+          } catch (e) {
+            console.warn("Background auto-sync candidates warning:", e);
+          }
+        })();
+      }
 
       return [...(candidatesData || []), ...convertedApps];
     },
