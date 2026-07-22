@@ -298,8 +298,60 @@ export default function CandidateProfile() {
   const { locale } = useI18n();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { data: candidates } = useCandidates();
-  const candidate = (candidates || []).find(c => c.id === id);
+  const { data: candidates, isLoading: isCandidatesLoading } = useCandidates();
+
+  // Direct database lookup fallback (by id or tracking_code) in case candidate isn't in memory yet
+  const { data: fetchedCandidate, isLoading: isFetchingDirect } = useQuery({
+    queryKey: ["candidate-detail-direct", id],
+    enabled: !!id,
+    queryFn: async () => {
+      if (!id) return null;
+      const cleanId = id.trim();
+
+      // 1. Try matching candidates table by id or tracking_code
+      const { data: cand } = await supabase
+        .from("candidates")
+        .select("*, candidate_scorecards(rating), jobs(title)")
+        .or(`id.eq.${cleanId},tracking_code.ilike.${cleanId}`)
+        .maybeSingle();
+
+      if (cand) return cand;
+
+      // 2. Try matching applications table by id or tracking_code
+      const { data: app } = await supabase
+        .from("applications")
+        .select("*, jobs(title)")
+        .or(`id.eq.${cleanId},tracking_code.ilike.${cleanId}`)
+        .maybeSingle();
+
+      if (app) {
+        return {
+          id: app.id,
+          name: app.name,
+          email: app.email,
+          phone: app.phone,
+          job_id: app.job_id,
+          user_id: app.user_id || null,
+          role: (app as any).jobs?.title || app.specialty || "متقدم جديد",
+          stage: "تقديم الطلب",
+          status: app.status || "جديد",
+          experience: app.experience,
+          resume_url: app.resume_url,
+          skills: app.skills,
+          summary: app.cover_letter,
+          source: "رابط التقديم المباشر",
+          tracking_code: (app as any).tracking_code || null,
+          created_at: app.created_at,
+          candidate_scorecards: [],
+        };
+      }
+
+      return null;
+    },
+  });
+
+  const candidate = (candidates || []).find(c => c.id === id || (c as any).tracking_code === id) || fetchedCandidate;
+  const isPageLoading = (isCandidatesLoading || isFetchingDirect) && !candidate;
 
   // Fetch E2E encryption status of recruiter's company
   const { data: companyData } = useQuery({
@@ -325,7 +377,7 @@ export default function CandidateProfile() {
 
   const [decryptedSalary, setDecryptedSalary] = useState<string>("");
   const [decryptedNotes, setDecryptedNotes] = useState<string>("");
-  const [isDecrypting, setIsDecrypting] = useState<boolean>(true);
+  const [isDecrypting, setIsDecrypting] = useState<boolean>(false);
   const [isEditingE2E, setIsEditingE2E] = useState<boolean>(false);
 
   useEffect(() => {
@@ -405,6 +457,26 @@ export default function CandidateProfile() {
     },
   });
 
+  // Render Loading Skeleton while querying database
+  if (isPageLoading) {
+    return (
+      <DashboardLayout>
+        <div className="p-4 lg:p-8 space-y-6 max-w-[1400px]">
+          <div className="h-6 bg-muted rounded w-32 animate-pulse" />
+          <div className="bg-card rounded-2xl border border-border/50 p-8 space-y-4 animate-pulse">
+            <div className="flex gap-4 items-center">
+              <div className="w-20 h-20 rounded-full bg-muted" />
+              <div className="space-y-2 flex-1">
+                <div className="h-6 bg-muted rounded w-48" />
+                <div className="h-4 bg-muted rounded w-32" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   if (!candidate) {
     return (
       <DashboardLayout>
@@ -414,7 +486,8 @@ export default function CandidateProfile() {
               <User className="w-8 h-8 text-muted-foreground/30" />
             </div>
             <h1 className="text-lg font-bold text-foreground">المرشح غير موجود</h1>
-            <Link to="/candidates" className="text-sm text-primary hover:underline">العودة للمرشحين</Link>
+            <p className="text-xs text-muted-foreground">تأكد من معرف المرشح أو عُد لقائمة المرشحين</p>
+            <Link to="/candidates" className="text-sm font-bold text-primary hover:underline block">العودة للمرشحين</Link>
           </motion.div>
         </div>
       </DashboardLayout>
