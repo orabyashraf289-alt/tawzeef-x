@@ -2259,7 +2259,7 @@ export default function SettingsPage() {
             transition={{ delay: 0.1 }}
             className="flex-1 min-w-0"
           >
-            <div className="bg-card rounded-2xl border border-border/50 p-5 sm:p-7 max-w-3xl">
+            <div className={cn("bg-card rounded-2xl border border-border/50 p-5 sm:p-7", activeTab === "pipeline" ? "w-full" : "max-w-4xl")}>
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}
