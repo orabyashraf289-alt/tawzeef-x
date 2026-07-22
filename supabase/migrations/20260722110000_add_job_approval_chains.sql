@@ -6,3 +6,6 @@ ADD COLUMN IF NOT EXISTS approval_chain text DEFAULT 'سلسلة موافقة ق
 UPDATE public.jobs
 SET approval_chain = 'سلسلة موافقة قياسية (مدير الموارد البشرية)'
 WHERE approval_chain IS NULL;
+
+-- Notify PostgREST to reload schema cache immediately
+NOTIFY pgrst, 'reload schema';

@@ -101,7 +101,16 @@ export function useAddJob() {
         approval_chain: job.approvalChain || "سلسلة موافقة قياسية (مدير الموارد البشرية)",
       };
 
-      const { data, error } = await supabase.from("jobs").insert(payload).select().single();
+      let { data, error } = await supabase.from("jobs").insert(payload).select().single();
+
+      // PostgREST Schema Cache fallback if approval_chain column is not yet cached by PostgREST
+      if (error && (error.message?.includes("approval_chain") || error.code === "PGRST204")) {
+        console.warn("approval_chain column missing in PostgREST schema cache, retrying without approval_chain:", error.message);
+        delete payload.approval_chain;
+        const retry = await supabase.from("jobs").insert(payload).select().single();
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (error) throw error;
 
@@ -174,7 +183,16 @@ export function useUpdateJob() {
         payload.approval_chain = job.approvalChain;
       }
 
-      const { data, error } = await supabase.from("jobs").update(payload).eq("id", id).select().single();
+      let { data, error } = await supabase.from("jobs").update(payload).eq("id", id).select().single();
+
+      if (error && (error.message?.includes("approval_chain") || error.code === "PGRST204")) {
+        console.warn("approval_chain column missing in PostgREST schema cache, retrying update without approval_chain:", error.message);
+        delete payload.approval_chain;
+        const retry = await supabase.from("jobs").update(payload).eq("id", id).select().single();
+        data = retry.data;
+        error = retry.error;
+      }
+
       if (error) throw error;
       return data;
     },
