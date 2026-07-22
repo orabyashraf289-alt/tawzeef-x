@@ -268,10 +268,19 @@ export default function ApplyJob() {
     let finalTrackingCode = generatedTrackingCode;
 
     try {
-      const { data: insertedApp, error } = await supabase.from("applications").insert(payload).select().single();
+      let { data: insertedApp, error } = await supabase.from("applications").insert(payload).select().single();
+
+      if (error && (error.message?.includes("tracking_code") || error.code === "PGRST204")) {
+        console.warn("tracking_code column missing in PostgREST schema cache, retrying insert without tracking_code:", error.message);
+        delete payload.tracking_code;
+        const retry = await supabase.from("applications").insert(payload).select().single();
+        insertedApp = retry.data;
+        error = retry.error;
+      }
 
       if (error) {
         // Fallback without .select() if PostgREST RLS prohibits select
+        delete payload.tracking_code;
         const { error: insertOnlyErr } = await supabase.from("applications").insert(payload);
         if (insertOnlyErr) {
           console.error("Application insert error:", insertOnlyErr);
