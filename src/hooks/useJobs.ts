@@ -69,6 +69,7 @@ export function useAddJob() {
       salaryMin?: string;
       salaryMax?: string;
       experience?: string;
+      approvalChain?: string;
     }) => {
       // Fetch user's primary company_id to attach to job
       let companyId: string | null = null;
@@ -85,7 +86,7 @@ export function useAddJob() {
         console.warn("Could not fetch company_id for job creation:", e);
       }
 
-      const { data, error } = await supabase.from("jobs").insert({
+      const payload: any = {
         user_id: user!.id,
         company_id: companyId,
         title: job.title,
@@ -97,7 +98,10 @@ export function useAddJob() {
         salary_min: job.salaryMin ? parseInt(job.salaryMin) : null,
         salary_max: job.salaryMax ? parseInt(job.salaryMax) : null,
         experience_level: job.experience || null,
-      }).select().single();
+        approval_chain: job.approvalChain || "سلسلة موافقة قياسية (مدير الموارد البشرية)",
+      };
+
+      const { data, error } = await supabase.from("jobs").insert(payload).select().single();
 
       if (error) throw error;
 
@@ -152,8 +156,9 @@ export function useUpdateJob() {
       salaryMin?: string;
       salaryMax?: string;
       experience?: string;
+      approvalChain?: string;
     }) => {
-      const { data, error } = await supabase.from("jobs").update({
+      const payload: any = {
         title: job.title,
         department: job.department,
         location: job.location,
@@ -163,7 +168,13 @@ export function useUpdateJob() {
         salary_min: job.salaryMin ? parseInt(job.salaryMin) : null,
         salary_max: job.salaryMax ? parseInt(job.salaryMax) : null,
         experience_level: job.experience || null,
-      }).eq("id", id).select().single();
+      };
+
+      if (job.approvalChain) {
+        payload.approval_chain = job.approvalChain;
+      }
+
+      const { data, error } = await supabase.from("jobs").update(payload).eq("id", id).select().single();
       if (error) throw error;
       return data;
     },

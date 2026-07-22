@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Sparkles, Loader2, Plus, Building2, MapPin, Award } from "lucide-react";
+import { X, Sparkles, Loader2, Plus, Building2, MapPin, Award, GitBranch, Workflow, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +22,7 @@ interface AddJobDialogProps {
     salaryMin: string;
     salaryMax: string;
     experience: string;
+    approvalChain?: string;
   }) => void;
   initialData?: {
     title?: string;
@@ -33,6 +34,7 @@ interface AddJobDialogProps {
     salaryMin?: string;
     salaryMax?: string;
     experience?: string;
+    approvalChain?: string;
   } | null;
   /** Label for the primary submit button. Defaults to "نشر الوظيفة". */
   submitLabel?: string;
@@ -46,9 +48,11 @@ export default function AddJobDialog({ open, onClose, onAdd, initialData, submit
     departmentNames,
     locationNames,
     experienceLevelNames,
+    approvalChains,
     addQuickDepartment,
     addQuickLocation,
-    addQuickExperienceLevel
+    addQuickExperienceLevel,
+    addQuickApprovalChain,
   } = useCompanyTaxonomy();
 
   const [form, setForm] = useState({
@@ -61,6 +65,7 @@ export default function AddJobDialog({ open, onClose, onAdd, initialData, submit
     salaryMin: "",
     salaryMax: "",
     experience: "",
+    approvalChain: "سلسلة موافقة قياسية (مدير الموارد البشرية)",
   });
 
   // Quick Inline Addition Inputs State
@@ -72,6 +77,9 @@ export default function AddJobDialog({ open, onClose, onAdd, initialData, submit
 
   const [newExpInput, setNewExpInput] = useState("");
   const [showAddExp, setShowAddExp] = useState(false);
+
+  const [newChainInput, setNewChainInput] = useState("");
+  const [showAddChain, setShowAddChain] = useState(false);
 
   // Populate form when initialData changes
   useEffect(() => {
@@ -86,6 +94,7 @@ export default function AddJobDialog({ open, onClose, onAdd, initialData, submit
         salaryMin: initialData.salaryMin || "",
         salaryMax: initialData.salaryMax || "",
         experience: initialData.experience || "",
+        approvalChain: initialData.approvalChain || "سلسلة موافقة قياسية (مدير الموارد البشرية)",
       });
     }
   }, [initialData, open]);
@@ -179,6 +188,17 @@ export default function AddJobDialog({ open, onClose, onAdd, initialData, submit
     }
   };
 
+  const handleCreateQuickChain = () => {
+    if (!newChainInput.trim()) return;
+    const added = addQuickApprovalChain(newChainInput);
+    if (added) {
+      setForm(f => ({ ...f, approvalChain: added }));
+      setNewChainInput("");
+      setShowAddChain(false);
+      toast({ title: `تمت إضافة سلسلة موافقة "${added}" واختيارها بنجاح ✅` });
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim() || !form.department || !form.location || !form.type) {
@@ -186,16 +206,18 @@ export default function AddJobDialog({ open, onClose, onAdd, initialData, submit
       return;
     }
     onAdd(form);
-    setForm({ title: "", department: "", location: "", type: "", description: "", requirements: "", salaryMin: "", salaryMax: "", experience: "" });
+    onClose();
   };
 
+  const selectedChainObj = approvalChains.find(c => c.name === form.approvalChain);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* Dialog */}
-      <div className="relative bg-card rounded-2xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4 animate-fade-up">
+      <div className="relative bg-card rounded-2xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-fade-up">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border sticky top-0 bg-card rounded-t-2xl z-10">
           <h2 className="text-xl font-display font-bold">{initialData ? "تعديل الوظيفة" : "إضافة وظيفة جديدة"}</h2>
@@ -338,6 +360,72 @@ export default function AddJobDialog({ open, onClose, onAdd, initialData, submit
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Job Approval Chain / Workflow Selection */}
+          <div className="p-4 rounded-xl border border-indigo-500/20 bg-indigo-500/5 space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-bold flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300">
+                <GitBranch className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                سلسلة / مسار الموافقات المخصص لهذه الوظيفة
+              </Label>
+              <button
+                type="button"
+                onClick={() => setShowAddChain(!showAddChain)}
+                className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5 font-bold"
+              >
+                <Plus className="w-3 h-3" /> {showAddChain ? "إلغاء" : "سلسلة جديدة"}
+              </button>
+            </div>
+
+            <Select value={form.approvalChain} onValueChange={(v) => setForm(f => ({ ...f, approvalChain: v }))}>
+              <SelectTrigger className="h-10 text-xs bg-card border-indigo-200 dark:border-indigo-900/50">
+                <SelectValue placeholder="اختر سلسلة الموافقة المطبقة" />
+              </SelectTrigger>
+              <SelectContent>
+                {approvalChains.map(c => (
+                  <SelectItem key={c.id} value={c.name}>
+                    <div className="flex items-center justify-between w-full gap-2">
+                      <span className="font-semibold text-xs">{c.name}</span>
+                      {c.badge && <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">{c.badge}</span>}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {showAddChain && (
+              <div className="flex gap-1 pt-1">
+                <Input
+                  value={newChainInput}
+                  onChange={(e) => setNewChainInput(e.target.value)}
+                  placeholder="اسم سلسلة الموافقة مخصصة (مثال: موافقة المدير المالي والـ HR)..."
+                  className="h-8 text-xs bg-card"
+                  autoFocus
+                />
+                <Button type="button" size="sm" onClick={handleCreateQuickChain} className="h-8 px-3 text-xs bg-indigo-600 text-white shrink-0 font-bold">إضافة</Button>
+              </div>
+            )}
+
+            {/* Approval Chain Visual Steps Indicator */}
+            {selectedChainObj && (
+              <div className="pt-2 border-t border-indigo-500/10">
+                <p className="text-[11px] text-muted-foreground mb-1.5 font-medium">{selectedChainObj.description}</p>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {selectedChainObj.steps.map((step, idx) => (
+                    <div key={idx} className="flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-card border border-indigo-200 dark:border-indigo-800 text-[11px] font-semibold text-indigo-900 dark:text-indigo-200 shadow-sm">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                        {idx + 1}. {step}
+                      </span>
+                      {idx < selectedChainObj.steps.length - 1 && (
+                        <span className="text-muted-foreground text-xs font-bold">➔</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Salary Range */}

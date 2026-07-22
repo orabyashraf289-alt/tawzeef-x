@@ -26,6 +26,14 @@ export interface ExperienceLevelItem {
   badge?: string;
 }
 
+export interface ApprovalChainItem {
+  id: string;
+  name: string;
+  steps: string[];
+  description?: string;
+  badge?: string;
+}
+
 export const DEFAULT_DEPARTMENTS: DepartmentItem[] = [
   { id: "dept-1", name: "التقنية والبرمجة", code: "TECH", color: "#6366f1", head: "مدير تقني" },
   { id: "dept-2", name: "الموارد البشرية", code: "HR", color: "#ec4899", head: "مدير HR" },
@@ -53,6 +61,44 @@ export const DEFAULT_EXPERIENCE_LEVELS: ExperienceLevelItem[] = [
   { id: "exp-4", name: "خبير (Senior Level)", minYears: 5, maxYears: 8, badge: "5-8 سنوات" },
   { id: "exp-5", name: "قائد فريق / مدير (Lead / Manager)", minYears: 8, maxYears: 12, badge: "+8 سنوات" },
   { id: "exp-6", name: "تنفيذي / مدير قطاع (Executive / Director)", minYears: 12, maxYears: 20, badge: "+12 سنة" },
+];
+
+export const DEFAULT_APPROVAL_CHAINS: ApprovalChainItem[] = [
+  {
+    id: "chain-1",
+    name: "سلسلة موافقة قياسية (مدير الموارد البشرية)",
+    steps: ["مدير الموارد البشرية (HR Manager)"],
+    description: "موافقة خطوة واحدة قياسية من مسؤول الموارد البشرية",
+    badge: "خطوة واحدة",
+  },
+  {
+    id: "chain-2",
+    name: "سلسلة موافقة ثنائية (مدير القسم + الموارد البشرية)",
+    steps: ["مدير القسم المعني (Department Head)", "مدير الموارد البشرية (HR Manager)"],
+    description: "موافقة ثنائية تتطلب اعتماد مدير القسم والـ HR",
+    badge: "موافقة ثنائية",
+  },
+  {
+    id: "chain-3",
+    name: "سلسلة موافقة ثلاثية (مدير القسم + HR + المدير التنفيذي)",
+    steps: ["مدير القسم", "مدير الموارد البشرية", "المدير التنفيذي (CEO)"],
+    description: "موافقة ثلاثية للوظائف القيادية والتنفيذية",
+    badge: "موافقة ثلاثية",
+  },
+  {
+    id: "chain-4",
+    name: "سلسلة موافقة سريعة تلقائية (نشر فورياً)",
+    steps: ["نشر فوري تلقائي"],
+    description: "تعتمد الوظيفة وتُنشر فوراً دون انتظار موافقات",
+    badge: "تلقائي فوراً",
+  },
+  {
+    id: "chain-5",
+    name: "سلسلة موافقة مالية وتنفيذية (للوظائف العليا)",
+    steps: ["المدير المالي (CFO)", "المدير التنفيذي (CEO)"],
+    description: "تعتمد الاعتمادات المالية والميزانية المخصصة للوظيفة",
+    badge: "مالي + تنفيذي",
+  },
 ];
 
 export function useCompanyTaxonomy() {
@@ -83,6 +129,15 @@ export function useCompanyTaxonomy() {
     }
   });
 
+  const [approvalChains, setApprovalChains] = useState<ApprovalChainItem[]>(() => {
+    try {
+      const saved = localStorage.getItem("company_approval_chains");
+      return saved ? JSON.parse(saved) : DEFAULT_APPROVAL_CHAINS;
+    } catch {
+      return DEFAULT_APPROVAL_CHAINS;
+    }
+  });
+
   // Listen for storage updates across tabs or within window
   useEffect(() => {
     const handleStorageChange = () => {
@@ -95,6 +150,9 @@ export function useCompanyTaxonomy() {
 
         const savedExp = localStorage.getItem("company_experience_levels");
         if (savedExp) setExperienceLevels(JSON.parse(savedExp));
+
+        const savedChain = localStorage.getItem("company_approval_chains");
+        if (savedChain) setApprovalChains(JSON.parse(savedChain));
       } catch {}
     };
 
@@ -140,7 +198,7 @@ export function useCompanyTaxonomy() {
     const newExp: ExperienceLevelItem = {
       id: `exp-${Date.now()}`,
       name: name.trim(),
-      badge: "خبرة مخصصة",
+      badge: "مخصص",
     };
     setExperienceLevels(prev => {
       const updated = [...prev, newExp];
@@ -148,6 +206,24 @@ export function useCompanyTaxonomy() {
       return updated;
     });
     return newExp.name;
+  }, []);
+
+  const addQuickApprovalChain = useCallback((name: string, steps?: string[]) => {
+    if (!name.trim()) return;
+    const parsedSteps = steps && steps.length > 0 ? steps : [name.trim()];
+    const newChain: ApprovalChainItem = {
+      id: `chain-${Date.now()}`,
+      name: name.trim(),
+      steps: parsedSteps,
+      description: "سلسلة موافقة مخصصة جديدة",
+      badge: `${parsedSteps.length} مرحلة`,
+    };
+    setApprovalChains(prev => {
+      const updated = [...prev, newChain];
+      try { localStorage.setItem("company_approval_chains", JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+    return newChain.name;
   }, []);
 
   return {

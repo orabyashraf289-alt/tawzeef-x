@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Briefcase, MapPin, Clock, Plus, Search, TrendingUp, LayoutGrid, List, QrCode, Archive, RotateCcw, Filter, X, Copy, Pencil, Trash2, Share2, Crown, Linkedin, Calendar, UserCheck, Workflow, Loader2 } from "lucide-react";
+import { Briefcase, MapPin, Clock, Plus, Search, TrendingUp, LayoutGrid, List, QrCode, Archive, RotateCcw, Filter, X, Copy, Pencil, Trash2, Share2, Crown, Linkedin, Calendar, UserCheck, Workflow, Loader2, GitBranch } from "lucide-react";
 import { useStageMutations, STAGE_TEMPLATES } from "@/hooks/usePipelineStages";
 
 import { Button } from "@/components/ui/button";
@@ -549,6 +549,12 @@ export default function Jobs() {
                       <div className="flex items-center gap-2"><Briefcase className="w-3.5 h-3.5 text-primary/50" /><span>{job.department}</span></div>
                       <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-primary/50" /><span>{job.location}</span></div>
                       <div className="flex items-center gap-2"><Clock className="w-3.5 h-3.5 text-primary/50" /><span>{job.type}</span></div>
+                      {(job.approval_chain || (job as any).approvalChain) && (
+                        <div className="flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 font-medium bg-indigo-50 dark:bg-indigo-950/40 p-1.5 rounded-lg border border-indigo-100 dark:border-indigo-900/50">
+                          <GitBranch className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">سلسلة الموافقة: {job.approval_chain || (job as any).approvalChain}</span>
+                        </div>
+                      )}
                       {job.salary_min && job.salary_max && (
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
