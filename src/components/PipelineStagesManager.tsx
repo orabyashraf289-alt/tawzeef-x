@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   usePipelineStages, useStageMutations,
   type PipelineStage, STAGE_TEMPLATES,
@@ -18,7 +18,7 @@ import {
   FileText, FileSearch, Phone, Code, Users, Briefcase, Circle,
   LayoutTemplate, Download, Upload,
   Mail, Target, Award, Heart, ThumbsUp, AlertTriangle,
-  Eye, Star, Timer,
+  Eye, Star, Timer, Search, SlidersHorizontal, List, Kanban, Save, ArrowUpDown
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -114,6 +114,7 @@ function TemplatesSection({ onApply }: { onApply: (stages: { name: string; color
 /* ─── Main Manager ─── */
 export default function PipelineStagesManager() {
   const { data: stages = [], isLoading } = usePipelineStages();
+  const { data: candidates = [] } = useCandidates();
   const { addStage, deleteStage, applyTemplate, reorderStages } = useStageMutations();
 
   const handleReorder = useCallback((reordered: { id: string; sort_order: number }[]) => {
@@ -127,8 +128,33 @@ export default function PipelineStagesManager() {
   const [newColor, setNewColor] = useState(COLORS[0]);
   const [newIcon, setNewIcon] = useState("circle");
   const [deleteTarget, setDeleteTarget] = useState<PipelineStage | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"stepper" | "list">("stepper");
 
-  const sortedStages = [...stages].sort((a, b) => a.sort_order - b.sort_order);
+  const candidateCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    (candidates || []).forEach((c: any) => {
+      map[c.stage] = (map[c.stage] || 0) + 1;
+    });
+    return map;
+  }, [candidates]);
+
+  const sortedStages = useMemo(() => {
+    return [...stages].sort((a, b) => a.sort_order - b.sort_order);
+  }, [stages]);
+
+  const filteredStages = useMemo(() => {
+    if (!searchQuery.trim()) return sortedStages;
+    return sortedStages.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase().trim()));
+  }, [sortedStages, searchQuery]);
+
+  const enrichedStages = useMemo(() => {
+    return filteredStages.map(s => ({
+      ...s,
+      candidate_count: candidateCounts[s.name] || 0,
+    }));
+  }, [filteredStages, candidateCounts]);
+
   const selectedStage = sortedStages.find(s => s.id === selectedStageId);
 
   const handleAdd = async () => {
@@ -176,55 +202,148 @@ export default function PipelineStagesManager() {
       {/* Templates */}
       <TemplatesSection onApply={handleApplyTemplate} />
 
-      {/* Export / Import */}
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => {
-          const exportData = sortedStages.map(s => ({
-            name: s.name, color: s.color, icon: s.icon, sort_order: s.sort_order,
-            is_default: s.is_default, transition_rules: s.transition_rules, automation_rules: s.automation_rules,
-          }));
-          const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a"); a.href = url; a.download = "pipeline-stages.json"; a.click();
-          URL.revokeObjectURL(url);
-          toast({ title: "تم التصدير 📁" });
-        }}>
-          <Download className="w-3.5 h-3.5" /> تصدير
-        </Button>
-        <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => {
-          const input = document.createElement("input"); input.type = "file"; input.accept = ".json";
-          input.onchange = async (e) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            if (!file) return;
-            try {
-              const text = await file.text();
-              const imported = JSON.parse(text);
-              if (!Array.isArray(imported) || imported.length === 0) throw new Error("Invalid");
-              const stgs = imported.map((s: any, i: number) => ({ name: s.name, color: s.color || "#6366f1", icon: s.icon || "circle", sort_order: i }));
-              await applyTemplate.mutateAsync(stgs);
-              toast({ title: `تم استيراد ${stgs.length} مراحل ✅` });
-            } catch { toast({ title: "خطأ في الملف", variant: "destructive" }); }
-          };
-          input.click();
-        }}>
-          <Upload className="w-3.5 h-3.5" /> استيراد
-        </Button>
+      {/* Toolbar: Search & Export/Import & View Toggle */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-1 max-w-sm">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="بحث في مراحل التوظيف..."
+              className="ps-9 h-9 text-xs"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-muted/60 p-1 rounded-lg border border-border/50">
+            <Button
+              variant={viewMode === "stepper" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 text-xs px-2.5 gap-1.5"
+              onClick={() => setViewMode("stepper")}
+            >
+              <Kanban className="w-3.5 h-3.5" /> مخطط
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 text-xs px-2.5 gap-1.5"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="w-3.5 h-3.5" /> قائمة
+            </Button>
+          </div>
+
+          <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs" onClick={() => {
+            const exportData = sortedStages.map(s => ({
+              name: s.name, color: s.color, icon: s.icon, sort_order: s.sort_order,
+              is_default: s.is_default, transition_rules: s.transition_rules, automation_rules: s.automation_rules,
+            }));
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a"); a.href = url; a.download = "pipeline-stages.json"; a.click();
+            URL.revokeObjectURL(url);
+            toast({ title: "تم التصدير 📁" });
+          }}>
+            <Download className="w-3.5 h-3.5" /> تصدير
+          </Button>
+          <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs" onClick={() => {
+            const input = document.createElement("input"); input.type = "file"; input.accept = ".json";
+            input.onchange = async (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (!file) return;
+              try {
+                const text = await file.text();
+                const imported = JSON.parse(text);
+                if (!Array.isArray(imported) || imported.length === 0) throw new Error("Invalid");
+                const stgs = imported.map((s: any, i: number) => ({ name: s.name, color: s.color || "#6366f1", icon: s.icon || "circle", sort_order: i }));
+                await applyTemplate.mutateAsync(stgs);
+                toast({ title: `تم استيراد ${stgs.length} مراحل ✅` });
+              } catch { toast({ title: "خطأ في الملف", variant: "destructive" }); }
+            };
+            input.click();
+          }}>
+            <Upload className="w-3.5 h-3.5" /> استيراد
+          </Button>
+        </div>
       </div>
 
-      {/* Horizontal Stepper */}
-      <Card>
-        <CardContent className="p-2">
-          <PipelineStepper
-            stages={sortedStages}
-            selectedStageId={selectedStageId}
-            onStageClick={(id) => setSelectedStageId(selectedStageId === id ? null : id)}
-            showAddButton
-            onAddClick={() => setShowAdd(true)}
-            draggable
-            onReorder={handleReorder}
-          />
-        </CardContent>
-      </Card>
+      {/* Main View Display */}
+      {viewMode === "stepper" ? (
+        <Card>
+          <CardContent className="p-2">
+            <PipelineStepper
+              stages={enrichedStages}
+              selectedStageId={selectedStageId}
+              onStageClick={(id) => setSelectedStageId(selectedStageId === id ? null : id)}
+              showAddButton
+              onAddClick={() => setShowAdd(true)}
+              draggable
+              onReorder={handleReorder}
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center justify-between pb-2 border-b border-border/50 text-xs font-semibold text-muted-foreground">
+              <span>اسم المرحلة والترتيب</span>
+              <span>المرشحون الحاليون</span>
+              <span>الاشتراطات والأتمتة</span>
+              <span>الحد الأقصى (SLA)</span>
+            </div>
+            {enrichedStages.map((stg, i) => (
+              <div
+                key={stg.id}
+                onClick={() => setSelectedStageId(selectedStageId === stg.id ? null : stg.id)}
+                className={cn(
+                  "flex items-center justify-between p-3 rounded-xl border border-border/50 hover:bg-muted/40 cursor-pointer transition-all",
+                  selectedStageId === stg.id && "border-primary bg-primary/5"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-muted-foreground w-5">{i + 1}.</span>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: stg.color + "20" }}>
+                    <IconComponent icon={stg.icon} className="w-4 h-4" style={{ color: stg.color }} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                      {stg.name}
+                      {stg.is_default && <span className="text-[10px] px-1.5 py-0.2 rounded bg-primary/10 text-primary">افتراضي</span>}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-xs font-bold text-foreground">
+                  {stg.candidate_count} مرشح
+                </div>
+
+                <div className="flex items-center gap-1 text-xs">
+                  {stg.transition_rules?.require_ai_evaluation && (
+                    <span className="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 text-[10px] font-semibold">🤖 تقييم AI</span>
+                  )}
+                  {stg.transition_rules?.require_interview && (
+                    <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 text-[10px] font-semibold">🎥 مقابلة</span>
+                  )}
+                  {stg.transition_rules?.require_assessment && (
+                    <span className="px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 text-[10px] font-semibold">📝 اختبار</span>
+                  )}
+                  {!stg.transition_rules?.require_ai_evaluation && !stg.transition_rules?.require_interview && !stg.transition_rules?.require_assessment && (
+                    <span className="text-muted-foreground/50 text-[11px]">بدون شروط</span>
+                  )}
+                </div>
+
+                <div className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                  {stg.sla_hours ? `${stg.sla_hours} ساعة` : "غير محدد"}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Add New Stage */}
       {showAdd && (

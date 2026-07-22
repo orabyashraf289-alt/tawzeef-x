@@ -23,6 +23,9 @@ export interface StepperStage {
   color: string;
   is_active: boolean;
   is_default: boolean;
+  sla_hours?: number;
+  transition_rules?: any;
+  candidate_count?: number;
 }
 
 interface PipelineStepperProps {
@@ -129,12 +132,17 @@ export default function PipelineStepper({
                   </div>
                 )}
 
+                {/* Step Number Pill */}
+                <div className="absolute -top-2 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-muted/90 border border-border text-[9px] font-bold text-muted-foreground z-10 shadow-2xs">
+                  {idx + 1}
+                </div>
+
                 {/* Circle */}
                 <div
                   className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300",
+                    "w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 relative",
                     isSelected
-                      ? "border-primary bg-primary/10 shadow-md shadow-primary/20"
+                      ? "border-primary bg-primary/10 shadow-md shadow-primary/20 scale-105"
                       : "border-border bg-card hover:border-primary/40 hover:shadow-sm",
                     isDragOver && "border-primary/60 ring-2 ring-primary/20",
                   )}
@@ -144,11 +152,18 @@ export default function PipelineStepper({
                     className="w-5 h-5"
                     style={{ color: isSelected ? "hsl(var(--primary))" : stage.color }}
                   />
+
+                  {/* Candidate Count Badge */}
+                  {stage.candidate_count != null && stage.candidate_count > 0 && (
+                    <div className="absolute -bottom-1 -end-1 px-1.5 py-0.2 rounded-full bg-primary text-primary-foreground text-[9px] font-bold shadow-xs">
+                      {stage.candidate_count}
+                    </div>
+                  )}
                 </div>
 
                 {/* Default indicator */}
                 {stage.is_default && (
-                  <div className="absolute -top-1 -end-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                  <div className="absolute -top-1 -end-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center title='مرحلة افتراضية'">
                     <CheckCircle className="w-3 h-3 text-primary-foreground" />
                   </div>
                 )}
@@ -156,12 +171,30 @@ export default function PipelineStepper({
                 {/* Name */}
                 <span
                   className={cn(
-                    "text-xs font-medium text-center max-w-[80px] leading-tight transition-colors",
-                    isSelected ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                    "text-xs font-medium text-center max-w-[85px] leading-tight transition-colors",
+                    isSelected ? "text-primary font-bold" : "text-muted-foreground group-hover:text-foreground"
                   )}
                 >
                   {stage.name}
                 </span>
+
+                {/* SLA and Rule Badges */}
+                <div className="flex items-center gap-1 mt-0.5">
+                  {stage.sla_hours != null && stage.sla_hours > 0 && (
+                    <span className="text-[9px] font-medium px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                      {stage.sla_hours}س
+                    </span>
+                  )}
+                  {stage.transition_rules?.require_ai_evaluation && (
+                    <span className="text-[9px] text-purple-500" title="تقييم AI مطلوب">🤖</span>
+                  )}
+                  {stage.transition_rules?.require_interview && (
+                    <span className="text-[9px] text-amber-500" title="مقابلة مطلوبة">🎥</span>
+                  )}
+                  {stage.transition_rules?.require_assessment && (
+                    <span className="text-[9px] text-green-500" title="اختبار مطلوب">📝</span>
+                  )}
+                </div>
               </motion.button>
 
               {/* Connector line */}
