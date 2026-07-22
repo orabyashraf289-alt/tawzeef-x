@@ -1,0 +1,27 @@
+{
+  "projectId": "c4a430f1-0bf0-4c92-90e5-562100ed1f04",
+  "type": "frontend",
+  "name": "Auth Page — can toggle between login and signup modes",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navigate to /auth"
+    },
+    {
+      "type": "assertion",
+      "description": "The login form is displayed with email and password fields"
+    },
+    {
+      "type": "action",
+      "description": "Click the link or button that contains 'إنشاء حساب' or 'حساب جديد' or 'التسجيل' to switch to signup mode"
+    },
+    {
+      "type": "assertion",
+      "description": "A full name input field is now visible on the page"
+    },
+    {
+      "type": "assertion",
+      "description": "An account type selector with options for 'شركة' (company) or 'باحث عن عمل' (job seeker) is visible"
+    }
+  ]
+}

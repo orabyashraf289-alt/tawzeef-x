@@ -12,9 +12,6 @@ import { useActiveStages } from "@/hooks/usePipelineStages";
 import { useOffers } from "@/hooks/useOffers";
 import { useMyCompanies, useCompanyBranches } from "@/hooks/useCompanies";
 import { useI18n } from "@/contexts/I18nContext";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
-import * as XLSX from "xlsx";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import DateRangeFilter, { type DateRange } from "@/components/reports/DateRangeFilter";
@@ -438,6 +435,9 @@ export default function Reports() {
     });
 
     try {
+      const { default: html2canvas } = await import("html2canvas");
+      const { default: jsPDF } = await import("jspdf");
+
       const canvas = await html2canvas(reportRef.current, {
         scale: 1.5,
         useCORS: true,
@@ -484,7 +484,8 @@ export default function Reports() {
   };
 
   // Excel Export
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
+    const XLSX = await import("xlsx");
     const wb = XLSX.utils.book_new();
 
     const candidatesSheet = allCandidates.map(c => ({

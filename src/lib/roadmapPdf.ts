@@ -1,5 +1,3 @@
-import jsPDF from "jspdf";
-
 interface PhaseData {
   title: string;
   timeline: string;
@@ -16,7 +14,8 @@ interface RoadmapPdfOptions {
   overallStats: { total: number; done: number; percent: number };
 }
 
-export function generateRoadmapPdf({ phases, maintenanceTasks, locale, overallStats }: RoadmapPdfOptions) {
+export async function generateRoadmapPdf({ phases, maintenanceTasks, locale, overallStats }: RoadmapPdfOptions) {
+  const { default: jsPDF } = await import("jspdf");
   const isAr = locale !== "en";
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageW = 210;

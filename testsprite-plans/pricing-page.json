@@ -1,0 +1,27 @@
+{
+  "projectId": "c4a430f1-0bf0-4c92-90e5-562100ed1f04",
+  "type": "frontend",
+  "name": "Pricing Page — displays pricing tiers with plan details",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navigate to /pricing"
+    },
+    {
+      "type": "assertion",
+      "description": "The page displays a heading containing 'الأسعار' or 'الباقات' or 'Pricing'"
+    },
+    {
+      "type": "assertion",
+      "description": "At least 2 pricing cards or plan sections are visible on the page"
+    },
+    {
+      "type": "assertion",
+      "description": "Each pricing card shows a price value (a number) and a currency indicator (ر.س or SAR or $)"
+    },
+    {
+      "type": "assertion",
+      "description": "At least one card has a CTA button with text like 'ابدأ' or 'اشترك' or 'اختر' or 'جرب'"
+    }
+  ]
+}

@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     if (endpointsError) throw endpointsError;
 
     // Also check linkedin_settings for job.created events
-    let linkedinTargets: { url: string }[] = [];
+    const linkedinTargets: { url: string }[] = [];
     if (event_type === "job.created") {
       const { data: linkedinData } = await supabaseAdmin
         .from("linkedin_settings")

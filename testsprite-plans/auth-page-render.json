@@ -1,0 +1,27 @@
+{
+  "projectId": "c4a430f1-0bf0-4c92-90e5-562100ed1f04",
+  "type": "frontend",
+  "name": "Auth Page — login form renders with email and password fields",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navigate to /auth"
+    },
+    {
+      "type": "assertion",
+      "description": "An email input field of type 'email' is visible on the page"
+    },
+    {
+      "type": "assertion",
+      "description": "A password input field of type 'password' is visible on the page"
+    },
+    {
+      "type": "assertion",
+      "description": "A submit button with text containing 'دخول' or 'تسجيل الدخول' is visible"
+    },
+    {
+      "type": "assertion",
+      "description": "A link or button with text containing 'نسيت كلمة المرور' or 'Forgot' is visible"
+    }
+  ]
+}

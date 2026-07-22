@@ -1,0 +1,19 @@
+{
+  "projectId": "c4a430f1-0bf0-4c92-90e5-562100ed1f04",
+  "type": "frontend",
+  "name": "404 Page — invalid route shows not-found page with return link",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navigate to /this-page-does-not-exist-xyz"
+    },
+    {
+      "type": "assertion",
+      "description": "The page displays '404' text or a 'الصفحة غير موجودة' or 'Page Not Found' message"
+    },
+    {
+      "type": "assertion",
+      "description": "A link or button to return to the home page (/ or /auth) is visible"
+    }
+  ]
+}

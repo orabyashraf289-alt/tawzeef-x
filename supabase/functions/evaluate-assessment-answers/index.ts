@@ -133,7 +133,9 @@ async function getResponseError(response: Response): Promise<string> {
     try {
       const text = await response.clone().text();
       if (text) return text.slice(0, 200);
-    } catch {}
+    } catch (err) {
+      console.warn("Failed to parse response text:", err);
+    }
   }
   return "خطأ غير معروف في الذكاء الاصطناعي";
 }

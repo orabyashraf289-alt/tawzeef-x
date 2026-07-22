@@ -1,34 +1,34 @@
 project_id = "rlfewneisuezsamhosct"
 
 [functions.chat]
-verify_jwt = false
+verify_jwt = true
 
 [functions.evaluate-candidate]
-verify_jwt = false
+verify_jwt = true
 
 [functions.candidate-portal]
 verify_jwt = false
 
 [functions.book-interview]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-invitation]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-webhook]
-verify_jwt = false
+verify_jwt = true
 
 [functions.elevenlabs-transcribe]
-verify_jwt = false
+verify_jwt = true
 
 [functions.notify-stage-change]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-email]
-verify_jwt = false
+verify_jwt = true
 
 [functions.manage-smtp]
-verify_jwt = false
+verify_jwt = true
 
 [functions.interview-reminders]
 verify_jwt = false
@@ -40,19 +40,19 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.parse-resume]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-application-confirmation]
-verify_jwt = false
+verify_jwt = true
 
 [functions.auto-rank]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-job-description]
-verify_jwt = false
+verify_jwt = true
 
 [functions.elevenlabs-tts]
-verify_jwt = false
+verify_jwt = true
 
 [functions.request-login-otp]
 verify_jwt = false
@@ -61,16 +61,16 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.generate-interview-questions]
-verify_jwt = false
+verify_jwt = true
 
 [functions.analyze-sentiment]
-verify_jwt = false
+verify_jwt = true
 
 [functions.evaluate-assessment-answers]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-assessment-results]
-verify_jwt = false
+verify_jwt = true
 
 [functions.email-tracking-pixel]
 verify_jwt = false

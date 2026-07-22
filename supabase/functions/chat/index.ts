@@ -477,7 +477,7 @@ async function handleToolCall(tc: any, userId: string): Promise<{ result: string
       const upcomingInterviewsCount = interviewsR.data?.length || 0;
       const pendingOffersCount = offersR.data?.length || 0;
 
-      let briefingText = `مرحباً بك يا مدير التوظيف. إليك التقرير الصوتي ${briefing_type === "weekly" ? "الأسبوعي" : "اليومي"} لحالة منصة توظيف-إكس: لدينا حالياً ${activeJobsCount} وظائف نشطة يستقبل النظام طلباتها. إجمالي المرشحين النشطين في المراحل المختلفة هو ${activeCandidatesCount} مرشحاً. بالنسبة للمقابلات، هناك ${upcomingInterviewsCount} مقابلات مجدولة خلال الأيام السبعة القادمة. ولدينا ${pendingOffersCount} عروض عمل معلقة بانتظار ردود المرشحين. نوصي بمتابعة المقابلات القادمة اليوم لحسم التعيينات. أتمنى لك يوماً موفقاً!`;
+      const briefingText = `مرحباً بك يا مدير التوظيف. إليك التقرير الصوتي ${briefing_type === "weekly" ? "الأسبوعي" : "اليومي"} لحالة منصة توظيف-إكس: لدينا حالياً ${activeJobsCount} وظائف نشطة يستقبل النظام طلباتها. إجمالي المرشحين النشطين في المراحل المختلفة هو ${activeCandidatesCount} مرشحاً. بالنسبة للمقابلات، هناك ${upcomingInterviewsCount} مقابلات مجدولة خلال الأيام السبعة القادمة. ولدينا ${pendingOffersCount} عروض عمل معلقة بانتظار ردود المرشحين. نوصي بمتابعة المقابلات القادمة اليوم لحسم التعيينات. أتمنى لك يوماً موفقاً!`;
 
       const briefingData = {
         briefingText,
@@ -1154,7 +1154,9 @@ async function getResponseError(response: Response): Promise<string> {
     try {
       const text = await response.clone().text();
       if (text) return text.slice(0, 200);
-    } catch {}
+    } catch (err) {
+      console.warn("Failed to parse response text:", err);
+    }
   }
   return "خطأ غير معروف في الذكاء الاصطناعي";
 }

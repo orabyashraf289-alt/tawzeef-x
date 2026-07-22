@@ -1,5 +1,3 @@
-import jsPDF from "jspdf";
-
 interface KpiData {
   candidates: any[];
   jobs: any[];
@@ -9,7 +7,8 @@ interface KpiData {
 
 const AVG_COST_PER_HIRE = 2500;
 
-export function generateHiringKpiPdf({ candidates, jobs, offers, locale }: KpiData) {
+export async function generateHiringKpiPdf({ candidates, jobs, offers, locale }: KpiData) {
+  const { default: jsPDF } = await import("jspdf");
   const isAr = locale !== "en";
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageW = 210;

@@ -1,0 +1,31 @@
+{
+  "projectId": "c4a430f1-0bf0-4c92-90e5-562100ed1f04",
+  "type": "frontend",
+  "name": "Navigation — header links navigate to correct pages",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navigate to /"
+    },
+    {
+      "type": "assertion",
+      "description": "The navigation bar contains links for 'المميزات' or 'Features', 'الأسعار' or 'Pricing', 'المدونة' or 'Blog', and 'تسجيل الدخول' or 'Login'"
+    },
+    {
+      "type": "action",
+      "description": "Click the link containing 'المميزات' or 'Features' in the navigation"
+    },
+    {
+      "type": "assertion",
+      "description": "The URL changes to /features and the features page heading is visible"
+    },
+    {
+      "type": "action",
+      "description": "Navigate back to / and click the 'الأسعار' or 'Pricing' link"
+    },
+    {
+      "type": "assertion",
+      "description": "The URL changes to /pricing and pricing content is visible"
+    }
+  ]
+}

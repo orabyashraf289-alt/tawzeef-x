@@ -40,7 +40,7 @@ serve(async (req) => {
       if (matchedCandidates.length > 0) {
         // Fetch job titles
         const jobIds = [...new Set(matchedCandidates.filter(c => c.job_id).map(c => c.job_id))];
-        let jobsMap: Record<string, string> = {};
+        const jobsMap: Record<string, string> = {};
         if (jobIds.length > 0) {
           const { data: jobs } = await supabase.from("jobs").select("id, title").in("id", jobIds);
           if (jobs) {
@@ -116,7 +116,7 @@ serve(async (req) => {
 
     // Fetch job titles for matched candidates
     const jobIds = [...new Set(candidates.filter(c => c.job_id).map(c => c.job_id))];
-    let jobsMap: Record<string, string> = {};
+    const jobsMap: Record<string, string> = {};
     
     if (jobIds.length > 0) {
       const { data: jobs } = await supabase

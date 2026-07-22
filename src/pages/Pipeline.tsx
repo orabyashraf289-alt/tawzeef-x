@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useI18n } from "@/contexts/I18nContext";
 import { useCandidates, useJobs, useInterviews } from "@/hooks/useJobs";
@@ -192,7 +192,7 @@ function DroppableColumn({ stage, children, count, label, totalCandidates, avgDa
   );
 }
 
-function CandidateCard({
+const CandidateCard = memo(function CandidateCard({
   candidate,
   isDragging = false,
   response,
@@ -408,7 +408,7 @@ function CandidateCard({
       </div>
     </motion.div>
   );
-}
+});
 
 function DraggableCard({
   candidate,

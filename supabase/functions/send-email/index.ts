@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
 
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    let isServiceCall = token === serviceKey;
+    const isServiceCall = token === serviceKey;
     let callerId: string | null = null;
 
     if (!isServiceCall) {

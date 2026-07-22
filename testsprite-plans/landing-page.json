@@ -1,0 +1,27 @@
+{
+  "projectId": "c4a430f1-0bf0-4c92-90e5-562100ed1f04",
+  "type": "frontend",
+  "name": "Landing Page — hero section and navigation render correctly",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navigate to /"
+    },
+    {
+      "type": "assertion",
+      "description": "The page displays the Tawzeef-X logo or brand name in the header/navigation bar"
+    },
+    {
+      "type": "assertion",
+      "description": "A hero section is visible with a heading containing 'توظيف' or 'Tawzeef'"
+    },
+    {
+      "type": "assertion",
+      "description": "A call-to-action button with text 'ابدأ الآن' or 'جرب مجاناً' or 'تسجيل' is visible"
+    },
+    {
+      "type": "assertion",
+      "description": "The page has an RTL text direction (dir='rtl' on the html element)"
+    }
+  ]
+}

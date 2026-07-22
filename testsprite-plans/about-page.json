@@ -1,0 +1,23 @@
+{
+  "projectId": "c4a430f1-0bf0-4c92-90e5-562100ed1f04",
+  "type": "frontend",
+  "name": "About Page — company info and mission render correctly",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navigate to /about"
+    },
+    {
+      "type": "assertion",
+      "description": "The page displays a heading containing 'عن' or 'About' or 'من نحن'"
+    },
+    {
+      "type": "assertion",
+      "description": "The page contains descriptive text about the Tawzeef-X platform (at least one paragraph of text is visible)"
+    },
+    {
+      "type": "assertion",
+      "description": "A call-to-action button or link that navigates to /auth or /pricing is visible on the page"
+    }
+  ]
+}

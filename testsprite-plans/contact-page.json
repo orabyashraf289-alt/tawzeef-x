@@ -1,0 +1,23 @@
+{
+  "projectId": "c4a430f1-0bf0-4c92-90e5-562100ed1f04",
+  "type": "frontend",
+  "name": "Contact Page — contact form with required fields renders",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navigate to /contact"
+    },
+    {
+      "type": "assertion",
+      "description": "The page displays a heading containing 'تواصل' or 'Contact' or 'اتصل'"
+    },
+    {
+      "type": "assertion",
+      "description": "A contact form is visible with at least a name input, email input, and message textarea"
+    },
+    {
+      "type": "assertion",
+      "description": "A submit button with text like 'إرسال' or 'Send' or 'أرسل' is visible"
+    }
+  ]
+}
