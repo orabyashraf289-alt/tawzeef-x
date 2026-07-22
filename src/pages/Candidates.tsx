@@ -27,7 +27,10 @@ const statusStyles: Record<string, string> = {
   "مكتمل": "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-500/20",
 };
 
-const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("");
+const getInitials = (name?: string | null) => {
+  if (!name) return "";
+  return name.split(" ").map(n => n?.[0] || "").join("");
+};
 const EVAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/evaluate-candidate`;
 
 const container = stagger(0.05);
@@ -251,7 +254,7 @@ export default function Candidates() {
     base = base.filter(c => {
       const q = search.trim();
       const matchSearch = !q || 
-        c.name.toLowerCase().includes(q.toLowerCase()) || 
+        (c.name || "").toLowerCase().includes(q.toLowerCase()) || 
         (c.role || "").toLowerCase().includes(q.toLowerCase()) || 
         (c.email || "").toLowerCase().includes(q.toLowerCase()) ||
         (c.experience || "").toLowerCase().includes(q.toLowerCase()) ||
