@@ -26,6 +26,7 @@ import { useI18n } from "@/contexts/I18nContext";
 import { useScreenPermissions } from "@/hooks/useScreenPermissions";
 import { downloadJobQR, generateAndStoreJobQR } from "@/lib/qrCodeService";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompanyTaxonomy } from "@/hooks/useCompanyTaxonomy";
 
 const container = stagger(0.05);
 const item = fadeUp;
@@ -193,9 +194,10 @@ export default function Jobs() {
   const { data: candidatesData } = useCandidates();
   const allJobs = jobs || [];
   const allCandidates = candidatesData || [];
+  const { departmentNames } = useCompanyTaxonomy();
 
-  const departments = useMemo(() => [...new Set(allJobs.map(j => j.department))], [allJobs]);
-  const jobTypes = useMemo(() => [...new Set(allJobs.map(j => j.type))], [allJobs]);
+  const departments = useMemo(() => [...new Set([...departmentNames, ...allJobs.map(j => j.department)])], [departmentNames, allJobs]);
+  const jobTypes = useMemo(() => [...new Set(["دوام كامل", "دوام جزئي", "عقد مؤقت", "تدريب", "عن بُعد", "نظام هجين", ...allJobs.map(j => j.type)])], [allJobs]);
 
   // Per-job stats
   const jobStats = useMemo(() => {

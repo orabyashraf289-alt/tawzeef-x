@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Sparkles, Loader2 } from "lucide-react";
+import { X, Sparkles, Loader2, Plus, Building2, MapPin, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompanyTaxonomy } from "@/hooks/useCompanyTaxonomy";
 
 interface AddJobDialogProps {
   open: boolean;
@@ -37,13 +38,19 @@ interface AddJobDialogProps {
   submitLabel?: string;
 }
 
-const departments = ["الهندسة", "التصميم", "الإدارة", "البيانات", "التسويق", "الموارد البشرية", "المالية"];
-const locations = ["الرياض", "جدة", "الدمام", "عن بُعد", "مكة", "المدينة"];
-const jobTypes = ["دوام كامل", "دوام جزئي", "عقد مؤقت", "تدريب", "عن بُعد"];
-const experienceLevels = ["بدون خبرة", "1-2 سنوات", "3-5 سنوات", "5-7 سنوات", "7-10 سنوات", "+10 سنوات"];
+const jobTypes = ["دوام كامل", "دوام جزئي", "عقد مؤقت", "تدريب", "عن بُعد", "نظام هجين"];
 
 export default function AddJobDialog({ open, onClose, onAdd, initialData, submitLabel }: AddJobDialogProps) {
   const { toast } = useToast();
+  const {
+    departmentNames,
+    locationNames,
+    experienceLevelNames,
+    addQuickDepartment,
+    addQuickLocation,
+    addQuickExperienceLevel
+  } = useCompanyTaxonomy();
+
   const [form, setForm] = useState({
     title: "",
     department: "",
@@ -55,6 +62,16 @@ export default function AddJobDialog({ open, onClose, onAdd, initialData, submit
     salaryMax: "",
     experience: "",
   });
+
+  // Quick Inline Addition Inputs State
+  const [newDeptInput, setNewDeptInput] = useState("");
+  const [showAddDept, setShowAddDept] = useState(false);
+
+  const [newLocInput, setNewLocInput] = useState("");
+  const [showAddLoc, setShowAddLoc] = useState(false);
+
+  const [newExpInput, setNewExpInput] = useState("");
+  const [showAddExp, setShowAddExp] = useState(false);
 
   // Populate form when initialData changes
   useEffect(() => {
@@ -102,6 +119,39 @@ export default function AddJobDialog({ open, onClose, onAdd, initialData, submit
     }
   };
 
+  const handleCreateQuickDept = () => {
+    if (!newDeptInput.trim()) return;
+    const added = addQuickDepartment(newDeptInput);
+    if (added) {
+      setForm(f => ({ ...f, department: added }));
+      setNewDeptInput("");
+      setShowAddDept(false);
+      toast({ title: `تمت إضافة قسم "${added}" واختياره بنجاح ✅` });
+    }
+  };
+
+  const handleCreateQuickLoc = () => {
+    if (!newLocInput.trim()) return;
+    const added = addQuickLocation(newLocInput);
+    if (added) {
+      setForm(f => ({ ...f, location: added }));
+      setNewLocInput("");
+      setShowAddLoc(false);
+      toast({ title: `تمت إضافة موقع "${added}" واختياره بنجاح ✅` });
+    }
+  };
+
+  const handleCreateQuickExp = () => {
+    if (!newExpInput.trim()) return;
+    const added = addQuickExperienceLevel(newExpInput);
+    if (added) {
+      setForm(f => ({ ...f, experience: added }));
+      setNewExpInput("");
+      setShowAddExp(false);
+      toast({ title: `تمت إضافة مستوى الخبرة "${added}" واختياره بنجاح ✅` });
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim() || !form.department || !form.location || !form.type) {
@@ -141,23 +191,78 @@ export default function AddJobDialog({ open, onClose, onAdd, initialData, submit
 
           {/* Department & Location */}
           <div className="grid sm:grid-cols-2 gap-4">
+            {/* Department */}
             <div className="space-y-2">
-              <Label className="text-sm font-medium">القسم <span className="text-destructive">*</span></Label>
-              <Select value={form.department} onValueChange={(v) => setForm(f => ({ ...f, department: v }))}>
-                <SelectTrigger><SelectValue placeholder="اختر القسم" /></SelectTrigger>
-                <SelectContent>
-                  {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium flex items-center gap-1">
+                  <Building2 className="w-3.5 h-3.5 text-primary" /> القسم <span className="text-destructive">*</span>
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => setShowAddDept(!showAddDept)}
+                  className="text-[11px] text-primary hover:underline flex items-center gap-0.5 font-bold"
+                >
+                  <Plus className="w-3 h-3" /> قسم جديد
+                </button>
+              </div>
+
+              {showAddDept ? (
+                <div className="flex gap-1">
+                  <Input
+                    value={newDeptInput}
+                    onChange={(e) => setNewDeptInput(e.target.value)}
+                    placeholder="اسم القسم الجديد..."
+                    className="h-9 text-xs"
+                    autoFocus
+                  />
+                  <Button type="button" size="sm" onClick={handleCreateQuickDept} className="h-9 px-3 text-xs shrink-0">إضافة</Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setShowAddDept(false)} className="h-9 px-2 text-xs">إلغاء</Button>
+                </div>
+              ) : (
+                <Select value={form.department} onValueChange={(v) => setForm(f => ({ ...f, department: v }))}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="اختر القسم المخصص" /></SelectTrigger>
+                  <SelectContent>
+                    {departmentNames.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
+
+            {/* Location */}
             <div className="space-y-2">
-              <Label className="text-sm font-medium">الموقع <span className="text-destructive">*</span></Label>
-              <Select value={form.location} onValueChange={(v) => setForm(f => ({ ...f, location: v }))}>
-                <SelectTrigger><SelectValue placeholder="اختر الموقع" /></SelectTrigger>
-                <SelectContent>
-                  {locations.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-emerald-500" /> الموقع <span className="text-destructive">*</span>
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => setShowAddLoc(!showAddLoc)}
+                  className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-0.5 font-bold"
+                >
+                  <Plus className="w-3 h-3" /> موقع جديد
+                </button>
+              </div>
+
+              {showAddLoc ? (
+                <div className="flex gap-1">
+                  <Input
+                    value={newLocInput}
+                    onChange={(e) => setNewLocInput(e.target.value)}
+                    placeholder="اسم الموقع والمدينة..."
+                    className="h-9 text-xs"
+                    autoFocus
+                  />
+                  <Button type="button" size="sm" onClick={handleCreateQuickLoc} className="h-9 px-3 text-xs bg-emerald-600 text-white shrink-0">إضافة</Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setShowAddLoc(false)} className="h-9 px-2 text-xs">إلغاء</Button>
+                </div>
+              ) : (
+                <Select value={form.location} onValueChange={(v) => setForm(f => ({ ...f, location: v }))}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="اختر الموقع والفرع" /></SelectTrigger>
+                  <SelectContent>
+                    {locationNames.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 
@@ -166,20 +271,48 @@ export default function AddJobDialog({ open, onClose, onAdd, initialData, submit
             <div className="space-y-2">
               <Label className="text-sm font-medium">نوع الوظيفة <span className="text-destructive">*</span></Label>
               <Select value={form.type} onValueChange={(v) => setForm(f => ({ ...f, type: v }))}>
-                <SelectTrigger><SelectValue placeholder="اختر النوع" /></SelectTrigger>
+                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="اختر نوع الدوام" /></SelectTrigger>
                 <SelectContent>
                   {jobTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Experience Level */}
             <div className="space-y-2">
-              <Label className="text-sm font-medium">مستوى الخبرة</Label>
-              <Select value={form.experience} onValueChange={(v) => setForm(f => ({ ...f, experience: v }))}>
-                <SelectTrigger><SelectValue placeholder="اختر مستوى الخبرة" /></SelectTrigger>
-                <SelectContent>
-                  {experienceLevels.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium flex items-center gap-1">
+                  <Award className="w-3.5 h-3.5 text-purple-500" /> مستوى الخبرة
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => setShowAddExp(!showAddExp)}
+                  className="text-[11px] text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-0.5 font-bold"
+                >
+                  <Plus className="w-3 h-3" /> مستوى جديد
+                </button>
+              </div>
+
+              {showAddExp ? (
+                <div className="flex gap-1">
+                  <Input
+                    value={newExpInput}
+                    onChange={(e) => setNewExpInput(e.target.value)}
+                    placeholder="مستوى الخبرة المطلوبة..."
+                    className="h-9 text-xs"
+                    autoFocus
+                  />
+                  <Button type="button" size="sm" onClick={handleCreateQuickExp} className="h-9 px-3 text-xs bg-purple-600 text-white shrink-0">إضافة</Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setShowAddExp(false)} className="h-9 px-2 text-xs">إلغاء</Button>
+                </div>
+              ) : (
+                <Select value={form.experience} onValueChange={(v) => setForm(f => ({ ...f, experience: v }))}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="اختر مستوى الخبرة المطلوب" /></SelectTrigger>
+                  <SelectContent>
+                    {experienceLevelNames.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 
