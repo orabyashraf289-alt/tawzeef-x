@@ -12,15 +12,44 @@ export function useJobs() {
   return useQuery({
     queryKey: ["jobs", user?.id],
     queryFn: async () => {
+      // 1. Fetch user's companies to enforce multi-tenant isolation
+      let userCompanyIds: string[] = [];
+      if (user?.id) {
+        try {
+          const { data: members } = await supabase
+            .from("company_members")
+            .select("company_id")
+            .eq("user_id", user.id);
+          if (members && members.length > 0) {
+            userCompanyIds = members.map(m => m.company_id).filter(Boolean);
+          }
+        } catch (e) {
+          console.warn("Could not fetch user company memberships:", e);
+        }
+      }
+
+      // 2. Query jobs table
       const { data, error } = await supabase
         .from("jobs")
         .select("*")
         .order("created_at", { ascending: false });
+
       if (error) throw error;
-      return data;
+
+      // 3. Strict Multi-Tenant Isolation Filter:
+      // A job belongs to the current user/company ONLY IF:
+      // - The job was created by the user (user_id === user.id)
+      // - OR the job's company_id matches one of the user's company IDs
+      if (userCompanyIds.length > 0) {
+        return (data || []).filter(j =>
+          j.user_id === user?.id || (j.company_id && userCompanyIds.includes(j.company_id))
+        );
+      }
+
+      return (data || []).filter(j => j.user_id === user?.id || j.company_id === null);
     },
     enabled: !!user,
-    staleTime: 2 * 60 * 1000, // jobs change infrequently within a session
+    staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
   });
 }
@@ -41,8 +70,24 @@ export function useAddJob() {
       salaryMax?: string;
       experience?: string;
     }) => {
+      // Fetch user's primary company_id to attach to job
+      let companyId: string | null = null;
+      try {
+        const { data: memberData } = await supabase
+          .from("company_members")
+          .select("company_id")
+          .eq("user_id", user!.id)
+          .maybeSingle();
+        if (memberData?.company_id) {
+          companyId = memberData.company_id;
+        }
+      } catch (e) {
+        console.warn("Could not fetch company_id for job creation:", e);
+      }
+
       const { data, error } = await supabase.from("jobs").insert({
         user_id: user!.id,
+        company_id: companyId,
         title: job.title,
         department: job.department,
         location: job.location,
@@ -53,23 +98,18 @@ export function useAddJob() {
         salary_max: job.salaryMax ? parseInt(job.salaryMax) : null,
         experience_level: job.experience || null,
       }).select().single();
+
       if (error) throw error;
 
-      // Auto-generate branded QR with the REAL apply URL (real job id) — non-blocking
+      // Auto-generate branded QR with the REAL apply URL — non-blocking
       if (data?.id) {
         let brand = loadBrandSettings();
         try {
-          const { data: memberData } = await supabase
-            .from("company_members")
-            .select("company_id")
-            .eq("user_id", user!.id)
-            .maybeSingle();
-
-          if (memberData?.company_id) {
+          if (companyId) {
             const { data: compData } = await supabase
               .from("companies")
               .select("brand_settings")
-              .eq("id", memberData.company_id)
+              .eq("id", companyId)
               .maybeSingle();
             if (compData?.brand_settings) {
               brand = { ...brand, ...(compData.brand_settings as any) };
@@ -141,10 +181,10 @@ export function useCandidates() {
   return useQuery({
     queryKey: ["candidates", user?.id],
     queryFn: async () => {
-      // 1. Repair ownership for any candidate rows attached to user's jobs that have user_id = null
+      // 1. Repair candidate ownership for user's jobs where user_id = null
       if (user?.id) {
         try {
-          const { data: ownJobs } = await supabase.from("jobs").select("id");
+          const { data: ownJobs } = await supabase.from("jobs").select("id").eq("user_id", user.id);
           const ownJobIds = (ownJobs || []).map(j => j.id);
           if (ownJobIds.length > 0) {
             await supabase

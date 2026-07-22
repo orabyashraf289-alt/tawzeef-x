@@ -693,11 +693,13 @@ export default function Pipeline() {
     const items = grouped[stageId] || [];
     if (items.length === 0) return 0;
     const totalDays = items.reduce((sum, c) => {
-      const created = new Date(c.created_at).getTime();
-      const updated = new Date(c.updated_at).getTime();
-      return sum + Math.max(1, Math.round((updated - created) / 86400000));
+      const created = c.created_at ? new Date(c.created_at).getTime() : Date.now();
+      const updated = c.updated_at ? new Date(c.updated_at).getTime() : Date.now();
+      const diff = Math.max(1, Math.round((updated - created) / 86400000));
+      return sum + (isNaN(diff) ? 1 : diff);
     }, 0);
-    return Math.round(totalDays / items.length);
+    const avg = Math.round(totalDays / items.length);
+    return isNaN(avg) ? 0 : avg;
   };
 
   const activeCand = activeId ? filteredCandidates.find(c => c.id === activeId) : null;
