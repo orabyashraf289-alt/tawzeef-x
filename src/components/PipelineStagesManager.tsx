@@ -14,12 +14,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import PipelineStepper from "@/components/PipelineStepper";
 import StageDetailPanel from "@/components/StageDetailPanel";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Plus, Trash2, Check, X,
   FileText, FileSearch, Phone, Code, Users, Briefcase, Circle,
   LayoutTemplate, Download, Upload,
   Mail, Target, Award, Heart, ThumbsUp, AlertTriangle,
-  Eye, Star, Timer, Search, SlidersHorizontal, List, Kanban, Save, ArrowUpDown, Pencil, BarChart3, Zap
+  Eye, Star, Timer, Search, SlidersHorizontal, List, Kanban, Save, ArrowUpDown, Pencil, BarChart3, Zap,
+  ArrowUp, ArrowDown, Sparkles, Palette
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -59,55 +61,293 @@ const IconComponent = ({ icon, className, style }: { icon: string; className?: s
 
 /* ─── Templates Section ─── */
 function TemplatesSection({ onApply }: { onApply: (stages: { name: string; color: string; icon: string; sort_order: number }[]) => void }) {
-  const [confirmTemplate, setConfirmTemplate] = useState<typeof STAGE_TEMPLATES[0] | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
+  const [templateStages, setTemplateStages] = useState<{ name: string; color: string; icon: string }[]>([]);
+  const [templateName, setTemplateName] = useState("");
+  const [customSavedTemplates, setCustomSavedTemplates] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem("custom_pipeline_templates");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleOpenEditor = (tpl: any) => {
+    setEditingTemplate(tpl);
+    setTemplateName(tpl.name);
+    setTemplateStages(tpl.stages.map((s: any) => ({ name: s.name, color: s.color || COLORS[0], icon: s.icon || "circle" })));
+  };
+
+  const handleMoveStage = (idx: number, direction: "up" | "down") => {
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= templateStages.length) return;
+    const updated = [...templateStages];
+    const [moved] = updated.splice(idx, 1);
+    updated.splice(targetIdx, 0, moved);
+    setTemplateStages(updated);
+  };
+
+  const handleRemoveStage = (idx: number) => {
+    if (templateStages.length <= 1) {
+      toast({ title: "يجب الإبقاء على مرحلة واحدة على الأقل", variant: "destructive" });
+      return;
+    }
+    setTemplateStages(templateStages.filter((_, i) => i !== idx));
+  };
+
+  const handleAddStage = () => {
+    setTemplateStages([
+      ...templateStages,
+      { name: "مرحلة جديدة", color: COLORS[templateStages.length % COLORS.length], icon: "circle" }
+    ]);
+  };
+
+  const handleSaveAsCustomTemplate = () => {
+    if (!templateName.trim()) return;
+    const newTemplate = {
+      id: `custom-${Date.now()}`,
+      name: templateName.trim(),
+      description: "قالب مخصص تم تعديله وحفظه بواسطة المستخدم",
+      stages: templateStages,
+      isCustom: true,
+    };
+    const updated = [...customSavedTemplates, newTemplate];
+    setCustomSavedTemplates(updated);
+    try {
+      localStorage.setItem("custom_pipeline_templates", JSON.stringify(updated));
+    } catch {}
+    toast({ title: `تم حفظ قالب "${newTemplate.name}" في قوالبك المخصصة 💾` });
+  };
+
+  const handleDeleteCustomTemplate = (id: string) => {
+    const updated = customSavedTemplates.filter(t => t.id !== id);
+    setCustomSavedTemplates(updated);
+    try {
+      localStorage.setItem("custom_pipeline_templates", JSON.stringify(updated));
+    } catch {}
+    toast({ title: "تم حذف القالب المخصص" });
+  };
 
   return (
     <>
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-          <LayoutTemplate className="w-3.5 h-3.5" /> قوالب جاهزة
-        </p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="space-y-3 bg-card p-4 rounded-2xl border border-border/60 shadow-2xs">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+            <LayoutTemplate className="w-4 h-4 text-primary" /> قوالب المراحل الجاهزة (انقر للتعديل والتطبيق)
+          </p>
+          <span className="text-[10px] text-muted-foreground font-semibold">
+            انقر على أي قالب لتعديل أسماء ومراحل القالب قبل اعتماده
+          </span>
+        </div>
+
+        {/* Templates Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
           {STAGE_TEMPLATES.map(tpl => (
-            <button key={tpl.id} onClick={() => setConfirmTemplate(tpl)}
-              className="text-right p-3 rounded-xl border border-border/50 hover:border-primary/30 hover:bg-primary/5 transition-all space-y-1.5">
-              <p className="text-sm font-semibold text-foreground">{tpl.name}</p>
-              <p className="text-[10px] text-muted-foreground">{tpl.description}</p>
+            <button
+              key={tpl.id}
+              onClick={() => handleOpenEditor(tpl)}
+              className="text-right p-3 rounded-xl border border-border/60 hover:border-primary/40 hover:bg-primary/5 transition-all space-y-1.5 group cursor-pointer"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">{tpl.name}</p>
+                <Pencil className="w-3 h-3 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+              </div>
+              <p className="text-[10px] text-muted-foreground line-clamp-1">{tpl.description}</p>
               <div className="flex gap-1 mt-1">
-                {tpl.stages.map((s, i) => (
-                  <div key={i} className="w-3 h-3 rounded-full" style={{ backgroundColor: s.color }} title={s.name} />
+                {tpl.stages.slice(0, 7).map((s, i) => (
+                  <div key={i} className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} title={s.name} />
                 ))}
+                {tpl.stages.length > 7 && (
+                  <span className="text-[9px] text-muted-foreground font-bold">+{tpl.stages.length - 7}</span>
+                )}
               </div>
             </button>
           ))}
         </div>
+
+        {/* Custom Saved Templates (if any) */}
+        {customSavedTemplates.length > 0 && (
+          <div className="pt-2 border-t border-border/40 space-y-1.5">
+            <p className="text-[11px] font-bold text-purple-600 dark:text-purple-400 flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5" /> قوالبك المخصصة المحفوظة
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {customSavedTemplates.map(tpl => (
+                <div
+                  key={tpl.id}
+                  className="p-2.5 rounded-xl border border-purple-500/20 bg-purple-500/5 flex items-center justify-between gap-2"
+                >
+                  <button
+                    onClick={() => handleOpenEditor(tpl)}
+                    className="text-right flex-1 min-w-0 cursor-pointer"
+                  >
+                    <p className="text-xs font-bold text-foreground truncate">{tpl.name}</p>
+                    <p className="text-[10px] text-muted-foreground">{tpl.stages.length} مراحل</p>
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-destructive hover:bg-destructive/10 shrink-0"
+                    onClick={() => handleDeleteCustomTemplate(tpl.id)}
+                    title="حذف القالب"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      <AlertDialog open={!!confirmTemplate} onOpenChange={() => setConfirmTemplate(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>تطبيق قالب "{confirmTemplate?.name}"</AlertDialogTitle>
-            <AlertDialogDescription>
-              سيتم استبدال جميع المراحل الحالية. هل أنت متأكد؟
-              <div className="mt-3 space-y-1">
-                {confirmTemplate?.stages.map((s, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: s.color }} />
-                    <span>{i + 1}. {s.name}</span>
-                  </div>
-                ))}
+      {/* ─── Interactive Template Customizer & Editor Dialog ─── */}
+      <Dialog open={!!editingTemplate} onOpenChange={(open) => !open && setEditingTemplate(null)}>
+        <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto p-6 rounded-2xl">
+          <DialogHeader className="border-b border-border/50 pb-3">
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Pencil className="w-4 h-4 text-primary" />
+              تعديل وتخصيص القالب: {editingTemplate?.name}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              يمكنك تعديل أسماء المراحل، إعادة ترتيبها، تغيير ألوانها أو إضافة مراحل جديدة قبل تطبيق القالب.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingTemplate && (
+            <div className="space-y-4 pt-2">
+              {/* Template Name Edit */}
+              <div>
+                <label className="text-xs font-bold text-foreground mb-1 block">اسم القالب</label>
+                <Input
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="اسم القالب"
+                  className="h-9 text-xs font-medium"
+                />
               </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              if (confirmTemplate) onApply(confirmTemplate.stages.map((s, i) => ({ ...s, sort_order: i })));
-              setConfirmTemplate(null);
-            }}>تطبيق القالب</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+
+              {/* Stages List Editor */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-foreground">مراحل القالب ({templateStages.length} مراحل)</label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1 text-primary border-primary/30"
+                    onClick={handleAddStage}
+                  >
+                    <Plus className="w-3 h-3" /> إضافة مرحلة
+                  </Button>
+                </div>
+
+                <div className="space-y-2 max-h-[320px] overflow-y-auto pe-1">
+                  {templateStages.map((stg, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-2 p-2.5 rounded-xl border border-border/60 bg-muted/20"
+                    >
+                      <span className="text-xs font-bold text-muted-foreground w-5 text-center">{idx + 1}.</span>
+                      
+                      {/* Color Picker */}
+                      <input
+                        type="color"
+                        value={stg.color}
+                        onChange={(e) => {
+                          const updated = [...templateStages];
+                          updated[idx].color = e.target.value;
+                          setTemplateStages(updated);
+                        }}
+                        className="w-6 h-6 rounded border border-border/50 cursor-pointer p-0.5 shrink-0"
+                        title="تغيير اللون"
+                      />
+
+                      {/* Stage Name Input */}
+                      <Input
+                        value={stg.name}
+                        onChange={(e) => {
+                          const updated = [...templateStages];
+                          updated[idx].name = e.target.value;
+                          setTemplateStages(updated);
+                        }}
+                        placeholder="اسم المرحلة"
+                        className="h-8 text-xs font-medium flex-1 bg-card"
+                      />
+
+                      {/* Move Up / Move Down */}
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          disabled={idx === 0}
+                          onClick={() => handleMoveStage(idx, "up")}
+                          title="تحريك لأعلى"
+                        >
+                          <ArrowUp className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          disabled={idx === templateStages.length - 1}
+                          onClick={() => handleMoveStage(idx, "down")}
+                          title="تحريك لأسفل"
+                        >
+                          <ArrowDown className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                          onClick={() => handleRemoveStage(idx)}
+                          title="حذف من القالب"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <DialogFooter className="flex flex-row items-center justify-between gap-2 pt-3 border-t border-border/40">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveAsCustomTemplate}
+                  className="h-8 text-xs gap-1.5 text-purple-600 border-purple-500/30 hover:bg-purple-500/10"
+                >
+                  <Save className="w-3.5 h-3.5" /> حفظ كقالب مخصص
+                </Button>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => setEditingTemplate(null)}
+                  >
+                    إلغاء
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs font-bold gap-1.5 bg-primary text-primary-foreground"
+                    onClick={() => {
+                      onApply(templateStages.map((s, i) => ({ ...s, sort_order: i })));
+                      setEditingTemplate(null);
+                      toast({ title: `تم تطبيق القالب المعدّل (${templateName}) بنجاح ✅` });
+                    }}
+                  >
+                    <Check className="w-3.5 h-3.5" /> تطبيق القالب على المسار
+                  </Button>
+                </div>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
