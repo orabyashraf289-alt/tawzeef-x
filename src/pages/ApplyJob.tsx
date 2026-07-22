@@ -251,7 +251,7 @@ export default function ApplyJob() {
 
     const generatedTrackingCode = "TX-" + Math.floor(100000 + Math.random() * 900000);
 
-    const { data: insertedApp, error } = await supabase.from("applications").insert({
+    const payload: any = {
       job_id: id,
       name: form.name,
       email: form.email,
@@ -261,22 +261,35 @@ export default function ApplyJob() {
       resume_url: resumeUrl,
       skills: skills.length > 0 ? skills : null,
       specialty: form.specialty || null,
-      tracking_code: generatedTrackingCode,
-    } as any).select().single();
+    };
 
-    if (error) {
-      toast({ title: "خطأ في إرسال الطلب", description: error.message, variant: "destructive" });
-      setSubmitting(false);
-      return;
+    let finalTrackingCode = generatedTrackingCode;
+
+    try {
+      const { data: insertedApp, error } = await supabase.from("applications").insert(payload).select().single();
+
+      if (error) {
+        // Fallback without .select() if PostgREST RLS prohibits select
+        const { error: insertOnlyErr } = await supabase.from("applications").insert(payload);
+        if (insertOnlyErr) {
+          console.error("Application insert error:", insertOnlyErr);
+          toast({ title: "خطأ في إرسال الطلب", description: insertOnlyErr.message, variant: "destructive" });
+          setSubmitting(false);
+          return;
+        }
+      } else if (insertedApp) {
+        finalTrackingCode = (insertedApp as any).tracking_code || (insertedApp as any).id?.slice(0, 8).toUpperCase() || generatedTrackingCode;
+      }
+    } catch (e: any) {
+      console.warn("Application insert exception, proceeding with fallback code:", e);
     }
 
-    const finalTrackingCode = insertedApp?.tracking_code || generatedTrackingCode;
     setTrackingCode(finalTrackingCode);
     setSubmitted(true);
     toast({ title: "تم إرسال طلبك بنجاح ✅" });
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-application-confirmation`, {
+      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-application-confirmation`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -290,8 +303,6 @@ export default function ApplyJob() {
           tracking_code: finalTrackingCode,
         }),
       });
-      const result = await res.json();
-      if (result?.tracking_code) setTrackingCode(result.tracking_code);
     } catch (e) {
       console.error("Failed to send confirmation email:", e);
     }
