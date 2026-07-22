@@ -2,7 +2,7 @@ import { useState, useMemo, memo } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useI18n } from "@/contexts/I18nContext";
 import { useCandidates, useJobs, useInterviews } from "@/hooks/useJobs";
-import { useActiveStages, usePipelineStages, type TransitionRules } from "@/hooks/usePipelineStages";
+import { useActiveStages, usePipelineStages, useCandidateStageActions, type TransitionRules } from "@/hooks/usePipelineStages";
 import { useRecordTransition } from "@/hooks/useStageTransitions";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
