@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Search, Mail, Phone, Star, UserPlus, Users, UserCheck, UserX, Brain, Sparkles, GitCompareArrows, X, Filter, ArrowUpDown, CheckSquare, Trash2, ArrowRight, Archive, Download, LayoutGrid, List, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { Search, Mail, Phone, Star, UserPlus, Users, UserCheck, UserX, Brain, Sparkles, GitCompareArrows, X, Filter, ArrowUpDown, CheckSquare, Trash2, ArrowRight, Archive, Download, LayoutGrid, List, TrendingUp, TrendingDown, Loader2, Eye, FileText, Calendar, Building, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -162,6 +162,8 @@ export default function Candidates() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [selectedCandidateForAiSummary, setSelectedCandidateForAiSummary] = useState<any | null>(null);
   const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
+  const [quickFilter, setQuickFilter] = useState<"all" | "ai_qualified" | "reviewing" | "hired">("all");
+  const [selectedCandidateForQuickView, setSelectedCandidateForQuickView] = useState<any | null>(null);
 
   const runAutoScreening = async (silent = false) => {
     if (autoScreeningRunning || !candidates?.length) return;
@@ -261,13 +263,19 @@ export default function Candidates() {
       const matchStage = stageFilter === "all" || c.stage === stageFilter;
       const matchSkill = !skillFilter || (c.skills || []).some((s: string) => s.includes(skillFilter));
       const matchAiScore = !aiScoreMin || ((c as any).ai_score ?? 0) >= parseInt(aiScoreMin);
-      return matchSearch && matchStatus && matchJob && matchStage && matchSkill && matchAiScore;
+      
+      let matchQuickFilter = true;
+      if (quickFilter === "ai_qualified") matchQuickFilter = ((c as any).ai_score ?? 0) >= 80;
+      if (quickFilter === "reviewing") matchQuickFilter = c.status === "قيد المراجعة";
+      if (quickFilter === "hired") matchQuickFilter = c.status === "مكتمل";
+
+      return matchSearch && matchStatus && matchJob && matchStage && matchSkill && matchAiScore && matchQuickFilter;
     });
 
     if (sortMode === "ai") return [...base].sort((a, b) => ((b as any).ai_score ?? -1) - ((a as any).ai_score ?? -1));
     if (sortMode === "rating") return [...base].sort((a, b) => (b.rating || 0) - (a.rating || 0));
     return [...base].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
-  }, [candidates, search, statusFilter, jobFilter, stageFilter, sortMode, skillFilter, aiScoreMin, aiPrompt]);
+  }, [candidates, search, statusFilter, jobFilter, stageFilter, sortMode, skillFilter, aiScoreMin, aiPrompt, quickFilter]);
 
   // Progressive rendering: show first 30 instantly, expand in idle frames.
   // Avoids 50-100ms blocking paint when filtering large pages.
@@ -460,6 +468,41 @@ export default function Candidates() {
               <p className="text-xs text-muted-foreground">{stat.label}</p>
             </div>
           ))}
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="flex flex-wrap items-center gap-2">
+          <Button 
+            variant={quickFilter === "all" ? "default" : "outline"} 
+            size="sm" 
+            onClick={() => setQuickFilter("all")}
+            className="rounded-full text-xs"
+          >
+            {t("candidates.total")} ({totalCount})
+          </Button>
+          <Button 
+            variant={quickFilter === "ai_qualified" ? "default" : "outline"} 
+            size="sm" 
+            onClick={() => setQuickFilter("ai_qualified")}
+            className="rounded-full text-xs"
+          >
+            <Brain className="w-3.5 h-3.5 mr-1" /> المتميزون بالذكاء الاصطناعي
+          </Button>
+          <Button 
+            variant={quickFilter === "reviewing" ? "default" : "outline"} 
+            size="sm" 
+            onClick={() => setQuickFilter("reviewing")}
+            className="rounded-full text-xs"
+          >
+            <Users className="w-3.5 h-3.5 mr-1" /> قيد المراجعة ({reviewing})
+          </Button>
+          <Button 
+            variant={quickFilter === "hired" ? "default" : "outline"} 
+            size="sm" 
+            onClick={() => setQuickFilter("hired")}
+            className="rounded-full text-xs"
+          >
+            <UserCheck className="w-3.5 h-3.5 mr-1" /> تم التوظيف ({hired})
+          </Button>
         </motion.div>
 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="space-y-3">
@@ -851,9 +894,16 @@ export default function Candidates() {
                               <Phone className="w-3.5 h-3.5" />
                             </a>
                           )}
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setSelectedCandidateForQuickView(c); }}
+                            className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-all mr-1"
+                            title="معاينة سريعة"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
                           <Link
                             to={`/candidates/${c.id}`}
-                            className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline bg-primary/10 hover:bg-primary/20 text-primary px-2.5 py-1 rounded-lg transition-colors mr-1"
+                            className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline bg-primary/10 hover:bg-primary/20 text-primary px-2.5 py-1 rounded-lg transition-colors ml-1"
                           >
                             مراحل الاعتماد ➔
                           </Link>
@@ -1081,6 +1131,141 @@ export default function Candidates() {
                 <Link to={`/candidates/${selectedCandidateForAiSummary.id}`}>
                   <Button variant="outline" className="w-full text-xs">عرض الملف الشخصي الكامل ←</Button>
                 </Link>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Quick View Candidate Drawer */}
+      <AnimatePresence>
+        {selectedCandidateForQuickView && (
+          <div className="fixed inset-0 z-50 flex justify-end" dir="rtl">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+              onClick={() => setSelectedCandidateForQuickView(null)}
+            />
+            <motion.div
+              initial={{ x: "100%", opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: "100%", opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-xl bg-card h-full shadow-2xl border-r border-border flex flex-col"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-border bg-muted/10 sticky top-0 z-10">
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <Eye className="w-5 h-5 text-primary" />
+                  معاينة سريعة
+                </h3>
+                <button
+                  onClick={() => setSelectedCandidateForQuickView(null)}
+                  className="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="flex items-start gap-4">
+                  <Avatar className="w-16 h-16 border-2 border-primary/20">
+                    <AvatarFallback className="text-xl bg-primary/10 text-primary">{getInitials(selectedCandidateForQuickView.name)}</AvatarFallback>
+                  </Avatar>
+                  <div className="space-y-1">
+                    <h2 className="text-2xl font-bold">{selectedCandidateForQuickView.name}</h2>
+                    <p className="text-muted-foreground flex items-center gap-1.5">
+                      {selectedCandidateForQuickView.role}
+                      {(selectedCandidateForQuickView as any).ai_score != null && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold bg-primary/10 text-primary">
+                          <Brain className="w-3 h-3" /> {(selectedCandidateForQuickView as any).ai_score}%
+                        </span>
+                      )}
+                    </p>
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {selectedCandidateForQuickView.email && (
+                        <a href={`mailto:${selectedCandidateForQuickView.email}`} className="text-xs inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-md hover:bg-muted/80">
+                          <Mail className="w-3.5 h-3.5" /> البريد
+                        </a>
+                      )}
+                      {selectedCandidateForQuickView.phone && (
+                        <a href={`tel:${selectedCandidateForQuickView.phone}`} className="text-xs inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-md hover:bg-muted/80">
+                          <Phone className="w-3.5 h-3.5" /> اتصال
+                        </a>
+                      )}
+                      {selectedCandidateForQuickView.portfolio_url && (
+                        <a href={selectedCandidateForQuickView.portfolio_url} target="_blank" rel="noreferrer" className="text-xs inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-md hover:bg-muted/80 text-primary">
+                          <Globe className="w-3.5 h-3.5" /> البورتفوليو
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
+                    <p className="text-xs text-muted-foreground mb-1">الخبرة</p>
+                    <p className="font-medium text-sm flex items-center gap-1.5">
+                      <Building className="w-4 h-4 text-muted-foreground" />
+                      {selectedCandidateForQuickView.experience || "غير متوفر"}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
+                    <p className="text-xs text-muted-foreground mb-1">المرحلة الحالية</p>
+                    <p className="font-medium text-sm flex items-center gap-1.5">
+                      <CheckSquare className="w-4 h-4 text-primary" />
+                      {selectedCandidateForQuickView.stage || "غير متوفر"}
+                    </p>
+                  </div>
+                </div>
+
+                {selectedCandidateForQuickView.skills && selectedCandidateForQuickView.skills.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5"><Sparkles className="w-4 h-4 text-amber-500" /> المهارات الأساسية</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedCandidateForQuickView.skills.map((s: string) => (
+                        <span key={s} className="px-3 py-1 bg-primary/5 text-primary text-xs font-medium rounded-full border border-primary/10">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {selectedCandidateForQuickView.ai_evaluation && (
+                  <div>
+                    <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5"><Brain className="w-4 h-4 text-primary" /> تفاصيل التقييم الذكي</h4>
+                    <div className="p-4 bg-primary/5 rounded-xl text-sm leading-relaxed border border-primary/10">
+                      {JSON.parse(selectedCandidateForQuickView.ai_evaluation).explanation || "لا يوجد تعليق إضافي"}
+                    </div>
+                  </div>
+                )}
+
+                {selectedCandidateForQuickView.resume_url && (
+                  <div className="pt-4 border-t border-border">
+                    <a href={selectedCandidateForQuickView.resume_url} target="_blank" rel="noreferrer">
+                      <Button variant="outline" className="w-full gap-2 border-primary/20 hover:bg-primary/5 text-primary">
+                        <FileText className="w-4 h-4" />
+                        عرض السيرة الذاتية (PDF)
+                      </Button>
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 border-t border-border bg-card flex items-center gap-3">
+                <Link to={`/candidates/${selectedCandidateForQuickView.id}`} className="flex-1">
+                  <Button className="w-full gap-2 shadow-lg">
+                    فتح الملف الكامل <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </Link>
+                {selectedCandidateForQuickView.status === "قيد المراجعة" && (
+                  <Button variant="outline" className="flex-1 gap-2 text-success hover:text-success hover:bg-success/10 border-success/30">
+                    <Calendar className="w-4 h-4" />
+                    جدولة مقابلة
+                  </Button>
+                )}
               </div>
             </motion.div>
           </div>
