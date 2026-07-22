@@ -18,7 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Star, GripVertical, Users, Search, Filter, TrendingUp, Clock, Bot, Kanban, List, CheckCircle2, ArrowRight, ArrowUpDown, BarChart3, ClipboardCopy, ExternalLink, FileCheck, Mail, Loader2, Eye, Check, AlertTriangle, Settings, Sliders, ClipboardCheck, Video, Lock, XCircle, Pause, RotateCcw, Trash2, ArrowRightLeft } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
+import { Star, GripVertical, Users, Search, Filter, TrendingUp, Clock, Bot, Kanban, List, CheckCircle2, ArrowRight, ArrowUpDown, BarChart3, ClipboardCopy, ExternalLink, FileCheck, Mail, Loader2, Eye, Check, AlertTriangle, Settings, Sliders, ClipboardCheck, Video, Lock, XCircle, Pause, RotateCcw, Trash2, ArrowRightLeft, Zap, MoreVertical, Sparkles, ChevronLeft, Calendar } from "lucide-react";
 import PipelineAnalytics from "@/components/PipelineAnalytics";
 import StageDetailPanel from "@/components/StageDetailPanel";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -58,10 +59,10 @@ function hexToTailwind(hex: string) {
 
 const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("");
 
-function DroppableColumn({ stage, children, count, label, totalCandidates, avgDays, tLabel, slaHours, transitionRules, onConfigure, isVirtual, dragViolation, isDraggingActive }: {
+function DroppableColumn({ stage, children, count, label, totalCandidates, avgDays, tLabel, slaHours, transitionRules, automationRules, onConfigure, isVirtual, dragViolation, isDraggingActive }: {
   stage: { id: string; label: string; color: string }; children: React.ReactNode; count: number; label: string;
   totalCandidates: number; avgDays: number; tLabel: { conversion: string; avgDays: string };
-  slaHours?: number; transitionRules?: TransitionRules; onConfigure?: () => void; isVirtual?: boolean;
+  slaHours?: number; transitionRules?: TransitionRules; automationRules?: any; onConfigure?: () => void; isVirtual?: boolean;
   dragViolation?: { message: string; assessmentId?: string } | null;
   isDraggingActive?: boolean;
 }) {
@@ -70,9 +71,10 @@ function DroppableColumn({ stage, children, count, label, totalCandidates, avgDa
 
   return (
     <div
+      id={`column-${stage.id}`}
       ref={setNodeRef}
       className={cn(
-        "flex flex-col min-w-[240px] w-[240px] lg:w-auto lg:flex-1 rounded-xl border border-border/50 bg-muted/20 transition-all duration-200",
+        "flex flex-col min-w-[240px] w-[240px] lg:w-auto lg:flex-1 rounded-xl border border-border/50 bg-muted/20 transition-all duration-200 scroll-mt-20",
         isOver && !isDraggingActive && "bg-primary/5 border-primary/30 shadow-md",
         isDraggingActive && (
           dragViolation
@@ -88,6 +90,21 @@ function DroppableColumn({ stage, children, count, label, totalCandidates, avgDa
             <span className="text-xs font-semibold text-foreground">{label}</span>
           </div>
           <div className="flex items-center gap-1.5">
+            {/* Active Automations Zap Badge */}
+            {automationRules && (automationRules.auto_ai_evaluation || automationRules.auto_send_assessment || automationRules.auto_create_meeting) && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-amber-500 bg-amber-500/10 p-0.5 rounded animate-pulse">
+                      <Zap className="w-3 h-3" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs font-semibold">
+                    أتمتة مفعّلة في هذه المرحلة ⚡
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             {/* SLA Badge on header */}
             {slaHours != null && slaHours > 0 && (
               <TooltipProvider delayDuration={200}>
@@ -201,7 +218,10 @@ const CandidateCard = memo(function CandidateCard({
   onReject,
   onDefer,
   onRestore,
-  stageSlaHours = 0
+  stageSlaHours = 0,
+  onPreview,
+  onQuickMove,
+  allStages
 }: {
   candidate: any;
   isDragging?: boolean;
@@ -212,6 +232,9 @@ const CandidateCard = memo(function CandidateCard({
   onDefer?: (id: string) => void;
   onRestore?: (id: string, originalStage: string) => void;
   stageSlaHours?: number;
+  onPreview?: () => void;
+  onQuickMove?: (newStageId: string) => void;
+  allStages?: any[];
 }) {
   const parsedLog = response?.tab_switch_log
     ? (typeof response.tab_switch_log === "string" ? JSON.parse(response.tab_switch_log) : response.tab_switch_log)
@@ -353,6 +376,22 @@ const CandidateCard = memo(function CandidateCard({
 
           {/* Card Actions (visible on hover) */}
           <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end gap-1.5 mt-2 pt-1.5 border-t border-border/40">
+            {onPreview && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-6 h-6 rounded-md hover:bg-primary/10 hover:text-primary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onPreview();
+                }}
+                title="معاينة سريعة 👁️"
+              >
+                <Eye className="w-3.5 h-3.5 text-primary" />
+              </Button>
+            )}
+
             {candidate.status === "مرفوض" || candidate.is_deferred === true || candidate.status === "مؤجل" ? (
               onRestore && (
                 <Button
@@ -403,6 +442,57 @@ const CandidateCard = memo(function CandidateCard({
                 )}
               </>
             )}
+
+            {onQuickMove && allStages && allStages.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-6 h-6 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
+                    onClick={(e) => e.stopPropagation()}
+                    title="خيارات إضافية"
+                  >
+                    <MoreVertical className="w-3.5 h-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 text-xs">
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="text-xs">
+                      <ArrowRightLeft className="w-3.5 h-3.5 me-1.5 text-primary" /> نقل سريع إلى...
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-44 text-xs">
+                      {allStages.map((s: any) => (
+                        <DropdownMenuItem
+                          key={s.id}
+                          disabled={s.id === candidate.stage}
+                          onClick={() => onQuickMove(s.id)}
+                          className="text-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color || "#0ea5e9" }} />
+                          <span className="truncate">{s.label || s.id}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  {onPreview && (
+                    <DropdownMenuItem onClick={onPreview} className="text-xs">
+                      <Eye className="w-3.5 h-3.5 me-1.5 text-blue-500" /> معاينة سريعة
+                    </DropdownMenuItem>
+                  )}
+                  {onDefer && (
+                    <DropdownMenuItem onClick={() => onDefer(candidate.id)} className="text-xs">
+                      <Clock className="w-3.5 h-3.5 me-1.5 text-amber-500" /> تأجيل المرشح
+                    </DropdownMenuItem>
+                  )}
+                  {onReject && (
+                    <DropdownMenuItem onClick={() => onReject(candidate.id, candidate.name)} className="text-xs text-destructive">
+                      <AlertTriangle className="w-3.5 h-3.5 me-1.5" /> رفض المرشح
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </div>
@@ -418,7 +508,10 @@ function DraggableCard({
   onReject,
   onDefer,
   onRestore,
-  stageSlaHours
+  stageSlaHours,
+  onPreview,
+  onQuickMove,
+  allStages
 }: {
   candidate: any;
   response?: any;
@@ -428,6 +521,9 @@ function DraggableCard({
   onDefer?: (id: string) => void;
   onRestore?: (id: string, originalStage: string) => void;
   stageSlaHours?: number;
+  onPreview?: () => void;
+  onQuickMove?: (newStageId: string) => void;
+  allStages?: any[];
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: candidate.id,
@@ -440,12 +536,11 @@ function DraggableCard({
   } : undefined;
 
   return (
-    <motion.div
+    <div
       ref={setNodeRef}
       style={style}
       {...listeners}
       {...attributes}
-      layout
       className="cursor-grab active:cursor-grabbing"
     >
       <CandidateCard
@@ -457,8 +552,11 @@ function DraggableCard({
         onDefer={onDefer}
         onRestore={onRestore}
         stageSlaHours={stageSlaHours}
+        onPreview={onPreview}
+        onQuickMove={onQuickMove}
+        allStages={allStages}
       />
-    </motion.div>
+    </div>
   );
 }
 
@@ -510,6 +608,7 @@ export default function Pipeline() {
   const [jobFilter, setJobFilter] = useState("all");
   const [scoreFilter, setScoreFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"active" | "deferred" | "rejected">("active");
+  const [previewCandidate, setPreviewCandidate] = useState<any | null>(null);
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
   const [rejectionTarget, setRejectionTarget] = useState<{ candidateId: string; candidateName: string } | null>(null);
   const [rejectionReasonText, setRejectionReasonText] = useState("");
@@ -1071,87 +1170,124 @@ export default function Pipeline() {
         ) : viewMode === "analytics" ? (
           <PipelineAnalytics stages={STAGES} candidates={filteredCandidates} dir={dir} />
         ) : viewMode === "kanban" ? (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCorners}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
-            <div className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4 lg:mx-0 lg:px-0">
-              {STAGES.map((stage) => {
-                const isVirtual = (stage as any).isVirtual === true;
-                const stageObj = !isVirtual ? (allStages || []).find(s => s.name === stage.id) : null;
-                const ruleViolation = (activeCand && !isVirtual) ? checkTransitionRules(activeCand, stage.id) : null;
-                const isDraggingActive = !!activeId;
-
+          <div>
+            {/* Interactive Stage Filter Pills Bar */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-2.5 mb-3 scrollbar-none">
+              {STAGES.map((s) => {
+                const stageCount = grouped[s.id]?.length || 0;
                 return (
-                  <DroppableColumn
-                    key={stage.id}
-                    stage={stage}
-                    count={grouped[stage.id]?.length || 0}
-                    label={stage.label}
-                    totalCandidates={filteredCandidates.length}
-                    avgDays={getAvgDays(stage.id)}
-                    tLabel={{ conversion: t("pipeline.conversionRate"), avgDays: t("pipeline.avgDays") }}
-                    slaHours={(stage as any).sla_hours}
-                    transitionRules={(stage as any).transition_rules}
-                    isVirtual={isVirtual}
-                    onConfigure={stageObj ? () => setEditingStage(stageObj) : undefined}
-                    dragViolation={ruleViolation}
-                    isDraggingActive={isDraggingActive}
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      document.getElementById(`column-${s.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border/60 bg-card hover:bg-muted/80 text-[11px] font-semibold transition-all shrink-0 shadow-2xs hover:scale-[1.02] active:scale-95 cursor-pointer"
                   >
-                    {grouped[stage.id]?.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground/40">
-                        <p className="text-[11px]">{t("pipeline.dragHere")}</p>
-                      </div>
-                    ) : (
-                      grouped[stage.id]?.map((candidate) => {
-                        const response = (assessmentResponses || []).find(r => r.candidate_email === candidate.email);
-                        return (
-                          <DraggableCard
-                            key={candidate.id}
-                            candidate={candidate}
-                            response={response}
-                            isSelected={selectedCandidateIds.includes(candidate.id)}
-                            onToggleSelect={() => {
-                              setSelectedCandidateIds(prev =>
-                                prev.includes(candidate.id)
-                                  ? prev.filter(id => id !== candidate.id)
-                                  : [...prev, candidate.id]
-                              );
-                            }}
-                            onReject={(id, name) => {
-                              setRejectionTarget({ candidateId: id, candidateName: name });
-                              setRejectionReasonText("");
-                            }}
-                            onDefer={(id) => {
-                              deferCandidate.mutate({ candidateId: id });
-                              toast({ title: `تم نقل ${candidate.name} إلى المؤجلين ⏸️` });
-                            }}
-                            onRestore={(id, originalStage) => {
-                              restoreCandidate.mutate({ candidateId: id, stage: originalStage });
-                              toast({ title: `تم استعادة ${candidate.name} ✅` });
-                            }}
-                            stageSlaHours={(stage as any).sla_hours || 0}
-                          />
-                        );
-                      })
-                    )}
-                  </DroppableColumn>
+                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                    <span className="truncate max-w-[110px]">{s.label}</span>
+                    <span className="px-1.5 py-0.2 rounded-full bg-muted text-[10px] text-muted-foreground font-bold">
+                      {stageCount}
+                    </span>
+                  </button>
                 );
               })}
             </div>
 
-            <DragOverlay>
-              {activeCand && (
-                <CandidateCard 
-                  candidate={activeCand} 
-                  isDragging 
-                  response={(assessmentResponses || []).find(r => r.candidate_email === activeCand.email)} 
-                />
-              )}
-            </DragOverlay>
-          </DndContext>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4 lg:mx-0 lg:px-0">
+                {STAGES.map((stage) => {
+                  const isVirtual = (stage as any).isVirtual === true;
+                  const stageObj = !isVirtual ? (allStages || []).find(s => s.name === stage.id) : null;
+                  const ruleViolation = (activeCand && !isVirtual) ? checkTransitionRules(activeCand, stage.id) : null;
+                  const isDraggingActive = !!activeId;
+
+                  return (
+                    <DroppableColumn
+                      key={stage.id}
+                      stage={stage}
+                      count={grouped[stage.id]?.length || 0}
+                      label={stage.label}
+                      totalCandidates={filteredCandidates.length}
+                      avgDays={getAvgDays(stage.id)}
+                      tLabel={{ conversion: t("pipeline.conversionRate"), avgDays: t("pipeline.avgDays") }}
+                      slaHours={(stage as any).sla_hours}
+                      transitionRules={(stage as any).transition_rules}
+                      automationRules={(stage as any).automation_rules}
+                      isVirtual={isVirtual}
+                      onConfigure={stageObj ? () => setEditingStage(stageObj) : undefined}
+                      dragViolation={ruleViolation}
+                      isDraggingActive={isDraggingActive}
+                    >
+                      {grouped[stage.id]?.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground/40">
+                          <p className="text-[11px]">{t("pipeline.dragHere")}</p>
+                        </div>
+                      ) : (
+                        grouped[stage.id]?.map((candidate) => {
+                          const response = (assessmentResponses || []).find(r => r.candidate_email === candidate.email);
+                          return (
+                            <DraggableCard
+                              key={candidate.id}
+                              candidate={candidate}
+                              response={response}
+                              isSelected={selectedCandidateIds.includes(candidate.id)}
+                              onToggleSelect={() => {
+                                setSelectedCandidateIds(prev =>
+                                  prev.includes(candidate.id)
+                                    ? prev.filter(id => id !== candidate.id)
+                                    : [...prev, candidate.id]
+                                );
+                              }}
+                              onReject={(id, name) => {
+                                setRejectionTarget({ candidateId: id, candidateName: name });
+                                setRejectionReasonText("");
+                              }}
+                              onDefer={(id) => {
+                                deferCandidate.mutate({ candidateId: id });
+                                toast({ title: `تم نقل ${candidate.name} إلى المؤجلين ⏸️` });
+                              }}
+                              onRestore={(id, originalStage) => {
+                                restoreCandidate.mutate({ candidateId: id, stage: originalStage });
+                                toast({ title: `تم استعادة ${candidate.name} ✅` });
+                              }}
+                              stageSlaHours={(stage as any).sla_hours || 0}
+                              onPreview={() => setPreviewCandidate(candidate)}
+                              onQuickMove={(newStageId) => {
+                                const targetStage = STAGES.find(s => s.id === newStageId);
+                                const violation = checkTransitionRules(candidate, newStageId);
+                                if (violation) {
+                                  toast({ title: "تعذر النقل", description: violation.message, variant: "destructive" });
+                                  return;
+                                }
+                                moveStageMutation.mutate({ candidateId: candidate.id, newStage: newStageId });
+                                toast({ title: `تم نقل ${candidate.name} إلى ${targetStage?.label || newStageId} ✅` });
+                              }}
+                              allStages={STAGES}
+                            />
+                          );
+                        })
+                      )}
+                    </DroppableColumn>
+                  );
+                })}
+              </div>
+
+              <DragOverlay>
+                {activeCand && (
+                  <CandidateCard 
+                    candidate={activeCand} 
+                    isDragging 
+                    response={(assessmentResponses || []).find(r => r.candidate_email === activeCand.email)} 
+                  />
+                )}
+              </DragOverlay>
+            </DndContext>
+          </div>
         ) : (
           /* ─── Timeline View ─── */
           <div className="space-y-3">
@@ -1714,6 +1850,88 @@ export default function Pipeline() {
               stage={editingStage}
               onClose={() => setEditingStage(null)}
             />
+          )}
+        </DialogContent>
+      </Dialog>
+      {/* ─── Candidate Quick Preview Drawer ─── */}
+      <Dialog open={!!previewCandidate} onOpenChange={(open) => !open && setPreviewCandidate(null)}>
+        <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto p-6 rounded-2xl">
+          <DialogHeader className="border-b border-border/50 pb-4 mb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Avatar className="w-12 h-12 border-2 border-primary/20">
+                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
+                    {getInitials(previewCandidate?.name || "")}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <DialogTitle className="text-lg font-bold">{previewCandidate?.name}</DialogTitle>
+                  <DialogDescription className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
+                    <span>{previewCandidate?.role}</span>
+                    <span>•</span>
+                    <span>{previewCandidate?.email}</span>
+                  </DialogDescription>
+                </div>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {previewCandidate && (
+            <div className="space-y-4">
+              {/* Quick Stats Grid */}
+              <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-muted/30 border border-border/50 text-center">
+                <div>
+                  <p className="text-[10px] text-muted-foreground font-medium">المرحلة الحالية</p>
+                  <p className="text-xs font-bold text-primary mt-0.5">{previewCandidate.stage}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground font-medium">درجة الـ AI</p>
+                  <p className="text-xs font-bold text-purple-600 dark:text-purple-400 mt-0.5">
+                    {previewCandidate.ai_score != null ? `${previewCandidate.ai_score}%` : "غير مقيّم"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground font-medium">رمز التتبع</p>
+                  <p className="text-xs font-mono font-bold mt-0.5">{previewCandidate.tracking_code || "N/A"}</p>
+                </div>
+              </div>
+
+              {/* Skills */}
+              {previewCandidate.skills && previewCandidate.skills.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold text-foreground mb-1.5">المهارات والخبرات</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {previewCandidate.skills.map((s: string) => (
+                      <Badge key={s} variant="secondary" className="text-xs px-2 py-0.5">
+                        {s}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* AI Notes */}
+              {previewCandidate.ai_notes && (
+                <div className="p-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
+                  <h4 className="text-xs font-bold text-purple-700 dark:text-purple-300 flex items-center gap-1.5 mb-1">
+                    <Bot className="w-3.5 h-3.5" /> ملاحظات الذكاء الاصطناعي
+                  </h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{previewCandidate.ai_notes}</p>
+                </div>
+              )}
+
+              {/* Action Link */}
+              <div className="pt-3 border-t border-border/40 flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setPreviewCandidate(null)}>
+                  إغلاق
+                </Button>
+                <Button size="sm" asChild onClick={() => setPreviewCandidate(null)}>
+                  <Link to={`/candidates/${previewCandidate.id}`}>
+                    عرض الملف الكامل <ArrowRight className="w-3.5 h-3.5 ms-1" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>
