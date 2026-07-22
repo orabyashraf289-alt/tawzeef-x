@@ -141,6 +141,24 @@ export function useCandidates() {
   return useQuery({
     queryKey: ["candidates", user?.id],
     queryFn: async () => {
+      // 1. Repair ownership for any candidate rows attached to user's jobs that have user_id = null
+      if (user?.id) {
+        try {
+          const { data: ownJobs } = await supabase.from("jobs").select("id");
+          const ownJobIds = (ownJobs || []).map(j => j.id);
+          if (ownJobIds.length > 0) {
+            await supabase
+              .from("candidates")
+              .update({ user_id: user.id } as any)
+              .in("job_id", ownJobIds)
+              .is("user_id", null);
+          }
+        } catch (repairErr) {
+          console.warn("Candidate ownership repair warning:", repairErr);
+        }
+      }
+
+      // 2. Fetch candidates table
       const { data: candidatesData, error: candError } = await supabase
         .from("candidates")
         .select("*, candidate_scorecards(rating)")
@@ -148,7 +166,7 @@ export function useCandidates() {
 
       if (candError) throw candError;
 
-      // Also fetch applications to ensure any candidate submitted via public apply link is merged & synced
+      // 3. Fetch applications table to ensure no applied candidate is missed
       const { data: appsData } = await supabase
         .from("applications")
         .select("*, jobs(title)")
@@ -177,6 +195,7 @@ export function useCandidates() {
         email: a.email,
         phone: a.phone,
         job_id: a.job_id,
+        user_id: user?.id || null,
         role: (a as any).jobs?.title || a.specialty || "متقدم جديد",
         stage: "تقديم الطلب",
         status: a.status || "جديد",
@@ -190,11 +209,12 @@ export function useCandidates() {
         candidate_scorecards: [],
       }));
 
-      // Background persistence into candidates table
-      if (user?.id) {
+      // Background persistence via upsert (prevents unique constraint crashes)
+      if (user?.id && missingApps.length > 0) {
         (async () => {
           try {
-            const rowsToInsert = missingApps.map(a => ({
+            const rowsToUpsert = missingApps.map(a => ({
+              id: a.id,
               name: a.name,
               email: a.email,
               phone: a.phone,
@@ -211,9 +231,9 @@ export function useCandidates() {
               source: "رابط التقديم المباشر",
               tracking_code: (a as any).tracking_code || null,
             }));
-            await supabase.from("candidates").insert(rowsToInsert as any);
+            await supabase.from("candidates").upsert(rowsToUpsert as any, { onConflict: "id" });
           } catch (e) {
-            console.warn("Background auto-sync candidates warning:", e);
+            console.warn("Background auto-upsert candidates warning:", e);
           }
         })();
       }
@@ -221,7 +241,7 @@ export function useCandidates() {
       return [...(candidatesData || []), ...convertedApps];
     },
     enabled: !!user,
-    staleTime: 10 * 1000,
+    staleTime: 5 * 1000,
     gcTime: 5 * 60 * 1000,
   });
 }
@@ -232,6 +252,23 @@ export function usePaginatedCandidates(page = 0, pageSize = 50) {
   return useQuery({
     queryKey: ["candidates-paginated", user?.id, page, pageSize],
     queryFn: async () => {
+      // 1. Repair ownership for any candidate rows attached to user's jobs that have user_id = null
+      if (user?.id) {
+        try {
+          const { data: ownJobs } = await supabase.from("jobs").select("id");
+          const ownJobIds = (ownJobs || []).map(j => j.id);
+          if (ownJobIds.length > 0) {
+            await supabase
+              .from("candidates")
+              .update({ user_id: user.id } as any)
+              .in("job_id", ownJobIds)
+              .is("user_id", null);
+          }
+        } catch (repairErr) {
+          console.warn("Candidate ownership repair warning:", repairErr);
+        }
+      }
+
       const from = page * pageSize;
       const to = from + pageSize - 1;
 
@@ -254,7 +291,12 @@ export function usePaginatedCandidates(page = 0, pageSize = 50) {
       }
 
       const existingCandKeys = new Set((candidatesData || []).map(c => `${(c.email || "").toLowerCase()}_${c.job_id}`));
-      const missingApps = appsData.filter(a => !existingCandKeys.has(`${(a.email || "").toLowerCase()}_${a.job_id}`));
+      const existingCandIds = new Set((candidatesData || []).map(c => c.id));
+
+      const missingApps = appsData.filter(a => {
+        const key = `${(a.email || "").toLowerCase()}_${a.job_id}`;
+        return !existingCandKeys.has(key) && !existingCandIds.has(a.id);
+      });
 
       const convertedApps = missingApps.map(a => ({
         id: a.id,
@@ -262,6 +304,7 @@ export function usePaginatedCandidates(page = 0, pageSize = 50) {
         email: a.email,
         phone: a.phone,
         job_id: a.job_id,
+        user_id: user?.id || null,
         role: (a as any).jobs?.title || a.specialty || "متقدم جديد",
         stage: "تقديم الطلب",
         status: a.status || "جديد",
@@ -280,7 +323,7 @@ export function usePaginatedCandidates(page = 0, pageSize = 50) {
     },
     enabled: !!user,
     placeholderData: keepPreviousData,
-    staleTime: 10 * 1000,
+    staleTime: 5 * 1000,
     gcTime: 5 * 60 * 1000,
   });
 }
