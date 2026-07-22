@@ -58,10 +58,12 @@ function hexToTailwind(hex: string) {
 
 const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("");
 
-function DroppableColumn({ stage, children, count, label, totalCandidates, avgDays, tLabel, slaHours, transitionRules, onConfigure, isVirtual }: {
+function DroppableColumn({ stage, children, count, label, totalCandidates, avgDays, tLabel, slaHours, transitionRules, onConfigure, isVirtual, dragViolation, isDraggingActive }: {
   stage: { id: string; label: string; color: string }; children: React.ReactNode; count: number; label: string;
   totalCandidates: number; avgDays: number; tLabel: { conversion: string; avgDays: string };
   slaHours?: number; transitionRules?: TransitionRules; onConfigure?: () => void; isVirtual?: boolean;
+  dragViolation?: { message: string; assessmentId?: string } | null;
+  isDraggingActive?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const conversionRate = totalCandidates > 0 ? Math.round((count / totalCandidates) * 100) : 0;
@@ -71,7 +73,12 @@ function DroppableColumn({ stage, children, count, label, totalCandidates, avgDa
       ref={setNodeRef}
       className={cn(
         "flex flex-col min-w-[240px] w-[240px] lg:w-auto lg:flex-1 rounded-xl border border-border/50 bg-muted/20 transition-all duration-200",
-        isOver && "bg-primary/5 border-primary/30 shadow-md"
+        isOver && !isDraggingActive && "bg-primary/5 border-primary/30 shadow-md",
+        isDraggingActive && (
+          dragViolation
+            ? cn("border-destructive/40 bg-destructive/5 opacity-90", isOver && "border-destructive bg-destructive/15 shadow-lg scale-[1.01]")
+            : cn("border-emerald-500/40 bg-emerald-500/5", isOver && "border-emerald-500 bg-emerald-500/15 shadow-lg scale-[1.01]")
+        )
       )}
     >
       <div className="p-3 border-b border-border/50">
@@ -155,6 +162,28 @@ function DroppableColumn({ stage, children, count, label, totalCandidates, avgDa
             </span>
           )}
         </div>
+
+        {/* Real-time Guidance Banner during Drag */}
+        {isDraggingActive && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-2"
+          >
+            {dragViolation ? (
+              <div className="px-2 py-1 rounded-md bg-destructive/10 border border-destructive/20 text-destructive flex items-center gap-1.5 text-[10px] animate-pulse">
+                <Lock className="w-3 h-3 shrink-0" />
+                <span className="font-semibold truncate">{dragViolation.message}</span>
+              </div>
+            ) : (
+              <div className="px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 text-[10px]">
+                <CheckCircle2 className="w-3 h-3 shrink-0" />
+                <span className="font-semibold">مؤهل للنقل</span>
+              </div>
+            )}
+          </motion.div>
+        )}
       </div>
       <div className="p-2 space-y-2 flex-1 overflow-y-auto max-h-[calc(100vh-300px)] min-h-[80px]">
         {children}
@@ -1052,6 +1081,9 @@ export default function Pipeline() {
               {STAGES.map((stage) => {
                 const isVirtual = (stage as any).isVirtual === true;
                 const stageObj = !isVirtual ? (allStages || []).find(s => s.name === stage.id) : null;
+                const ruleViolation = (activeCand && !isVirtual) ? checkTransitionRules(activeCand, stage.id) : null;
+                const isDraggingActive = !!activeId;
+
                 return (
                   <DroppableColumn
                     key={stage.id}
@@ -1065,6 +1097,8 @@ export default function Pipeline() {
                     transitionRules={(stage as any).transition_rules}
                     isVirtual={isVirtual}
                     onConfigure={stageObj ? () => setEditingStage(stageObj) : undefined}
+                    dragViolation={ruleViolation}
+                    isDraggingActive={isDraggingActive}
                   >
                     {grouped[stage.id]?.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground/40">
