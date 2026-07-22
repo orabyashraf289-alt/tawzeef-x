@@ -4,6 +4,7 @@ import { X, Download, Copy, CheckCircle, Share2, Linkedin, QrCode, Link2, Extern
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 import { getApplyUrl, getOgApplyUrl } from "@/lib/getPublicUrl";
 import { useI18n } from "@/contexts/I18nContext";

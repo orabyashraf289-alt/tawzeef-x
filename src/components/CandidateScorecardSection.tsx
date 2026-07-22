@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { Star, MessageSquare, Trash2, Edit2, Loader2, Sparkles, UserCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
