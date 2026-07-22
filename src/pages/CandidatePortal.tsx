@@ -167,9 +167,16 @@ export default function CandidatePortal() {
         let candQuery = supabase.from("candidates").select("*, jobs(title)");
         let appQuery = supabase.from("applications").select("*, jobs(title)");
 
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanInput);
+
         if (searchType === "tracking") {
-          candQuery = candQuery.or(`tracking_code.ilike.${cleanInput},id.eq.${cleanInput}`);
-          appQuery = appQuery.or(`tracking_code.ilike.${cleanInput},id.eq.${cleanInput}`);
+          if (isUuid) {
+            candQuery = candQuery.or(`tracking_code.ilike.${cleanInput},id.eq.${cleanInput}`);
+            appQuery = appQuery.or(`tracking_code.ilike.${cleanInput},id.eq.${cleanInput}`);
+          } else {
+            candQuery = candQuery.ilike("tracking_code", cleanInput);
+            appQuery = appQuery.ilike("tracking_code", cleanInput);
+          }
         } else {
           candQuery = candQuery.ilike("email", cleanInput);
           appQuery = appQuery.ilike("email", cleanInput);

@@ -300,29 +300,41 @@ export default function CandidateProfile() {
   const queryClient = useQueryClient();
   const { data: candidates, isLoading: isCandidatesLoading } = useCandidates();
 
-  // Direct database lookup fallback (by id or tracking_code) in case candidate isn't in memory yet
+  // Direct database lookup fallback (by id or tracking_code or email) in case candidate isn't in memory yet
   const { data: fetchedCandidate, isLoading: isFetchingDirect } = useQuery({
     queryKey: ["candidate-detail-direct", id],
     enabled: !!id,
     queryFn: async () => {
       if (!id) return null;
       const cleanId = id.trim();
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
 
-      // 1. Try matching candidates table by id or tracking_code
-      const { data: cand } = await supabase
+      // 1. Try matching candidates table
+      let candQuery = supabase
         .from("candidates")
-        .select("*, candidate_scorecards(rating), jobs(title)")
-        .or(`id.eq.${cleanId},tracking_code.ilike.${cleanId}`)
-        .maybeSingle();
+        .select("*, candidate_scorecards(rating), jobs(title)");
 
+      if (isUuid) {
+        candQuery = candQuery.or(`id.eq.${cleanId},tracking_code.ilike.${cleanId}`);
+      } else {
+        candQuery = candQuery.or(`tracking_code.ilike.${cleanId},email.ilike.${cleanId}`);
+      }
+
+      const { data: cand } = await candQuery.maybeSingle();
       if (cand) return cand;
 
-      // 2. Try matching applications table by id or tracking_code
-      const { data: app } = await supabase
+      // 2. Try matching applications table
+      let appQuery = supabase
         .from("applications")
-        .select("*, jobs(title)")
-        .or(`id.eq.${cleanId},tracking_code.ilike.${cleanId}`)
-        .maybeSingle();
+        .select("*, jobs(title)");
+
+      if (isUuid) {
+        appQuery = appQuery.or(`id.eq.${cleanId},tracking_code.ilike.${cleanId}`);
+      } else {
+        appQuery = appQuery.or(`tracking_code.ilike.${cleanId},email.ilike.${cleanId}`);
+      }
+
+      const { data: app } = await appQuery.maybeSingle();
 
       if (app) {
         return {
@@ -350,7 +362,13 @@ export default function CandidateProfile() {
     },
   });
 
-  const candidate = (candidates || []).find(c => c.id === id || (c as any).tracking_code === id) || fetchedCandidate;
+  const targetId = (id || "").trim().toLowerCase();
+  const candidate = (candidates || []).find(c => 
+    (c.id || "").toLowerCase() === targetId || 
+    ((c as any).tracking_code || "").toLowerCase() === targetId ||
+    ((c as any).email || "").toLowerCase() === targetId
+  ) || fetchedCandidate;
+
   const isPageLoading = (isCandidatesLoading || isFetchingDirect) && !candidate;
 
   // Fetch E2E encryption status of recruiter's company
