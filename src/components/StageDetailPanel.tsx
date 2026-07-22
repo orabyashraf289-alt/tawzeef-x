@@ -320,7 +320,46 @@ export default function StageDetailPanel({ stage, onClose, compact = false }: St
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">تهيئة المرحلة • الإجراءات التلقائية • المراحل الفرعية</p>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Quick Save All Settings Button */}
+          <Button
+            size="sm"
+            onClick={saveAllSettings}
+            disabled={updateStage.isPending || updateTransitionRules.isPending}
+            className="h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-sm"
+          >
+            <Save className="w-3.5 h-3.5" /> حفظ الإعدادات
+          </Button>
+
+          {/* Duplicate Stage Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1 text-muted-foreground hover:text-foreground"
+            onClick={async () => {
+              try {
+                await updateStage.mutateAsync; // trigger
+                const { data, error } = await supabase.from("pipeline_stages").insert([{
+                  name: `${stage.name} (نسخة)`,
+                  color: stage.color,
+                  icon: stage.icon,
+                  sort_order: allStages.length,
+                  transition_rules: stage.transition_rules,
+                  automation_rules: stage.automation_rules,
+                }] as any).select().single();
+                if (error) throw error;
+                toast({ title: `تم إنشاء نسخة جديدة من "${stage.name}" ✅` });
+              } catch {
+                toast({ title: "خطأ عند النسخ", variant: "destructive" });
+              }
+            }}
+            title="نسخ المرحلة بنفس الإعدادات"
+          >
+            <Copy className="w-3.5 h-3.5" /> نسخ
+          </Button>
+
+          <div className="w-px h-5 bg-border/60 mx-0.5" />
+
           <Switch checked={stage.is_active}
             onCheckedChange={async (v) => {
               await updateStage.mutateAsync({ id: stage.id, is_active: v });
@@ -332,8 +371,14 @@ export default function StageDetailPanel({ stage, onClose, compact = false }: St
               <Star className="w-3 h-3" /> افتراضية
             </Button>
           )}
-          <Button variant="ghost" size="sm" className="h-8" onClick={() => setIsEditing(!isEditing)}>
-            <Pencil className="w-3.5 h-3.5" />
+          <Button
+            variant={isEditing ? "secondary" : "ghost"}
+            size="sm"
+            className="h-8 gap-1 text-xs"
+            onClick={() => setIsEditing(!isEditing)}
+            title="تعديل الاسم واللون والأيقونة"
+          >
+            <Pencil className="w-3.5 h-3.5" /> تعديل الاسم
           </Button>
           {onClose && (
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>

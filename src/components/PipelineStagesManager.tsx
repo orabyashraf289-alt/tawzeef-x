@@ -18,7 +18,7 @@ import {
   FileText, FileSearch, Phone, Code, Users, Briefcase, Circle,
   LayoutTemplate, Download, Upload,
   Mail, Target, Award, Heart, ThumbsUp, AlertTriangle,
-  Eye, Star, Timer, Search, SlidersHorizontal, List, Kanban, Save, ArrowUpDown
+  Eye, Star, Timer, Search, SlidersHorizontal, List, Kanban, Save, ArrowUpDown, Pencil
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -336,8 +336,34 @@ export default function PipelineStagesManager() {
                   )}
                 </div>
 
-                <div className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                  {stg.sla_hours ? `${stg.sla_hours} ساعة` : "غير محدد"}
+                <div className="flex items-center gap-2">
+                  <div className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                    {stg.sla_hours ? `${stg.sla_hours} ساعة` : "غير محدد"}
+                  </div>
+
+                  <div className="flex items-center gap-1 ms-2" onClick={e => e.stopPropagation()}>
+                    <Button
+                      variant={selectedStageId === stg.id ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 px-2 text-xs gap-1"
+                      onClick={() => setSelectedStageId(selectedStageId === stg.id ? null : stg.id)}
+                    >
+                      <Pencil className="w-3 h-3" />
+                      {selectedStageId === stg.id ? "إغلاق التعديل" : "تعديل الإعدادات"}
+                    </Button>
+
+                    {!stg.is_default && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteTarget(stg)}
+                        title="حذف المرحلة"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
