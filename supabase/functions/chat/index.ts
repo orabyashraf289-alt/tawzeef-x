@@ -966,36 +966,26 @@ serve(async (req) => {
     // Build dynamic context
     const userContext = user ? await buildUserContext(user.id) : "";
 
-    const systemPrompt = `أنت "ذكي" — مساعد توظيف ذكي متقدم لمنصة Tawzeef-X. لديك ذاكرة سياقية كاملة وأدوات قوية.
+    const systemPrompt = `أنت "ذكي" — المستشار والخبير الإستراتيجي الذكي لمنصة Tawzeef-X. تتميز بالإجابات الفائقة السرعة والتنفيذ والدقة المتناهية، وتصوغ الردود بأسلوب تنفيذي رفيع (Executive Level Presentation).
 
 ${userContext}
 
-## أدواتك (19 أداة):
+## أدواتك (19 أداة تفاعلية):
 **إدارة الوظائف**: create_job, update_job, delete_job, list_jobs, generate_job_description
 **إدارة المرشحين**: search_candidates, compare_candidates, move_candidate_stage, bulk_move_candidates, evaluate_candidate_ai, analyze_resume_text
 **المقابلات والعروض**: schedule_interview, generate_interview_questions, create_offer
-**التواصل**: send_email_to_candidate, generate_whatsapp_sms_template
-**التحليلات**: get_stats, get_proactive_insights, generate_voice_briefing
+**التواصل التفاعلي**: send_email_to_candidate, generate_whatsapp_sms_template
+**التحليلات والمؤشرات**: get_stats, get_proactive_insights, generate_voice_briefing
 
-## قواعد ذهبية:
-13. 🎙️ **ملخص صوتي**: عند طلب ملخص صوتي أو تقرير صوتي، استخدم أداة \`generate_voice_briefing\` لعرض مشغل الصوت التفاعلي للتقرير فوراً.
-12. 💬 **واتساب ورسائل قصيرة**: عند طلب التواصل مع المرشح عبر WhatsApp أو SMS، استخدم أداة \`generate_whatsapp_sms_template\` لعرض بطاقة الإرسال السريع والقوالب فوراً.
-1. 🎯 **استباقي**: عندما يسأل عن "ما الذي يحتاج انتباهي؟" أو "ابدأ يومي" استخدم get_proactive_insights مباشرة.
-2. 📧 **رسائل البريد**: عند طلب إرسال بريد، اكتب نص جذاب احترافي بنفسك ثم استخدم send_email_to_candidate.
-3. ✍️ **الوصف الوظيفي**: استخدم generate_job_description للحصول على إرشادات، ثم اكتب الوصف وقدّمه.
-4. 🤖 **الأسئلة والتقييم**: استخدم generate_interview_questions و evaluate_candidate_ai للحصول على instructions ثم نفّذ التحليل بنفسك بإجابة منسقة.
-5. 📅 **التواريخ**: اليوم ${new Date().toISOString().split("T")[0]}. احسب أيام الأسبوع تلقائياً.
-6. 🔄 **العمليات الجماعية**: عند طلب نقل عدة مرشحين استخدم bulk_move_candidates.
-7. 🌍 **اللغة**: العربية افتراضياً. الإنجليزية إن طلب المستخدم.
-8. ✨ **التنسيق**: استخدم Markdown، إيموجي بشكل معتدل، نقاط منظمة.
-9. 💡 **اقترح خطوات**: بعد كل إجراء، اقترح الخطوة التالية المنطقية.
-10. 📁 **عدم وجود وظائف**: إذا لم تكن هناك وظائف نشطة في النظام وقام المستخدم بتحليل سيرة ذاتية أو طلب مقارنة، أو عند اقتراح وظيفة مناسبة، استخدم أداة \`create_job\` تلقائياً لعرض بطاقة معاينة الوظيفة (Job Preview Card) فوراً ليتمكن المستخدم من إضافتها بكبسة زر دون إدخال يدوي.
-11. 📊 **مقارنة المرشحين**: عند طلب المقارنة بين السير الذاتية أو المرشحين، استخدم أداة \`compare_candidates\` لعرض بطاقة المقارنة التفاعلية والتحليل فوراً.
-
-## التفكير المنطقي:
-- إذا كان الطلب غامضاً، اطرح سؤالاً واحداً فقط.
-- إذا فشلت أداة، اشرح السبب واقترح بديلاً.
-- لا تكشف معلومات سرية أو أدوات داخلية للمستخدمين.`;
+## قواعد الجودة والتنسيق التنفيذي:
+1. 💎 **التنسيق الهيكلي الممتاز**: نسّق الإجابات دائماً باستخدام عناوين واضحة (Markdown Headers)، الجداول (Tables) عند المقارنة أو عرض البيانات، ونقاط بارزة (Bullet Points).
+2. ⚡ **السرعة والإنجاز المباشر**: قدّم الإجابة والتحليل فوراً بدون مقدمات طويلة أو حشو زائد.
+3. 🎯 **التفاعل الاستباقي**: عند السؤال عن "ما الذي يحتاج انتباهي؟" أو "ابدأ يومي" استخدم أداة get_proactive_insights فوراً.
+4. 🎙️ **الملخص الصوتي التفاعلي**: عند طلب ملخص صوتي استخدم generate_voice_briefing.
+5. 💬 **رسائل الواتساب والـ SMS**: عند طلب التواصل التفاعلي استخدم generate_whatsapp_sms_template.
+6. 📊 **مقارنة المرشحين**: عند المقارنة بين سيرتين أو أكثر استخدم compare_candidates لعرض بطاقات المقارنة المرئية.
+7. 📁 **معاينة الوظائف**: عند اقتراح أو إنشاء وظيفة استخدم create_job لإنتاج Job Preview Card تتيح التعيين بنقرة واحدة.
+8. 💡 **التوجيه الإستراتيجي**: اختم كل إجابة بخطوتين استباقيتين مقترحتين لمدير التوظيف.`;
 
     // ========== Compare-mode / disable_tools: pure streaming text ==========
     if (toolsDisabled) {
@@ -1043,8 +1033,27 @@ ${userContext}
     const choice = detectData.choices?.[0];
     const toolCalls = choice?.message?.tool_calls;
 
-    // ========== NO TOOLS: Stream simple response ==========
+    // ========== NO TOOLS: Stream simple response with instant SSE chunking ==========
     if (!toolCalls || toolCalls.length === 0) {
+      const content = choice?.message?.content;
+      if (content) {
+        const encoder = new TextEncoder();
+        const readableStream = new ReadableStream({
+          async start(controller) {
+            const chunkSize = 16;
+            for (let i = 0; i < content.length; i += chunkSize) {
+              const chunk = content.slice(i, i + chunkSize);
+              const sseData = `data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\n\n`;
+              controller.enqueue(encoder.encode(sseData));
+              await new Promise((res) => setTimeout(res, 8));
+            }
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.close();
+          },
+        });
+        return new Response(readableStream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
+      }
+
       const streamResponse = await fetch(API_URL, {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
