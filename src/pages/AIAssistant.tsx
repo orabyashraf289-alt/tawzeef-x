@@ -2109,10 +2109,12 @@ export default function AIAssistant() {
             </div>
           )}
 
-          {/* Quick Actions Bar - always visible */}
-          <div className="px-4 pt-2 pb-1 w-full max-w-full mx-auto">
-            <QuickActions onSelect={(text) => { setInput(text); setTimeout(() => handleSend(), 50); }} />
-          </div>
+          {/* Quick Actions Bar - active chat floating shortcuts */}
+          {messages.length > 1 && (
+            <div className="px-4 pt-2 pb-1 w-full max-w-full mx-auto">
+              <QuickActions onSelect={(text) => { setInput(text); setTimeout(() => handleSend(), 50); }} />
+            </div>
+          )}
 
           {/* Legacy resume indicator (kept for backward-compat) */}
           {resumeFile && (
