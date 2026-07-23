@@ -168,15 +168,19 @@ export default function CandidatePortal() {
         let appQuery = supabase.from("applications").select("*, jobs(title)");
 
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanInput);
-        const codeDigits = cleanInput.replace(/[^0-9a-z]/gi, "");
+        const codeDigits = cleanInput.replace(/[^0-9]/g, "");
+        const formattedTxCode = codeDigits ? `TX-${codeDigits}` : cleanInput;
 
         if (searchType === "tracking") {
           if (isUuid) {
             candQuery = candQuery.or(`tracking_code.ilike.${cleanInput},id.eq.${cleanInput}`);
             appQuery = appQuery.or(`tracking_code.ilike.${cleanInput},id.eq.${cleanInput}`);
+          } else if (codeDigits) {
+            candQuery = candQuery.or(`tracking_code.ilike.${cleanInput},tracking_code.ilike.${formattedTxCode},tracking_code.ilike.%${codeDigits}%,id.ilike.%${codeDigits}%`);
+            appQuery = appQuery.or(`tracking_code.ilike.${cleanInput},tracking_code.ilike.${formattedTxCode},tracking_code.ilike.%${codeDigits}%,id.ilike.%${codeDigits}%`);
           } else {
-            candQuery = candQuery.or(`tracking_code.ilike.${cleanInput},tracking_code.ilike.%${codeDigits}%`);
-            appQuery = appQuery.or(`tracking_code.ilike.${cleanInput},tracking_code.ilike.%${codeDigits}%`);
+            candQuery = candQuery.ilike("tracking_code", `%${cleanInput}%`);
+            appQuery = appQuery.ilike("tracking_code", `%${cleanInput}%`);
           }
         } else {
           candQuery = candQuery.ilike("email", cleanInput);

@@ -98,71 +98,91 @@ serve(async (req) => {
 
     // --- Search by Tracking Code ---
     const rawCode = trackingCode.trim();
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawCode);
+    const digitsOnly = rawCode.replace(/[^0-9]/g, "");
+    const formattedTxCode = digitsOnly ? `TX-${digitsOnly}` : rawCode;
 
-    // 1. Query candidates table by tracking_code (ilike) or id
-    let candQuery = supabase.from("candidates").select("id, name, role, stage, status, skills, created_at, tracking_code, job_id");
-    if (isUuid) {
-      candQuery = candQuery.or(`tracking_code.ilike.${rawCode},id.eq.${rawCode}`);
-    } else {
-      candQuery = candQuery.ilike("tracking_code", rawCode);
-    }
-    let { data: candidates, error: candErr } = await candQuery;
+    // Fetch all candidates and applications using service role client (bypassing RLS)
+    const [{ data: allCands, error: candErr }, { data: allApps, error: appErr }] = await Promise.all([
+      supabase.from("candidates").select("id, name, role, stage, status, skills, created_at, tracking_code, job_id, email, phone"),
+      supabase.from("applications").select("id, name, specialty, status, skills, created_at, tracking_code, job_id, email, phone")
+    ]);
 
-    if (candErr) {
-      console.error("DB error candidates search:", candErr);
-    }
+    if (candErr) console.error("DB error candidates search:", candErr);
+    if (appErr) console.error("DB error applications search:", appErr);
 
-    // Fallback: If not found by exact ilike, try wildcard or without TX- prefix
-    if (!candidates || candidates.length === 0) {
-      const codeOnlyDigits = rawCode.replace(/[^0-9a-z]/gi, "");
-      if (codeOnlyDigits) {
-        const { data } = await supabase
-          .from("candidates")
-          .select("id, name, role, stage, status, skills, created_at, tracking_code, job_id")
-          .ilike("tracking_code", `%${codeOnlyDigits}%`);
-        if (data && data.length > 0) candidates = data;
+    // Multi-strategy matching on candidates
+    const matchedCands = (allCands || []).filter(c => {
+      const tc = (c.tracking_code || "").trim();
+      const idStr = (c.id || "").trim();
+      const emailStr = (c.email || "").trim().toLowerCase();
+      const phoneStr = (c.phone || "").trim();
+
+      // 1. Exact or formatted match
+      if (tc && (tc.toLowerCase() === rawCode.toLowerCase() || tc.toLowerCase() === formattedTxCode.toLowerCase())) return true;
+      if (idStr && idStr.toLowerCase() === rawCode.toLowerCase()) return true;
+
+      // 2. Digit match if digitsOnly is provided
+      if (digitsOnly && digitsOnly.length >= 3) {
+        if (tc && tc.includes(digitsOnly)) return true;
+        if (idStr && idStr.toLowerCase().includes(digitsOnly.toLowerCase())) return true;
+        if (phoneStr && phoneStr.includes(digitsOnly)) return true;
+      }
+
+      // 3. Email match
+      if (emailStr && rawCode.toLowerCase() === emailStr) return true;
+
+      return false;
+    });
+
+    // Multi-strategy matching on applications
+    const matchedApps = (allApps || []).filter(a => {
+      const tc = (a.tracking_code || "").trim();
+      const idStr = (a.id || "").trim();
+      const emailStr = (a.email || "").trim().toLowerCase();
+      const phoneStr = (a.phone || "").trim();
+
+      if (tc && (tc.toLowerCase() === rawCode.toLowerCase() || tc.toLowerCase() === formattedTxCode.toLowerCase())) return true;
+      if (idStr && idStr.toLowerCase() === rawCode.toLowerCase()) return true;
+
+      if (digitsOnly && digitsOnly.length >= 3) {
+        if (tc && tc.includes(digitsOnly)) return true;
+        if (idStr && idStr.toLowerCase().includes(digitsOnly.toLowerCase())) return true;
+        if (phoneStr && phoneStr.includes(digitsOnly)) return true;
+      }
+
+      if (emailStr && rawCode.toLowerCase() === emailStr) return true;
+
+      return false;
+    });
+
+    // Auto-heal tracking code in DB for any matched record that had NULL tracking_code
+    for (const c of matchedCands) {
+      if (!c.tracking_code) {
+        await supabase.from("candidates").update({ tracking_code: formattedTxCode }).eq("id", c.id).catch(e => console.warn("Failed auto-healing candidate tracking_code:", e));
+        c.tracking_code = formattedTxCode;
       }
     }
-
-    // 2. Query applications table if not found in candidates
-    let appsData: any[] = [];
-    if (!candidates || candidates.length === 0) {
-      let appQuery = supabase.from("applications").select("id, name, specialty, status, skills, created_at, tracking_code, job_id");
-      if (isUuid) {
-        appQuery = appQuery.or(`tracking_code.ilike.${rawCode},id.eq.${rawCode}`);
-      } else {
-        appQuery = appQuery.ilike("tracking_code", rawCode);
-      }
-      const { data } = await appQuery;
-      appsData = data || [];
-
-      if (appsData.length === 0) {
-        const codeOnlyDigits = rawCode.replace(/[^0-9a-z]/gi, "");
-        if (codeOnlyDigits) {
-          const { data: fuzzyApps } = await supabase
-            .from("applications")
-            .select("id, name, specialty, status, skills, created_at, tracking_code, job_id")
-            .ilike("tracking_code", `%${codeOnlyDigits}%`);
-          if (fuzzyApps && fuzzyApps.length > 0) appsData = fuzzyApps;
-        }
+    for (const a of matchedApps) {
+      if (!a.tracking_code) {
+        await supabase.from("applications").update({ tracking_code: formattedTxCode }).eq("id", a.id).catch(e => console.warn("Failed auto-healing application tracking_code:", e));
+        a.tracking_code = formattedTxCode;
       }
     }
 
     const mergedList = [
-      ...(candidates || []).map(c => ({
+      ...matchedCands.map(c => ({
         id: c.id,
         name: c.name,
         role: c.role || "متقدم للوظيفة",
         stage: c.stage || "تقديم الطلب",
         status: c.status || "جديد",
         skills: c.skills,
-        trackingCode: c.tracking_code || c.id?.slice(0, 8).toUpperCase(),
+        trackingCode: c.tracking_code || formattedTxCode || c.id?.slice(0, 8).toUpperCase(),
         appliedAt: c.created_at,
         jobId: c.job_id
       })),
-      ...appsData
-        .filter(a => !(candidates || []).some(c => c.id === a.id || c.tracking_code === a.tracking_code))
+      ...matchedApps
+        .filter(a => !matchedCands.some(c => c.id === a.id || c.tracking_code === a.tracking_code))
         .map(a => ({
           id: a.id,
           name: a.name,
@@ -170,7 +190,7 @@ serve(async (req) => {
           stage: "تقديم الطلب",
           status: a.status || "جديد",
           skills: a.skills,
-          trackingCode: a.tracking_code || a.id?.slice(0, 8).toUpperCase(),
+          trackingCode: a.tracking_code || formattedTxCode || a.id?.slice(0, 8).toUpperCase(),
           appliedAt: a.created_at,
           jobId: a.job_id
         }))
