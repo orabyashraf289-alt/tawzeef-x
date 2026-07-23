@@ -296,6 +296,13 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Generate tracking ID and inject tracking pixel
+    const trackingId = crypto.randomUUID();
+    const trackingPixel = `<img src="${supabaseUrl}/functions/v1/email-tracking-pixel?tid=${trackingId}" width="1" height="1" style="display:none;" />`;
+    const finalHtml = emailHtml.includes("</body>")
+      ? emailHtml.replace("</body>", `${trackingPixel}</body>`)
+      : `${emailHtml}${trackingPixel}`;
+
     // Auto-detect and fix Port / Secure mismatch
     // If port is 587 or 25, we MUST set secure to false (Nodemailer uses STARTTLS automatically).
     const isSecureConnection = (smtpPort === 465) ? true : (smtpPort === 587 || smtpPort === 25 ? false : smtpSecure);
@@ -317,7 +324,7 @@ Deno.serve(async (req) => {
           from: `"${senderName}" <${smtpUser}>`,
           to,
           subject: emailSubject,
-          html: emailHtml,
+          html: finalHtml,
           attachments: nodemailerAttachments.length > 0 ? nodemailerAttachments : undefined,
         });
         emailSent = true;
@@ -346,11 +353,24 @@ Deno.serve(async (req) => {
         from: `"Tawzeef-X" <${defaultUser}>`,
         to,
         subject: emailSubject,
-        html: emailHtml,
+        html: finalHtml,
         attachments: nodemailerAttachments.length > 0 ? nodemailerAttachments : undefined,
       });
       emailSent = true;
       console.log(`Email sent successfully to ${to} via system default SMTP (Custom SMTP was ${customSmtpUsed ? "invalid" : "not configured"})`);
+    }
+
+    // Record sent email in email_tracking table for Analytics
+    if (smtpUserId) {
+      await supabase.from("email_tracking").insert({
+        user_id: smtpUserId,
+        candidate_email: to,
+        email_type: email_type || "general",
+        subject: emailSubject,
+        tracking_id: trackingId,
+        sent_at: new Date().toISOString(),
+        opened_count: 0
+      }).catch(err => console.warn("Failed recording email tracking:", err));
     }
 
     return new Response(
