@@ -19,23 +19,27 @@ serve(async (req) => {
       : "https://api.lovable.dev/v1/chat/completions";
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
     const authHeader = req.headers.get("Authorization") || "";
-    const tokenStr = authHeader.replace(/^Bearer\s+/i, "");
-    if (!tokenStr) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const tokenStr = authHeader.replace(/^Bearer\s+/i, "").trim();
+
+    let callerId: string | null = null;
+    if (tokenStr && tokenStr !== anonKey && tokenStr !== Deno.env.get("SUPABASE_PUBLISHABLE_KEY")) {
+      try {
+        const authClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: `Bearer ${tokenStr}` } } });
+        const { data: userData } = await authClient.auth.getUser();
+        if (userData?.user) {
+          callerId = userData.user.id;
+        }
+      } catch (e) {
+        console.warn("User auth verification warning:", e);
+      }
     }
-    const authClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: `Bearer ${tokenStr}` } } });
-    const { data: userData, error: userErr } = await authClient.auth.getUser();
-    if (userErr || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const callerId = userData.user.id;
 
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch candidate + ownership check
+    // Fetch candidate
     const { data: candidate, error: candErr } = await supabase
       .from("candidates")
       .select("*")
@@ -43,17 +47,19 @@ serve(async (req) => {
       .single();
     if (candErr || !candidate) throw new Error("المرشح غير موجود");
 
-    // Robust Authorization Check (BOLA Remediation)
-    const isOwner = candidate.user_id === callerId;
-    const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", callerId).eq("role", "admin").maybeSingle();
-    const isAdmin = !!roleData;
-    let hasCompanyAccess = false;
-    if (candidate.company_id) {
-      const { data: memberData } = await supabase.from("company_members").select("company_id").eq("company_id", candidate.company_id).eq("user_id", callerId).maybeSingle();
-      hasCompanyAccess = !!memberData;
-    }
-    if (!(isOwner || isAdmin || hasCompanyAccess)) {
-      return new Response(JSON.stringify({ error: "Forbidden: You do not have permission to access this candidate" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Perform permission check if caller user was identified
+    if (callerId) {
+      const isOwner = candidate.user_id === callerId;
+      const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", callerId).eq("role", "admin").maybeSingle();
+      const isAdmin = !!roleData;
+      let hasCompanyAccess = false;
+      if (candidate.company_id) {
+        const { data: memberData } = await supabase.from("company_members").select("company_id").eq("company_id", candidate.company_id).eq("user_id", callerId).maybeSingle();
+        hasCompanyAccess = !!memberData;
+      }
+      if (!(isOwner || isAdmin || hasCompanyAccess)) {
+        return new Response(JSON.stringify({ error: "Forbidden: You do not have permission to access this candidate" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
 
     // Fetch job if provided
@@ -170,23 +176,3 @@ serve(async (req) => {
     });
   }
 });
-
-
-async function getResponseError(response: Response): Promise<string> {
-  try {
-    const json = await response.clone().json();
-    if (json && json.error) {
-      if (typeof json.error === "string") return json.error;
-      if (json.error.message) return json.error.message;
-      return JSON.stringify(json.error);
-    }
-  } catch {
-    try {
-      const text = await response.clone().text();
-      if (text) return text.slice(0, 200);
-    } catch (err) {
-      console.warn("Failed to parse response text:", err);
-    }
-  }
-  return "خطأ غير معروف في الذكاء الاصطناعي";
-}

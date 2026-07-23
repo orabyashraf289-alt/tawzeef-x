@@ -63,11 +63,14 @@ export default function AIEvaluationCard({
   const runEvaluation = async () => {
     setIsLoading(true);
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const authToken = sessionData.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
       const resp = await fetch(EVAL_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({ candidateId, jobId }),
       });
