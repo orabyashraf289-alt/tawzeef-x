@@ -296,12 +296,42 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Generate tracking ID and inject tracking pixel
+function htmlToPlainText(htmlStr: string): string {
+  return htmlStr
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/h[1-6]>/gi, "\n\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+    // Generate tracking ID and inject tracking pixel + transactional anti-spam footer
     const trackingId = crypto.randomUUID();
     const trackingPixel = `<img src="${supabaseUrl}/functions/v1/email-tracking-pixel?tid=${trackingId}" width="1" height="1" style="display:none;" />`;
-    const finalHtml = emailHtml.includes("</body>")
-      ? emailHtml.replace("</body>", `${trackingPixel}</body>`)
-      : `${emailHtml}${trackingPixel}`;
+    
+    const antiSpamFooter = `
+      <div style="margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 11px; color: #64748b; text-align: center; font-family: sans-serif; line-height: 1.6;">
+        <p style="margin: 0;">تم إرسال هذا البريد التلقائي الموثق من منصة <strong>Tawzeef-X</strong> لغرض التحقق والتواصل الرسمي.</p>
+        <p style="margin: 4px 0 0 0;">جميع الحقوق محفوظة © ${new Date().getFullYear()} Tawzeef-X Platform</p>
+      </div>
+    `;
+
+    let styledBody = emailHtml;
+    if (!styledBody.includes("Tawzeef-X Platform")) {
+      styledBody = styledBody.includes("</body>")
+        ? styledBody.replace("</body>", `${antiSpamFooter}</body>`)
+        : `${styledBody}${antiSpamFooter}`;
+    }
+
+    const finalHtml = styledBody.includes("</body>")
+      ? styledBody.replace("</body>", `${trackingPixel}</body>`)
+      : `${styledBody}${trackingPixel}`;
+
+    const plainText = htmlToPlainText(finalHtml);
 
     // Auto-detect and fix Port / Secure mismatch
     // If port is 587 or 25, we MUST set secure to false (Nodemailer uses STARTTLS automatically).
@@ -313,6 +343,19 @@ Deno.serve(async (req) => {
     if (hasCustomSettings && smtpUser && smtpPass) {
       customSmtpUsed = true;
       try {
+        const domain = smtpUser.includes("@") ? smtpUser.split("@")[1] : "tawzeefx.com";
+        const messageId = `<tx-${trackingId}@${domain}>`;
+        
+        const antiSpamHeaders = {
+          "Auto-Submitted": "auto-generated",
+          "X-Auto-Response-Suppress": "All",
+          "List-Unsubscribe": `<mailto:support@${domain}?subject=unsubscribe>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          "X-Report-Abuse-To": `mailto:support@${domain}`,
+          "X-Entity-Ref-ID": trackingId,
+          "Message-ID": messageId,
+        };
+
         const transporter = nodemailer.createTransport({
           host: smtpHost,
           port: smtpPort,
@@ -324,7 +367,9 @@ Deno.serve(async (req) => {
           from: `"${senderName}" <${smtpUser}>`,
           to,
           subject: emailSubject,
+          text: plainText,
           html: finalHtml,
+          headers: antiSpamHeaders,
           attachments: nodemailerAttachments.length > 0 ? nodemailerAttachments : undefined,
         });
         emailSent = true;
@@ -342,6 +387,19 @@ Deno.serve(async (req) => {
         throw new Error("System default email credentials are not configured");
       }
 
+      const domain = defaultUser.includes("@") ? defaultUser.split("@")[1] : "tawzeefx.com";
+      const messageId = `<tx-${trackingId}@${domain}>`;
+
+      const antiSpamHeaders = {
+        "Auto-Submitted": "auto-generated",
+        "X-Auto-Response-Suppress": "All",
+        "List-Unsubscribe": `<mailto:support@${domain}?subject=unsubscribe>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        "X-Report-Abuse-To": `mailto:support@${domain}`,
+        "X-Entity-Ref-ID": trackingId,
+        "Message-ID": messageId,
+      };
+
       const transporter = nodemailer.createTransport({
         host: "smtp.gmail.com",
         port: 465,
@@ -353,7 +411,9 @@ Deno.serve(async (req) => {
         from: `"Tawzeef-X" <${defaultUser}>`,
         to,
         subject: emailSubject,
+        text: plainText,
         html: finalHtml,
+        headers: antiSpamHeaders,
         attachments: nodemailerAttachments.length > 0 ? nodemailerAttachments : undefined,
       });
       emailSent = true;
