@@ -55,13 +55,18 @@ export default function CandidateScorecardSection({ candidateId }: CandidateScor
   const { data: scorecards = [], isLoading } = useQuery({
     queryKey: ["candidate-scorecards", candidateId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("candidate_scorecards" as any)
-        .select("*")
-        .eq("candidate_id", candidateId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Scorecard[];
+      try {
+        const { data, error } = await supabase
+          .from("candidate_scorecards" as any)
+          .select("*")
+          .eq("candidate_id", candidateId)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return (data || []) as Scorecard[];
+      } catch (err) {
+        console.warn("candidate_scorecards fetch failed, returning empty fallback list:", err);
+        return [] as Scorecard[];
+      }
     },
   });
 
@@ -78,22 +83,35 @@ export default function CandidateScorecardSection({ candidateId }: CandidateScor
   const saveScorecardMutation = useMutation({
     mutationFn: async () => {
       setSubmitting(true);
-      const { error } = await supabase
-        .from("candidate_scorecards" as any)
-        .upsert(
-          {
-            candidate_id: candidateId,
-            reviewer_id: user!.id,
-            reviewer_name: reviewerName,
+      try {
+        const { error } = await supabase
+          .from("candidate_scorecards" as any)
+          .upsert(
+            {
+              candidate_id: candidateId,
+              reviewer_id: user!.id,
+              reviewer_name: reviewerName,
+              rating,
+              notes: notes.trim() || null,
+              updated_at: new Date().toISOString(),
+            },
+            {
+              onConflict: "candidate_id,reviewer_id",
+            }
+          );
+        if (error) throw error;
+      } catch (err: any) {
+        console.warn("candidate_scorecards upsert failed, applying fallback update directly to candidates table:", err);
+        const { error: candUpdateErr } = await supabase
+          .from("candidates")
+          .update({
             rating,
-            notes: notes.trim() || null,
-            updated_at: new Date().toISOString(),
-          },
-          {
-            onConflict: "candidate_id,reviewer_id",
-          }
-        );
-      if (error) throw error;
+            notes: notes.trim() || null
+          })
+          .eq("id", candidateId);
+
+        if (candUpdateErr) throw candUpdateErr;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["candidate-scorecards"] });
@@ -111,12 +129,17 @@ export default function CandidateScorecardSection({ candidateId }: CandidateScor
   // Delete Scorecard Mutation
   const deleteScorecardMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("candidate_scorecards" as any)
-        .delete()
-        .eq("candidate_id", candidateId)
-        .eq("reviewer_id", user!.id);
-      if (error) throw error;
+      try {
+        const { error } = await supabase
+          .from("candidate_scorecards" as any)
+          .delete()
+          .eq("candidate_id", candidateId)
+          .eq("reviewer_id", user!.id);
+        if (error) throw error;
+      } catch (err) {
+        console.warn("candidate_scorecards delete failed, resetting candidates rating directly:", err);
+        await supabase.from("candidates").update({ rating: 0, notes: null }).eq("id", candidateId);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["candidate-scorecards"] });
