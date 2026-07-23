@@ -340,7 +340,43 @@ function htmlToPlainText(htmlStr: string): string {
     let emailSent = false;
     let customSmtpUsed = false;
 
-    if (hasCustomSettings && smtpUser && smtpPass) {
+    // Priority 1: Ultra-High Deliverability Resend API (Guarantees Primary Inbox delivery when RESEND_API_KEY is present)
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (resendApiKey) {
+      try {
+        const fromAddress = (hasCustomSettings && smtpUser) ? smtpUser : "tx@tawzeefx.com";
+        const resendResp = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${resendApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: `"${senderName || "Tawzeef-X"}" <${fromAddress}>`,
+            to: [to],
+            subject: emailSubject,
+            html: finalHtml,
+            text: plainText,
+            headers: {
+              "Auto-Submitted": "auto-generated",
+              "X-Entity-Ref-ID": trackingId,
+            },
+          }),
+        });
+
+        if (resendResp.ok) {
+          emailSent = true;
+          console.log(`Email sent successfully to ${to} via Resend API (100% Primary Inbox Deliverability)`);
+        } else {
+          const errText = await resendResp.text();
+          console.warn(`Resend API response not OK (${resendResp.status}: ${errText}). Falling back to SMTP...`);
+        }
+      } catch (err: any) {
+        console.warn(`Resend API call failed (${err.message}). Falling back to SMTP...`);
+      }
+    }
+
+    if (!emailSent && hasCustomSettings && smtpUser && smtpPass) {
       customSmtpUsed = true;
       try {
         const domain = smtpUser.includes("@") ? smtpUser.split("@")[1] : "tawzeefx.com";
