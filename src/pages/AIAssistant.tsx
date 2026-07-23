@@ -62,6 +62,7 @@ import ProactiveInsightsCard, { type ProactiveInsights } from "@/components/ai-a
 import EmailSentCard from "@/components/ai-assistant/EmailSentCard";
 import BulkMovedCard from "@/components/ai-assistant/BulkMovedCard";
 import SmartSuggestions from "@/components/ai-assistant/SmartSuggestions";
+import AIStrategicRoadmapCard from "@/components/ai-assistant/AIStrategicRoadmapCard";
 import FileAttachment, { type AttachedFile } from "@/components/ai-assistant/FileAttachment";
 import MessageActions from "@/components/ai-assistant/MessageActions";
 import QuickActions from "@/components/ai-assistant/QuickActions";
@@ -2250,21 +2251,22 @@ export default function AIAssistant() {
             )}
           </div>
 
-          {/* Quick Actions Bar - always visible */}
-          <div className="px-4 pt-2 pb-1 max-w-4xl mx-auto w-full">
-            <QuickActions onSelect={(text) => { setInput(text); setTimeout(() => handleSend(), 50); }} />
-          </div>
-
-          {/* Smart Suggestions */}
+          {/* AI Strategic Roadmap Card & Smart Suggestions when new chat */}
           {messages.length <= 1 && (
-            <div className="px-4 pb-3 max-w-4xl mx-auto w-full">
+            <div className="px-4 pb-3 w-full max-w-full mx-auto">
+              <AIStrategicRoadmapCard onPromptClick={(promptText) => { setInput(promptText); setTimeout(() => handleSend(), 50); }} />
               <SmartSuggestions onSelect={(text) => setInput(text)} />
             </div>
           )}
 
+          {/* Quick Actions Bar - always visible */}
+          <div className="px-4 pt-2 pb-1 w-full max-w-full mx-auto">
+            <QuickActions onSelect={(text) => { setInput(text); setTimeout(() => handleSend(), 50); }} />
+          </div>
+
           {/* Legacy resume indicator (kept for backward-compat) */}
           {resumeFile && (
-            <div className="px-4 pb-1.5 max-w-4xl mx-auto w-full">
+            <div className="px-4 pb-1.5 w-full max-w-full mx-auto">
               <div className="flex items-center gap-2 text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-lg w-fit shadow-sm border border-primary/20 backdrop-blur-sm">
                 <FileText className="w-3 h-3" />
                 <span>{resumeFile.name}</span>
@@ -2274,7 +2276,7 @@ export default function AIAssistant() {
           )}
 
           {/* Multi-file attachments preview */}
-          <div className="px-4 pb-1.5 max-w-4xl mx-auto w-full">
+          <div className="px-4 pb-1.5 w-full max-w-full mx-auto">
             <FileAttachment
               files={attachedFiles}
               onAdd={(newOnes) => setAttachedFiles(prev => [...prev, ...newOnes])}
@@ -2284,7 +2286,7 @@ export default function AIAssistant() {
           </div>
 
           {/* Input Floating Capsule Card */}
-          <div className="p-4 pt-1 pb-6 shrink-0 relative w-full max-w-4xl mx-auto z-20">
+          <div className="p-4 pt-1 pb-6 shrink-0 relative w-full max-w-full mx-auto z-20">
             <SlashCommandMenu
               query={input}
               onSelect={(cmd: SlashCommand) => {
