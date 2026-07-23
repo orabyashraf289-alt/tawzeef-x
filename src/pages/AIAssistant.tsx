@@ -63,6 +63,7 @@ import EmailSentCard from "@/components/ai-assistant/EmailSentCard";
 import BulkMovedCard from "@/components/ai-assistant/BulkMovedCard";
 import SmartSuggestions from "@/components/ai-assistant/SmartSuggestions";
 import AIStrategicRoadmapCard from "@/components/ai-assistant/AIStrategicRoadmapCard";
+import ConversationsArchiveSidebar from "@/components/ai-assistant/ConversationsArchiveSidebar";
 import FileAttachment, { type AttachedFile } from "@/components/ai-assistant/FileAttachment";
 import MessageActions from "@/components/ai-assistant/MessageActions";
 import QuickActions from "@/components/ai-assistant/QuickActions";
@@ -1317,29 +1318,40 @@ export default function AIAssistant() {
     toast({ title: "تم حذف المحادثة ✅" });
   };
 
-  const handleClearAllConversations = async () => {
-    if (!user) return;
-    const confirmed = window.confirm("هل أنت متأكد من حذف جميع المحادثات نهائياً؟ لا يمكن التراجع عن هذه الخطوة.");
-    if (!confirmed) return;
-    
+  const [pinnedIds, setPinnedIds] = useState<string[]>(() => {
     try {
-      const { error } = await supabase
-        .from("chat_conversations")
-        .delete()
-        .eq("user_id", user.id);
-      if (error) throw error;
-      
-      handleNewChat();
-      refetchConversations();
-      toast({ title: "تم حذف جميع المحادثات بنجاح 🗑️" });
-    } catch (e: any) {
-      toast({
-        title: "خطأ في حذف المحادثات",
-        description: e.message || "خطأ غير معروف",
-        variant: "destructive"
-      });
+      return JSON.parse(localStorage.getItem("tx_pinned_chats") || "[]");
+    } catch {
+      return [];
     }
+  });
+
+  const handleRenameConversation = async (convId: string, newTitle: string) => {
+    const { error } = await supabase.from("chat_conversations").update({ title: newTitle }).eq("id", convId);
+    if (error) {
+      toast({ title: "خطأ في تعديل اسم المحادثة", description: error.message, variant: "destructive" });
+      return;
+    }
+    refetchConversations();
+    toast({ title: "تم تعديل اسم المحادثة بنجاح ✅" });
   };
+
+  const handleTogglePinConversation = (convId: string) => {
+    setPinnedIds((prev) => {
+      const isPinned = prev.includes(convId);
+      const next = isPinned ? prev.filter((id) => id !== convId) : [...prev, convId];
+      localStorage.setItem("tx_pinned_chats", JSON.stringify(next));
+      toast({ title: isPinned ? "تم إلغاء تثبيت المحادثة" : "تم تثبيت المحادثة في الأعلى 📌" });
+      return next;
+    });
+  };
+
+  const conversationsWithPin = useMemo(() => {
+    return (conversations || []).map((c) => ({
+      ...c,
+      is_pinned: pinnedIds.includes(c.id),
+    }));
+  }, [conversations, pinnedIds]);
 
   const parseSSEStream = useCallback(async (resp: Response, onActions: (actions: any[]) => void) => {
     const reader = resp.body!.getReader();
@@ -1751,205 +1763,19 @@ export default function AIAssistant() {
         }
       `}</style>
       <div className="flex h-[calc(100vh-56px)] lg:h-screen overflow-hidden relative z-10" dir="rtl">
-        {/* Sidebar - Conversations */}
-        <div className={cn(
-          "absolute lg:relative z-30 h-full w-72 border-l border-border/20 bg-card/45 backdrop-blur-xl transition-transform duration-300 flex flex-col shadow-xl",
-          sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
-        )}>
-          {/* Sidebar Header */}
-          <div className="p-4 border-b border-border/20 shrink-0 bg-gradient-to-b from-muted/20 to-transparent">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-primary animate-pulse" />
-                المحادثات
-              </h2>
-              <div className="flex gap-1">
-                {conversations.length > 0 && (
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl" onClick={handleClearAllConversations} title="مسح كل السجل">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                )}
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted/80 rounded-xl" onClick={handleNewChat} title="محادثة جديدة">
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-            <div className="relative">
-              <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="بحث في المحادثات..."
-                className="h-8 text-xs pr-8 bg-muted/40 border border-border/20 rounded-xl focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary/50"
-              />
-            </div>
-          </div>
-
-          {/* Conversations List */}
-          <ScrollArea className="flex-1">
-            <div className="p-3 space-y-4">
-              {filteredConversations.length === 0 ? (
-                <div className="text-center py-12 text-xs text-muted-foreground">
-                  <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  <p>لا توجد محادثات سابقة</p>
-                  <p className="mt-1">ابدأ محادثة جديدة الآن!</p>
-                </div>
-              ) : (
-                <>
-                  {/* Today Group */}
-                  {groupedConversations.today.length > 0 && (
-                    <div className="space-y-1.5">
-                      <h3 className="px-2 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">اليوم</h3>
-                      {groupedConversations.today.map(conv => (
-                        <div key={conv.id} className="relative group">
-                          <button
-                            onClick={() => loadConversation(conv.id)}
-                            className={cn(
-                              "w-full text-right px-3 py-2.5 rounded-xl text-xs transition-all duration-300 flex items-center gap-2.5 border relative overflow-hidden",
-                              activeConversationId === conv.id
-                                ? "bg-primary/10 text-primary border-primary/25 font-bold shadow-sm shadow-primary/5"
-                                : "bg-transparent border-transparent hover:bg-muted/40 hover:border-border/10 text-foreground/80 hover:text-foreground"
-                            )}
-                          >
-                            {activeConversationId === conv.id && (
-                              <div className="absolute right-0 top-0 bottom-0 w-1 bg-primary rounded-r-full" />
-                            )}
-                            <div className={cn(
-                              "p-1.5 rounded-lg border transition-all duration-300",
-                              activeConversationId === conv.id 
-                                ? "bg-primary/20 border-primary/30 text-primary" 
-                                : "bg-background/40 border-border/10 group-hover:bg-background/80 group-hover:border-border/20 text-muted-foreground group-hover:text-primary"
-                            )}>
-                              <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold truncate text-foreground/90 leading-normal">{conv.title}</p>
-                              <p className="text-[9px] text-muted-foreground flex items-center gap-1 mt-1 font-semibold">
-                                <Clock className="w-2.5 h-2.5" />
-                                {formatTime(conv.updated_at)}
-                              </p>
-                            </div>
-                          </button>
-                          <button
-                            onClick={(e) => handleDeleteConversation(conv.id, e)}
-                            className={cn(
-                              "absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all duration-200",
-                              "opacity-0 group-hover:opacity-100 focus:opacity-100",
-                              "text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/10"
-                            )}
-                            title="حذف المحادثة"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Yesterday Group */}
-                  {groupedConversations.yesterday.length > 0 && (
-                    <div className="space-y-1.5 pt-1">
-                      <h3 className="px-2 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">أمس</h3>
-                      {groupedConversations.yesterday.map(conv => (
-                        <div key={conv.id} className="relative group">
-                          <button
-                            onClick={() => loadConversation(conv.id)}
-                            className={cn(
-                              "w-full text-right px-3 py-2.5 rounded-xl text-xs transition-all duration-300 flex items-center gap-2.5 border relative overflow-hidden",
-                              activeConversationId === conv.id
-                                ? "bg-primary/10 text-primary border-primary/25 font-bold shadow-sm shadow-primary/5"
-                                : "bg-transparent border-transparent hover:bg-muted/40 hover:border-border/10 text-foreground/80 hover:text-foreground"
-                            )}
-                          >
-                            {activeConversationId === conv.id && (
-                              <div className="absolute right-0 top-0 bottom-0 w-1 bg-primary rounded-r-full" />
-                            )}
-                            <div className={cn(
-                              "p-1.5 rounded-lg border transition-all duration-300",
-                              activeConversationId === conv.id 
-                                ? "bg-primary/20 border-primary/30 text-primary" 
-                                : "bg-background/40 border-border/10 group-hover:bg-background/80 group-hover:border-border/20 text-muted-foreground group-hover:text-primary"
-                            )}>
-                              <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold truncate text-foreground/90 leading-normal">{conv.title}</p>
-                              <p className="text-[9px] text-muted-foreground flex items-center gap-1 mt-1 font-semibold">
-                                <Clock className="w-2.5 h-2.5" />
-                                {formatTime(conv.updated_at)}
-                              </p>
-                            </div>
-                          </button>
-                          <button
-                            onClick={(e) => handleDeleteConversation(conv.id, e)}
-                            className={cn(
-                              "absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all duration-200",
-                              "opacity-0 group-hover:opacity-100 focus:opacity-100",
-                              "text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/10"
-                            )}
-                            title="حذف المحادثة"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Older Group */}
-                  {groupedConversations.older.length > 0 && (
-                    <div className="space-y-1.5 pt-1">
-                      <h3 className="px-2 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">السابق</h3>
-                      {groupedConversations.older.map(conv => (
-                        <div key={conv.id} className="relative group">
-                          <button
-                            onClick={() => loadConversation(conv.id)}
-                            className={cn(
-                              "w-full text-right px-3 py-2.5 rounded-xl text-xs transition-all duration-300 flex items-center gap-2.5 border relative overflow-hidden",
-                              activeConversationId === conv.id
-                                ? "bg-primary/10 text-primary border-primary/25 font-bold shadow-sm shadow-primary/5"
-                                : "bg-transparent border-transparent hover:bg-muted/40 hover:border-border/10 text-foreground/80 hover:text-foreground"
-                            )}
-                          >
-                            {activeConversationId === conv.id && (
-                              <div className="absolute right-0 top-0 bottom-0 w-1 bg-primary rounded-r-full" />
-                            )}
-                            <div className={cn(
-                              "p-1.5 rounded-lg border transition-all duration-300",
-                              activeConversationId === conv.id 
-                                ? "bg-primary/20 border-primary/30 text-primary" 
-                                : "bg-background/40 border-border/10 group-hover:bg-background/80 group-hover:border-border/20 text-muted-foreground group-hover:text-primary"
-                            )}>
-                              <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold truncate text-foreground/90 leading-normal">{conv.title}</p>
-                              <p className="text-[9px] text-muted-foreground flex items-center gap-1 mt-1 font-semibold">
-                                <Clock className="w-2.5 h-2.5" />
-                                {formatTime(conv.updated_at)}
-                              </p>
-                            </div>
-                          </button>
-                          <button
-                            onClick={(e) => handleDeleteConversation(conv.id, e)}
-                            className={cn(
-                              "absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all duration-200",
-                              "opacity-0 group-hover:opacity-100 focus:opacity-100",
-                              "text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/10"
-                            )}
-                            title="حذف المحادثة"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </ScrollArea>
-        </div>
+        {/* Sidebar - Conversations Archive */}
+        <ConversationsArchiveSidebar
+          conversations={conversationsWithPin}
+          activeConversationId={activeConversationId}
+          sidebarOpen={sidebarOpen}
+          onSelectConversation={loadConversation}
+          onNewChat={handleNewChat}
+          onDeleteConversation={handleDeleteConversation}
+          onClearAll={handleClearAllConversations}
+          onRenameConversation={handleRenameConversation}
+          onTogglePinConversation={handleTogglePinConversation}
+          onToggleSidebar={() => setSidebarOpen(false)}
+        />
 
         {/* Overlay for mobile sidebar */}
         {sidebarOpen && (
