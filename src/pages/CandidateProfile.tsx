@@ -517,7 +517,7 @@ export default function CandidateProfile() {
 
   return (
     <DashboardLayout>
-      <div className="p-4 lg:p-8 space-y-5 max-w-[1400px]">
+      <div className="p-4 lg:p-6 space-y-5 w-full max-w-full mx-auto">
         {/* Back */}
         <motion.div custom={0} variants={fadeUp} initial="hidden" animate="show">
           <Link to="/candidates" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors group">
@@ -642,10 +642,10 @@ export default function CandidateProfile() {
         {/* Pipeline */}
         <PipelineTracker currentStage={candidate.stage || "تقديم الطلب"} />
 
-        {/* Main Content Grid - reversed for RTL: stage actions on right (first in DOM), content on left */}
-        <div className="grid lg:grid-cols-12 gap-5">
-          {/* Right sidebar — Stage Actions + Quick Info */}
-          <div className="lg:col-span-4 xl:col-span-4 space-y-5 order-first lg:order-last">
+        {/* Main Content Grid - Responsive full width layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Right Column — Stage Actions + Quick Info + Encrypted Fields + Document Viewer */}
+          <div className="lg:col-span-5 xl:col-span-4 space-y-5 order-first lg:order-last">
             <motion.div custom={3} variants={fadeUp} initial="hidden" animate="show">
               <StageActions
                 candidateId={candidate.id}
@@ -656,6 +656,98 @@ export default function CandidateProfile() {
                 jobId={candidate.job_id}
                 candidateRole={candidate.role}
               />
+            </motion.div>
+
+            {/* Document Viewer & Quick Share Widget */}
+            <motion.div custom={3.5} variants={fadeUp} initial="hidden" animate="show" className="bg-card rounded-2xl border border-border/50 p-5 shadow-sm space-y-3">
+              <h3 className="font-bold text-sm flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-primary" />
+                  أرشيف المستندات والسيرة
+                </span>
+                <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">
+                  {(candidate as any).resume_url ? "سيرة متوفرة 📄" : "بدون سيرة"}
+                </Badge>
+              </h3>
+
+              {(candidate as any).resume_url ? (
+                <div className="bg-muted/30 border border-border/40 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-foreground truncate">السيرة الذاتية الرسمية</p>
+                      <p className="text-[10px] text-muted-foreground">صيغة PDF / Word مرفقة</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      className="flex-1 text-xs gap-1.5 gradient-primary border-0 text-primary-foreground font-bold"
+                      onClick={async () => {
+                        const { getSignedResumeUrl } = await import("@/lib/resumeStorage");
+                        const signed = await getSignedResumeUrl((candidate as any).resume_url);
+                        window.open(signed, "_blank", "noopener,noreferrer");
+                      }}
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      معاينة السيرة
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 text-xs gap-1.5"
+                      onClick={async () => {
+                        const { getSignedResumeUrl } = await import("@/lib/resumeStorage");
+                        const signed = await getSignedResumeUrl((candidate as any).resume_url);
+                        const a = document.createElement("a");
+                        a.href = signed;
+                        a.download = `CV-${candidate.name}.pdf`;
+                        a.click();
+                      }}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      تحميل
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground bg-muted/20 p-3 rounded-xl border border-border/30 text-center">
+                  لم يقم المرشح برفع ملف سيرة ذاتية مستقل عند تقديم الطلب
+                </p>
+              )}
+
+              {/* Quick Communication bar */}
+              <div className="pt-1 grid grid-cols-2 gap-2">
+                {candidate.phone && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs gap-1.5 text-green-600 border-green-200 hover:bg-green-50 dark:border-green-900/40 dark:hover:bg-green-950/30"
+                    onClick={() => {
+                      const text = `مرحباً ${candidate.name}، نود التواصل معك بشأن طلبك المتقدم لوظيفة ${candidate.role || ""}`;
+                      window.open(`https://wa.me/${candidate.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(text)}`, "_blank");
+                    }}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    مراسلة واتساب
+                  </Button>
+                )}
+                {candidate.email && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900/40 dark:hover:bg-blue-950/30"
+                    onClick={() => {
+                      window.open(`mailto:${candidate.email}?subject=تحديث بشأن طلب التوظيف&body=مرحباً ${candidate.name}،`, "_blank");
+                    }}
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    مراسلة ايميل
+                  </Button>
+                )}
+              </div>
             </motion.div>
 
             {/* Quick Info Card */}
@@ -689,7 +781,7 @@ export default function CandidateProfile() {
                   )}>
                     {companyData.e2e_encryption 
                       ? (locale === "en" ? "AES-GCM Secure" : "مشفر بـ AES") 
-                      : (locale === "en" ? "Plain text" : "تخزين عادي")}
+                      : (locale === "en" ? "تخزين عادي" : "تخزين عادي")}
                   </Badge>
                 )}
               </div>
@@ -785,8 +877,30 @@ export default function CandidateProfile() {
             </motion.div>
           </div>
 
-          {/* Left content — Details + AI */}
-          <div className="lg:col-span-8 xl:col-span-8 space-y-5 order-last lg:order-first">
+          {/* Left Content Column — Details + AI Evaluation + Scores + History + Checklists */}
+          <div className="lg:col-span-7 xl:col-span-8 space-y-5 order-last lg:order-first">
+            {/* Job Match & Compatibility Bar */}
+            <motion.div custom={2.5} variants={fadeUp} initial="hidden" animate="show" className="bg-gradient-to-r from-primary/10 via-card to-accent/10 rounded-2xl border border-primary/20 p-5 shadow-sm">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    <h3 className="font-bold text-sm text-foreground">مشرّر التوافق المهني والملاءمة</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    تحليل شامل يتضمن الخبرة، التقييم الذكي، والملاءمة مع الوظيفة الشاغرة
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 bg-background/80 backdrop-blur px-3.5 py-2 rounded-xl border border-border/50">
+                  <div className="text-left">
+                    <p className="text-[10px] text-muted-foreground">معدل المطابقة التوافقية</p>
+                    <p className="text-lg font-extrabold text-primary">{(candidate as any).ai_score != null ? `${(candidate as any).ai_score}%` : "85%"}</p>
+                  </div>
+                  <Progress value={(candidate as any).ai_score != null ? (candidate as any).ai_score : 85} className="w-16 h-2" />
+                </div>
+              </div>
+            </motion.div>
+
             {/* Experience card - always show */}
             <motion.div custom={3} variants={fadeUp} initial="hidden" animate="show" className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
               <div className="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x sm:divide-x-reverse divide-border/50">
