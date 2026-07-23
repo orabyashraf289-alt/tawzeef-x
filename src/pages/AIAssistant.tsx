@@ -1496,7 +1496,7 @@ export default function AIAssistant() {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-      const resp = await fetch(CHAT_URL, {
+      let resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -1507,7 +1507,34 @@ export default function AIAssistant() {
         }),
       });
 
-      if (resp.status === 429) { toast({ title: "تم تجاوز حد الطلبات، حاول لاحقاً", variant: "destructive" }); setIsLoading(false); return; }
+      // Automated retry on 429 rate limit
+      if (resp.status === 429) {
+        toast({ title: "جاري المحاولة مجدداً...", description: "الخادم خاضع لضغط مؤقت، جاري إعادة الطلب خلال ثانية..." });
+        await new Promise(r => setTimeout(r, 1500));
+        resp = await fetch(CHAT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            messages: allMessages.map(m => ({ role: m.role, content: m.content })),
+            ...(resumeText ? { resume_text: resumeText } : {}),
+            ...(filesText ? { attached_files_text: filesText } : {}),
+            ...(modelChoice !== "auto" ? { model_override: modelChoice } : {}),
+          }),
+        });
+      }
+
+      if (resp.status === 429) {
+        toast({ title: "الخادم مشغول حالياً", description: "تم تجاوز حد الطلبات المؤقت. الرجاء المحاولة بعد ثوانٍ.", variant: "destructive" });
+        setMessages(prev => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "⚠️ **عذراً يا صديقي!** خوادم الذكاء الاصطناعي تمر بضغط مؤقت أو تم الوصول للحد المسموح من الطلبات المتتابعة. يرجى الانتظار بضع ثوانٍ وإعادة إرسال طلبك وسأجيبك فوراً! 🚀",
+          }
+        ]);
+        setIsLoading(false);
+        return;
+      }
       if (resp.status === 402) { toast({ title: "يرجى إضافة رصيد للاستمرار", variant: "destructive" }); setIsLoading(false); return; }
       if (!resp.ok) {
         let errorMessage = "Failed";

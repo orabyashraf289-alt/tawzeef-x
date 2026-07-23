@@ -1013,8 +1013,17 @@ ${userContext}
       }
     }
 
+    async function fetchWithRetry(url: string, opts: any, retries = 1, delayMs = 1200): Promise<Response> {
+      let r = await fetch(url, opts);
+      if (r.status === 429 && retries > 0) {
+        await new Promise((res) => setTimeout(res, delayMs));
+        r = await fetch(url, opts);
+      }
+      return r;
+    }
+
     // ========== STEP 1: Detect intent ==========
-    const detectResponse = await fetch(API_URL, {
+    const detectResponse = await fetchWithRetry(API_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model: effectiveFastModel, messages: [{ role: "system", content: systemPrompt }, ...actualMessages], tools, stream: false }),
