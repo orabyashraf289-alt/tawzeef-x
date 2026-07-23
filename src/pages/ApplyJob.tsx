@@ -50,7 +50,7 @@ function HeroBadge({ icon: Icon, children, variant = "default" }: { icon: any; c
 }
 
 /* ───────── Success Screen ───────── */
-function SuccessScreen({ job, trackingCode }: { job: any; trackingCode: string | null }) {
+function SuccessScreen({ job, trackingCode, applicantEmail, applicantPhone }: { job: any; trackingCode: string | null; applicantEmail: string; applicantPhone: string }) {
   const [copied, setCopied] = useState(false);
   const displayCode = useMemo(() => trackingCode || "TX-" + Math.floor(100000 + Math.random() * 900000), [trackingCode]);
 
@@ -89,6 +89,29 @@ function SuccessScreen({ job, trackingCode }: { job: any; trackingCode: string |
               شكراً لاهتمامك بالانضمام إلى فريقنا المتميز لوظيفة <span className="font-bold text-foreground">{job?.title}</span>. تم تسجيل طلبك وسيقوم فريق الموارد البشرية بمراجعته والتواصل معك قريبًا.
             </p>
           </div>
+
+          {/* Auto Created Candidate Account Box */}
+          {applicantEmail && (
+            <div className="bg-gradient-to-br from-primary/10 via-indigo-500/5 to-purple-500/10 border-2 border-primary/30 rounded-2xl p-5 text-right space-y-2.5 shadow-sm">
+              <div className="flex items-center gap-2 text-primary font-black text-xs">
+                <User className="w-4 h-4 text-primary" />
+                <span>تم إنشاء حساب موظف / متقدم لك بالنظام تلقائياً! 👤✨</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                يمكنك تسجيل الدخول لحسابك لمتابعة حالة الطلب وتعديل ملفك الشخصي وسيرتك الذاتية بأي وقت:
+              </p>
+              <div className="bg-card/90 p-3 rounded-xl border border-border/50 text-xs space-y-1 font-mono" dir="ltr">
+                <p><strong className="text-foreground font-sans">البريد الإلكتروني (Email):</strong> {applicantEmail}</p>
+                <p><strong className="text-foreground font-sans">كلمة المرور (Password):</strong> {applicantPhone} <span className="text-[10px] text-muted-foreground font-sans">(رقم جوالك)</span></p>
+              </div>
+              <Link to={`/auth?email=${encodeURIComponent(applicantEmail)}`} className="block pt-1">
+                <Button className="w-full bg-primary hover:bg-primary/95 text-primary-foreground rounded-xl h-10 text-xs font-bold gap-2 shadow-sm">
+                  <ShieldCheck className="w-4 h-4" />
+                  تسجيل الدخول إلى حسابك الآن 🔑
+                </Button>
+              </Link>
+            </div>
+          )}
 
           {/* Guaranteed Tracking Code Box */}
           <div className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-teal-500/10 border-2 border-emerald-500/30 rounded-2xl p-6 space-y-3 relative group">
@@ -210,7 +233,7 @@ export default function ApplyJob() {
     );
   }
 
-  if (submitted) return <SuccessScreen job={job} trackingCode={trackingCode} />;
+  if (submitted) return <SuccessScreen job={job} trackingCode={trackingCode} applicantEmail={form.email} applicantPhone={form.phone} />;
 
   const salaryText = job.salary_min && job.salary_max
     ? `${Number(job.salary_min).toLocaleString()} - ${Number(job.salary_max).toLocaleString()}`
@@ -318,9 +341,29 @@ export default function ApplyJob() {
       console.warn("Direct candidate insert warning:", e);
     }
 
+    // Automatically create Candidate User Account (Password = Phone Number)
+    try {
+      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auto-create-candidate-account`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          email: form.email,
+          phone: form.phone,
+          name: form.name,
+          tracking_code: finalTrackingCode,
+          job_title: job?.title,
+        }),
+      });
+    } catch (candAccErr) {
+      console.warn("Auto create candidate user account error:", candAccErr);
+    }
+
     setTrackingCode(finalTrackingCode);
     setSubmitted(true);
-    toast({ title: "تم إرسال طلبك بنجاح ✅" });
+    toast({ title: "تم إرسال طلبك بنجاح وإنشاء حسابك تلقائياً ✅" });
 
     try {
       await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-application-confirmation`, {
