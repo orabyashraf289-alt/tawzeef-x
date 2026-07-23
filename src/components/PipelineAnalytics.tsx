@@ -16,11 +16,17 @@ export default function PipelineAnalytics({ stages, candidates, dir }: PipelineA
   // Group candidates by stage
   const grouped = useMemo(() => {
     const map: Record<string, any[]> = {};
-    stages.forEach(s => { map[s.id] = []; });
-    candidates.forEach(c => {
-      const stage = c.stage || stages[0]?.id || "تقديم الطلب";
-      if (map[stage]) map[stage].push(c);
-      else if (stages[0]) map[stages[0].id].push(c);
+    (stages || []).forEach(s => {
+      if (s.id) map[s.id] = [];
+      if (s.label) map[s.label] = [];
+    });
+    const fallbackKey = stages[0]?.id || stages[0]?.label || "تقديم الطلب";
+    if (!map[fallbackKey]) map[fallbackKey] = [];
+
+    (candidates || []).forEach(c => {
+      const stage = c.stage || fallbackKey;
+      if (!map[stage]) map[stage] = [];
+      map[stage].push(c);
     });
     return map;
   }, [candidates, stages]);

@@ -51,7 +51,8 @@ export function recordNavigation(path: string): void {
   if (!loaders[path]) return;
   try {
     const raw = localStorage.getItem(HISTORY_KEY);
-    const list: string[] = raw ? JSON.parse(raw) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    const list: string[] = Array.isArray(parsed) ? parsed : [];
     list.push(path);
     if (list.length > MAX_HISTORY) list.splice(0, list.length - MAX_HISTORY);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(list));

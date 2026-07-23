@@ -679,14 +679,20 @@ export default function Pipeline() {
 
   const grouped = useMemo(() => {
     const map: Record<string, any[]> = {};
-    STAGES.forEach(s => { map[s.id] = []; });
-    filteredCandidates.forEach(c => {
-      const stage = c.stage || "تقديم الطلب";
-      if (map[stage]) map[stage].push(c);
-      else map["تقديم الطلب"].push(c);
+    (STAGES || []).forEach(s => {
+      if (s.id) map[s.id] = [];
+      if (s.label) map[s.label] = [];
+    });
+    const fallbackKey = STAGES[0]?.id || STAGES[0]?.label || "تقديم الطلب";
+    if (!map[fallbackKey]) map[fallbackKey] = [];
+
+    (filteredCandidates || []).forEach(c => {
+      const stage = c.stage || fallbackKey;
+      if (!map[stage]) map[stage] = [];
+      map[stage].push(c);
     });
     return map;
-  }, [filteredCandidates]);
+  }, [STAGES, filteredCandidates]);
 
   // Avg days in stage (based on updated_at - created_at approximation)
   const getAvgDays = (stageId: string) => {
