@@ -269,12 +269,32 @@ Deno.serve(async (req) => {
       smtpPass = await decrypt(settings.smtp_password, encKey);
     }
 
+function htmlToPlainText(htmlStr: string): string {
+  return htmlStr
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/h[1-6]>/gi, "\n\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
     // Auto-detect and fix Port / Secure mismatch
     // If port is 587 or 25, we MUST set secure to false (Nodemailer uses STARTTLS automatically).
     const isSecureConnection = (smtpPort === 465) ? true : (smtpPort === 587 || smtpPort === 25 ? false : smtpSecure);
 
     let emailSubject = "رمز التحقق لتسجيل الدخول - Tawzeef-X";
-    let emailHtml = `
+    const antiSpamFooter = `
+      <div style="margin-top:28px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;font-size:11px;color:#64748b;font-family:sans-serif;line-height:1.6;">
+        <p style="margin:0;">تم إرسال هذا البريد التلقائي لغرض التحقق والتأمين من منصة <strong>Tawzeef-X</strong>.</p>
+        <p style="margin:4px 0 0 0;">جميع الحقوق محفوظة © ${new Date().getFullYear()} Tawzeef-X Platform</p>
+      </div>
+    `;
+
+    let rawHtml = `
       <div style="margin:0;padding:32px 16px;background:#f6f8fb;font-family:Arial,sans-serif;direction:rtl;">
         <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e7ecf3;border-radius:20px;padding:32px;box-shadow:0 10px 30px rgba(15,23,42,0.06);">
           <div style="display:inline-block;padding:8px 14px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700;">التحقق بخطوتين</div>
@@ -284,6 +304,7 @@ Deno.serve(async (req) => {
             <div style="font-size:40px;line-height:1;letter-spacing:12px;font-weight:800;color:#0f172a;direction:ltr;">${code}</div>
           </div>
           <p style="margin:0;color:#64748b;font-size:13px;line-height:1.8;">إذا لم تحاول تسجيل الدخول، يمكنك تجاهل هذه الرسالة بأمان.</p>
+          ${antiSpamFooter}
         </div>
       </div>
     `;
@@ -297,15 +318,72 @@ Deno.serve(async (req) => {
 
     if (dbTemplate) {
       emailSubject = dbTemplate.subject.replaceAll("{{otp_code}}", code);
-      emailHtml = dbTemplate.body_html.replaceAll("{{otp_code}}", code);
+      rawHtml = dbTemplate.body_html.replaceAll("{{otp_code}}", code);
+      if (!rawHtml.includes("Tawzeef-X Platform")) {
+        rawHtml += antiSpamFooter;
+      }
     }
+
+    const emailHtml = rawHtml;
+    const plainText = htmlToPlainText(emailHtml);
+    const trackingId = crypto.randomUUID();
 
     let emailSent = false;
     let customSmtpUsed = false;
 
-    if (settings && smtpUser && smtpPass) {
+    // Option A: Check if RESEND_API_KEY environment variable is set
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (resendApiKey) {
+      try {
+        const fromAddress = smtpUser && smtpUser.includes("@") ? smtpUser : "tx@tawzeefx.com";
+        const resendResp = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${resendApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: `"${senderName || "Tawzeef-X"}" <${fromAddress}>`,
+            to: [normalizedEmail],
+            subject: emailSubject,
+            html: emailHtml,
+            text: plainText,
+            headers: {
+              "Auto-Submitted": "auto-generated",
+              "X-Entity-Ref-ID": trackingId,
+            },
+          }),
+        });
+
+        if (resendResp.ok) {
+          emailSent = true;
+          console.log(`OTP sent to ${normalizedEmail} via Resend API`);
+        } else {
+          const errText = await resendResp.text();
+          console.warn(`Resend API OTP failed (${resendResp.status}: ${errText}). Falling back to internal SMTP...`);
+        }
+      } catch (err: any) {
+        console.warn(`Resend API OTP exception (${err.message}). Falling back to internal SMTP...`);
+      }
+    }
+
+    // Option B: Send via Internal SMTP configured in System Settings
+    if (!emailSent && settings && smtpUser && smtpPass) {
       customSmtpUsed = true;
       try {
+        const domain = smtpUser.includes("@") ? smtpUser.split("@")[1] : "tawzeefx.com";
+        const messageId = `<otp-${trackingId}@${domain}>`;
+        
+        const antiSpamHeaders = {
+          "Auto-Submitted": "auto-generated",
+          "X-Auto-Response-Suppress": "All",
+          "List-Unsubscribe": `<mailto:support@${domain}?subject=unsubscribe>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          "X-Report-Abuse-To": `mailto:support@${domain}`,
+          "X-Entity-Ref-ID": trackingId,
+          "Message-ID": messageId,
+        };
+
         const transporter = nodemailer.createTransport({
           host: smtpHost,
           port: smtpPort,
@@ -317,12 +395,14 @@ Deno.serve(async (req) => {
           from: `"${senderName}" <${smtpUser}>`,
           to: normalizedEmail,
           subject: emailSubject,
+          text: plainText,
           html: emailHtml,
+          headers: antiSpamHeaders,
         });
         emailSent = true;
-        console.log(`OTP sent to ${normalizedEmail} via custom SMTP: ${smtpHost}`);
+        console.log(`OTP sent to ${normalizedEmail} via system SMTP settings (${smtpHost})`);
       } catch (err: any) {
-        console.warn(`Custom SMTP failed (${err.message}). Falling back to default system SMTP...`);
+        console.warn(`System SMTP OTP failed (${err.message}). Falling back to default system SMTP...`);
       }
     }
 
@@ -333,6 +413,19 @@ Deno.serve(async (req) => {
       if (!defaultUser || !defaultPass) {
         throw new Error("System default email credentials are not configured");
       }
+
+      const domain = defaultUser.includes("@") ? defaultUser.split("@")[1] : "tawzeefx.com";
+      const messageId = `<otp-${trackingId}@${domain}>`;
+
+      const antiSpamHeaders = {
+        "Auto-Submitted": "auto-generated",
+        "X-Auto-Response-Suppress": "All",
+        "List-Unsubscribe": `<mailto:support@${domain}?subject=unsubscribe>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        "X-Report-Abuse-To": `mailto:support@${domain}`,
+        "X-Entity-Ref-ID": trackingId,
+        "Message-ID": messageId,
+      };
 
       const transporter = nodemailer.createTransport({
         host: "smtp.gmail.com",
@@ -345,7 +438,9 @@ Deno.serve(async (req) => {
         from: `"Tawzeef-X" <${defaultUser}>`,
         to: normalizedEmail,
         subject: emailSubject,
+        text: plainText,
         html: emailHtml,
+        headers: antiSpamHeaders,
       });
       emailSent = true;
       console.log(`OTP sent to ${normalizedEmail} via system default SMTP (Custom SMTP was ${customSmtpUsed ? "invalid" : "not configured"})`);
