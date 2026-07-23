@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Check, X, ArrowLeft, Loader2, Send, FileText, Copy, Video, Calendar, Link2, ExternalLink, RefreshCw, XCircle, Mail, MessageCircle, Smartphone } from "lucide-react";
+import { Check, X, ArrowLeft, Loader2, Send, FileText, Copy, Video, Calendar, Link2, ExternalLink, RefreshCw, XCircle, Mail, MessageCircle, Smartphone, ClipboardCheck, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useOffers, useCreateOffer, useSendOffer } from "@/hooks/useOffers";
@@ -40,6 +40,7 @@ import { useInterviews, useAddInterview, useUpdateInterview, useCancelInterview 
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { useActiveStages } from "@/hooks/usePipelineStages";
+import { useAssessments } from "@/hooks/useQuestionBank";
 
 const FALLBACK_STAGES = [
   "تقديم الطلب",
@@ -96,6 +97,18 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
   const { data: offers } = useOffers();
   const createOffer = useCreateOffer();
   const sendOffer = useSendOffer();
+
+  // Assessments
+  const { data: allAssessments = [] } = useAssessments();
+  const [selectedAssessmentOverride, setSelectedAssessmentOverride] = useState<any>(null);
+
+  const currentStageObj = activeStages.find(s => s.name === currentStage);
+  const stageAssessmentId = (currentStageObj as any)?.assessment_id;
+
+  const activeStageAssessment =
+    selectedAssessmentOverride ||
+    (allAssessments || []).find(a => a.id === stageAssessmentId) ||
+    (jobId ? (allAssessments || []).find(a => a.job_id === jobId && a.is_active) : null);
 
   // Offer creation dialog
   const [showOfferCreateDialog, setShowOfferCreateDialog] = useState(false);
@@ -367,6 +380,53 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
       toast({ title: "تم إرسال إشعار الإلغاء للمرشح ✅" });
     } catch {
       console.error("Failed to send cancellation email");
+    }
+  };
+
+  const sendAssessmentEmail = async (email: string, assessmentTitle: string, assessmentToken: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const assessmentUrl = `${window.location.origin}/assessment/${assessmentToken}`;
+
+      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          to: email,
+          subject: `دعوة لإجراء اختبار تحريري — ${assessmentTitle}`,
+          user_id: user?.id,
+          html: `
+            <div dir="rtl" style="font-family: 'Cairo', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; background: #f8fafc; border-radius: 16px;">
+              <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 24px 32px; border-radius: 12px; margin-bottom: 24px;">
+                <h1 style="color: white; margin: 0; font-size: 22px;">دعوة لاجتياز اختبار تحريري 📝</h1>
+              </div>
+              <div style="background: white; padding: 28px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                <p style="font-size: 16px; color: #1e293b; margin-bottom: 8px;">مرحباً <strong>${candidateName}</strong>،</p>
+                <p style="font-size: 15px; color: #475569; line-height: 1.8;">كجزء من مراحل التقييم لوظيفة <strong>${candidateRole || ""}</strong>، نرجو منك التكرم باستكمال الاختبار التحريري التالي:</p>
+                <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center;">
+                  <p style="font-size: 14px; color: #6366f1; margin: 0 0 5px;">عنوان الاختبار</p>
+                  <p style="font-size: 18px; font-weight: bold; color: #312e81; margin: 0 0 15px;">${assessmentTitle}</p>
+                  <a href="${assessmentUrl}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-size: 15px; font-weight: bold;">
+                    📝 ابدأ الاختبار الآن
+                  </a>
+                </div>
+                <p style="font-size: 13px; color: #94a3b8;">يرجى فتح الرابط واستكمال الأسئلة في أقرب وقت.</p>
+                <p style="font-size: 12px; color: #64748b; word-break: break-all; background: #f8fafc; padding: 10px; border-radius: 6px;">${assessmentUrl}</p>
+              </div>
+              <p style="text-align: center; font-size: 12px; color: #94a3b8; margin-top: 20px;">بالتوفيق! — فريق التوظيف</p>
+            </div>
+          `,
+        }),
+      });
+      toast({ title: "تم إرسال رابط الاختبار التحريري بالبريد الإلكتروني بنجاح ✅" });
+    } catch (e) {
+      console.error("Failed sending assessment email:", e);
+      toast({ title: "خطأ في الإرسال", description: "تعذر إرسال البريد الإلكتروني", variant: "destructive" });
     }
   };
 
@@ -1130,6 +1190,111 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
             )}
           </motion.div>
         )}
+
+        {/* Written Assessment Section */}
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          className="bg-gradient-to-br from-indigo-500/10 via-background to-purple-500/5 border border-indigo-500/30 rounded-xl p-4 space-y-3 shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-2 border-b border-indigo-500/10 pb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                <ClipboardCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-sm font-bold text-foreground block">
+                  {activeStageAssessment ? "الاختبار التحريري المربوط" : "إرسال اختبار تحريري"}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {activeStageAssessment ? activeStageAssessment.title : "اختر اختباراً لإرساله للمرشح"}
+                </span>
+              </div>
+            </div>
+            {activeStageAssessment && (
+              <Badge className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 text-[10px]">
+                {activeStageAssessment.duration_minutes} دقيقة | نجاح {activeStageAssessment.passing_score}%
+              </Badge>
+            )}
+          </div>
+
+          {activeStageAssessment ? (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 gap-1.5 text-xs h-9 border-indigo-500/30 hover:bg-indigo-500/5 font-bold"
+                  onClick={() => {
+                    const url = `${window.location.origin}/assessment/${activeStageAssessment.token}`;
+                    navigator.clipboard.writeText(url);
+                    toast({ title: "تم نسخ رابط الاختبار التحريري ✅", description: "يمكنك إرساله للمرشح مباشرة" });
+                  }}
+                >
+                  <Copy className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                  نسخ رابط الاختبار
+                </Button>
+
+                <Button
+                  size="sm"
+                  className="flex-1 gap-1.5 text-xs h-9 bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow"
+                  onClick={() => {
+                    window.open(`/assessment/${activeStageAssessment.token}`, "_blank");
+                  }}
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  معاينة الاختبار
+                </Button>
+              </div>
+
+              <div className="flex gap-2">
+                {candidateEmail && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 gap-1 text-[11px] h-7 text-indigo-600 border-indigo-200 hover:bg-indigo-50 dark:border-indigo-900/40 dark:hover:bg-indigo-950/30 font-semibold"
+                    onClick={() => sendAssessmentEmail(candidateEmail, activeStageAssessment.title, activeStageAssessment.token)}
+                  >
+                    <Mail className="w-3 h-3" />
+                    إرسال بالبريد ✉️
+                  </Button>
+                )}
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 gap-1 text-[11px] h-7 text-green-600 border-green-200 hover:bg-green-50 dark:border-green-900/40 dark:hover:bg-green-950/30 font-semibold"
+                  onClick={() => {
+                    const url = `${window.location.origin}/assessment/${activeStageAssessment.token}`;
+                    const text = `مرحباً ${candidateName}، يرجى التكرم باستكمال الاختبار التحريري المرفق (${activeStageAssessment.title}) عبر الرابط التالي:\n${url}`;
+                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+                  }}
+                >
+                  <MessageCircle className="w-3 h-3" />
+                  واتساب 💬
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Select onValueChange={(val) => {
+                const selected = allAssessments.find(a => a.id === val);
+                if (selected) setSelectedAssessmentOverride(selected);
+              }}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="اختر اختباراً من بنك الأسئلة..." />
+                </SelectTrigger>
+                <SelectContent dir="rtl">
+                  {allAssessments.filter(a => a.is_active).map((a) => (
+                    <SelectItem key={a.id} value={a.id} className="text-xs">
+                      {a.title} ({a.duration_minutes} دقيقة)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </motion.div>
 
         {/* Interview gate warning */}
         {isInterviewStage && interviewRequired && (
