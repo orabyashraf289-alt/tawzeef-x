@@ -520,29 +520,37 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
 
       // 2. Record stage transition history
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("candidate_stage_transitions").insert({
-        candidate_id: candidateId,
-        from_stage: currentStage,
-        to_stage: nextStage,
-        moved_by: user?.id,
-        moved_by_name: user?.email,
-      }).catch(err => console.warn("Failed saving transition history:", err));
+      try {
+        await supabase.from("candidate_stage_transitions").insert({
+          candidate_id: candidateId,
+          from_stage: currentStage,
+          to_stage: nextStage,
+          moved_by: user?.id,
+          moved_by_name: user?.email,
+        });
+      } catch (err) {
+        console.warn("Failed saving transition history:", err);
+      }
 
       // 3. Trigger email notification via notify-stage-change
       const { data: sessionData } = await supabase.auth.getSession();
       const authToken = sessionData.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-      fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-stage-change`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({ candidateId, newStage: nextStage, action: "approve" }),
-        }
-      ).catch(e => console.warn("notify-stage-change edge function warning:", e));
+      try {
+        fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-stage-change`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ candidateId, newStage: nextStage, action: "approve" }),
+          }
+        );
+      } catch (e) {
+        console.warn("notify-stage-change edge function warning:", e);
+      }
 
       await queryClient.invalidateQueries({ queryKey: ["candidates"] });
       await queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
@@ -584,33 +592,41 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
       if (dbErr) throw dbErr;
 
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("candidate_stage_transitions").insert({
-        candidate_id: candidateId,
-        from_stage: currentStage,
-        to_stage: "مرفوض",
-        moved_by: user?.id,
-        moved_by_name: user?.email,
-        notes: rejectionReason || "رفض المرشح",
-      }).catch(err => console.warn("Failed saving rejection transition history:", err));
+      try {
+        await supabase.from("candidate_stage_transitions").insert({
+          candidate_id: candidateId,
+          from_stage: currentStage,
+          to_stage: "مرفوض",
+          moved_by: user?.id,
+          moved_by_name: user?.email,
+          notes: rejectionReason || "رفض المرشح",
+        });
+      } catch (err) {
+        console.warn("Failed saving rejection transition history:", err);
+      }
 
       const { data: sessionData } = await supabase.auth.getSession();
       const authToken = sessionData.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-      fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-stage-change`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({
-            candidateId,
-            action: "reject",
-            rejectionReason: rejectionReason.trim() || undefined,
-          }),
-        }
-      ).catch(e => console.warn("notify-stage-change edge function warning:", e));
+      try {
+        fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-stage-change`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({
+              candidateId,
+              action: "reject",
+              rejectionReason: rejectionReason.trim() || undefined,
+            }),
+          }
+        );
+      } catch (e) {
+        console.warn("notify-stage-change edge function warning:", e);
+      }
 
       await queryClient.invalidateQueries({ queryKey: ["candidates"] });
       await queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
