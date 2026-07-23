@@ -523,7 +523,43 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
 
       if (dbErr) throw dbErr;
 
-      // 2. Record stage transition history
+      // 2. Auto-generate Jitsi interview room if advancing to an interview stage
+      const isNextInterviewStage = /مقابلة|interview|فحص|فنية|فني|شخصية|تقنية|مبدئي/i.test(nextStage);
+      if (isNextInterviewStage) {
+        const { data: existingInt } = await supabase
+          .from("interviews")
+          .select("id")
+          .eq("candidate_id", candidateId)
+          .maybeSingle();
+
+        if (!existingInt) {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const dateStr = tomorrow.toISOString().split("T")[0];
+          const roomId = `tx-room-${candidateId.slice(0, 8)}-${Date.now().toString(36)}`;
+          const meetingUrl = `${window.location.origin}/meeting/${roomId}?name=${encodeURIComponent(candidateName)}&position=${encodeURIComponent(candidateRole || "")}`;
+
+          try {
+            await supabase.from("interviews").insert({
+              candidate_id: candidateId,
+              candidate_name: candidateName,
+              position: candidateRole || "غير محدد",
+              date: dateStr,
+              time: "10:00",
+              type: "عن بُعد",
+              interviewer: user?.email || "فريق التوظيف",
+              meeting_url: meetingUrl,
+              status: "مجدولة",
+            });
+          } catch (err) {
+            console.warn("Auto interview generation warning:", err);
+          }
+
+          await queryClient.invalidateQueries({ queryKey: ["interviews"] });
+        }
+      }
+
+      // 3. Record stage transition history
       const { data: { user } } = await supabase.auth.getUser();
       try {
         await supabase.from("candidate_stage_transitions").insert({
@@ -537,7 +573,7 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
         console.warn("Failed saving transition history:", err);
       }
 
-      // 3. Trigger email notification via notify-stage-change
+      // 4. Trigger email notification via notify-stage-change
       const { data: sessionData } = await supabase.auth.getSession();
       const authToken = sessionData.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
@@ -559,10 +595,11 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
 
       await queryClient.invalidateQueries({ queryKey: ["candidates"] });
       await queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
+      await queryClient.invalidateQueries({ queryKey: ["interviews"] });
 
       toast({
-        title: `تم نقل ${candidateName} إلى "${nextStage}" ✅`,
-        description: "تم تحديث مرحلة المرشح بنجاح",
+        title: isNextInterviewStage ? `تم نقل المرشح وتجهيز رابط مقابلة Jitsi تلقائياً 🎥` : `تم نقل ${candidateName} إلى "${nextStage}" ✅`,
+        description: isNextInterviewStage ? `تم إنشاء رابط الاجتماع المباشر وتمكين دخولك أنت والمرشح` : "تم تحديث مرحلة المرشح بنجاح",
       });
 
       // If advanced to offer stage, open offer creation dialog

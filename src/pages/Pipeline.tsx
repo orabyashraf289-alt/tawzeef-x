@@ -866,18 +866,53 @@ export default function Pipeline() {
         }).then();
       }
 
+      // Auto-generate Jitsi interview room if advancing to an interview stage
+      const isTargetInterviewStage = /مقابلة|interview|فحص|فنية|فني|شخصية|تقنية|مبدئي/i.test(toStage);
+      if (isTargetInterviewStage) {
+        const { data: existingInt } = await supabase
+          .from("interviews")
+          .select("id")
+          .eq("candidate_id", candidateId)
+          .maybeSingle();
+
+        if (!existingInt) {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const dateStr = tomorrow.toISOString().split("T")[0];
+          const roomId = `tx-room-${candidateId.slice(0, 8)}-${Date.now().toString(36)}`;
+          const meetingUrl = `${window.location.origin}/meeting/${roomId}?name=${encodeURIComponent(candidate.name)}&position=${encodeURIComponent(candidate.role || "")}`;
+
+          await supabase.from("interviews").insert({
+            candidate_id: candidateId,
+            candidate_name: candidate.name,
+            position: candidate.role || "غير محدد",
+            date: dateStr,
+            time: "10:00",
+            type: "عن بُعد",
+            interviewer: user?.email || "فريق التوظيف",
+            meeting_url: meetingUrl,
+            status: "مجدولة",
+          }).catch(err => console.warn("Auto interview generation warning in Pipeline:", err));
+
+          queryClient.invalidateQueries({ queryKey: ["interviews"] });
+        }
+      }
+
       const targetStageObj = (allStages || []).find(s => s.name === toStage);
       const automationRules = (targetStageObj as any)?.automation_rules || {};
       const shouldNotify = automationRules.notify_candidate_email !== false;
 
       if (candidate.email && shouldNotify) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const authToken = sessionData.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
         fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-stage-change`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              Authorization: `Bearer ${authToken}`,
             },
             body: JSON.stringify({
               candidateId,

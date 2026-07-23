@@ -24,7 +24,14 @@ async function sendEmail(supabaseUrl: string, to: string, subject: string, html:
   }
 }
 
-function buildApprovalEmail(candidateName: string, newStage: string, jobTitle: string): string {
+function buildApprovalEmail(
+  candidateName: string,
+  newStage: string,
+  jobTitle: string,
+  meetingUrl?: string,
+  interviewDate?: string,
+  interviewTime?: string
+): string {
   return `
   <div dir="rtl" style="font-family: 'Segoe UI', Tahoma, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb;">
     <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 30px; text-align: center;">
@@ -38,6 +45,15 @@ function buildApprovalEmail(candidateName: string, newStage: string, jobTitle: s
         <p style="font-size: 20px; font-weight: bold; color: #059669; margin: 0;">${newStage}</p>
         ${jobTitle ? `<p style="font-size: 14px; color: #6b7280; margin: 10px 0 0;">الوظيفة: ${jobTitle}</p>` : ''}
       </div>
+
+      ${meetingUrl ? `
+      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+        <p style="font-size: 16px; font-weight: bold; color: #166534; margin: 0 0 8px;">🎥 موعد المقابلة واجتماع الفيديو (Jitsi Meet)</p>
+        ${interviewDate ? `<p style="font-size: 14px; color: #374151; margin: 0 0 12px;">الموعد: <strong>${interviewDate}</strong> الساعة <strong>${interviewTime || '10:00 صباحاً'}</strong></p>` : ''}
+        <a href="${meetingUrl}" target="_blank" style="display: inline-block; background: #059669; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 15px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">انضم للاجتماع المباشر (Jitsi Meet) 🎥</a>
+      </div>
+      ` : ''}
+
       <p style="font-size: 14px; color: #6b7280;">سيتم التواصل معك قريباً بخصوص الخطوات التالية.</p>
       <p style="font-size: 14px; color: #6b7280;">مع تحيات فريق التوظيف</p>
     </div>
@@ -281,15 +297,34 @@ Deno.serve(async (req) => {
         }
         await sendEmail(supabaseUrl, candidate.email, subject, html, candidate.user_id);
       } else if (action === "approve") {
+        // Fetch latest candidate interview if present
+        const { data: interviewData } = await supabase
+          .from("interviews")
+          .select("meeting_url, date, time")
+          .eq("candidate_id", candidateId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
         const customTpl = await getCustomTemplate(supabase, candidate.company_id, "approval");
         let subject = `تحديث حالة طلبك - ${stageLabels[newStage] || newStage}`;
-        let html = buildApprovalEmail(candidate.name, newStage, jobTitle);
+        let html = buildApprovalEmail(
+          candidate.name,
+          newStage,
+          jobTitle,
+          interviewData?.meeting_url || undefined,
+          interviewData?.date || undefined,
+          interviewData?.time || undefined
+        );
 
         if (customTpl) {
           const compiled = compileTemplate(customTpl.body_html, customTpl.subject, {
             candidateName: candidate.name,
             stageName: stageLabels[newStage] || newStage,
             jobTitle,
+            meetingUrl: interviewData?.meeting_url || "",
+            interviewDate: interviewData?.date || "",
+            interviewTime: interviewData?.time || "",
           });
           subject = compiled.subject;
           html = compiled.html;
