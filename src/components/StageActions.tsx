@@ -111,9 +111,10 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
     expires_days: "7",
   });
 
-  const candidateOffer = (offers || []).find(o => o.candidate_id === candidateId);
   const candidateInterview = (interviews || []).find(
     i => i.candidate_id === candidateId && i.status === "مجدولة"
+  ) || (interviews || []).find(
+    i => i.candidate_id === candidateId
   );
 
   const currentIdx = STAGES.indexOf(currentStage);
@@ -121,7 +122,11 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
   const isRejected = status === "مرفوض";
   const isAccepted = status === "مقبول";
   const isLastStage = currentIdx === STAGES.length - 1;
-  const isInterviewStage = INTERVIEW_STAGES.includes(currentStage);
+  const isInterviewStage =
+    INTERVIEW_STAGES.includes(currentStage) ||
+    /مقابلة|interview|فحص|فنية|فني|شخصية|تقنية|مبدئي/i.test(currentStage) ||
+    !!(activeStages.find(s => s.name === currentStage)?.transition_rules?.require_interview) ||
+    !!candidateInterview;
 
   const STATUS_LABELS: Record<string, { label: string; color: string }> = {
     draft: { label: "مسودة", color: "bg-muted text-muted-foreground" },
@@ -926,72 +931,126 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
             className="space-y-3"
           >
             {candidateInterview ? (
-              <div className="bg-info/5 border border-info/20 rounded-xl p-4 space-y-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Video className="w-4 h-4 text-info" />
-                  <span className="text-sm font-bold text-foreground">مقابلة مجدولة</span>
-                  <Badge className="bg-info/10 text-info text-[10px] mr-auto">مجدولة</Badge>
-                </div>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">التاريخ</span>
-                    <span className="font-medium">{new Date(candidateInterview.date).toLocaleDateString("ar-SA")}</span>
+              <div className="bg-gradient-to-br from-info/10 via-background to-primary/5 border border-info/30 rounded-xl p-4 space-y-3 shadow-sm">
+                <div className="flex items-center justify-between gap-2 border-b border-info/10 pb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-info/10 flex items-center justify-center text-info">
+                      <Video className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-sm font-bold text-foreground block">تفاصيل الاجتماع</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {candidateInterview.status === "مكتملة" ? "تم إجراء المقابلة" : "مقابلة قادمة"}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">الوقت</span>
-                    <span className="font-medium">{candidateInterview.time}</span>
+                  <Badge className={cn(
+                    "text-[10px] font-medium px-2 py-0.5",
+                    candidateInterview.meeting_url?.includes("jitsi") || candidateInterview.meeting_url?.includes("/meeting/")
+                      ? "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20"
+                      : "bg-info/10 text-info border-info/20"
+                  )}>
+                    {candidateInterview.meeting_url?.includes("jitsi") || candidateInterview.meeting_url?.includes("/meeting/")
+                      ? "🎥 Jitsi Meet"
+                      : "🔗 رابط خارجي"}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs bg-muted/40 p-2.5 rounded-lg border border-border/40">
+                  <div>
+                    <span className="text-muted-foreground block text-[10px]">التاريخ والوقت</span>
+                    <span className="font-semibold text-foreground">
+                      {new Date(candidateInterview.date).toLocaleDateString("ar-SA")} — {candidateInterview.time}
+                    </span>
                   </div>
                   {candidateInterview.interviewer && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">المحاور</span>
-                      <span className="font-medium">{candidateInterview.interviewer}</span>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">المحاور</span>
+                      <span className="font-semibold text-foreground">{candidateInterview.interviewer}</span>
                     </div>
                   )}
                 </div>
 
                 {candidateInterview.meeting_url && (
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 gap-1.5 text-xs h-8"
-                      onClick={() => {
-                        navigator.clipboard.writeText(candidateInterview.meeting_url!);
-                        toast({ title: "تم نسخ رابط المقابلة ✅" });
-                      }}
-                    >
-                      <Copy className="w-3 h-3" />
-                      نسخ الرابط
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="flex-1 gap-1.5 text-xs h-8 gradient-primary border-0 text-primary-foreground"
-                      asChild
-                    >
-                      <a href={candidateInterview.meeting_url} target="_blank" rel="noopener noreferrer">
-                        <Video className="w-3 h-3" />
-                        دخول المقابلة
-                      </a>
-                    </Button>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 gap-1.5 text-xs h-9 border-info/30 hover:bg-info/5"
+                        onClick={() => {
+                          navigator.clipboard.writeText(candidateInterview.meeting_url!);
+                          toast({ title: "تم نسخ رابط المقابلة ✅" });
+                        }}
+                      >
+                        <Copy className="w-3.5 h-3.5 text-info" />
+                        نسخ الرابط
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 gap-1.5 text-xs h-9 gradient-primary border-0 text-primary-foreground font-bold shadow"
+                        asChild
+                      >
+                        <a href={candidateInterview.meeting_url} target="_blank" rel="noopener noreferrer">
+                          <Video className="w-3.5 h-3.5" />
+                          دخول المقابلة 🎥
+                        </a>
+                      </Button>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 gap-1 text-[11px] h-7 text-green-600 border-green-200 hover:bg-green-50 dark:border-green-900/40 dark:hover:bg-green-950/30"
+                        onClick={() => {
+                          const text = `مرحباً ${candidateName}، تم تحديث موعد المقابلة بتاريخ ${new Date(candidateInterview.date).toLocaleDateString("ar-SA")} الساعة ${candidateInterview.time}.\nرابط الاجتماع: ${candidateInterview.meeting_url}`;
+                          window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+                        }}
+                      >
+                        <MessageCircle className="w-3 h-3" />
+                        واتساب
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 gap-1 text-[11px] h-7 text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900/40 dark:hover:bg-blue-950/30"
+                        onClick={() => {
+                          const subject = `دعوة اجتماع مقابلة — ${candidateRole || ""}`;
+                          const body = `مرحباً ${candidateName}،\n\nنود تذكيرك بموعد المقابلة بتاريخ ${new Date(candidateInterview.date).toLocaleDateString("ar-SA")} الساعة ${candidateInterview.time}.\n\nرابط الاجتماع المباشر:\n${candidateInterview.meeting_url}\n\nتحياتنا،`;
+                          window.open(`mailto:${candidateEmail || ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, "_blank");
+                        }}
+                      >
+                        <Mail className="w-3 h-3" />
+                        بريد إلكتروني
+                      </Button>
+                    </div>
                   </div>
                 )}
 
                 {/* Complete Interview button */}
-                <Button
-                  size="sm"
-                  className="w-full gap-1.5 text-xs h-9 bg-success/90 hover:bg-success text-success-foreground font-bold"
-                  onClick={async () => {
-                    await supabase
-                      .from("interviews")
-                      .update({ status: "مكتملة", updated_at: new Date().toISOString() })
-                      .eq("id", candidateInterview.id);
-                    await queryClient.invalidateQueries({ queryKey: ["interviews"] });
-                    toast({ title: "تم تسجيل إكمال المقابلة ✅", description: "يمكنك الآن نقل المرشح للمرحلة التالية" });
-                  }}
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  تم إكمال المقابلة
-                </Button>
+                {candidateInterview.status !== "مكتملة" ? (
+                  <Button
+                    size="sm"
+                    className="w-full gap-1.5 text-xs h-9 bg-success hover:bg-success/90 text-success-foreground font-bold shadow-sm"
+                    onClick={async () => {
+                      await supabase
+                        .from("interviews")
+                        .update({ status: "مكتملة", updated_at: new Date().toISOString() })
+                        .eq("id", candidateInterview.id);
+                      await queryClient.invalidateQueries({ queryKey: ["interviews"] });
+                      toast({ title: "تم تسجيل إكمال المقابلة ✅", description: "يمكنك الآن نقل المرشح للمرحلة التالية" });
+                    }}
+                  >
+                    <Check className="w-4 h-4" />
+                    تأكيد إكمال المقابلة
+                  </Button>
+                ) : (
+                  <div className="bg-success/10 border border-success/20 rounded-lg p-2 text-center text-xs font-semibold text-success flex items-center justify-center gap-1.5">
+                    <Check className="w-4 h-4" />
+                    تمت المقابلة بنجاح
+                  </div>
+                )}
 
                 {/* Reschedule & Cancel buttons */}
                 <div className="flex gap-2 pt-1">
@@ -1025,11 +1084,11 @@ export default function StageActions({ candidateId, candidateName, candidateEmai
             ) : (
               <Button
                 variant="outline"
-                className="w-full gap-2 border-info/30 text-info hover:bg-info/5"
+                className="w-full gap-2 border-info/40 text-info hover:bg-info/10 font-bold h-10 shadow-sm"
                 onClick={() => setShowInterviewDialog(true)}
               >
-                <Calendar className="w-4 h-4" />
-                جدولة مقابلة وإنشاء رابط
+                <Video className="w-4 h-4 text-primary" />
+                جدولة مقابلة تفاعلية 🎥 (Jitsi Meet / Zoom)
               </Button>
             )}
           </motion.div>
