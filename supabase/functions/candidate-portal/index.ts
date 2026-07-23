@@ -22,24 +22,27 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // --- Search by Email ---
     if (email) {
       const cleanEmail = email.trim().toLowerCase();
-      // Find candidate(s) by email
-      const { data: candidates, error: dbErr } = await supabase
-        .from("candidates")
-        .select("id, name, role, tracking_code, job_id, email");
+      
+      const [{ data: candList }, { data: appList }] = await Promise.all([
+        supabase.from("candidates").select("id, name, role, tracking_code, job_id, email"),
+        supabase.from("applications").select("id, name, specialty, tracking_code, job_id, email")
+      ]);
 
-      if (dbErr) {
-        console.error("DB error finding candidates by email:", dbErr);
-        throw new Error("حدث خطأ أثناء معالجة الطلب");
-      }
+      const matchedCands = (candList || []).filter(c => c.email && c.email.trim().toLowerCase() === cleanEmail);
+      const matchedApps = (appList || []).filter(a => a.email && a.email.trim().toLowerCase() === cleanEmail);
 
-      const matchedCandidates = (candidates || []).filter(c => c.email && c.email.trim().toLowerCase() === cleanEmail);
+      const allMatches = [
+        ...matchedCands.map(c => ({ name: c.name, tracking_code: c.tracking_code, job_id: c.job_id, role: c.role })),
+        ...matchedApps
+          .filter(a => !matchedCands.some(mc => mc.tracking_code === a.tracking_code))
+          .map(a => ({ name: a.name, tracking_code: a.tracking_code, job_id: a.job_id, role: a.specialty }))
+      ].filter(x => x.tracking_code);
 
-      // If found, send email with tracking code(s)
-      if (matchedCandidates.length > 0) {
-        // Fetch job titles
-        const jobIds = [...new Set(matchedCandidates.filter(c => c.job_id).map(c => c.job_id))];
+      if (allMatches.length > 0) {
+        const jobIds = [...new Set(allMatches.filter(c => c.job_id).map(c => c.job_id))];
         const jobsMap: Record<string, string> = {};
         if (jobIds.length > 0) {
           const { data: jobs } = await supabase.from("jobs").select("id, title").in("id", jobIds);
@@ -49,7 +52,7 @@ serve(async (req) => {
         }
 
         const siteUrl = req.headers.get("origin") || "https://tawzeefx.com";
-        const trackingList = matchedCandidates.map(c => {
+        const trackingList = allMatches.map(c => {
           const jobTitle = c.job_id ? jobsMap[c.job_id] || c.role : c.role;
           return `<li><strong>وظيفة ${jobTitle || "غير محددة"}:</strong> رمز التتبع هو <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:14px;">${c.tracking_code}</code> (<a href="${siteUrl}/candidate-portal?code=${c.tracking_code}" style="color:#0ea5e9;text-decoration:none;font-weight:bold;">اضغط هنا للمتابعة مباشرة</a>)</li>`;
         }).join("\n");
@@ -59,7 +62,7 @@ serve(async (req) => {
             <div style="background: linear-gradient(135deg, #0ea5e9, #0284c7); padding: 24px; border-radius: 8px 8px 0 0; text-align: center; margin:-30px -30px 24px -30px;">
               <h2 style="color: #ffffff; margin: 0; font-size: 22px;">رموز تتبع طلبات التوظيف الخاصة بك 🔑</h2>
             </div>
-            <p style="font-size:16px; color:#1e293b;">مرحباً <strong>${matchedCandidates[0].name}</strong>،</p>
+            <p style="font-size:16px; color:#1e293b;">مرحباً <strong>${allMatches[0].name}</strong>،</p>
             <p style="font-size:15px; color:#475569; line-height:1.6;">تلقينا طلباً لاسترجاع رموز تتبع طلبات التوظيف الخاصة بك على منصة <strong>Tawzeef-X</strong>. إليك رموز التتبع الخاصة بك للوصول لبوابة المتابعة:</p>
             <ul style="line-height: 2; font-size:15px; color:#334155; padding-right: 20px; background:#f8fafc; padding:16px; border-radius:8px; list-style-type:none;">
               ${trackingList}
@@ -70,7 +73,7 @@ serve(async (req) => {
           </div>
         `;
 
-        const mailResp = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        await fetch(`${supabaseUrl}/functions/v1/send-email`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -81,11 +84,7 @@ serve(async (req) => {
             subject: "رموز تتبع طلبات التوظيف الخاصة بك — Tawzeef-X",
             html: emailHtml,
           }),
-        });
-
-        if (!mailResp.ok) {
-          console.error("Failed to send tracking code email:", await mailResp.text());
-        }
+        }).catch(err => console.error("Failed sending email:", err));
       }
 
       return new Response(JSON.stringify({
@@ -97,31 +96,100 @@ serve(async (req) => {
       });
     }
 
-    // Otherwise, query by tracking code (must be exact match)
-    const { data: candidates, error } = await supabase
-      .from("candidates")
-      .select("id, name, role, stage, status, skills, created_at, tracking_code, job_id")
-      .eq("tracking_code", trackingCode.toUpperCase().trim());
+    // --- Search by Tracking Code ---
+    const rawCode = trackingCode.trim();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawCode);
 
-    if (error) {
-      console.error("DB error:", error);
-      throw new Error("خطأ في البحث");
+    // 1. Query candidates table by tracking_code (ilike) or id
+    let candQuery = supabase.from("candidates").select("id, name, role, stage, status, skills, created_at, tracking_code, job_id");
+    if (isUuid) {
+      candQuery = candQuery.or(`tracking_code.ilike.${rawCode},id.eq.${rawCode}`);
+    } else {
+      candQuery = candQuery.ilike("tracking_code", rawCode);
+    }
+    let { data: candidates, error: candErr } = await candQuery;
+
+    if (candErr) {
+      console.error("DB error candidates search:", candErr);
     }
 
+    // Fallback: If not found by exact ilike, try wildcard or without TX- prefix
     if (!candidates || candidates.length === 0) {
+      const codeOnlyDigits = rawCode.replace(/[^0-9a-z]/gi, "");
+      if (codeOnlyDigits) {
+        const { data } = await supabase
+          .from("candidates")
+          .select("id, name, role, stage, status, skills, created_at, tracking_code, job_id")
+          .ilike("tracking_code", `%${codeOnlyDigits}%`);
+        if (data && data.length > 0) candidates = data;
+      }
+    }
+
+    // 2. Query applications table if not found in candidates
+    let appsData: any[] = [];
+    if (!candidates || candidates.length === 0) {
+      let appQuery = supabase.from("applications").select("id, name, specialty, status, skills, created_at, tracking_code, job_id");
+      if (isUuid) {
+        appQuery = appQuery.or(`tracking_code.ilike.${rawCode},id.eq.${rawCode}`);
+      } else {
+        appQuery = appQuery.ilike("tracking_code", rawCode);
+      }
+      const { data } = await appQuery;
+      appsData = data || [];
+
+      if (appsData.length === 0) {
+        const codeOnlyDigits = rawCode.replace(/[^0-9a-z]/gi, "");
+        if (codeOnlyDigits) {
+          const { data: fuzzyApps } = await supabase
+            .from("applications")
+            .select("id, name, specialty, status, skills, created_at, tracking_code, job_id")
+            .ilike("tracking_code", `%${codeOnlyDigits}%`);
+          if (fuzzyApps && fuzzyApps.length > 0) appsData = fuzzyApps;
+        }
+      }
+    }
+
+    const mergedList = [
+      ...(candidates || []).map(c => ({
+        id: c.id,
+        name: c.name,
+        role: c.role || "متقدم للوظيفة",
+        stage: c.stage || "تقديم الطلب",
+        status: c.status || "جديد",
+        skills: c.skills,
+        trackingCode: c.tracking_code || c.id?.slice(0, 8).toUpperCase(),
+        appliedAt: c.created_at,
+        jobId: c.job_id
+      })),
+      ...appsData
+        .filter(a => !(candidates || []).some(c => c.id === a.id || c.tracking_code === a.tracking_code))
+        .map(a => ({
+          id: a.id,
+          name: a.name,
+          role: a.specialty || "متقدم للوظيفة",
+          stage: "تقديم الطلب",
+          status: a.status || "جديد",
+          skills: a.skills,
+          trackingCode: a.tracking_code || a.id?.slice(0, 8).toUpperCase(),
+          appliedAt: a.created_at,
+          jobId: a.job_id
+        }))
+    ];
+
+    if (mergedList.length === 0) {
       return new Response(JSON.stringify({ error: "لم يتم العثور على طلبات. تأكد من رمز التتبع وحاول مرة أخرى." }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Fetch job titles for matched candidates
-    const jobIds = [...new Set(candidates.filter(c => c.job_id).map(c => c.job_id))];
+    // Fetch job titles for matched items
+    const jobIds = [...new Set(mergedList.filter(c => c.jobId).map(c => c.jobId))];
     const jobsMap: Record<string, string> = {};
     
     if (jobIds.length > 0) {
       const { data: jobs } = await supabase
         .from("jobs")
-        .select("id, title, department, location")
+        .select("id, title")
         .in("id", jobIds);
       
       if (jobs) {
@@ -129,17 +197,17 @@ serve(async (req) => {
       }
     }
 
-    const result = candidates.map(c => ({
+    const result = mergedList.map(c => ({
       id: c.id,
       name: c.name,
       role: c.role,
-      stage: c.stage || "تقديم الطلب",
+      stage: c.stage,
       status: c.status,
       skills: c.skills,
-      trackingCode: c.tracking_code,
-      appliedAt: c.created_at,
-      jobTitle: c.job_id ? jobsMap[c.job_id] || null : null,
-      aiScore: null, // Restrict ai_score from being viewed in candidate portal
+      trackingCode: c.trackingCode,
+      appliedAt: c.appliedAt,
+      jobTitle: c.jobId ? jobsMap[c.jobId] || c.role : c.role,
+      aiScore: null,
     }));
 
     return new Response(JSON.stringify({ candidates: result }), {
