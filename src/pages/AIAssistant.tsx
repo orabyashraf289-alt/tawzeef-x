@@ -1318,6 +1318,30 @@ export default function AIAssistant() {
     toast({ title: "تم حذف المحادثة ✅" });
   };
 
+  const handleClearAllConversations = async () => {
+    if (!user) return;
+    const confirmed = window.confirm("هل أنت متأكد من حذف جميع المحادثات نهائياً؟ لا يمكن التراجع عن هذه الخطوة.");
+    if (!confirmed) return;
+
+    try {
+      const { error } = await supabase
+        .from("chat_conversations")
+        .delete()
+        .eq("user_id", user.id);
+      if (error) throw error;
+
+      handleNewChat();
+      refetchConversations();
+      toast({ title: "تم حذف جميع المحادثات بنجاح 🗑️" });
+    } catch (e: any) {
+      toast({
+        title: "خطأ في حذف المحادثات",
+        description: e.message || "خطأ غير معروف",
+        variant: "destructive"
+      });
+    }
+  };
+
   const [pinnedIds, setPinnedIds] = useState<string[]>(() => {
     try {
       return JSON.parse(localStorage.getItem("tx_pinned_chats") || "[]");
