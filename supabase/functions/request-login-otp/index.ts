@@ -113,13 +113,24 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const adminClient = createClient(supabaseUrl, serviceKey);
 
-    // Find user by email directly via public.get_user_by_email_v1 RPC
-    const { data: dbUsers, error: findError } = await adminClient.rpc("get_user_by_email_v1", {
-      email_input: normalizedEmail,
-    });
-    if (findError) throw findError;
+    // Find user by email with fail-safe fallback
+    let targetUser: any = null;
+    try {
+      const { data: dbUsers, error: findError } = await adminClient.rpc("get_user_by_email_v1", {
+        email_input: normalizedEmail,
+      });
+      if (!findError && dbUsers && dbUsers.length > 0) {
+        targetUser = dbUsers[0];
+      }
+    } catch (rpcErr) {
+      console.warn("get_user_by_email_v1 rpc warning:", rpcErr);
+    }
 
-    const targetUser = dbUsers && dbUsers.length > 0 ? dbUsers[0] : null;
+    if (!targetUser) {
+      const { data: usersList } = await adminClient.auth.admin.listUsers();
+      targetUser = usersList?.users?.find((u) => u.email?.toLowerCase() === normalizedEmail);
+    }
+
     if (!targetUser) return json({ error: "لم يتم العثور على حساب بهذا البريد" }, 400);
 
     const userId = targetUser.id;
