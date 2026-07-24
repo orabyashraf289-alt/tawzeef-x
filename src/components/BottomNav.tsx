@@ -12,7 +12,7 @@ import { useScreenPermissions } from "@/hooks/useScreenPermissions";
 export default function BottomNav() {
   const location = useLocation();
   const { t } = useI18n();
-  const { isJobSeeker, isAdmin } = useUserRole();
+  const { isJobSeeker, isAdmin, isSuperAdmin } = useUserRole();
   const { hasScreenAccess } = useScreenPermissions();
 
   const workspace = localStorage.getItem("active-workspace") || "recruitment";
