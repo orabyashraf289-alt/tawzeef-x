@@ -19,9 +19,13 @@ export function useUserRole() {
     enabled: !!user,
   });
 
+  const email = user?.email?.toLowerCase() || "";
+  const isSuperAdmin = email === "tx@tawzeefx.com" || email === "ctraining801@gmail.com" || user?.user_metadata?.role === "super_admin";
+
   return {
     role: (query.data as AppRole) || "recruiter",
     isAdmin: query.data === "admin",
+    isSuperAdmin,
     isRecruiter: query.data === "recruiter",
     isReviewer: query.data === "reviewer",
     isJobSeeker: query.data === "job_seeker",

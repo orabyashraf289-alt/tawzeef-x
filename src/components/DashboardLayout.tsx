@@ -54,11 +54,11 @@ const allNavItems = [
   { icon: Building2, labelKey: "nav.company", path: "/company", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
   { icon: Handshake, labelKey: "nav.agency", path: "/agency", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
   { icon: UserCog, labelKey: "nav.team", path: "/team", roles: ["admin"], workspaces: ["enterprise"] },
-  { icon: Building2, labelKey: "nav.adminCompanies", path: "/admin/companies", roles: ["admin"], workspaces: ["enterprise"] },
-  { icon: Handshake, labelKey: "nav.adminAgencies", path: "/admin/agencies", roles: ["admin"], workspaces: ["enterprise"] },
+  { icon: Building2, labelKey: "nav.adminCompanies", path: "/admin/companies", roles: ["admin"], workspaces: ["enterprise"], superAdminOnly: true },
+  { icon: Handshake, labelKey: "nav.adminAgencies", path: "/admin/agencies", roles: ["admin"], workspaces: ["enterprise"], superAdminOnly: true },
   { icon: Shield, labelKey: "nav.auditLog", path: "/audit-log", roles: ["admin", "recruiter"], workspaces: ["enterprise"] },
-  { icon: ShieldCheck, labelKey: "nav.qualityReport", path: "/admin/quality", roles: ["admin"], workspaces: ["enterprise"] },
-  { icon: Map, labelKey: "nav.roadmap", path: "/roadmap", roles: ["admin"], workspaces: ["enterprise"] },
+  { icon: ShieldCheck, labelKey: "nav.qualityReport", path: "/admin/quality", roles: ["admin"], workspaces: ["enterprise"], superAdminOnly: true },
+  { icon: Map, labelKey: "nav.roadmap", path: "/roadmap", roles: ["admin"], workspaces: ["enterprise"], superAdminOnly: true },
   { icon: GraduationCap, labelKey: "nav.tutorial", path: "/tutorial", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
   { icon: Download, labelKey: "nav.install", path: "/install", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
   { icon: Settings, labelKey: "nav.settings", path: "/settings", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment", "enterprise"] },
@@ -69,7 +69,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [navLoading, setNavLoading] = useState(false);
   const location = useLocation();
   const { signOut, user } = useAuth();
-  const { role, isAdmin } = useUserRole();
+  const { role, isAdmin, isSuperAdmin } = useUserRole();
   const { hasScreenAccess } = useScreenPermissions();
   const { theme, setTheme } = useTheme();
   const { locale, setLocale, t, dir } = useI18n();
@@ -152,6 +152,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const navItems = allNavItems.filter(item => {
     const workspaces = (item as any).workspaces || ["recruitment"];
     const allowedRoles = (item as any).roles || ["admin", "recruiter", "reviewer"];
+    const superAdminOnly = (item as any).superAdminOnly;
+    if (superAdminOnly && !isSuperAdmin) return false;
     return workspaces.includes(workspace) && allowedRoles.includes(role) && hasScreenAccess(item.path);
   });
 

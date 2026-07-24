@@ -41,8 +41,8 @@ export default function BottomNav() {
         items.push({ icon: Target, labelKey: "nav.hiringPlan", path: "/hiring-plan" });
       }
       
-      // Admin gets Roadmap, others get Settings
-      if (isAdmin && hasScreenAccess("/roadmap")) {
+      // Super Admin gets Roadmap, others get Settings
+      if (isSuperAdmin && hasScreenAccess("/roadmap")) {
         items.push({ icon: Map, labelKey: "nav.roadmap", path: "/roadmap" });
       } else {
         items.push({ icon: Settings, labelKey: "nav.settings", path: "/settings" });

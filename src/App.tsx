@@ -141,16 +141,16 @@ function AnimatedRoutes() {
         <Route path="/workflow" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><WorkflowEditor /></RoleProtectedRoute>} />
         <Route path="/checklist-tracker" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><ChecklistTracker /></RoleProtectedRoute>} />
 
-        <Route path="/roadmap" element={<RoleProtectedRoute allowedRoles={["admin"]}><Roadmap /></RoleProtectedRoute>} />
+        <Route path="/roadmap" element={<RoleProtectedRoute allowedRoles={["admin"]} superAdminOnly><Roadmap /></RoleProtectedRoute>} />
 
         {/* Role-protected: admin only */}
         <Route path="/team" element={<RoleProtectedRoute allowedRoles={["admin"]}><TeamManagement /></RoleProtectedRoute>} />
         <Route path="/audit-log" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><AuditLog /></RoleProtectedRoute>} />
-        <Route path="/admin/blog" element={<RoleProtectedRoute allowedRoles={["admin"]}><BlogAdmin /></RoleProtectedRoute>} />
-        <Route path="/admin/companies" element={<RoleProtectedRoute allowedRoles={["admin"]}><AdminCompanies /></RoleProtectedRoute>} />
-        <Route path="/admin/companies/:id" element={<RoleProtectedRoute allowedRoles={["admin"]}><AdminCompanyDetail /></RoleProtectedRoute>} />
-        <Route path="/admin/agencies" element={<RoleProtectedRoute allowedRoles={["admin"]}><AdminAgencies /></RoleProtectedRoute>} />
-        <Route path="/admin/quality" element={<RoleProtectedRoute allowedRoles={["admin"]}><QualityReport /></RoleProtectedRoute>} />
+        <Route path="/admin/blog" element={<RoleProtectedRoute allowedRoles={["admin"]} superAdminOnly><BlogAdmin /></RoleProtectedRoute>} />
+        <Route path="/admin/companies" element={<RoleProtectedRoute allowedRoles={["admin"]} superAdminOnly><AdminCompanies /></RoleProtectedRoute>} />
+        <Route path="/admin/companies/:id" element={<RoleProtectedRoute allowedRoles={["admin"]} superAdminOnly><AdminCompanyDetail /></RoleProtectedRoute>} />
+        <Route path="/admin/agencies" element={<RoleProtectedRoute allowedRoles={["admin"]} superAdminOnly><AdminAgencies /></RoleProtectedRoute>} />
+        <Route path="/admin/quality" element={<RoleProtectedRoute allowedRoles={["admin"]} superAdminOnly><QualityReport /></RoleProtectedRoute>} />
         <Route path="/company" element={<ProtectedRoute><CompanyPortal /></ProtectedRoute>} />
         <Route path="/agency" element={<ProtectedRoute><AgencyPortal /></ProtectedRoute>} />
 

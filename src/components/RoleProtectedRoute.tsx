@@ -8,29 +8,34 @@ import Unauthorized from "@/pages/Unauthorized";
 interface RoleProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: AppRole[];
+  superAdminOnly?: boolean;
   screenPath?: string;
 }
 
-export default function RoleProtectedRoute({ children, allowedRoles, screenPath }: RoleProtectedRouteProps) {
+export default function RoleProtectedRoute({ children, allowedRoles, superAdminOnly, screenPath }: RoleProtectedRouteProps) {
   const { user, loading } = useAuth();
-  const { role, isLoading: roleLoading } = useUserRole();
+  const { role, isSuperAdmin, isLoading: roleLoading } = useUserRole();
   const { hasScreenAccess, isLoading: permLoading } = useScreenPermissions();
   const location = useLocation();
 
   if (loading || roleLoading || permLoading) return <PageSkeleton />;
   if (!user) return <Navigate to="/auth" replace />;
 
-  // 1) First check static allowed roles
+  // 1) Super Admin Only Check
+  if (superAdminOnly && !isSuperAdmin) {
+    return <Unauthorized />;
+  }
+
+  // 2) Check static allowed roles
   if (allowedRoles && !allowedRoles.includes(role)) {
     return <Unauthorized />;
   }
 
-  // 2) Check DB permissions
+  // 3) Check DB permissions
   const pathToCheck = screenPath || location.pathname.replace(/\/[^/]+$/, "") || location.pathname;
   if (!hasScreenAccess(pathToCheck) && !hasScreenAccess(location.pathname)) {
     return <Unauthorized />;
   }
-
 
   return <>{children}</>;
 }
