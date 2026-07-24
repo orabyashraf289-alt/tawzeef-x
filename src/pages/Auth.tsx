@@ -890,15 +890,30 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-primary mb-1">
                   <Sparkles className="w-3 h-3 text-primary animate-pulse" />
                   <span className="text-[10px] font-bold tracking-wide">
-                    {isLogin ? "مرحباً بعودتك" : "انضم للمنصة الأذكى"}
+                    {searchParams.get("role") === "candidate" ? "بوابة المتقدمين للوظائف" : isLogin ? "مرحباً بعودتك" : "انضم للمنصة الأذكى"}
                   </span>
                 </div>
                 <h2 className="text-2xl font-black text-foreground tracking-tight leading-tight">
-                  {isLogin ? "تسجيل الدخول" : "إنشاء حساب جديد"}
+                  {searchParams.get("role") === "candidate" ? "تسجيل دخول المتقدمين" : isLogin ? "تسجيل الدخول" : "إنشاء حساب جديد"}
                 </h2>
                 <p className="text-muted-foreground text-xs leading-normal">
-                  {isLogin ? "أدخل بريدك الإلكتروني وكلمة المرور للوصول لحسابك" : "ابدأ رحلتك في التوظيف الذكي وتتبع المرشحين"}
+                  {searchParams.get("role") === "candidate" 
+                    ? "أدخل بريدك الإلكتروني ورقم جوالك ككلمة مرور لمتابعة طلبك"
+                    : isLogin 
+                    ? "أدخل بريدك الإلكتروني وكلمة المرور للوصول لحسابك" 
+                    : "ابدأ رحلتك في التوظيف الذكي وتتبع المرشحين"}
                 </p>
+                {searchParams.get("role") === "candidate" && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-right space-y-1 my-2">
+                    <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                      <User className="w-4 h-4" />
+                      <span>حساب متقدم مُنشأ تلقائياً 👤✨</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      كلمة المرور الخاصة بك هي <strong className="text-foreground">رقم الجوال</strong> الذي أدخلته عند تقديم الطلب.
+                    </p>
+                  </div>
+                )}
               </motion.div>
             </AnimatePresence>
 

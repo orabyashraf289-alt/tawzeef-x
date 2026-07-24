@@ -114,6 +114,8 @@ export default function JobSeekerDashboard() {
   // Resume & Profile states
   const [uploading, setUploading] = useState(false);
   const [certUploading, setCertUploading] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [saving, setSaving] = useState(false);
   
   const [form, setForm] = useState({
@@ -161,7 +163,7 @@ export default function JobSeekerDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("full_name, job_title")
+        .select("full_name, job_title, avatar_url")
         .eq("user_id", user!.id)
         .maybeSingle();
       if (error) throw error;
@@ -171,6 +173,9 @@ export default function JobSeekerDashboard() {
   });
 
   useEffect(() => {
+    if (profileQuery.data?.avatar_url) {
+      setAvatarUrl(profileQuery.data.avatar_url);
+    }
     if (resumeQuery.data) {
       const r = resumeQuery.data;
       setForm({
@@ -198,6 +203,42 @@ export default function JobSeekerDashboard() {
     }
   }, [resumeQuery.data, profileQuery.data, user]);
 
+  const handleUploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAvatarUploading(true);
+    try {
+      const ext = (file.name.split(".").pop() || "").toLowerCase();
+      const filePath = `${user!.id}/avatar_${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+      setAvatarUrl(publicUrl);
+
+      // Update profiles table
+      await supabase
+        .from("profiles")
+        .update({ avatar_url: publicUrl })
+        .eq("user_id", user!.id);
+
+      qc.invalidateQueries({ queryKey: ["my-profile", user?.id] });
+      toast({ title: "تم رفع الصورة الشخصية بنجاح 📸" });
+    } catch (err: any) {
+      toast({ title: "خطأ في رفع الصورة", description: err.message, variant: "destructive" });
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (resumeData: any) => {
       // 1) Update profiles
@@ -206,6 +247,7 @@ export default function JobSeekerDashboard() {
         .update({
           full_name: resumeData.full_name,
           job_title: resumeData.job_title,
+          avatar_url: avatarUrl || undefined,
         })
         .eq("user_id", user!.id);
       if (profErr) throw profErr;
@@ -615,6 +657,32 @@ export default function JobSeekerDashboard() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {/* Profile Photo Avatar Uploader */}
+                    <div className="flex items-center gap-4 p-3.5 rounded-2xl bg-muted/30 border border-border/60 mb-2">
+                      <div className="relative group shrink-0">
+                        <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-primary/40 bg-muted flex items-center justify-center text-muted-foreground shadow-sm">
+                          {avatarUrl ? (
+                            <img src={avatarUrl} alt={form.fullName || "الصورة الشخصية"} className="w-full h-full object-cover" />
+                          ) : (
+                            <User className="w-8 h-8 text-muted-foreground" />
+                          )}
+                        </div>
+                        <label className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                          <UploadCloud className="w-5 h-5 text-white" />
+                          <input type="file" accept="image/*" onChange={handleUploadAvatar} disabled={avatarUploading} className="hidden" />
+                        </label>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-foreground">الصورة الشخصية (Profile Photo)</p>
+                        <p className="text-[11px] text-muted-foreground">قم برفع صورة شخصية احترافية لملفك كـ متقدم (JPG, PNG)</p>
+                        <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary hover:underline cursor-pointer">
+                          {avatarUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5" />}
+                          {avatarUploading ? "جاري الرفع..." : "تغيير الصورة الشخصية"}
+                          <input type="file" accept="image/*" onChange={handleUploadAvatar} disabled={avatarUploading} className="hidden" />
+                        </label>
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="fullName">الاسم الكامل</Label>
