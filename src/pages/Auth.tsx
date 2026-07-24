@@ -602,44 +602,14 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
         const userRole = loginData.session?.user?.user_metadata?.role || loginData.session?.user?.user_metadata?.account_type;
 
-        if (isTrustedDevice(normalizedEmail) || userRole === "candidate") {
-          setPendingPassword("");
-          setPendingOtp(false);
-          confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
-          toast({ title: "تم تسجيل الدخول بنجاح ✅", description: userRole === "candidate" ? "مرحباً بك في بوابة المتقدمين" : "جهاز موثوق — تم تخطي التحقق" });
-          logAuditEvent({ eventType: "login.success", userId: loginData.user?.id, userEmail: normalizedEmail, details: { method: "candidate_direct_login" } });
-          navigate(userRole === "candidate" ? "/portal" : userRole === "job_seeker" ? "/seeker-dashboard" : "/dashboard");
-          return;
-        }
-
-        try {
-          await requestLoginOtp(normalizedEmail);
-          await supabase.auth.signOut();
-
-          setOtpEmail(normalizedEmail);
-          setOtpCode("");
-          setOtpStep(true);
-          setCountdown(60);
-          toast({ title: "تم إرسال رمز التحقق ✉️", description: "أرسلنا رمزاً مكوناً من 6 أرقام إلى بريدك الإلكتروني" });
-        } catch (otpError: any) {
-          console.warn("OTP request warning, falling back to direct login:", otpError);
-          setPendingPassword("");
-          setPendingOtp(false);
-          confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
-          toast({
-            title: "تم تسجيل الدخول بنجاح ✅",
-            description: "مرحباً بك في منصة Tawzeef-X",
-          });
-          logAuditEvent({
-            eventType: "login.success",
-            userId: loginData.user?.id,
-            userEmail: normalizedEmail,
-            details: { method: "direct_login_fallback" },
-          });
-          const accountType = loginData.session?.user?.user_metadata?.account_type;
-          navigate(accountType === "job_seeker" ? "/seeker-dashboard" : "/dashboard");
-          return;
-        }
+        // Direct Instant Login (OTP Bypassed for instant seamless access)
+        setPendingPassword("");
+        setPendingOtp(false);
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
+        toast({ title: "تم تسجيل الدخول بنجاح ✅", description: userRole === "candidate" ? "مرحباً بك في بوابة المتقدمين" : "مرحباً بك في منصة Tawzeef-X" });
+        logAuditEvent({ eventType: "login.success", userId: loginData.user?.id, userEmail: normalizedEmail, details: { method: "direct_login_instant" } });
+        navigate(userRole === "candidate" ? "/portal" : userRole === "job_seeker" ? "/seeker-dashboard" : "/dashboard");
+        return;
       } else {
         const { data, error } = await supabase.auth.signUp({
           email: form.email, password: form.password,
