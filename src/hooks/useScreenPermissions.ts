@@ -62,14 +62,14 @@ export function useAllPermissions() {
 }
 
 export function useScreenPermissions() {
-  const { role } = useUserRole();
+  const { role, isSuperAdmin } = useUserRole();
   const { data: permissions, isLoading } = useAllPermissions();
 
   const hasScreenAccess = (path: string): boolean => {
-    if (!permissions) {
-      // Fallback: admin gets everything
-      return role === "admin";
-    }
+    if (isSuperAdmin) return true; // Super Admin has unhindered access to 100% of all screens
+    if (role === "admin") return true; // Admin has full default access to company screens
+
+    if (!permissions) return false;
 
     const permKey = ROUTE_PERMISSION_MAP[path] || SUB_ROUTE_MAP[path];
     if (!permKey) return true; // Unknown routes are accessible
@@ -82,7 +82,8 @@ export function useScreenPermissions() {
   };
 
   const hasActionPermission = (actionKey: string): boolean => {
-    if (!permissions) return role === "admin";
+    if (isSuperAdmin || role === "admin") return true;
+    if (!permissions) return false;
     const perm = permissions.find(p => p.permission_key === actionKey);
     if (!perm) return true;
     const roleKey = role as "admin" | "recruiter" | "reviewer";
