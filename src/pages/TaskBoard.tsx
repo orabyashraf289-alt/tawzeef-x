@@ -325,32 +325,8 @@ export default function TaskBoard() {
         throw error;
       }
       
-      // Auto seed if no data found
       if (!data || data.length === 0) {
-        const seededTasks = initialTasks.map(t => ({
-          title: t.title,
-          title_en: t.titleEn,
-          description: t.description,
-          description_en: t.descriptionEn,
-          assignee: t.assignee,
-          assignee_en: t.assigneeEn,
-          due_date: t.dueDate,
-          priority: t.priority,
-          column_status: t.column,
-          user_id: user.id,
-        }));
-        
-        const { data: inserted, error: insertError } = await supabase
-          .from("tasks" as any)
-          .insert(seededTasks)
-          .select();
-          
-        if (insertError) {
-          console.error("Error seeding tasks:", insertError);
-          return initialTasks;
-        }
-        
-        return (inserted || []).map(mapDbTaskToTask);
+        return [];
       }
       
       return data.map(mapDbTaskToTask);
