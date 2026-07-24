@@ -584,17 +584,31 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
       if (isLogin) {
         setPendingOtp(true);
         setPendingPassword(form.password);
-        const { data: loginData, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password: form.password });
+        let { data: loginData, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password: form.password });
+
+        // Smart Candidate Phone Password Fallback (if user typed phone with spaces/formatting)
+        if (error && (error.message.includes("Invalid login credentials") || error.message.includes("invalid_credentials"))) {
+          const cleanPhonePass = form.password.replace(/\D/g, "");
+          if (cleanPhonePass && cleanPhonePass !== form.password && cleanPhonePass.length >= 6) {
+            const retry = await supabase.auth.signInWithPassword({ email: normalizedEmail, password: cleanPhonePass });
+            if (retry.data?.session) {
+              loginData = retry.data;
+              error = null;
+            }
+          }
+        }
+
         if (error) { setPendingOtp(false); logAuditEvent({ eventType: "login.failed", userEmail: normalizedEmail, details: { reason: error.message } }); throw error; }
 
-        if (isTrustedDevice(normalizedEmail)) {
+        const userRole = loginData.session?.user?.user_metadata?.role || loginData.session?.user?.user_metadata?.account_type;
+
+        if (isTrustedDevice(normalizedEmail) || userRole === "candidate") {
           setPendingPassword("");
           setPendingOtp(false);
           confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
-          toast({ title: "تم تسجيل الدخول ✅", description: "جهاز موثوق — تم تخطي التحقق" });
-          logAuditEvent({ eventType: "login.success", userId: loginData.user?.id, userEmail: normalizedEmail, details: { method: "trusted_device" } });
-          const accountType = loginData.session?.user?.user_metadata?.account_type;
-          navigate(accountType === "job_seeker" ? "/seeker-dashboard" : "/dashboard");
+          toast({ title: "تم تسجيل الدخول بنجاح ✅", description: userRole === "candidate" ? "مرحباً بك في بوابة المتقدمين" : "جهاز موثوق — تم تخطي التحقق" });
+          logAuditEvent({ eventType: "login.success", userId: loginData.user?.id, userEmail: normalizedEmail, details: { method: "candidate_direct_login" } });
+          navigate(userRole === "candidate" ? "/portal" : userRole === "job_seeker" ? "/seeker-dashboard" : "/dashboard");
           return;
         }
 

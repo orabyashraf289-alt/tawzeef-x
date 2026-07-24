@@ -41,12 +41,15 @@ Deno.serve(async (req) => {
 
     if (existingUser) {
       userId = existingUser.id;
-      console.log(`Candidate user ${cleanEmail} already exists (${userId}). Updating metadata...`);
+      console.log(`Candidate user ${cleanEmail} already exists (${userId}). Updating password and metadata...`);
       await supabaseAdmin.auth.admin.updateUserById(userId, {
+        password: cleanPassword,
+        email_confirm: true,
         user_metadata: {
           ...existingUser.user_metadata,
           full_name: name || existingUser.user_metadata?.full_name,
           phone: phone || existingUser.user_metadata?.phone,
+          clean_phone: cleanPassword,
           user_type: "candidate",
           role: "candidate",
         },
