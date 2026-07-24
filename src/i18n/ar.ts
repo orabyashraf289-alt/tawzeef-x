@@ -21,6 +21,7 @@ const ar: Record<string, string> = {
   "nav.roadmap": "خطة التطوير",
   "nav.resumeArchive": "أرشيف السير الذاتية",
   "nav.company": "بوابة الشركة",
+  "nav.companyAgencies": "إدارة مكاتب التوظيف والعمل",
   "nav.agency": "بوابة المكتب",
   "nav.adminCompanies": "الشركات",
   "nav.adminAgencies": "مكاتب التوظيف",

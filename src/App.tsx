@@ -38,6 +38,7 @@ const ApplyJob = lazy(() => import("./pages/ApplyJob"));
 const CandidatePortal = lazy(() => import("./pages/CandidatePortal"));
 const BookInterview = lazy(() => import("./pages/BookInterview"));
 const TeamManagement = lazy(() => import("./pages/TeamManagement"));
+const CompanyAgencies = lazy(() => import("./pages/CompanyAgencies"));
 const Offers = lazy(() => import("./pages/Offers"));
 const OfferPortal = lazy(() => import("./pages/OfferPortal"));
 const VideoRoom = lazy(() => import("./pages/VideoRoom"));
@@ -152,6 +153,7 @@ function AnimatedRoutes() {
         <Route path="/admin/agencies" element={<RoleProtectedRoute allowedRoles={["admin"]} superAdminOnly><AdminAgencies /></RoleProtectedRoute>} />
         <Route path="/admin/quality" element={<RoleProtectedRoute allowedRoles={["admin"]} superAdminOnly><QualityReport /></RoleProtectedRoute>} />
         <Route path="/company" element={<ProtectedRoute><CompanyPortal /></ProtectedRoute>} />
+        <Route path="/company/agencies" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><CompanyAgencies /></RoleProtectedRoute>} />
         <Route path="/agency" element={<ProtectedRoute><AgencyPortal /></ProtectedRoute>} />
 
         <Route path="*" element={<NotFound />} />

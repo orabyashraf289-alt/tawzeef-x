@@ -52,6 +52,7 @@ const allNavItems = [
   { icon: ClipboardList, labelKey: "nav.checklistTracker", path: "/checklist-tracker", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
 
   { icon: Building2, labelKey: "nav.company", path: "/company", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
+  { icon: Handshake, labelKey: "nav.companyAgencies", path: "/company/agencies", roles: ["admin", "recruiter"], workspaces: ["recruitment", "enterprise"] },
   { icon: Handshake, labelKey: "nav.agency", path: "/agency", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
   { icon: UserCog, labelKey: "nav.team", path: "/team", roles: ["admin"], workspaces: ["enterprise"] },
   { icon: Building2, labelKey: "nav.adminCompanies", path: "/admin/companies", roles: ["admin"], workspaces: ["enterprise"], superAdminOnly: true },
