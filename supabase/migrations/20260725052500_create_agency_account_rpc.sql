@@ -1,3 +1,6 @@
+-- Ensure pgcrypto extension for password encryption
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Create RPC Function to safely register agency accounts with exact typed passwords
 CREATE OR REPLACE FUNCTION public.create_agency_account(
   p_email text,

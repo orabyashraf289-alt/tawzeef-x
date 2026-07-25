@@ -6,18 +6,28 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Building2, Plus, Users, Mail, Phone, MapPin, ShieldCheck, Key, Copy, Check, Eye, Trash2, Edit3, Loader2, Sparkles, ExternalLink } from "lucide-react";
+import { Building2, Plus, Users, Mail, Phone, MapPin, ShieldCheck, Key, Copy, Check, Eye, Trash2, Edit3, Loader2, Sparkles, ExternalLink, RefreshCw, AlertTriangle, UserPlus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAgencyCandidates, useUpdateAgency, useDeleteAgency } from "@/hooks/useAgencies";
 import { toast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 
 export default function CompanyAgencies() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  
+  // Dialog States
   const [openAddDialog, setOpenAddDialog] = useState(false);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [selectedAgencyDetails, setSelectedAgencyDetails] = useState<any | null>(null);
+  const [selectedAgencyForEdit, setSelectedAgencyForEdit] = useState<any | null>(null);
+  const [selectedAgencyForDelete, setSelectedAgencyForDelete] = useState<any | null>(null);
+
   const [createdCredentials, setCreatedCredentials] = useState<{ email: string; pass: string; name: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -32,6 +42,21 @@ export default function CompanyAgencies() {
     country: "المملكة العربية السعودية",
     city: "الرياض",
     licenseNumber: "",
+    notes: ""
+  });
+
+  // Edit Form State
+  const [editForm, setEditForm] = useState({
+    id: "",
+    name: "",
+    contactPerson: "",
+    email: "",
+    password: "",
+    phone: "",
+    country: "",
+    city: "",
+    licenseNumber: "",
+    status: "active",
     notes: ""
   });
 
@@ -55,7 +80,6 @@ export default function CompanyAgencies() {
   const agenciesQuery = useQuery({
     queryKey: ["company-agencies", companyId, user?.id],
     queryFn: async () => {
-      // 1) Fetch from agencies table directly
       const { data: directAgencies, error: directErr } = await supabase
         .from("agencies" as any)
         .select("*")
@@ -65,7 +89,6 @@ export default function CompanyAgencies() {
         return directAgencies as any[];
       }
 
-      // 2) Fallback via agency_assignments
       if (companyId) {
         const { data: assignments } = await supabase
           .from("agency_assignments" as any)
@@ -98,7 +121,6 @@ export default function CompanyAgencies() {
 
     setIsSubmitting(true);
     try {
-      // 1. Get or Ensure Company ID
       let targetCompanyId = companyId;
       if (!targetCompanyId && user) {
         const { data: myComp } = await supabase.from("companies").select("id").limit(1).maybeSingle();
@@ -114,7 +136,7 @@ export default function CompanyAgencies() {
         }
       }
 
-      // 2. Insert Agency Record
+      // 1. Insert Agency Record
       const { data: newAgency, error: agencyErr } = await supabase
         .from("agencies" as any)
         .insert({
@@ -134,7 +156,7 @@ export default function CompanyAgencies() {
       if (agencyErr) throw agencyErr;
       const agencyId = (newAgency as any).id;
 
-      // 3. Link Agency to Company in agency_assignments
+      // 2. Link Agency to Company in agency_assignments
       if (targetCompanyId) {
         await supabase
           .from("agency_assignments" as any)
@@ -146,7 +168,7 @@ export default function CompanyAgencies() {
           } as any);
       }
 
-      // 4. Create Auth Account using RPC create_agency_account with EXACT typed password
+      // 3. Create Auth Account using RPC create_agency_account with EXACT typed password
       let rpcSuccess = false;
       try {
         const { data: rpcRes, error: rpcErr } = await supabase.rpc("create_agency_account" as any, {
@@ -165,7 +187,6 @@ export default function CompanyAgencies() {
         console.warn("RPC create_agency_account warning:", e);
       }
 
-      // Fallback via Edge Function with explicit password
       if (!rpcSuccess) {
         try {
           await supabase.functions.invoke("auto-create-candidate-account", {
@@ -182,7 +203,6 @@ export default function CompanyAgencies() {
         }
       }
 
-      // Set credentials box for popup
       setCreatedCredentials({
         email: form.email.trim().toLowerCase(),
         pass: form.password,
@@ -205,6 +225,113 @@ export default function CompanyAgencies() {
       });
     } catch (err: any) {
       toast({ title: "خطأ في إضافة المكتب", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Open Edit Dialog
+  const handleOpenEdit = (agency: any) => {
+    setSelectedAgencyForEdit(agency);
+    setEditForm({
+      id: agency.id,
+      name: agency.name || "",
+      contactPerson: agency.contact_person || agency.name || "",
+      email: agency.contact_email || "",
+      password: "",
+      phone: agency.contact_phone || "",
+      country: agency.country || "المملكة العربية السعودية",
+      city: agency.city || "الرياض",
+      licenseNumber: agency.license_number || "",
+      status: agency.status || "active",
+      notes: agency.notes || ""
+    });
+    setOpenEditDialog(true);
+  };
+
+  // Save Edit Agency
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editForm.name || !editForm.email) {
+      toast({ title: "يرجى تعبئة الحقول الأساسية", variant: "destructive" });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error: updateErr } = await supabase
+        .from("agencies" as any)
+        .update({
+          name: editForm.name,
+          contact_email: editForm.email,
+          contact_phone: editForm.phone,
+          country: editForm.country,
+          city: editForm.city,
+          license_number: editForm.licenseNumber,
+          status: editForm.status,
+          notes: editForm.notes,
+        } as any)
+        .eq("id", editForm.id);
+
+      if (updateErr) throw updateErr;
+
+      // If new password provided, update credentials via RPC
+      if (editForm.password) {
+        try {
+          await supabase.rpc("create_agency_account" as any, {
+            p_email: editForm.email.trim().toLowerCase(),
+            p_password: editForm.password,
+            p_name: editForm.contactPerson || editForm.name,
+            p_phone: editForm.phone,
+            p_agency_id: editForm.id,
+            p_company_id: companyId
+          });
+          toast({ title: "تم تحديث كلمة مرور حساب المكتب بنجاح 🔑" });
+        } catch (pwErr: any) {
+          console.warn("Password update warning:", pwErr);
+        }
+      }
+
+      qc.invalidateQueries({ queryKey: ["company-agencies"] });
+      toast({ title: "تم تحديث بيانات مكتب التوظيف بنجاح ✅" });
+      setOpenEditDialog(false);
+      if (selectedAgencyDetails?.id === editForm.id) {
+        setSelectedAgencyDetails(prev => ({ ...prev, ...editForm }));
+      }
+    } catch (err: any) {
+      toast({ title: "خطأ في التحديث", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Open Delete Confirmation
+  const handleOpenDelete = (agency: any) => {
+    setSelectedAgencyForDelete(agency);
+    setOpenDeleteDialog(true);
+  };
+
+  // Confirm Delete Agency
+  const handleDeleteAgency = async () => {
+    if (!selectedAgencyForDelete) return;
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("agencies" as any)
+        .delete()
+        .eq("id", selectedAgencyForDelete.id);
+
+      if (error) throw error;
+
+      qc.invalidateQueries({ queryKey: ["company-agencies"] });
+      toast({ title: "تم حذف مكتب التوظيف بنجاح ✅" });
+      setOpenDeleteDialog(false);
+      if (selectedAgencyDetails?.id === selectedAgencyForDelete.id) {
+        setSelectedAgencyDetails(null);
+      }
+    } catch (err: any) {
+      toast({ title: "خطأ في الحذف", description: err.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -286,7 +413,7 @@ export default function CompanyAgencies() {
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
             <Building2 className="w-5 h-5 text-primary" />
-            قائمة مكاتب التوظيف المعتمدة
+            قائمة مكاتب التوظيف المعتمدة ({agencies.length})
           </h2>
 
           {agencies.length === 0 ? (
@@ -305,15 +432,20 @@ export default function CompanyAgencies() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {agencies.map((agency, idx) => (
                 <motion.div key={agency.id || idx} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}>
-                  <Card className="rounded-2xl border border-border/60 hover:shadow-md transition-shadow relative overflow-hidden group">
+                  <Card className="rounded-2xl border border-border/60 hover:border-primary/40 hover:shadow-md transition-all relative overflow-hidden group cursor-pointer" onClick={() => setSelectedAgencyDetails(agency)}>
                     <div className="p-5 space-y-4">
+                      
+                      {/* Top Header */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
                           <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary/10 to-indigo-500/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-lg shrink-0">
                             {agency.name ? agency.name.charAt(0) : "م"}
                           </div>
                           <div>
-                            <h3 className="font-bold text-sm text-foreground leading-snug">{agency.name}</h3>
+                            <h3 className="font-bold text-sm text-foreground leading-snug group-hover:text-primary transition-colors flex items-center gap-1.5">
+                              {agency.name}
+                              <Eye className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </h3>
                             <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
                               <MapPin className="w-3 h-3 text-muted-foreground" />
                               {agency.country || "السعودية"} {agency.city ? `- ${agency.city}` : ""}
@@ -325,6 +457,7 @@ export default function CompanyAgencies() {
                         </Badge>
                       </div>
 
+                      {/* Info Box */}
                       <div className="space-y-1.5 p-3 rounded-xl bg-muted/30 border border-border/40 text-xs font-mono" dir="ltr">
                         <p className="flex items-center gap-2 truncate">
                           <Mail className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -340,11 +473,40 @@ export default function CompanyAgencies() {
                         )}
                       </div>
 
-                      {agency.license_number && (
-                        <p className="text-[11px] text-muted-foreground">
-                          <strong>رقم الترخيص:</strong> {agency.license_number}
-                        </p>
-                      )}
+                      {/* Action Bar */}
+                      <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs" onClick={e => e.stopPropagation()}>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setSelectedAgencyDetails(agency)}
+                          className="h-8 px-2.5 text-xs font-bold text-primary hover:bg-primary/10 gap-1 rounded-lg"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          التفاصيل الكاملة
+                        </Button>
+
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleOpenEdit(agency)}
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
+                            title="تعديل المكتب"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleOpenDelete(agency)}
+                            className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-lg"
+                            title="حذف المكتب"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+
                     </div>
                   </Card>
                 </motion.div>
@@ -352,6 +514,58 @@ export default function CompanyAgencies() {
             </div>
           )}
         </div>
+
+        {/* Agency Full Screen Details View Modal */}
+        {selectedAgencyDetails && (
+          <Dialog open={!!selectedAgencyDetails} onOpenChange={() => setSelectedAgencyDetails(null)}>
+            <DialogContent className="max-w-4xl rounded-3xl p-6 max-h-[90vh] overflow-y-auto">
+              <DialogHeader className="text-right space-y-2 border-b border-border/40 pb-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-indigo-500/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-2xl">
+                      {selectedAgencyDetails.name ? selectedAgencyDetails.name.charAt(0) : "م"}
+                    </div>
+                    <div>
+                      <DialogTitle className="text-xl font-black text-foreground flex items-center gap-2">
+                        {selectedAgencyDetails.name}
+                        <Badge variant={selectedAgencyDetails.status === "active" ? "default" : "secondary"} className="text-xs">
+                          {selectedAgencyDetails.status === "active" ? "نشط" : "معطل"}
+                        </Badge>
+                      </DialogTitle>
+                      <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                        تفاصيل مكتب التوظيف والعمالة المزودة، وحساب الدخول والسير الذاتية المرفوعة
+                      </DialogDescription>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenEdit(selectedAgencyDetails)}
+                      className="rounded-xl h-9 text-xs font-bold gap-1.5"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      تعديل البيانات
+                    </Button>
+                    <Button 
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleOpenDelete(selectedAgencyDetails)}
+                      className="rounded-xl h-9 text-xs font-bold gap-1.5"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      حذف المكتب
+                    </Button>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              {/* Full Details Content */}
+              <AgencyDetailTabContent agency={selectedAgencyDetails} onEditPass={() => handleOpenEdit(selectedAgencyDetails)} />
+            </DialogContent>
+          </Dialog>
+        )}
 
         {/* Add New Agency Dialog */}
         <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
@@ -485,6 +699,145 @@ export default function CompanyAgencies() {
           </DialogContent>
         </Dialog>
 
+        {/* Edit Agency Dialog */}
+        <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
+          <DialogContent className="sm:max-w-md rounded-3xl p-6">
+            <DialogHeader className="text-right space-y-1">
+              <DialogTitle className="text-lg font-black flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-primary" />
+                تعديل بيانات مكتب التوظيف
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                يمكنك تحديث البيانات الأساسية أو تغيير كلمة مرور حساب الدخول للمكتب.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4 text-right pt-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="editAgencyName" className="text-xs font-bold">اسم المكتب *</Label>
+                <Input 
+                  id="editAgencyName" 
+                  value={editForm.name} 
+                  onChange={e => setEditForm({...editForm, name: e.target.value})} 
+                  required 
+                  className="rounded-xl h-10 text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="editContactPerson" className="text-xs font-bold">اسم المسؤول</Label>
+                  <Input 
+                    id="editContactPerson" 
+                    value={editForm.contactPerson} 
+                    onChange={e => setEditForm({...editForm, contactPerson: e.target.value})} 
+                    className="rounded-xl h-10 text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="editPhone" className="text-xs font-bold">رقم الجوال</Label>
+                  <Input 
+                    id="editPhone" 
+                    value={editForm.phone} 
+                    onChange={e => setEditForm({...editForm, phone: e.target.value})} 
+                    className="rounded-xl h-10 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/40 space-y-2">
+                <Label htmlFor="editEmail" className="text-xs font-bold">البريد الإلكتروني للدخول</Label>
+                <Input 
+                  id="editEmail" 
+                  type="email"
+                  value={editForm.email} 
+                  onChange={e => setEditForm({...editForm, email: e.target.value})} 
+                  required 
+                  className="rounded-xl h-9 text-xs dir-ltr font-mono"
+                />
+
+                <Label htmlFor="editPassword" className="text-xs font-bold pt-1 block">تغيير كلمة المرور (اختياري)</Label>
+                <Input 
+                  id="editPassword" 
+                  type="text"
+                  value={editForm.password} 
+                  onChange={e => setEditForm({...editForm, password: e.target.value})} 
+                  placeholder="اتركه فارغاً للإبقاء على كلمة المرور الحالية" 
+                  className="rounded-xl h-9 text-xs dir-ltr font-mono"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="editCountry" className="text-xs font-bold">الدولة</Label>
+                  <Input 
+                    id="editCountry" 
+                    value={editForm.country} 
+                    onChange={e => setEditForm({...editForm, country: e.target.value})} 
+                    className="rounded-xl h-10 text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="editLicense" className="text-xs font-bold">رقم الترخيص</Label>
+                  <Input 
+                    id="editLicense" 
+                    value={editForm.licenseNumber} 
+                    onChange={e => setEditForm({...editForm, licenseNumber: e.target.value})} 
+                    className="rounded-xl h-10 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="editNotes" className="text-xs font-bold">ملاحظات</Label>
+                <Textarea 
+                  id="editNotes" 
+                  value={editForm.notes} 
+                  onChange={e => setEditForm({...editForm, notes: e.target.value})} 
+                  className="rounded-xl h-20 text-xs"
+                />
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0 pt-2">
+                <Button type="button" variant="outline" onClick={() => setOpenEditDialog(false)} className="rounded-xl h-10 text-xs font-bold">
+                  إلغاء
+                </Button>
+                <Button type="submit" disabled={isSubmitting} className="rounded-xl h-10 text-xs font-bold gap-2 bg-primary">
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                  {isSubmitting ? "جاري الحفظ..." : "حفظ التعديلات ✅"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
+          <DialogContent className="sm:max-w-md rounded-3xl p-6 text-right">
+            <DialogHeader className="text-right space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center mb-1">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <DialogTitle className="text-lg font-black text-foreground">
+                تأكيد حذف مكتب التوظيف
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                هل أنت تأكد من رغبتك في حذف مكتب <strong>{selectedAgencyForDelete?.name}</strong>؟ لا يمكن التراجع عن هذا الإجراء وسيتم إلغاء وصول الحساب المرتبط بالمكتب.
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter className="gap-2 sm:gap-0 pt-4">
+              <Button type="button" variant="outline" onClick={() => setOpenDeleteDialog(false)} className="rounded-xl h-10 text-xs font-bold">
+                إلغاء
+              </Button>
+              <Button type="button" onClick={handleDeleteAgency} disabled={isSubmitting} className="rounded-xl h-10 text-xs font-bold gap-2 bg-rose-600 hover:bg-rose-700 text-white">
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                تأكيد الحذف النهائي
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Success Credentials Popup Modal */}
         {createdCredentials && (
           <Dialog open={!!createdCredentials} onOpenChange={() => setCreatedCredentials(null)}>
@@ -519,5 +872,111 @@ export default function CompanyAgencies() {
 
       </div>
     </DashboardLayout>
+  );
+}
+
+// Inner Component for Agency Full Screen Details View
+function AgencyDetailTabContent({ agency, onEditPass }: { agency: any; onEditPass: () => void }) {
+  const { data: candidates = [], isLoading } = useAgencyCandidates(agency.id);
+
+  const handleCopyLink = () => {
+    const text = `بيانات دخول مكتب التوظيف (${agency.name}):\nالبريد الإلكتروني: ${agency.contact_email}\nرابط الدخول: ${window.location.origin}/auth?role=agency`;
+    navigator.clipboard.writeText(text);
+    toast({ title: "تم نسخ بيانات الدخول للأن حافظة ✅" });
+  };
+
+  return (
+    <div className="space-y-6 pt-3 text-right">
+      
+      {/* Details Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/40 space-y-0.5">
+          <p className="text-[11px] text-muted-foreground font-semibold">مسؤول التواصل</p>
+          <p className="text-xs font-bold text-foreground">{agency.contact_person || agency.name || "غير محدد"}</p>
+        </div>
+        <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/40 space-y-0.5">
+          <p className="text-[11px] text-muted-foreground font-semibold">رقم الجوال / الواتساب</p>
+          <p className="text-xs font-bold text-foreground" dir="ltr">{agency.contact_phone || "غير محدد"}</p>
+        </div>
+        <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/40 space-y-0.5">
+          <p className="text-[11px] text-muted-foreground font-semibold">الدولة والمدينة</p>
+          <p className="text-xs font-bold text-foreground">{agency.country || "السعودية"} {agency.city ? `- ${agency.city}` : ""}</p>
+        </div>
+        <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/40 space-y-0.5">
+          <p className="text-[11px] text-muted-foreground font-semibold">رقم الترخيص</p>
+          <p className="text-xs font-bold text-foreground">{agency.license_number || "غير محدد"}</p>
+        </div>
+      </div>
+
+      {/* Credentials Banner */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-primary/10 via-indigo-500/5 to-purple-500/10 border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-primary font-bold text-xs">
+            <Key className="w-4 h-4" />
+            <span>بيانات حساب دخول المكتب بالنظام</span>
+          </div>
+          <p className="text-xs text-muted-foreground font-mono" dir="ltr">
+            Email: <strong className="text-foreground">{agency.contact_email}</strong>
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <Button size="sm" variant="outline" onClick={handleCopyLink} className="rounded-xl text-xs font-bold gap-1.5 h-9">
+            <Copy className="w-3.5 h-3.5" />
+            نسخ بيانات الدخول
+          </Button>
+          <Button size="sm" onClick={onEditPass} className="rounded-xl text-xs font-bold gap-1.5 h-9 bg-primary">
+            <RefreshCw className="w-3.5 h-3.5" />
+            تغيير كلمة المرور
+          </Button>
+        </div>
+      </div>
+
+      {/* Candidates Provided Section */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+            <Users className="w-4 h-4 text-primary" />
+            المرشحون المزوّدون بواسطة هذا المكتب ({candidates.length})
+          </h3>
+        </div>
+
+        {isLoading ? (
+          <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" /></div>
+        ) : candidates.length === 0 ? (
+          <div className="p-8 text-center rounded-2xl bg-muted/20 border border-dashed border-border/40 space-y-1">
+            <Users className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+            <p className="text-xs text-muted-foreground">لم يرفع هذا المكتب أي مرشحين حتى الآن.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {candidates.map((c: any, i: number) => (
+              <div key={c.id || i} className="flex items-center justify-between p-3.5 rounded-2xl border border-border/40 bg-card hover:bg-muted/20 transition-colors">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold shrink-0">
+                    {c.name ? c.name.charAt(0) : "م"}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-xs text-foreground truncate">{c.name}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{c.role || c.email}</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-[10px] shrink-0">
+                  {c.stage || c.status || "جديد"}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {agency.notes && (
+        <div className="p-4 rounded-2xl bg-muted/30 border border-border/40 space-y-1">
+          <p className="text-xs font-bold text-foreground">ملاحظات وشروط التعامل:</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">{agency.notes}</p>
+        </div>
+      )}
+
+    </div>
   );
 }
