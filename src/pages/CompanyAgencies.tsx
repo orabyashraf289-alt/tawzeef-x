@@ -51,24 +51,39 @@ export default function CompanyAgencies() {
 
   const companyId = companyQuery.data;
 
-  // Query assigned agencies for current company
+  // Query assigned agencies for current company & direct agencies
   const agenciesQuery = useQuery({
-    queryKey: ["company-agencies", companyId],
+    queryKey: ["company-agencies", companyId, user?.id],
     queryFn: async () => {
-      if (!companyId) return [];
-      const { data, error } = await supabase
-        .from("agency_assignments" as any)
-        .select("*, agency:agency_id(*)")
-        .eq("company_id", companyId)
+      // 1) Fetch from agencies table directly
+      const { data: directAgencies, error: directErr } = await supabase
+        .from("agencies" as any)
+        .select("*")
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data as any[]).map(row => ({
-        assignment_id: row.id,
-        status: row.status,
-        ...row.agency
-      }));
+
+      if (!directErr && directAgencies && directAgencies.length > 0) {
+        return directAgencies as any[];
+      }
+
+      // 2) Fallback via agency_assignments
+      if (companyId) {
+        const { data: assignments } = await supabase
+          .from("agency_assignments" as any)
+          .select("*, agency:agency_id(*)")
+          .eq("company_id", companyId)
+          .order("created_at", { ascending: false });
+        if (assignments) {
+          return assignments.map((row: any) => ({
+            assignment_id: row.id,
+            status: row.status,
+            ...row.agency
+          }));
+        }
+      }
+
+      return [];
     },
-    enabled: !!companyId,
+    enabled: !!user,
   });
 
   const agencies = agenciesQuery.data || [];
@@ -83,7 +98,23 @@ export default function CompanyAgencies() {
 
     setIsSubmitting(true);
     try {
-      // 1. Insert Agency Record
+      // 1. Get or Ensure Company ID
+      let targetCompanyId = companyId;
+      if (!targetCompanyId && user) {
+        const { data: myComp } = await supabase.from("companies").select("id").limit(1).maybeSingle();
+        if (myComp) {
+          targetCompanyId = myComp.id;
+        } else {
+          const { data: newComp } = await supabase.from("companies").insert({
+            name: "مؤسسة التوظيف الرئيسية",
+            contact_email: user.email,
+            owner_user_id: user.id
+          }).select("id").single();
+          targetCompanyId = newComp?.id || null;
+        }
+      }
+
+      // 2. Insert Agency Record
       const { data: newAgency, error: agencyErr } = await supabase
         .from("agencies" as any)
         .insert({
@@ -94,46 +125,66 @@ export default function CompanyAgencies() {
           city: form.city,
           license_number: form.licenseNumber,
           notes: form.notes,
+          owner_user_id: user?.id || null,
           status: "active"
         } as any)
         .select()
         .single();
 
       if (agencyErr) throw agencyErr;
-
       const agencyId = (newAgency as any).id;
 
-      // 2. Link Agency to Company in agency_assignments
-      if (companyId) {
+      // 3. Link Agency to Company in agency_assignments
+      if (targetCompanyId) {
         await supabase
           .from("agency_assignments" as any)
           .insert({
             agency_id: agencyId,
-            company_id: companyId,
+            company_id: targetCompanyId,
             scope: "company",
             status: "active"
           } as any);
       }
 
-      // 3. Register Auth User for Agency Login using auto-create-agency-account edge function or signUp API
+      // 4. Create Auth Account using RPC create_agency_account with EXACT typed password
+      let rpcSuccess = false;
       try {
-        const { data: authResult, error: authErr } = await supabase.functions.invoke("auto-create-candidate-account", {
-          body: {
-            email: form.email,
-            phone: form.password, // Phone parameter treated as password in auth edge function
-            name: form.contactPerson || form.name,
-            user_type: "agency"
-          }
+        const { data: rpcRes, error: rpcErr } = await supabase.rpc("create_agency_account" as any, {
+          p_email: form.email.trim().toLowerCase(),
+          p_password: form.password,
+          p_name: form.contactPerson || form.name,
+          p_phone: form.phone,
+          p_agency_id: agencyId,
+          p_company_id: targetCompanyId
         });
 
-        if (authErr) console.warn("Agency auth creation warning:", authErr);
-      } catch (authCatch) {
-        console.warn("Agency auth catch:", authCatch);
+        if (!rpcErr && rpcRes) {
+          rpcSuccess = true;
+        }
+      } catch (e) {
+        console.warn("RPC create_agency_account warning:", e);
+      }
+
+      // Fallback via Edge Function with explicit password
+      if (!rpcSuccess) {
+        try {
+          await supabase.functions.invoke("auto-create-candidate-account", {
+            body: {
+              email: form.email.trim().toLowerCase(),
+              password: form.password,
+              phone: form.phone || form.password,
+              name: form.contactPerson || form.name,
+              user_type: "agency"
+            }
+          });
+        } catch (authCatch) {
+          console.warn("Fallback auth catch:", authCatch);
+        }
       }
 
       // Set credentials box for popup
       setCreatedCredentials({
-        email: form.email,
+        email: form.email.trim().toLowerCase(),
         pass: form.password,
         name: form.name
       });

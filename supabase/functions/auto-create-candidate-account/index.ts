@@ -15,22 +15,29 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    const { email, phone, name, tracking_code, job_title } = await req.json();
+    const { email, phone, password, name, user_type, tracking_code, job_title } = await req.json();
 
-    if (!email || !phone) {
+    if (!email || (!phone && !password)) {
       return new Response(
-        JSON.stringify({ error: "البريد الإلكتروني ورقم الجوال مطلوبان لإتمام إنشاء الحساب" }),
+        JSON.stringify({ error: "البريد الإلكتروني وكلمة المرور أو رقم الجوال مطلوبان لإتمام إنشاء الحساب" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
-    // Clean phone number for use as password (ensure minimum 6 characters)
-    let rawPhone = String(phone).trim().replace(/\D/g, "");
-    if (rawPhone.length < 6) {
-      rawPhone = (rawPhone + "123456").slice(0, 8);
+    
+    // Determine password: if explicit password provided (e.g. for agency), use it directly! Otherwise use clean phone.
+    let cleanPassword = password ? String(password) : "";
+    if (!cleanPassword) {
+      let rawPhone = String(phone).trim().replace(/\D/g, "");
+      if (rawPhone.length < 6) {
+        rawPhone = (rawPhone + "123456").slice(0, 8);
+      }
+      cleanPassword = rawPhone;
     }
-    const cleanPassword = rawPhone;
+
+    const targetUserType = user_type || "candidate";
+    const targetRole = user_type === "agency" ? "recruiter" : "candidate";
 
     // Check if user already exists
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
@@ -41,7 +48,7 @@ Deno.serve(async (req) => {
 
     if (existingUser) {
       userId = existingUser.id;
-      console.log(`Candidate user ${cleanEmail} already exists (${userId}). Updating password and metadata...`);
+      console.log(`User ${cleanEmail} already exists (${userId}). Updating password and metadata...`);
       await supabaseAdmin.auth.admin.updateUserById(userId, {
         password: cleanPassword,
         email_confirm: true,
@@ -49,29 +56,28 @@ Deno.serve(async (req) => {
           ...existingUser.user_metadata,
           full_name: name || existingUser.user_metadata?.full_name,
           phone: phone || existingUser.user_metadata?.phone,
-          clean_phone: cleanPassword,
-          user_type: "candidate",
-          role: "candidate",
+          user_type: targetUserType,
+          role: targetRole,
         },
       });
     } else {
       isNewAccount = true;
-      console.log(`Creating new Candidate account for ${cleanEmail} with password phone...`);
+      console.log(`Creating new account for ${cleanEmail} (type: ${targetUserType})...`);
       const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
         email: cleanEmail,
         password: cleanPassword,
         email_confirm: true,
         user_metadata: {
           full_name: name || cleanEmail.split("@")[0],
-          phone: phone,
-          user_type: "candidate",
-          role: "candidate",
+          phone: phone || "",
+          user_type: targetUserType,
+          role: targetRole,
           tracking_code: tracking_code || "",
         },
       });
 
       if (createErr || !newUser.user) {
-        throw new Error(createErr?.message || "فشل إنشاء حساب المتقدم");
+        throw new Error(createErr?.message || "فشل إنشاء الحساب");
       }
 
       userId = newUser.user.id;
