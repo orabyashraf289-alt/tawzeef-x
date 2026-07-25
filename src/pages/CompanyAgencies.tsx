@@ -136,17 +136,21 @@ export default function CompanyAgencies() {
         }
       }
 
+      const formattedNotes = form.notes 
+        ? `${form.notes}\n[PASS:${form.password}]` 
+        : `[PASS:${form.password}]`;
+
       // 1. Insert Agency Record
       const { data: newAgency, error: agencyErr } = await supabase
         .from("agencies" as any)
         .insert({
           name: form.name,
-          contact_email: form.email,
+          contact_email: form.email.trim().toLowerCase(),
           contact_phone: form.phone,
           country: form.country,
           city: form.city,
           license_number: form.licenseNumber,
-          notes: form.notes,
+          notes: formattedNotes,
           owner_user_id: user?.id || null,
           status: "active"
         } as any)
@@ -168,39 +172,28 @@ export default function CompanyAgencies() {
           } as any);
       }
 
-      // 3. Create Auth Account using RPC create_agency_account with EXACT typed password
-      let rpcSuccess = false;
+      // 3. Register Auth User via non-persisting client so Company Owner stays logged in
       try {
-        const { data: rpcRes, error: rpcErr } = await supabase.rpc("create_agency_account" as any, {
-          p_email: form.email.trim().toLowerCase(),
-          p_password: form.password,
-          p_name: form.contactPerson || form.name,
-          p_phone: form.phone,
-          p_agency_id: agencyId,
-          p_company_id: targetCompanyId
-        });
+        const tempAuthClient = (await import("@supabase/supabase-js")).createClient(
+          import.meta.env.VITE_SUPABASE_URL,
+          import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          { auth: { persistSession: false } }
+        );
 
-        if (!rpcErr && rpcRes) {
-          rpcSuccess = true;
-        }
-      } catch (e) {
-        console.warn("RPC create_agency_account warning:", e);
-      }
-
-      if (!rpcSuccess) {
-        try {
-          await supabase.functions.invoke("auto-create-candidate-account", {
-            body: {
-              email: form.email.trim().toLowerCase(),
-              password: form.password,
-              phone: form.phone || form.password,
-              name: form.contactPerson || form.name,
-              user_type: "agency"
+        await tempAuthClient.auth.signUp({
+          email: form.email.trim().toLowerCase(),
+          password: form.password,
+          options: {
+            data: {
+              full_name: form.contactPerson || form.name,
+              role: "recruiter",
+              user_type: "agency",
+              agency_id: agencyId
             }
-          });
-        } catch (authCatch) {
-          console.warn("Fallback auth catch:", authCatch);
-        }
+          }
+        });
+      } catch (signUpErr) {
+        console.warn("Temp client signUp warning:", signUpErr);
       }
 
       setCreatedCredentials({
@@ -259,17 +252,26 @@ export default function CompanyAgencies() {
 
     setIsSubmitting(true);
     try {
+      let updatedNotes = editForm.notes;
+      if (editForm.password) {
+        if (updatedNotes.includes("[PASS:")) {
+          updatedNotes = updatedNotes.replace(/\[PASS:[^\]]+\]/, `[PASS:${editForm.password}]`);
+        } else {
+          updatedNotes = updatedNotes ? `${updatedNotes}\n[PASS:${editForm.password}]` : `[PASS:${editForm.password}]`;
+        }
+      }
+
       const { error: updateErr } = await supabase
         .from("agencies" as any)
         .update({
           name: editForm.name,
-          contact_email: editForm.email,
+          contact_email: editForm.email.trim().toLowerCase(),
           contact_phone: editForm.phone,
           country: editForm.country,
           city: editForm.city,
           license_number: editForm.licenseNumber,
           status: editForm.status,
-          notes: editForm.notes,
+          notes: updatedNotes,
         } as any)
         .eq("id", editForm.id);
 

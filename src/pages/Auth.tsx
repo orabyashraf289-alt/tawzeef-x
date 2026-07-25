@@ -608,18 +608,32 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
               .maybeSingle();
 
             if (matchedAgency) {
-              confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
-              toast({ title: "تم تسجيل دخول مكتب التوظيف بنجاح ✅", description: `مرحباً بك في بوابة مكتب ${matchedAgency.name}` });
+              let savedPassword = "";
+              if (matchedAgency.notes && matchedAgency.notes.includes("[PASS:")) {
+                savedPassword = matchedAgency.notes.split("[PASS:")[1]?.split("]")[0] || "";
+              }
 
-              localStorage.setItem("active_agency_id", matchedAgency.id);
-              localStorage.setItem("active_agency_name", matchedAgency.name);
-              localStorage.setItem("agency_user_email", normalizedEmail);
+              const isPasswordMatch = !savedPassword || savedPassword === form.password || matchedAgency.contact_phone === form.password;
 
-              setPendingPassword("");
-              setPendingOtp(false);
-              setLoading(false);
-              navigate("/agency");
-              return;
+              if (isPasswordMatch) {
+                confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
+                toast({ title: "تم تسجيل دخول مكتب التوظيف بنجاح ✅", description: `مرحباً بك في بوابة مكتب ${matchedAgency.name}` });
+
+                localStorage.setItem("active_agency_id", matchedAgency.id);
+                localStorage.setItem("active_agency_name", matchedAgency.name);
+                localStorage.setItem("agency_user_email", normalizedEmail);
+
+                setPendingPassword("");
+                setPendingOtp(false);
+                setLoading(false);
+                navigate("/agency");
+                return;
+              } else {
+                toast({ title: "كلمة المرور غير صحيحة ❌", description: "تأكد من كتابة كلمة المرور المحددة للمكتب بشكل صحيح", variant: "destructive" });
+                setPendingOtp(false);
+                setLoading(false);
+                return;
+              }
             }
           } catch (fallbackErr) {
             console.warn("Agency login fallback warning:", fallbackErr);
