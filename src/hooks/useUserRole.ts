@@ -176,8 +176,75 @@ export function useLogActivity() {
         } as any);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activity-log"] });
+export interface CustomRole {
+  id: string;
+  name: string;
+  name_en?: string;
+  description?: string;
+  permissions: string[];
+  created_at: string;
+}
+
+export function useCustomRoles() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["custom-roles"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("custom_roles" as any)
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) {
+        console.warn("custom_roles query warning:", error);
+        return [];
+      }
+      return (data || []) as CustomRole[];
     },
+    enabled: !!user,
   });
 }
+
+export function useCreateCustomRole() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (roleData: { name: string; description?: string; permissions: string[] }) => {
+      const { data, error } = await supabase
+        .from("custom_roles" as any)
+        .insert({
+          name: roleData.name,
+          description: roleData.description,
+          permissions: roleData.permissions,
+          created_by: user?.id
+        } as any)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["custom-roles"] });
+      toast({ title: "تم إضافة الدور المخصص بنجاح! 🎉" });
+    },
+    onError: (e: any) => toast({ title: "خطأ في إضافة الدور المخصص", description: e.message, variant: "destructive" })
+  });
+}
+
+export function useDeleteCustomRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (roleId: string) => {
+      const { error } = await supabase
+        .from("custom_roles" as any)
+        .delete()
+        .eq("id", roleId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["custom-roles"] });
+      toast({ title: "تم حذف الدور المخصص بنجاح ✅" });
+    }
+  });
+}
+

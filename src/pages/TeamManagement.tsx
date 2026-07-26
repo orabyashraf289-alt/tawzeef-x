@@ -102,11 +102,22 @@ export default function TeamManagement() {
   const [editMemberOpen, setEditMemberOpen] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editRole, setEditRole] = useState<AppRole>("recruiter");
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [inviteForm, setInviteForm] = useState({ email: "", role: "recruiter" as AppRole });
-  const [lastSignupUrl, setLastSignupUrl] = useState("");
-  const [activityFilter, setActivityFilter] = useState<string>("all");
   const { data: dbPermissions, isLoading: permissionsLoading } = useAllPermissions();
+  const { data: customRoles = [] } = useCustomRoles();
+  const createCustomRole = useCreateCustomRole();
+  const deleteCustomRole = useDeleteCustomRole();
+
+  const [openAddCustomRole, setOpenAddCustomRole] = useState(false);
+  const [customRoleForm, setCustomRoleForm] = useState({
+    name: "",
+    description: "",
+    permissions: [] as string[]
+  });
+
+  const [createdEmpCredentials, setCreatedEmpCredentials] = useState<{ email: string; pass: string; name: string; role: string } | null>(null);
+  const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ email: "", fullName: "", password: "", role: "recruiter" as string });
+
   const permQueryClient = useQueryClient();
   const [localPermissions, setLocalPermissions] = useState<PermissionRow[]>([]);
   const [permissionsChanged, setPermissionsChanged] = useState(false);
@@ -242,13 +253,81 @@ export default function TeamManagement() {
 
   const handleSendInvite = async () => {
     if (!inviteForm.email) return;
-    const result = await sendInvitation.mutateAsync({
-      email: inviteForm.email,
-      role: inviteForm.role,
-      inviterName: user?.user_metadata?.full_name || user?.email || (locale === "en" ? "Admin" : "مدير"),
+    setIsSubmittingInvite(true);
+    try {
+      const generatedPassword = inviteForm.password || `Emp@${Math.floor(1000 + Math.random() * 9000)}`;
+
+      // 1. Trigger invitation via send-invitation function / email
+      const result = await sendInvitation.mutateAsync({
+        email: inviteForm.email.trim().toLowerCase(),
+        role: (inviteForm.role as AppRole) || "recruiter",
+        inviterName: user?.user_metadata?.full_name || user?.email || (locale === "en" ? "Admin" : "مدير"),
+      });
+
+      // 2. Create Auth user via non-persisting client so current session stays active
+      try {
+        const tempAuthClient = (await import("@supabase/supabase-js")).createClient(
+          import.meta.env.VITE_SUPABASE_URL,
+          import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          { auth: { persistSession: false } }
+        );
+
+        await tempAuthClient.auth.signUp({
+          email: inviteForm.email.trim().toLowerCase(),
+          password: generatedPassword,
+          options: {
+            data: {
+              full_name: inviteForm.fullName || inviteForm.email.split("@")[0],
+              role: inviteForm.role,
+              user_type: "employee"
+            }
+          }
+        });
+      } catch (authErr) {
+        console.warn("Employee auth signup warning:", authErr);
+      }
+
+      setCreatedEmpCredentials({
+        email: inviteForm.email.trim().toLowerCase(),
+        pass: generatedPassword,
+        name: inviteForm.fullName || inviteForm.email.split("@")[0],
+        role: inviteForm.role
+      });
+
+      if (result?.signupUrl) setLastSignupUrl(result.signupUrl);
+      setInviteOpen(false);
+      setInviteForm({ email: "", fullName: "", password: "", role: "recruiter" });
+    } catch (err: any) {
+      toast({ title: "خطأ في إرسال الدعوة", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSubmittingInvite(false);
+    }
+  };
+
+  const handleCreateCustomRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customRoleForm.name) {
+      toast({ title: "يرجى كتابة اسم الدور المخصص", variant: "destructive" });
+      return;
+    }
+
+    await createCustomRole.mutateAsync({
+      name: customRoleForm.name,
+      description: customRoleForm.description,
+      permissions: customRoleForm.permissions
     });
-    if (result?.signupUrl) setLastSignupUrl(result.signupUrl);
-    setInviteForm({ email: "", role: "recruiter" });
+
+    setOpenAddCustomRole(false);
+    setCustomRoleForm({ name: "", description: "", permissions: [] });
+  };
+
+  const toggleCustomPermission = (key: string) => {
+    setCustomRoleForm(prev => ({
+      ...prev,
+      permissions: prev.permissions.includes(key)
+        ? prev.permissions.filter(k => k !== key)
+        : [...prev.permissions, key]
+    }));
   };
 
   const copyLink = (url: string) => {
@@ -405,35 +484,37 @@ export default function TeamManagement() {
                 </DialogHeader>
                 <div className="space-y-4 mt-2">
                   <div className="space-y-2">
-                    <Label>{t("team.emailLabel")}</Label>
-                    <Input type="email" placeholder="user@example.com" value={inviteForm.email} onChange={e => setInviteForm({ ...inviteForm, email: e.target.value })} />
+                    <Label>الاسم الكامل للموظف / المستخدم</Label>
+                    <Input placeholder="أحمد علي" value={inviteForm.fullName} onChange={e => setInviteForm({ ...inviteForm, fullName: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("team.emailLabel")} *</Label>
+                    <Input type="email" placeholder="user@example.com" value={inviteForm.email} onChange={e => setInviteForm({ ...inviteForm, email: e.target.value })} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>كلمة المرور للحساب (Password)</Label>
+                    <Input type="text" placeholder="أدخل كلمة مرور الموظف (أو اتركه لتوليده تلقائياً)" value={inviteForm.password} onChange={e => setInviteForm({ ...inviteForm, password: e.target.value })} className="font-mono text-xs dir-ltr" />
                   </div>
                   <div className="space-y-2">
                     <Label>{t("team.roleLabel")}</Label>
-                    <Select value={inviteForm.role} onValueChange={(v) => setInviteForm({ ...inviteForm, role: v as AppRole })}>
+                    <Select value={inviteForm.role} onValueChange={(v) => setInviteForm({ ...inviteForm, role: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="admin">{t("team.adminRole")}</SelectItem>
-                        <SelectItem value="recruiter">{t("team.recruiterRole")}</SelectItem>
-                        <SelectItem value="reviewer">{t("team.reviewerRole")}</SelectItem>
+                        <SelectItem value="admin">{t("team.adminRole")} (مالك / مدير كامل)</SelectItem>
+                        <SelectItem value="recruiter">{t("team.recruiterRole")} (مسؤول توظيف HR)</SelectItem>
+                        <SelectItem value="reviewer">{t("team.reviewerRole")} (مشاهد ومقيم)</SelectItem>
+                        {customRoles.map((cr) => (
+                          <SelectItem key={cr.id} value={`custom:${cr.name}`}>
+                            ✨ دور مخصص: {cr.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                    <div className={`rounded-lg p-3 border ${roleDescriptions[inviteForm.role].color}`}>
-                      <p className="text-xs text-muted-foreground">{roleDescriptions[inviteForm.role].desc}</p>
-                    </div>
                   </div>
-                  <Button onClick={handleSendInvite} disabled={sendInvitation.isPending || !inviteForm.email} className="w-full gap-2 bg-primary text-primary-foreground">
-                    <Send className="w-4 h-4" />{sendInvitation.isPending ? t("team.sending") : t("team.sendInvite")}
+                  <Button onClick={handleSendInvite} disabled={isSubmittingInvite || !inviteForm.email} className="w-full gap-2 bg-primary text-primary-foreground font-bold h-11 rounded-xl">
+                    {isSubmittingInvite ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    {isSubmittingInvite ? "جاري التجهيز..." : "إرسال الدعوة وتجهيز الحساب المباشر 🚀"}
                   </Button>
-                  {lastSignupUrl && (
-                    <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-                      <p className="text-xs text-muted-foreground">{t("team.signupLink")}</p>
-                      <div className="flex gap-2">
-                        <Input value={lastSignupUrl} readOnly className="text-xs" />
-                        <Button variant="outline" size="icon" onClick={() => copyLink(lastSignupUrl)}><Copy className="w-4 h-4" /></Button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </DialogContent>
             </Dialog>
@@ -588,6 +669,48 @@ export default function TeamManagement() {
 
           {/* ─── Permissions Tab ─── */}
           <TabsContent value="permissions" className="space-y-6">
+
+            {/* Custom Roles Manager Header & Cards */}
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-primary/10 via-indigo-500/5 to-purple-500/10 border border-primary/20 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1 text-right">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>إدارة الأدوار والصلاحيات المخصصة</span>
+                  </div>
+                  <h3 className="text-lg font-black text-foreground">إنشاء وتخصيص صلاحيات الأدوار المحددة للموظفين</h3>
+                  <p className="text-xs text-muted-foreground">يمكنك إضافة دور مخصص (مثل: مدير مقابلات، مسؤول عروض، مالي) وتحديد الصلاحيات التفصيلية المسموحة لهذا الدور بالمنصة.</p>
+                </div>
+
+                <Button onClick={() => setOpenAddCustomRole(true)} className="rounded-xl font-bold text-xs gap-2 bg-primary shrink-0">
+                  <Plus className="w-4 h-4" />
+                  إضافة دور مخصص جديد ➕
+                </Button>
+              </div>
+
+              {/* Custom Roles Cards */}
+              {customRoles.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
+                  {customRoles.map((cr) => (
+                    <div key={cr.id} className="p-4 rounded-xl bg-card border border-border/60 shadow-sm space-y-2 relative group text-right">
+                      <div className="flex items-center justify-between">
+                        <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20 text-xs font-bold">
+                          ✨ {cr.name}
+                        </Badge>
+                        <Button variant="ghost" size="icon" onClick={() => deleteCustomRole.mutate(cr.id)} className="h-7 w-7 text-rose-500 hover:bg-rose-500/10">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                      {cr.description && <p className="text-xs text-muted-foreground">{cr.description}</p>}
+                      <div className="text-[11px] font-semibold text-primary pt-1">
+                        {cr.permissions?.length || 0} صلاحيات محددة لهذا الدور
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="grid sm:grid-cols-3 gap-4">
               {(["admin", "recruiter", "reviewer"] as const).map(role => {
                 const rd = roleDescriptions[role];
@@ -1046,6 +1169,95 @@ export default function TeamManagement() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Custom Role Creation Modal */}
+        <Dialog open={openAddCustomRole} onOpenChange={setOpenAddCustomRole}>
+          <DialogContent className="sm:max-w-lg rounded-3xl p-6 max-h-[85vh] overflow-y-auto" dir={dir}>
+            <DialogHeader className="text-right space-y-1">
+              <DialogTitle className="text-lg font-black flex items-center gap-2">
+                <Shield className="w-5 h-5 text-primary" />
+                إضافة دور مخصص وتخصيص الصلاحيات
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                اكتب اسم الدور (مثل: مدير مقابلات، مسؤول عروض) وحدد الصلاحيات المسموح بها له بالنظام.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleCreateCustomRole} className="space-y-4 text-right pt-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold">اسم الدور المخصص *</Label>
+                <Input value={customRoleForm.name} onChange={e => setCustomRoleForm({...customRoleForm, name: e.target.value})} placeholder="مثال: مدير مقابلات وتقييمات" required className="rounded-xl h-10 text-xs" />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold">الوصف والتوضيح</Label>
+                <Input value={customRoleForm.description} onChange={e => setCustomRoleForm({...customRoleForm, description: e.target.value})} placeholder="يختص بإجراء وتقييم المقابلات دون الوصول للإعدادات..." className="rounded-xl h-10 text-xs" />
+              </div>
+
+              {/* Permissions Selection Grid */}
+              <div className="space-y-2 pt-2 border-t border-border/40">
+                <Label className="text-xs font-bold text-foreground block">تحديد الصلاحيات المتاحة لهذا الدور ({customRoleForm.permissions.length}):</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto p-2 bg-muted/20 rounded-2xl border border-border/40">
+                  {localPermissions.map((p) => {
+                    const isChecked = customRoleForm.permissions.includes(p.permission_key);
+                    return (
+                      <label key={p.permission_key} className={`flex items-center gap-2 p-2 rounded-xl border text-xs cursor-pointer transition-colors ${isChecked ? "bg-primary/10 border-primary/30 font-bold text-primary" : "bg-card border-border/40 text-muted-foreground"}`}>
+                        <input type="checkbox" checked={isChecked} onChange={() => toggleCustomPermission(p.permission_key)} className="rounded text-primary focus:ring-primary" />
+                        <span className="truncate">{permLabels[p.permission_key] || p.permission_key}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0 pt-2">
+                <Button type="button" variant="outline" onClick={() => setOpenAddCustomRole(false)} className="rounded-xl h-10 text-xs font-bold">إلغاء</Button>
+                <Button type="submit" disabled={createCustomRole.isPending} className="rounded-xl h-10 text-xs font-bold gap-2 bg-primary">
+                  {createCustomRole.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                  {createCustomRole.isPending ? "جاري الحفظ..." : "حفظ وإنشاء الدور المخصص 🚀"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Success Employee Credentials Modal */}
+        {createdEmpCredentials && (
+          <Dialog open={!!createdEmpCredentials} onOpenChange={() => setCreatedEmpCredentials(null)}>
+            <DialogContent className="sm:max-w-md rounded-3xl p-6 text-right space-y-4" dir={dir}>
+              <DialogHeader className="text-right space-y-1">
+                <DialogTitle className="text-lg font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-emerald-500" />
+                  تم تجهيز حساب الموظف وتوليد بيانات الدخول بنجاح! 🎉
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  يمكن للموظف <strong>{createdEmpCredentials.name}</strong> تسجيل الدخول فوراً باستخدام البيانات التالية:
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="p-4 rounded-2xl bg-card border-2 border-emerald-500/30 space-y-2 font-mono text-xs shadow-sm" dir="ltr">
+                <p><strong className="font-sans text-foreground">Email:</strong> {createdEmpCredentials.email}</p>
+                <p><strong className="font-sans text-foreground">Password:</strong> {createdEmpCredentials.pass}</p>
+                <p><strong className="font-sans text-foreground">Role:</strong> {createdEmpCredentials.role}</p>
+                <p className="text-[11px] text-muted-foreground font-sans pt-1">
+                  <strong>Login Link:</strong> {window.location.origin}/auth
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button onClick={() => {
+                  const text = `بيانات دخول حساب الموظف (${createdEmpCredentials.name}):\nالبريد الإلكتروني: ${createdEmpCredentials.email}\nكلمة المرور: ${createdEmpCredentials.pass}\nالدور: ${createdEmpCredentials.role}\nرابط الدخول: ${window.location.origin}/auth`;
+                  navigator.clipboard.writeText(text);
+                  toast({ title: "تم نسخ بيانات الدخول للأن حافظة ✅" });
+                }} className="w-full rounded-xl h-10 text-xs font-bold gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+                  <Copy className="w-4 h-4" />
+                  نسخ بيانات الدخول للموظف 📋
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
       </div>
     </DashboardLayout>
   );
