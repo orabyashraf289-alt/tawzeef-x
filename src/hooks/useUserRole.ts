@@ -176,6 +176,12 @@ export function useLogActivity() {
         } as any);
       if (error) throw error;
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["activity-log"] });
+    },
+  });
+}
+
 export interface CustomRole {
   id: string;
   name: string;
