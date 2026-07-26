@@ -24,8 +24,21 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
-    // Surface to console; can be wired to an edge function logger later.
     console.error("[ErrorBoundary]", error, info.componentStack);
+
+    // Auto-reload on deployment chunk hash mismatch
+    const isChunkLoadError =
+      error?.message?.includes("Failed to fetch dynamically imported module") ||
+      error?.message?.includes("Loading chunk") ||
+      error?.message?.includes("Importing a module script failed");
+
+    if (isChunkLoadError) {
+      const reloaded = sessionStorage.getItem("chunk_auto_reloaded");
+      if (!reloaded) {
+        sessionStorage.setItem("chunk_auto_reloaded", "true");
+        window.location.reload();
+      }
+    }
   }
 
   handleReset = () => {
