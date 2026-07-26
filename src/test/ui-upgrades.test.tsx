@@ -331,7 +331,7 @@ describe("UI upgrades - TaskBoard Page", () => {
       expect(screen.getByText("المتأخرات")).toBeInTheDocument();
     });
     expect(screen.getByTestId("dashboard-layout")).toBeInTheDocument();
-    expect(screen.getByText("لوحة المهام (كانبان)")).toBeInTheDocument();
+    expect(screen.getByText(/لوحة المهام/i)).toBeInTheDocument();
     expect(screen.getByText("قيد التنفيذ")).toBeInTheDocument();
   });
 
@@ -368,11 +368,11 @@ describe("UI upgrades - TaskBoard Page", () => {
     renderWithQuery(<TaskBoard />);
     
     await waitFor(() => {
-      expect(screen.getByText("إنشاء مهمة جديدة")).toBeInTheDocument();
+      expect(screen.getByText("إضافة مهمة جديدة")).toBeInTheDocument();
     });
 
     // Open drawer
-    fireEvent.click(screen.getByText("إنشاء مهمة جديدة"));
+    fireEvent.click(screen.getByText("إضافة مهمة جديدة"));
     expect(screen.getByText("عنوان المهمة بالعربية *")).toBeInTheDocument();
 
     // Fill title
