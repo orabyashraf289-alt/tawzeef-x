@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import PipelineStagesManager from "@/components/PipelineStagesManager";
+import PermissionsMatrixManager from "@/components/PermissionsMatrixManager";
 import { useUserRole } from "@/hooks/useUserRole";
 import { checkPasswordStrength } from "@/lib/security";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -2196,6 +2197,7 @@ export default function SettingsPage() {
     { id: "taxonomy", label: "الأقسام والمواقع والخبرات", icon: Layers },
     { id: "filters", label: "الفلاتر المحفوظة", icon: Bookmark },
     { id: "security", label: t("settings.security"), icon: Shield },
+    { id: "permissions_matrix", label: "مصفوفة الصلاحيات (قراءة/إدخال/تعديل/حذف)", icon: KeyRound },
     { id: "goals", label: t("settings.hiringGoals"), icon: Target },
     { id: "notifications", label: t("settings.notifications"), icon: Bell },
     { id: "linkedin", label: t("settings.linkedin"), icon: Linkedin },
@@ -2278,6 +2280,7 @@ export default function SettingsPage() {
                   {activeTab === "taxonomy" && <CompanyTaxonomyManager />}
                   {activeTab === "filters" && <SavedFiltersManager />}
                   {activeTab === "security" && <SecuritySection />}
+                  {activeTab === "permissions_matrix" && <PermissionsMatrixManager />}
                   {activeTab === "goals" && <HiringGoalsSection />}
                   {activeTab === "notifications" && <NotificationsSection />}
                   {activeTab === "email" && <EmailSettings />}

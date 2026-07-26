@@ -11,6 +11,7 @@ import {
   RefreshCw, Ban, Monitor, Target, Star, GraduationCap, Zap,
 } from "lucide-react";
 import AdminSubscriptionManager from "@/components/AdminSubscriptionManager";
+import PermissionsMatrixManager from "@/components/PermissionsMatrixManager";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -669,6 +670,9 @@ export default function TeamManagement() {
 
           {/* ─── Permissions Tab ─── */}
           <TabsContent value="permissions" className="space-y-6">
+
+            {/* Enterprise Permissions Grid Matrix Table */}
+            <PermissionsMatrixManager />
 
             {/* Custom Roles Manager Header & Cards */}
             <div className="p-5 rounded-2xl bg-gradient-to-r from-primary/10 via-indigo-500/5 to-purple-500/10 border border-primary/20 space-y-4">
