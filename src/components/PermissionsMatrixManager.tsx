@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCustomRoles } from "@/hooks/useUserRole";
+import { ManaraBeaconIcon } from "@/components/ManaraIcon";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, Check, Search, Download, FileSpreadsheet, Save, RefreshCw,
@@ -365,9 +366,9 @@ export default function PermissionsMatrixManager() {
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
           <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 text-primary-foreground text-xs font-bold border border-primary/30">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>نظام مصفوفة الصلاحيات المتقدم والمخصص</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF773B]/20 text-[#FF773B] text-xs font-bold border border-[#FF773B]/30">
+              <ManaraBeaconIcon className="w-4 h-4 text-[#FF773B]" />
+              <span>نظام Manara.tech لمصفوفة الصلاحيات المتقدمة</span>
             </div>
             <h2 className="text-2xl font-black text-white">التحكم الفردي والمجموعاتي في جميع شاشات وموديولات النظام</h2>
             <p className="text-xs text-slate-300">يمكنك تخصيص الصلاحيات لمجموعة معينة (Roles) أو إعطاء صلاحيات استثنائية لموظف محدد بالاسم (Individual User Override).</p>
