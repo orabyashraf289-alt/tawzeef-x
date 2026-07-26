@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Shield, Search, Filter, User, AlertTriangle, CheckCircle, XCircle,
   LogIn, UserCog, FileText, Download, ChevronLeft, ChevronRight, Clock,
-  Globe, Monitor, Smartphone, Tablet, ChevronDown, ChevronUp, LayoutGrid, List
+  Globe, Monitor, Smartphone, Tablet, ChevronDown, ChevronUp, LayoutGrid, List,
+  FileSpreadsheet, Sparkles, Cpu, ShieldAlert, Laptop, Lock
 } from "lucide-react";
 import { useCompactView } from "@/hooks/useCompactView";
 import { Input } from "@/components/ui/input";
@@ -15,45 +16,87 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { FlaticonAnimatedIcon, FlaticonCategoryIconCard } from "@/components/ui/animated-icons";
+import { detectUserDevice } from "@/lib/deviceDetector";
+import * as XLSX from "xlsx";
 
 const PAGE_SIZE = 25;
 
 const EVENT_TYPES: Record<string, { label: string; icon: typeof Shield; color: string }> = {
-  "login_success": { label: "تسجيل دخول ناجح", icon: LogIn, color: "text-success" },
-  "login.success": { label: "تسجيل دخول ناجح", icon: LogIn, color: "text-success" },
-  "login_failed": { label: "محاولة دخول فاشلة", icon: XCircle, color: "text-destructive" },
-  "login.failed": { label: "محاولة دخول فاشلة", icon: XCircle, color: "text-destructive" },
-  "login.otp_failed": { label: "فشل رمز OTP", icon: XCircle, color: "text-destructive" },
-  "role_changed": { label: "تغيير صلاحية", icon: UserCog, color: "text-warning" },
-  "role.changed": { label: "تغيير صلاحية", icon: UserCog, color: "text-warning" },
-  "role.deleted": { label: "حذف صلاحية", icon: AlertTriangle, color: "text-destructive" },
-  "member_deleted": { label: "حذف عضو", icon: AlertTriangle, color: "text-destructive" },
-  "member.deleted": { label: "حذف عضو", icon: AlertTriangle, color: "text-destructive" },
-  "member.invited": { label: "دعوة عضو", icon: User, color: "text-primary" },
-  "offer_accepted": { label: "قبول عرض", icon: CheckCircle, color: "text-success" },
-  "offer.accepted": { label: "قبول عرض", icon: CheckCircle, color: "text-success" },
-  "offer_rejected": { label: "رفض عرض", icon: XCircle, color: "text-warning" },
-  "offer.rejected": { label: "رفض عرض", icon: XCircle, color: "text-warning" },
-  "offer_sent": { label: "إرسال عرض", icon: FileText, color: "text-primary" },
-  "offer.sent": { label: "إرسال عرض", icon: FileText, color: "text-primary" },
-  "offer.withdrawn": { label: "سحب عرض", icon: XCircle, color: "text-destructive" },
-  "data_export": { label: "تصدير بيانات", icon: Download, color: "text-info" },
-  "data.exported": { label: "تصدير بيانات", icon: Download, color: "text-info" },
-  "settings.changed": { label: "تغيير إعدادات", icon: Shield, color: "text-warning" },
-  "password_reset": { label: "إعادة تعيين كلمة مرور", icon: Shield, color: "text-warning" },
-  "signup": { label: "تسجيل حساب جديد", icon: User, color: "text-primary" },
-  "security.suspicious_ip": { label: "🚨 IP مشبوه", icon: AlertTriangle, color: "text-destructive" },
+  "login_success": { label: "تسجيل دخول ناجح", icon: LogIn, color: "text-emerald-500" },
+  "login.success": { label: "تسجيل دخول ناجح", icon: LogIn, color: "text-emerald-500" },
+  "login_failed": { label: "محاولة دخول فاشلة", icon: XCircle, color: "text-rose-500" },
+  "login.failed": { label: "محاولة دخول فاشلة", icon: XCircle, color: "text-rose-500" },
+  "login.otp_failed": { label: "فشل رمز OTP", icon: XCircle, color: "text-rose-500" },
+  "role_changed": { label: "تغيير صلاحية", icon: UserCog, color: "text-amber-500" },
+  "role.changed": { label: "تغيير صلاحية", icon: UserCog, color: "text-amber-500" },
+  "role.deleted": { label: "حذف صلاحية", icon: AlertTriangle, color: "text-rose-500" },
+  "member_deleted": { label: "حذف عضو", icon: AlertTriangle, color: "text-rose-500" },
+  "member.deleted": { label: "حذف عضو", icon: AlertTriangle, color: "text-rose-500" },
+  "member.invited": { label: "دعوة عضو جديد", icon: User, color: "text-blue-500" },
+  "offer_accepted": { label: "قبول عرض وظيفي", icon: CheckCircle, color: "text-emerald-500" },
+  "offer.accepted": { label: "قبول عرض وظيفي", icon: CheckCircle, color: "text-emerald-500" },
+  "offer_rejected": { label: "رفض عرض وظيفي", icon: XCircle, color: "text-amber-500" },
+  "offer.rejected": { label: "رفض عرض وظيفي", icon: XCircle, color: "text-amber-500" },
+  "offer_sent": { label: "إرسال عرض وظيفي", icon: FileText, color: "text-blue-500" },
+  "offer.sent": { label: "إرسال عرض وظيفي", icon: FileText, color: "text-blue-500" },
+  "offer.withdrawn": { label: "سحب عرض وظيفي", icon: XCircle, color: "text-rose-500" },
+  "data_export": { label: "تصدير بيانات", icon: Download, color: "text-indigo-500" },
+  "data.exported": { label: "تصدير بيانات", icon: Download, color: "text-indigo-500" },
+  "settings.changed": { label: "تغيير إعدادات المنصة", icon: Shield, color: "text-amber-500" },
+  "password_reset": { label: "إعادة تعيين كلمة مرور", icon: Lock, color: "text-purple-500" },
+  "signup": { label: "تسجيل حساب جديد", icon: User, color: "text-blue-500" },
+  "security.suspicious_ip": { label: "🚨 محاولة مشبوهة / IP غير معروف", icon: AlertTriangle, color: "text-rose-600" },
 };
 
-function getDeviceIcon(device?: string) {
-  if (device === "Mobile") return Smartphone;
-  if (device === "Tablet") return Tablet;
-  return Monitor;
+/**
+ * Parses details or fallback User-Agent to determine Device Name, OS, & Icon
+ */
+function parseDeviceDetails(details: Record<string, any> | null) {
+  if (!details) {
+    return {
+      deviceName: "كمبيوتر شخصي (Windows PC)",
+      deviceType: "Desktop",
+      osName: "Windows",
+      browserName: "المتصفح",
+      icon: Laptop,
+    };
+  }
+
+  // Check explicit device properties first
+  let devName = details.device_name || details.deviceName;
+  let os = details.os || details.osName;
+  let browser = details.browser || details.browserName;
+  let devType = details.device || details.deviceType || "Desktop";
+
+  // Fallback parsing from user_agent string if detailed fields are missing
+  if ((!devName || !os) && details.user_agent) {
+    const parsed = detectUserDevice();
+    devName = parsed.deviceName;
+    os = parsed.osName;
+    browser = parsed.browserName;
+    devType = parsed.deviceType;
+  }
+
+  let IconComponent = Laptop;
+  if (devType === "Mobile" || /iPhone|Android.*Mobile/i.test(devName || "")) {
+    IconComponent = Smartphone;
+  } else if (devType === "Tablet" || /iPad|Tablet/i.test(devName || "")) {
+    IconComponent = Tablet;
+  }
+
+  return {
+    deviceName: devName || "جهاز كمبيوتر (Desktop)",
+    deviceType: devType,
+    osName: os || "نظام التشغيل",
+    browserName: browser || "المتصفح",
+    icon: IconComponent,
+  };
 }
 
-function useAuditLogQuery(page: number, eventFilter: string, search: string) {
+function useAuditLogQuery(page: number, eventFilter: string, deviceFilter: string, search: string) {
   return useQuery({
-    queryKey: ["audit-log", page, eventFilter, search],
+    queryKey: ["audit-log", page, eventFilter, deviceFilter, search],
     queryFn: async () => {
       let query = supabase
         .from("audit_log")
@@ -80,19 +123,19 @@ function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCom
   const info = EVENT_TYPES[log.event_type] || { label: log.event_type, icon: Shield, color: "text-muted-foreground" };
   const Icon = info.icon;
   const details = log.details as Record<string, any> | null;
-  const DeviceIcon = getDeviceIcon(details?.device);
+  const parsedDevice = parseDeviceDetails(details);
+  const DeviceIcon = parsedDevice.icon;
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleDateString("ar-SA", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
-  // Filter out technical fields for display
   const displayDetails = details
-    ? Object.entries(details).filter(([k]) => !["user_agent", "browser", "os", "device"].includes(k))
+    ? Object.entries(details).filter(([k]) => !["user_agent", "browser", "os", "device", "device_name", "deviceName", "osName", "browserName"].includes(k))
     : [];
 
-  const cellClass = cn("transition-all", isCompact ? "p-1.5 text-xs" : "p-3 text-sm");
+  const cellClass = cn("transition-all", isCompact ? "p-2 text-xs" : "p-3.5 text-sm");
 
   return (
     <>
@@ -103,43 +146,55 @@ function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCom
         className="border-b border-border/50 hover:bg-muted/20 transition-colors cursor-pointer"
         onClick={() => setExpanded(!expanded)}
       >
+        {/* Event Type & Label */}
         <td className={cellClass}>
-          <div className="flex items-center gap-2">
-            <Icon className={cn("shrink-0", isCompact ? "w-3.5 h-3.5" : "w-4 h-4", info.color)} />
-            <Badge variant="outline" className={isCompact ? "text-[10px] px-1 py-0" : "text-[11px]"}>{info.label}</Badge>
+          <div className="flex items-center gap-2.5">
+            <FlaticonAnimatedIcon icon={Icon} animation="bounce" className={isCompact ? "w-4 h-4 shrink-0" : "w-4.5 h-4.5 shrink-0"} colorClass={info.color} />
+            <Badge variant="outline" className={isCompact ? "text-[10px] px-1.5 py-0.5 font-bold" : "text-[11px] font-bold"}>{info.label}</Badge>
           </div>
         </td>
-        <td className={cn(cellClass, "text-muted-foreground")}>{log.user_email || "—"}</td>
+
+        {/* User Email */}
+        <td className={cn(cellClass, "text-foreground font-medium")}>{log.user_email || "زائر / غير معروف"}</td>
+
+        {/* IP Address */}
         <td className={cellClass}>
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Globe className={isCompact ? "w-3 h-3 shrink-0" : "w-3.5 h-3.5 shrink-0"} />
-            <span className={isCompact ? "font-mono text-[10px]" : "font-mono text-xs"}>{log.ip_address && log.ip_address !== "unknown" ? log.ip_address : "—"}</span>
+            <Globe className={isCompact ? "w-3.5 h-3.5 text-blue-500 shrink-0" : "w-4 h-4 text-blue-500 shrink-0"} />
+            <span className={isCompact ? "font-mono text-[10px]" : "font-mono text-xs font-semibold"}>{log.ip_address && log.ip_address !== "unknown" ? log.ip_address : "—"}</span>
           </div>
         </td>
+
+        {/* Device Name & Details Badge (اسم ونوع الجهاز المكتشف) */}
         <td className={cellClass}>
-          {details?.browser ? (
-            <div className={cn("flex items-center gap-1.5 text-muted-foreground", isCompact ? "text-[10px]" : "text-xs")}>
-              <DeviceIcon className={isCompact ? "w-3.5 h-3.5 shrink-0" : "w-3.5 h-3.5 shrink-0"} />
-              <span>{details.browser}</span>
-              <span className="text-muted-foreground/50">·</span>
-              <span>{details.os}</span>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+              <FlaticonAnimatedIcon icon={DeviceIcon} animation="pulse" className="w-3.5 h-3.5" colorClass="text-primary" />
             </div>
-          ) : (
-            <span className={isCompact ? "text-muted-foreground text-[10px]" : "text-muted-foreground text-xs"}>—</span>
-          )}
+            <div className="flex flex-col min-w-0">
+              <span className="font-bold text-xs text-foreground truncate">{parsedDevice.deviceName}</span>
+              <span className="text-[10px] text-muted-foreground truncate">{parsedDevice.osName} • {parsedDevice.browserName}</span>
+            </div>
+          </div>
         </td>
+
+        {/* Date & Time */}
         <td className={cn(cellClass, "text-muted-foreground whitespace-nowrap")}>
-          <div className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
+          <div className="flex items-center gap-1.5 text-xs font-medium">
+            <Clock className="w-3.5 h-3.5 text-slate-400" />
             {formatDate(log.created_at)}
           </div>
         </td>
+
+        {/* Expand Details Arrow */}
         <td className={cellClass}>
-          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-            {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-lg">
+            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </Button>
         </td>
       </motion.tr>
+
+      {/* Expanded Log Technical View */}
       <AnimatePresence>
         {expanded && (
           <motion.tr
@@ -148,37 +203,39 @@ function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCom
             exit={{ opacity: 0, height: 0 }}
           >
             <td colSpan={6} className="p-0">
-              <div className="bg-muted/30 p-4 border-b border-border/50 space-y-2">
+              <div className="bg-muted/30 p-4 border-b border-border/60 space-y-3">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                  <div>
-                    <p className="text-muted-foreground/70 mb-0.5">عنوان IP</p>
-                    <p className="font-mono font-medium">{log.ip_address || "غير متوفر"}</p>
+                  <div className="p-2.5 rounded-xl bg-card border border-border/60">
+                    <p className="text-muted-foreground text-[11px] mb-1 font-bold">اسم الجهاز الفعلي:</p>
+                    <p className="font-bold text-foreground text-xs">{parsedDevice.deviceName}</p>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground/70 mb-0.5">المتصفح</p>
-                    <p className="font-medium">{details?.browser || "غير متوفر"}</p>
+                  <div className="p-2.5 rounded-xl bg-card border border-border/60">
+                    <p className="text-muted-foreground text-[11px] mb-1 font-bold">نظام التشغيل:</p>
+                    <p className="font-bold text-foreground text-xs">{parsedDevice.osName}</p>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground/70 mb-0.5">نظام التشغيل</p>
-                    <p className="font-medium">{details?.os || "غير متوفر"}</p>
+                  <div className="p-2.5 rounded-xl bg-card border border-border/60">
+                    <p className="text-muted-foreground text-[11px] mb-1 font-bold">متصفح الإنترنت:</p>
+                    <p className="font-bold text-foreground text-xs">{parsedDevice.browserName}</p>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground/70 mb-0.5">الجهاز</p>
-                    <p className="font-medium">{details?.device || "غير متوفر"}</p>
+                  <div className="p-2.5 rounded-xl bg-card border border-border/60">
+                    <p className="text-muted-foreground text-[11px] mb-1 font-bold">عنوان الشبكة IP:</p>
+                    <p className="font-mono font-bold text-blue-600 dark:text-blue-400 text-xs">{log.ip_address || "غير متوفر"}</p>
                   </div>
                 </div>
+
                 {details?.user_agent && (
                   <div className="text-xs">
-                    <p className="text-muted-foreground/70 mb-0.5">User Agent</p>
-                    <p className="font-mono text-[10px] text-muted-foreground break-all bg-background/50 rounded p-2">{details.user_agent}</p>
+                    <p className="text-muted-foreground text-[11px] font-bold mb-1">User Agent String (معرّف الجهاز الكامل):</p>
+                    <p className="font-mono text-[11px] text-slate-300 break-all bg-slate-900 rounded-xl p-3 border border-slate-800">{details.user_agent}</p>
                   </div>
                 )}
+
                 {displayDetails.length > 0 && (
                   <div className="text-xs">
-                    <p className="text-muted-foreground/70 mb-1">تفاصيل إضافية</p>
-                    <div className="flex flex-wrap gap-1.5">
+                    <p className="text-muted-foreground text-[11px] font-bold mb-1.5">بيانات وحمولات الحدث (Payload Details):</p>
+                    <div className="flex flex-wrap gap-2">
                       {displayDetails.map(([k, v]) => (
-                        <Badge key={k} variant="secondary" className="text-[10px] font-mono">
+                        <Badge key={k} variant="secondary" className="text-[11px] font-mono px-2.5 py-1">
                           {k}: {String(v)}
                         </Badge>
                       ))}
@@ -197,11 +254,12 @@ function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCom
 export default function AuditLog() {
   const [page, setPage] = useState(0);
   const [eventFilter, setEventFilter] = useState("all");
+  const [deviceFilter, setDeviceFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const { isCompact, toggleCompact } = useCompactView();
 
-  const { data, isLoading } = useAuditLogQuery(page, eventFilter, search);
+  const { data, isLoading } = useAuditLogQuery(page, eventFilter, deviceFilter, search);
   const logs = data?.data || [];
   const totalCount = data?.count || 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
@@ -219,7 +277,26 @@ export default function AuditLog() {
     setPage(0);
   };
 
-  // Deduplicate event types for filter dropdown (show unique labels)
+  const exportAuditLogToExcel = () => {
+    const rows = logs.map((l: any) => {
+      const dev = parseDeviceDetails(l.details);
+      return {
+        "نوع الحدث": EVENT_TYPES[l.event_type]?.label || l.event_type,
+        "البريد الإلكتروني": l.user_email || "—",
+        "عنوان IP": l.ip_address || "—",
+        "اسم الجهاز": dev.deviceName,
+        "نظام التشغيل": dev.osName,
+        "المتصفح": dev.browserName,
+        "التاريخ والوقت": new Date(l.created_at).toLocaleString("ar-SA"),
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "AuditLogs");
+    XLSX.writeFile(workbook, `TawzeefX_Audit_Log_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   const uniqueEventTypes = Object.entries(EVENT_TYPES).reduce((acc, [key, val]) => {
     if (!acc.some(([, v]) => v.label === val.label)) acc.push([key, val]);
     return acc;
@@ -228,38 +305,61 @@ export default function AuditLog() {
   return (
     <DashboardLayout>
       <div className="p-4 lg:p-8 space-y-6" dir="rtl">
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Shield className="w-5 h-5 text-primary" />
+        {/* Glassmorphism Header Bar */}
+        <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-xl border border-slate-800 space-y-4 relative overflow-hidden">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 text-primary-foreground text-xs font-bold border border-primary/30">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>سجل تتبع الحماية وتدقيق الأجهزة المعتمد</span>
+              </div>
+              <h1 className="text-2xl font-black text-white">سجل الأحداث الأمنية وتحديد الأجهزة المستخدمة</h1>
+              <p className="text-xs text-slate-300">مراقبة دقيقة لكافة عمليات الدخول وتغيير الصلاحيات مع تحديد اسم الجهاز، نظام التشغيل، والمتصفح.</p>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">سجل الأحداث الأمنية</h1>
-              <p className="text-sm text-muted-foreground">تتبع جميع الأحداث الحساسة مع عناوين IP وتفاصيل الأجهزة</p>
+
+            <div className="flex items-center gap-3">
+              <Button onClick={exportAuditLogToExcel} variant="outline" className="rounded-xl h-11 px-4 text-xs font-bold gap-2 bg-slate-800/80 border-slate-700 text-white hover:bg-slate-700">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                تصدير سجل الأمان Excel 📊
+              </Button>
             </div>
           </div>
-        </motion.div>
-
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: "إجمالي الأحداث", value: stats.total, icon: Shield, color: "bg-primary/10 text-primary" },
-            { label: "محاولات فاشلة", value: stats.failed, icon: XCircle, color: "bg-destructive/10 text-destructive" },
-            { label: "تغييرات صلاحيات", value: stats.roleChanges, icon: UserCog, color: "bg-warning/10 text-warning" },
-          ].map((s, i) => (
-            <Card key={i} className="border-border/50">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", s.color)}>
-                  <s.icon className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{s.value}</p>
-                  <p className="text-xs text-muted-foreground">{s.label}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
         </div>
 
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card className="border-border/60 shadow-sm">
+            <CardContent className="p-4 flex items-center gap-3.5">
+              <FlaticonCategoryIconCard icon={Shield} gradient="from-blue-600/20 to-indigo-600/10" iconColor="text-blue-500" />
+              <div>
+                <p className="text-2xl font-black">{stats.total}</p>
+                <p className="text-xs font-semibold text-muted-foreground">إجمالي الأحداث المسجلة</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60 shadow-sm">
+            <CardContent className="p-4 flex items-center gap-3.5">
+              <FlaticonCategoryIconCard icon={XCircle} gradient="from-rose-600/20 to-red-600/10" iconColor="text-rose-500" />
+              <div>
+                <p className="text-2xl font-black text-rose-600">{stats.failed}</p>
+                <p className="text-xs font-semibold text-muted-foreground">محاولات الدخول الفاشلة</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60 shadow-sm">
+            <CardContent className="p-4 flex items-center gap-3.5">
+              <FlaticonCategoryIconCard icon={UserCog} gradient="from-amber-600/20 to-orange-600/10" iconColor="text-amber-500" />
+              <div>
+                <p className="text-2xl font-black text-amber-600">{stats.roleChanges}</p>
+                <p className="text-xs font-semibold text-muted-foreground">تغييرات الأدوار والصلاحيات</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filters Toolbar */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -267,12 +367,12 @@ export default function AuditLog() {
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSearch()}
-              placeholder="بحث بالبريد أو نوع الحدث..."
-              className="pr-10"
+              placeholder="بحث بالبريد، اسم الجهاز، أو نوع الحدث..."
+              className="pr-10 h-11 text-xs rounded-xl"
             />
           </div>
           <Select value={eventFilter} onValueChange={v => { setEventFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-[200px] h-11 rounded-xl text-xs font-bold">
               <SelectValue placeholder="نوع الحدث" />
             </SelectTrigger>
             <SelectContent>
@@ -282,25 +382,27 @@ export default function AuditLog() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={handleSearch} className="gap-1.5">
+
+          <Button variant="outline" onClick={handleSearch} className="h-11 rounded-xl text-xs font-bold gap-1.5">
             <Filter className="w-4 h-4" />تصفية
           </Button>
-          <Button variant="outline" size="icon" onClick={toggleCompact} className="gap-1.5 shrink-0" title={isCompact ? "عرض عادي" : "عرض مدمج"}>
+          <Button variant="outline" size="icon" onClick={toggleCompact} className="h-11 w-11 rounded-xl shrink-0" title={isCompact ? "عرض عادي" : "عرض مدمج"}>
             {isCompact ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
           </Button>
         </div>
 
-        <Card className="border-border/50 overflow-hidden">
+        {/* Audit Log Table */}
+        <Card className="border-border/60 rounded-3xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className={cn("w-full transition-all", isCompact ? "text-xs" : "text-sm")}>
               <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  <th className={cn("text-right font-medium text-muted-foreground transition-all", isCompact ? "p-1.5" : "p-3")}>الحدث</th>
-                  <th className={cn("text-right font-medium text-muted-foreground transition-all", isCompact ? "p-1.5" : "p-3")}>المستخدم</th>
-                  <th className={cn("text-right font-medium text-muted-foreground transition-all", isCompact ? "p-1.5" : "p-3")}>عنوان IP</th>
-                  <th className={cn("text-right font-medium text-muted-foreground transition-all", isCompact ? "p-1.5" : "p-3")}>الجهاز</th>
-                  <th className={cn("text-right font-medium text-muted-foreground transition-all", isCompact ? "p-1.5" : "p-3")}>التاريخ</th>
-                  <th className={cn("text-right font-medium text-muted-foreground transition-all w-10", isCompact ? "p-1.5" : "p-3")}></th>
+                <tr className="border-b border-border bg-muted/40 font-bold">
+                  <th className={cn("text-right text-muted-foreground transition-all", isCompact ? "p-2" : "p-3.5")}>الحدث الأمني</th>
+                  <th className={cn("text-right text-muted-foreground transition-all", isCompact ? "p-2" : "p-3.5")}>المستخدم</th>
+                  <th className={cn("text-right text-muted-foreground transition-all", isCompact ? "p-2" : "p-3.5")}>عنوان IP</th>
+                  <th className={cn("text-right text-muted-foreground transition-all", isCompact ? "p-2" : "p-3.5")}>الجهاز ونظام التشغيل</th>
+                  <th className={cn("text-right text-muted-foreground transition-all", isCompact ? "p-2" : "p-3.5")}>التاريخ والوقت</th>
+                  <th className={cn("text-right text-muted-foreground transition-all w-10", isCompact ? "p-2" : "p-3.5")}></th>
                 </tr>
               </thead>
               <tbody>
@@ -308,15 +410,15 @@ export default function AuditLog() {
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="border-b border-border/50">
                       {Array.from({ length: 6 }).map((_, j) => (
-                        <td key={j} className={cn("transition-all", isCompact ? "p-1.5" : "p-3")}><div className="h-4 bg-muted rounded animate-pulse w-20" /></td>
+                        <td key={j} className={cn("transition-all", isCompact ? "p-2" : "p-3.5")}><div className="h-4 bg-muted rounded animate-pulse w-20" /></td>
                       ))}
                     </tr>
                   ))
                 ) : logs.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-muted-foreground">
-                      <Shield className="w-10 h-10 mx-auto mb-2 text-muted-foreground/30" />
-                      لا توجد أحداث مسجلة
+                    <td colSpan={6} className="p-12 text-center text-muted-foreground">
+                      <Shield className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
+                      لا توجد أحداث مسجلة حتى الآن
                     </td>
                   </tr>
                 ) : (
@@ -329,16 +431,16 @@ export default function AuditLog() {
           </div>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between p-3 border-t border-border bg-muted/20">
-              <p className="text-xs text-muted-foreground">
-                عرض {page * PAGE_SIZE + 1} - {Math.min((page + 1) * PAGE_SIZE, totalCount)} من {totalCount}
+            <div className="flex items-center justify-between p-4 border-t border-border bg-muted/20">
+              <p className="text-xs text-muted-foreground font-semibold">
+                عرض {page * PAGE_SIZE + 1} - {Math.min((page + 1) * PAGE_SIZE, totalCount)} من إجمالي {totalCount} حدث
               </p>
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" onClick={() => setPage(p => p - 1)} disabled={page === 0}>
+                <Button variant="ghost" size="sm" onClick={() => setPage(p => p - 1)} disabled={page === 0} className="rounded-xl">
                   <ChevronRight className="w-4 h-4" />
                 </Button>
-                <span className="text-sm px-2">{page + 1} / {totalPages}</span>
-                <Button variant="ghost" size="sm" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}>
+                <span className="text-xs font-bold px-3">{page + 1} / {totalPages}</span>
+                <Button variant="ghost" size="sm" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1} className="rounded-xl">
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
               </div>
