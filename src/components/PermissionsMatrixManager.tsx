@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCustomRoles } from "@/hooks/useUserRole";
 import { FlaticonAnimatedIcon, FlaticonCategoryIconCard } from "@/components/ui/animated-icons";
+import { PageHeader } from "@/components/ui/page-header";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, Check, Search, Download, FileSpreadsheet, Save, RefreshCw,
@@ -360,47 +361,42 @@ export default function PermissionsMatrixManager() {
 
   return (
     <div className="space-y-6 text-right" dir={dir}>
-      {/* ── Glassmorphism Header Bar & Dual Mode Selector ── */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-xl border border-slate-800 space-y-6 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 text-primary-foreground text-xs font-bold border border-primary/30">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>نظام مصفوفة الصلاحيات المتقدم المخصص</span>
-            </div>
-            <h2 className="text-2xl font-black text-white">التحكم الفردي والمجموعاتي في جميع شاشات وموديولات النظام</h2>
-            <p className="text-xs text-slate-300">يمكنك تخصيص الصلاحيات لمجموعة معينة (Roles) أو إعطاء صلاحيات استثنائية لموظف محدد بالاسم (Individual User Override).</p>
-          </div>
-
-          <div className="flex items-center gap-3 flex-wrap relative z-10">
-            <Button onClick={exportToExcel} variant="outline" className="rounded-xl h-11 px-4 text-xs font-bold gap-2 bg-slate-800/80 border-slate-700 text-white hover:bg-slate-700">
-              <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+      {/* Clean Theme-Adaptive Page Header */}
+      <PageHeader
+        badgeText="نظام مصفوفة الصلاحيات المتقدم المخصص"
+        badgeIcon={ShieldCheck}
+        title="التحكم الفردي والمجموعاتي في جميع شاشات وموديولات النظام"
+        description="يمكنك تخصيص الصلاحيات لمجموعة معينة (Roles) أو إعطاء صلاحيات استثنائية لموظف محدد بالاسم (Individual User Override)."
+        icon={ShieldCheck}
+        accentColor="primary"
+        actions={
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button onClick={exportToExcel} variant="outline" className="rounded-xl h-11 px-4 text-xs font-bold gap-2 bg-card hover:bg-muted shadow-xs">
+              <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
               تصدير Excel 📊
             </Button>
             <Button
               onClick={handleSave}
               disabled={isSaving}
-              className="rounded-xl h-11 px-6 text-xs font-bold gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30"
+              className="rounded-xl h-11 px-6 text-xs font-bold gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20"
             >
               {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {isSaving ? "جاري الحفظ..." : "حفظ مصفوفة الصلاحيات 💾"}
             </Button>
           </div>
-        </div>
-
+        }
+      >
         {/* Dual Mode Switcher Tabs (Group Roles VS Individual User) */}
-        <div className="p-1.5 bg-slate-800/90 rounded-2xl border border-slate-700/80 flex flex-col sm:flex-row gap-2 relative z-10">
+        <div className="p-1.5 bg-muted/50 rounded-2xl border border-border/70 flex flex-col sm:flex-row gap-2 mt-4">
           <button
             onClick={() => setPermissionMode("role")}
             className={`flex-1 flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl font-bold text-xs transition-all ${
               permissionMode === "role"
-                ? "bg-primary text-primary-foreground shadow-md font-black"
-                : "text-slate-300 hover:text-white hover:bg-slate-700/50"
+                ? "bg-card text-foreground shadow-sm font-black border border-border"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
             }`}
           >
-            <Users className="w-4 h-4" />
+            <Users className="w-4 h-4 text-primary" />
             <span>1️⃣ صلاحيات المجموعات والأدوار العامة (Roles & Groups)</span>
           </button>
 
@@ -408,25 +404,25 @@ export default function PermissionsMatrixManager() {
             onClick={() => setPermissionMode("user")}
             className={`flex-1 flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl font-bold text-xs transition-all ${
               permissionMode === "user"
-                ? "bg-emerald-600 text-white shadow-md font-black"
-                : "text-slate-300 hover:text-white hover:bg-slate-700/50"
+                ? "bg-card text-emerald-600 dark:text-emerald-400 shadow-sm font-black border border-emerald-500/30"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
             }`}
           >
-            <UserCheck className="w-4 h-4" />
+            <UserCheck className="w-4 h-4 text-emerald-500" />
             <span>2️⃣ صلاحيات موظف ومستخدم مخصص بالاسم (Individual User Override)</span>
           </button>
         </div>
 
         {/* Dynamic Selector based on Mode (Role Select OR User Select) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 relative z-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
           {permissionMode === "role" ? (
             <div className="flex items-center gap-3">
-              <Label className="text-xs font-bold text-slate-300 shrink-0">اختيار الدور / المجموعة:</Label>
+              <Label className="text-xs font-bold text-muted-foreground shrink-0">اختيار الدور / المجموعة:</Label>
               <Select value={selectedRole} onValueChange={setSelectedRole}>
-                <SelectTrigger className="w-full h-11 rounded-xl font-bold text-xs bg-slate-800 border-slate-700 text-white">
+                <SelectTrigger className="w-full h-11 rounded-xl font-bold text-xs bg-card border-border">
                   <SelectValue placeholder="اختر الدور" />
                 </SelectTrigger>
-                <SelectContent dir={dir} className="bg-slate-900 border-slate-800 text-white">
+                <SelectContent dir={dir} className="bg-card border-border">
                   <SelectItem value="admin">👑 المالك / مدير النظام الكامل (Admin)</SelectItem>
                   <SelectItem value="recruiter">💼 مسؤول توظيف HR (Recruiter)</SelectItem>
                   <SelectItem value="reviewer">👁️ مشاهد ومقيم (Reviewer)</SelectItem>
@@ -440,12 +436,12 @@ export default function PermissionsMatrixManager() {
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <Label className="text-xs font-bold text-emerald-400 shrink-0">اختر الموظف / المستخدم المحدد:</Label>
+              <Label className="text-xs font-bold text-emerald-600 dark:text-emerald-400 shrink-0">اختر الموظف / المستخدم المحدد:</Label>
               <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                <SelectTrigger className="w-full h-11 rounded-xl font-bold text-xs bg-slate-800 border-emerald-500/40 text-white">
+                <SelectTrigger className="w-full h-11 rounded-xl font-bold text-xs bg-card border-emerald-500/40">
                   <SelectValue placeholder="اختر الموظف" />
                 </SelectTrigger>
-                <SelectContent dir={dir} className="bg-slate-900 border-slate-800 text-white">
+                <SelectContent dir={dir} className="bg-card border-border">
                   {teamMembers.map((m) => (
                     <SelectItem key={m.user_id} value={m.user_id}>
                       👤 {m.full_name || "مستخدم"} ({m.user_id.slice(0, 8)}...)
@@ -457,16 +453,16 @@ export default function PermissionsMatrixManager() {
           )}
 
           <div className="relative">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="ابحث باسم الصفحة أو الموديول..."
-              className="pr-9 h-11 text-xs rounded-xl bg-slate-800/90 border-slate-700 text-white placeholder:text-slate-500"
+              className="pr-9 h-11 text-xs rounded-xl bg-card border-border"
             />
           </div>
         </div>
-      </div>
+      </PageHeader>
 
       {/* ── Hierarchical Module Cards & Sub-pages Inventory Grid ── */}
       <div className="space-y-6">

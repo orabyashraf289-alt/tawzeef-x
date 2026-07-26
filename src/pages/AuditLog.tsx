@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { FlaticonAnimatedIcon, FlaticonCategoryIconCard } from "@/components/ui/animated-icons";
+import { PageHeader } from "@/components/ui/page-header";
 import { detectUserDevice } from "@/lib/deviceDetector";
 import { getCountryFlag } from "@/lib/locationService";
 import * as XLSX from "xlsx";
@@ -332,26 +333,20 @@ export default function AuditLog() {
   return (
     <DashboardLayout>
       <div className="p-4 lg:p-8 space-y-6" dir="rtl">
-        {/* Glassmorphism Header Bar */}
-        <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-xl border border-slate-800 space-y-4 relative overflow-hidden">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 text-primary-foreground text-xs font-bold border border-primary/30">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>سجل تتبع الحماية وتدقيق الأجهزة والمواقع الجغرافية</span>
-              </div>
-              <h1 className="text-2xl font-black text-white">سجل الأحداث الأمنية، الأجهزة، والمواقع الجغرافية 📍</h1>
-              <p className="text-xs text-slate-300">مراقبة دقيقة لكافة عمليات الدخول وتغيير الصلاحيات مع تحديد الموقع الجغرافي والبلد، اسم الجهاز، نظام التشغيل، والمتصفح.</p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Button onClick={exportAuditLogToExcel} variant="outline" className="rounded-xl h-11 px-4 text-xs font-bold gap-2 bg-slate-800/80 border-slate-700 text-white hover:bg-slate-700">
-                <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-                تصدير سجل الأمان Excel 📊
-              </Button>
-            </div>
-          </div>
-        </div>
+        {/* Clean Theme-Adaptive Page Header */}
+        <PageHeader
+          badgeText="سجل تتبع الحماية وتدقيق الأجهزة والمواقع الجغرافية"
+          title="سجل الأحداث الأمنية، الأجهزة، والمواقع الجغرافية 📍"
+          description="مراقبة دقيقة لكافة عمليات الدخول وتغيير الصلاحيات مع تحديد الموقع الجغرافي والبلد، اسم الجهاز، نظام التشغيل، والمتصفح."
+          icon={Shield}
+          accentColor="indigo"
+          actions={
+            <Button onClick={exportAuditLogToExcel} variant="outline" className="rounded-xl h-11 px-4 text-xs font-bold gap-2 bg-card hover:bg-muted shadow-xs">
+              <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+              تصدير سجل الأمان Excel 📊
+            </Button>
+          }
+        />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
