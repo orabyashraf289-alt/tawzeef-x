@@ -15,7 +15,9 @@ import {
   Shield, Check, Search, Download, FileSpreadsheet, Save, RefreshCw,
   Monitor, Briefcase, Users, Kanban, Calendar, FileText, BarChart3, Target,
   Star, Bot, Building2, UserPlus, Lock, Settings2, Video, HelpCircle, Layers,
-  ChevronDown, ChevronUp, Sparkles, CheckCircle2, Eye, Plus, Edit3, Trash2
+  ChevronDown, ChevronUp, Sparkles, CheckCircle2, Eye, Plus, Edit3, Trash2,
+  UserCheck, User, ShieldAlert, SlidersHorizontal, BookOpen, GitBranch, Award,
+  CheckSquare, Code
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -36,75 +38,101 @@ export interface SystemModuleCategory {
   }[];
 }
 
+// Complete 100% Comprehensive Inventory of ALL System Modules & Sub-pages
 const MODULE_CATEGORIES: SystemModuleCategory[] = [
   {
     id: "recruitment",
-    title_ar: "موديول التوظيف والشواغر",
-    title_en: "Recruitment & Jobs Module",
-    description_ar: "التحكم في شاشات نشر الوظائف ومسار التوظيف وقاعدة المواهب والمرشحين",
+    title_ar: "موديول إدارة التوظيف والشواغر",
+    title_en: "Recruitment & Job Management",
+    description_ar: "دليل الوظائف، تفاصيل الشواغر، قائمة المرشحين، الملفات الشخصية، مسار الفرز، وقاعدة المواهب",
     icon: Briefcase,
     color: "from-blue-600/20 via-indigo-600/10 to-transparent border-blue-500/30 text-blue-600 dark:text-blue-400",
     badgeBg: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
     pages: [
-      { key: "jobs", name_ar: "إدارة الوظائف والشواغر", name_en: "Jobs Directory", desc_ar: "نشر وتعديل وحذف إعلانات التوظيف للشواغر", icon: Briefcase },
-      { key: "candidates", name_ar: "إدارة المرشحين والمتقدمين", name_en: "Candidates Directory", desc_ar: "استعراض وتعديل ومعالجة ملفات المرشحين", icon: Users },
-      { key: "pipeline", name_ar: "مسار التوظيف والفرز", name_en: "Recruitment Pipeline", desc_ar: "تحريك المرشحين وتخصيص ساعات المرحلة SLA", icon: Kanban },
-      { key: "talent_pool", name_ar: "قاعدة المواهب والسير الذاتية", name_en: "Talent Pool", desc_ar: "البحث في الأرشيف وتصنيف السير الكبيرة", icon: Star },
+      { key: "jobs", name_ar: "إدارة الوظائف والشواغر", name_en: "Jobs Directory", desc_ar: "عرض ونشر الشواغر الوظيفية بالشركة", icon: Briefcase },
+      { key: "job_details", name_ar: "تفاصيل وإدارة الشاغر الوظيفي", name_en: "Job Details & Specs", desc_ar: "تعديل بنود ومتطلبات الإعلان الوظيفي", icon: FileText },
+      { key: "candidates", name_ar: "دليل المرشحين والمتقدمين", name_en: "Candidates Portal", desc_ar: "استعراض وتعديل ومعالجة طلبات المتقدمين", icon: Users },
+      { key: "candidate_profile", name_ar: "الملف الشخصي الشامل للمرشح", name_en: "Full Candidate Profile", desc_ar: "اطلاع على السيرة، التقويم، والملاحظات", icon: User },
+      { key: "pipeline", name_ar: "مسار التوظيف والفرز التفاعلي", name_en: "Interactive Pipeline", desc_ar: "تحريك المرشحين بين مراحل الفرز وتخصيص الساعات SLA", icon: Kanban },
+      { key: "talent_pool", name_ar: "قاعدة المواهب والسير الذاتية", name_en: "Talent Pool", desc_ar: "البحث والأرشفة في قاعدة بيانات المرشحين الكبرى", icon: Star },
+      { key: "resume_archive", name_ar: "أرشيف السير الذاتية المستوردة", name_en: "Resume Archive", desc_ar: "معالجة واستيراد ملفات السير الذاتية الضخمة", icon: Layers },
     ],
   },
   {
     id: "interviews_offers",
     title_ar: "موديول المقابلات والعروض الوظيفية",
     title_en: "Interviews & Offers Module",
-    description_ar: "صلاحيات جدولة المقابلات وغرف الفيديوهات وإنشاء وتوقيع العقود والعروض",
+    description_ar: "جدول المواعيد، التنسيق، غرف الفيديوهات المباشرة، وبوابة العروض والعقود",
     icon: Calendar,
     color: "from-purple-600/20 via-pink-600/10 to-transparent border-purple-500/30 text-purple-600 dark:text-purple-400",
     badgeBg: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
     pages: [
-      { key: "interviews", name_ar: "جدول المقابلات والمواعيد", name_en: "Interviews Calendar", desc_ar: "جدولة وتأكيد وتأجيل جلسات التقييم والمقابلات", icon: Calendar },
-      { key: "video_room", name_ar: "غرفة المقابلات المرئية Direct Call", name_en: "Video Interview Room", desc_ar: "إجراء وتدوين ملاحظات المقابلات الصوتية والمرئية", icon: Video },
-      { key: "offers", name_ar: "العروض الوظيفية والعقود", name_en: "Offers & Contracts", desc_ar: "صياغة واستعراض وإرسال عروض التوظيف", icon: FileText },
+      { key: "interviews", name_ar: "جدول المقابلات والمواعيد", name_en: "Interviews Calendar", desc_ar: "إدارة وتأجيل وتأكيد المواعيد للمتقدمين", icon: Calendar },
+      { key: "book_interview", name_ar: "حجز وتنسيق المقابلات", name_en: "Book Interview Scheduler", desc_ar: "توليد وروابط مواعيد المقابلات التفاعلية", icon: Calendar },
+      { key: "video_room", name_ar: "غرفة المقابلات المرئية المباشرة Direct Call", name_en: "Live Video Interview Room", desc_ar: "إجراء وتدوين ملاحظات المقابلات الصوتية والفيديو", icon: Video },
+      { key: "offers", name_ar: "العروض الوظيفية والعقود", name_en: "Offers & Contracts Directory", desc_ar: "صياغة وإنشاء وإرسال العروض الوظيفية", icon: FileText },
+      { key: "offer_portal", name_ar: "بوابة توقيع واطلاع العروض", name_en: "Offer Acceptance Portal", desc_ar: "متابعة توقيع وقبول العروض من المرشحين", icon: CheckCircle2 },
     ],
   },
   {
-    id: "analytics_planning",
-    title_ar: "موديول التقارير والتخطيط المالي",
-    title_en: "Analytics & Planning Module",
-    description_ar: "إحصائيات الأداء وميزانيات التوظيف وسجل الأمان وتتبع الأنشطة",
-    icon: BarChart3,
-    color: "from-emerald-600/20 via-teal-600/10 to-transparent border-emerald-500/30 text-emerald-600 dark:text-emerald-400",
-    badgeBg: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-    pages: [
-      { key: "reports", name_ar: "تقارير الأداء والإحصائيات", name_en: "Reports & Analytics", desc_ar: "استعراض وتصدير رسوم الأداء ومعدل القبول", icon: BarChart3 },
-      { key: "hiring_plan", name_ar: "خطة التوظيف والميزانيات", name_en: "Hiring Plan & Budget", desc_ar: "متابعة الميزانيات السنوية وخطة التعيينات", icon: Target },
-      { key: "audit_log", name_ar: "سجل الأمان والتتبع Audit Log", name_en: "Security Audit Log", desc_ar: "مراقبة سجل الأحداث والدخول والعمليات الحساسة", icon: Lock },
-    ],
-  },
-  {
-    id: "ai_tools",
-    title_ar: "موديول الذكاء الاصطناعي والاختبارات",
-    title_en: "AI & Assessments Module",
-    description_ar: "أدوات التقييم الآلي وبنك الأسئلة وتحليل السير بالذكاء الاصطناعي",
+    id: "ai_assessments",
+    title_ar: "موديول الذكاء الاصطناعي والاختبارات والأتمتة",
+    title_en: "AI, Assessments & Automation",
+    description_ar: "التقييم الآلي، بنك الأسئلة، الاختبارات الفنية، ومصمم أتمتة مسارات العمل",
     icon: Bot,
     color: "from-amber-600/20 via-orange-600/10 to-transparent border-amber-500/30 text-amber-600 dark:text-amber-400",
     badgeBg: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
     pages: [
-      { key: "ai_assistant", name_ar: "مساعد التقييم والفرز الذكي", name_en: "AI Screening Assistant", desc_ar: "استعراض تحليلات المطابقة الآلية للمرشحين", icon: Bot },
-      { key: "question_bank", name_ar: "بنك الأسئلة والاختبارات", name_en: "Question Bank & Tests", desc_ar: "إنشاء وتعديل أسئلة التقييم الفني والنفسي", icon: HelpCircle },
+      { key: "ai_assistant", name_ar: "مساعد الذكاء الاصطناعي للفرز", name_en: "AI Screening Assistant", desc_ar: "استعراض نتيجـة التحليل الذكي وتطابق الخبرات", icon: Bot },
+      { key: "question_bank", name_ar: "بنك الأسئلة والاختبارات", name_en: "Question Bank Directory", desc_ar: "بناء وتصنيف بنك الأسئلة والمقابلات", icon: HelpCircle },
+      { key: "take_assessment", name_ar: "شاشة تقديم الاختبارات", name_en: "Assessment Exam Interface", desc_ar: "رابط تقديم الاختبارات التقييمية للمرشح", icon: CheckSquare },
+      { key: "assessment_responses", name_ar: "نتائج واستجابات الاختبارات", name_en: "Assessment Results", desc_ar: "استعراض درجات وإجابات المرشحين التفصيلية", icon: Award },
+      { key: "workflow_editor", name_ar: "محرر مسارات العمل والأتمتة Workflows", name_en: "Workflow Automation Editor", desc_ar: "تصميم قواعد الأتمتة والإشعارات التلقائية", icon: SlidersHorizontal },
     ],
   },
   {
-    id: "system_admin",
-    title_ar: "موديول إدارة النظام والشركات والمكاتب",
+    id: "analytics_performance",
+    title_ar: "موديول التقارير والأداء والتخطيط المالي",
+    title_en: "Analytics, KPIs & Hiring Plan",
+    description_ar: "تقارير الأداء، مؤشرات KPI، خطة التوظيف، الميزانيات، وخارطة التطوير",
+    icon: BarChart3,
+    color: "from-emerald-600/20 via-teal-600/10 to-transparent border-emerald-500/30 text-emerald-600 dark:text-emerald-400",
+    badgeBg: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    pages: [
+      { key: "reports", name_ar: "تقارير الأداء والإحصائيات الشاملة", name_en: "Reports & Analytics", desc_ar: "استعراض وتصدير الرسوم البيانية ومعدل القبول", icon: BarChart3 },
+      { key: "performance_evaluation", name_ar: "تقييم أداء التوظيف ومؤشرات KPI", name_en: "Recruiter Performance KPIs", desc_ar: "قياس كفاءة مسؤولي التوظيف والسرعة", icon: Award },
+      { key: "hiring_plan", name_ar: "خطة التوظيف والميزانيات", name_en: "Hiring Plan & Budget", desc_ar: "متابعة ميزانيات التوظيف والاحتياجات السنوية", icon: Target },
+      { key: "roadmap", name_ar: "خارطة الطريق وتطوير المنصة", name_en: "Platform Development Roadmap", desc_ar: "متابعة المميزات والتحديثات المستقبلية للنظام", icon: GitBranch },
+    ],
+  },
+  {
+    id: "security_audit",
+    title_ar: "موديول الحماية وسجل الأمان والأرشيف",
+    title_en: "Security & Audit Trail Module",
+    description_ar: "مراقبة سجل الأحداث والدخول، أمان الحسابات، وتقارير جودة البيانات",
+    icon: Lock,
+    color: "from-rose-600/20 via-red-600/10 to-transparent border-rose-500/30 text-rose-600 dark:text-rose-400",
+    badgeBg: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
+    pages: [
+      { key: "audit_log", name_ar: "سجل الأمان والأحداث Audit Log", name_en: "Security Audit Log", desc_ar: "مراقبة عمليات تسجيل الدخول والتعديلات الحساسة", icon: Lock },
+      { key: "quality_report", name_ar: "تقرير جودة البيانات والنظام", name_en: "Data Quality Report", desc_ar: "فحص وتدقيق سلامة البيانات والتكرارات", icon: Code },
+    ],
+  },
+  {
+    id: "system_management",
+    title_ar: "موديول إدارة النظام والمكاتب والفريق",
     title_en: "System, Agencies & Team Module",
-    description_ar: "إدارة الموظفين والشركات ومكاتب التوظيف وإعدادات النظام بالكامل",
+    description_ar: "إدارة الموظفين والشركات، مكاتب العمل الخارجية، الإعدادات، والشروحات",
     icon: Settings2,
     color: "from-cyan-600/20 via-sky-600/10 to-transparent border-cyan-500/30 text-cyan-600 dark:text-cyan-400",
     badgeBg: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
     pages: [
-      { key: "team", name_ar: "إدارة الفريق والأعضاء", name_en: "Team Management", desc_ar: "دعوة الموظفين وتعيين الأدوار والمسميات", icon: UserPlus },
-      { key: "agencies", name_ar: "إدارة مكاتب التوظيف والعمل", name_en: "Labor & Recruitment Agencies", desc_ar: "إضافة المكاتب الخارجية ومتابعة مرشحيها", icon: Building2 },
-      { key: "settings", name_ar: "إعدادات المنصة والهوية", name_en: "Company & Platform Settings", desc_ar: "تخصيص ألوان الهوية والشعار واشتراك المنصة", icon: Settings2 },
+      { key: "team", name_ar: "إدارة الفريق وأعضاء الشركة", name_en: "Team Management", desc_ar: "دعوة الموظفين وتعيين المسميات والأدوار", icon: UserPlus },
+      { key: "agencies", name_ar: "إدارة مكاتب التوظيف والعمل الخارجية", name_en: "Labor & Recruitment Agencies", desc_ar: "ربط المكاتب الخارجية وتفويض الصلاحيات", icon: Building2 },
+      { key: "admin_agencies", name_ar: "لوحة إشراف مكاتب العمل Super Admin", name_en: "Agencies Admin Oversight", desc_ar: "إشراف المنصة المركزية على كافة المكاتب", icon: ShieldAlert },
+      { key: "admin_companies", name_ar: "لوحة إشراف الشركات Super Admin", name_en: "Companies Admin Oversight", desc_ar: "إشراف ومتابعة شركات التوظيف المسجلة", icon: Building2 },
+      { key: "settings", name_ar: "إعدادات المنصة والهوية والتخصصات", name_en: "Company & Platform Settings", desc_ar: "تعديل ألوان الهوية والشعار والاشتراك", icon: Settings2 },
+      { key: "tutorial", name_ar: "الدليل التعليمي وشروحات الاستخدام", name_en: "System Tutorial & Guides", desc_ar: "استعراض الفيديوهات والشروحات التوضيحية", icon: BookOpen },
     ],
   },
 ];
@@ -114,26 +142,58 @@ export default function PermissionsMatrixManager() {
   const { locale, dir } = useI18n();
   const { data: customRoles = [] } = useCustomRoles();
 
+  // Mode Selection State: 'role' (by group/role) OR 'user' (by individual employee)
+  const [permissionMode, setPermissionMode] = useState<"role" | "user">("role");
+
+  // Selected Role OR Selected User ID
   const [selectedRole, setSelectedRole] = useState<string>("recruiter");
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+
+  // Team Members List for Individual User Mode
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [permissions, setPermissions] = useState<Record<string, { can_read: boolean; can_create: boolean; can_edit: boolean; can_delete: boolean }>>({});
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     recruitment: true,
     interviews_offers: true,
-    analytics_planning: true,
-    ai_tools: true,
-    system_admin: true,
+    ai_assessments: true,
+    analytics_performance: true,
+    security_audit: true,
+    system_management: true,
   });
 
-  // Load Permissions for selected role
-  const loadPermissionsForRole = async (roleKey: string) => {
-    try {
-      const { data } = await supabase
-        .from("granular_permissions" as any)
-        .select("*")
-        .eq("role_key", roleKey);
+  // Fetch Team Members for Individual User Selection
+  useEffect(() => {
+    (async () => {
+      const { data: profs } = await supabase.from("profiles").select("user_id, full_name, avatar_url");
+      if (profs && profs.length > 0) {
+        setTeamMembers(profs);
+        if (!selectedUserId) setSelectedUserId(profs[0].user_id);
+      }
+    })();
+  }, []);
 
+  // Target Key for Database Queries (either role_key or user:USER_ID)
+  const activeTargetKey = useMemo(() => {
+    if (permissionMode === "user") {
+      return `user:${selectedUserId}`;
+    }
+    return selectedRole;
+  }, [permissionMode, selectedRole, selectedUserId]);
+
+  // Load Permissions from Database
+  const loadPermissions = async () => {
+    try {
+      let query = supabase.from("granular_permissions" as any).select("*");
+
+      if (permissionMode === "user" && selectedUserId) {
+        query = query.eq("user_id", selectedUserId);
+      } else {
+        query = query.eq("role_key", selectedRole).is("user_id", null);
+      }
+
+      const { data } = await query;
       const permMap: Record<string, { can_read: boolean; can_create: boolean; can_edit: boolean; can_delete: boolean }> = {};
 
       MODULE_CATEGORIES.forEach((cat) => {
@@ -147,8 +207,8 @@ export default function PermissionsMatrixManager() {
               can_delete: existing.can_delete ?? false,
             };
           } else {
-            const isAdmin = roleKey === "admin";
-            const isReviewer = roleKey === "reviewer";
+            const isAdmin = selectedRole === "admin" && permissionMode === "role";
+            const isReviewer = selectedRole === "reviewer" && permissionMode === "role";
             permMap[page.key] = {
               can_read: true,
               can_create: !isReviewer,
@@ -166,17 +226,17 @@ export default function PermissionsMatrixManager() {
   };
 
   useEffect(() => {
-    loadPermissionsForRole(selectedRole);
-  }, [selectedRole]);
+    loadPermissions();
+  }, [permissionMode, selectedRole, selectedUserId]);
 
-  // Toggle category collapse
+  // Toggle Category Expand/Collapse
   const toggleCategoryExpand = (catId: string) => {
     setExpandedCategories((prev) => ({ ...prev, [catId]: !prev[catId] }));
   };
 
-  // Toggle single action
+  // Toggle Single Action Permission
   const togglePermission = (pageKey: string, action: "can_read" | "can_create" | "can_edit" | "can_delete") => {
-    if (selectedRole === "admin") {
+    if (permissionMode === "role" && selectedRole === "admin") {
       toast({ title: "صلاحيات المالك / Admin كاملة ولا يمكن تقييدها 👑", variant: "destructive" });
       return;
     }
@@ -189,9 +249,9 @@ export default function PermissionsMatrixManager() {
     }));
   };
 
-  // Toggle whole page (all 4 actions for a page)
+  // Toggle Whole Page (All 4 Actions)
   const togglePageAll = (pageKey: string) => {
-    if (selectedRole === "admin") return;
+    if (permissionMode === "role" && selectedRole === "admin") return;
     const curr = permissions[pageKey];
     const allChecked = curr?.can_read && curr?.can_create && curr?.can_edit && curr?.can_delete;
     setPermissions((prev) => ({
@@ -205,9 +265,9 @@ export default function PermissionsMatrixManager() {
     }));
   };
 
-  // Toggle whole module category
+  // Toggle Whole Category Module
   const toggleCategoryAll = (category: SystemModuleCategory) => {
-    if (selectedRole === "admin") return;
+    if (permissionMode === "role" && selectedRole === "admin") return;
     const categoryPages = category.pages;
     const allCategoryChecked = categoryPages.every((p) => {
       const perm = permissions[p.key];
@@ -234,7 +294,8 @@ export default function PermissionsMatrixManager() {
     try {
       const allPages = MODULE_CATEGORIES.flatMap((c) => c.pages);
       const recordsToUpsert = allPages.map((page) => ({
-        role_key: selectedRole,
+        role_key: permissionMode === "role" ? selectedRole : `user:${selectedUserId}`,
+        user_id: permissionMode === "user" ? selectedUserId : null,
         module_key: page.key,
         can_read: permissions[page.key]?.can_read ?? true,
         can_create: permissions[page.key]?.can_create ?? false,
@@ -245,10 +306,15 @@ export default function PermissionsMatrixManager() {
 
       const { error } = await supabase
         .from("granular_permissions" as any)
-        .upsert(recordsToUpsert as any, { onConflict: "company_id,role_key,module_key" });
+        .upsert(recordsToUpsert as any, { onConflict: "company_id,role_key,user_id,module_key" });
 
       if (error) throw error;
-      toast({ title: "تم حفظ مصفوفة الصلاحيات بنجاح 💾✨", description: `تم تحديث وإعطاء الصلاحيات المخصصة لـ (${selectedRole})` });
+
+      const targetText = permissionMode === "user" 
+        ? `للموظف المحدد (${teamMembers.find(m => m.user_id === selectedUserId)?.full_name || selectedUserId})` 
+        : `للدور المحدد (${selectedRole})`;
+
+      toast({ title: "تم حفظ مصفوفة الصلاحيات بنجاح 💾✨", description: `تم تخصيص وتأمين الصلاحيات ${targetText}` });
     } catch (e: any) {
       toast({ title: "خطأ في الحفظ", description: e.message, variant: "destructive" });
     } finally {
@@ -256,7 +322,7 @@ export default function PermissionsMatrixManager() {
     }
   };
 
-  // Export matrix to Excel
+  // Export Matrix to Excel
   const exportToExcel = () => {
     const rows: any[] = [];
     MODULE_CATEGORIES.forEach((cat) => {
@@ -277,8 +343,8 @@ export default function PermissionsMatrixManager() {
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Permissions");
-    XLSX.writeFile(workbook, `TawzeefX_Permissions_${selectedRole}.xlsx`);
-    toast({ title: "تم تصدير ملف إكسيل للصلاحيات 📊" });
+    XLSX.writeFile(workbook, `TawzeefX_Permissions_${activeTargetKey}.xlsx`);
+    toast({ title: "تم تصدير ملف إكسيل مصفوفة الصلاحيات 📊" });
   };
 
   // Filter Categories by Search
@@ -293,18 +359,18 @@ export default function PermissionsMatrixManager() {
 
   return (
     <div className="space-y-6 text-right" dir={dir}>
-      {/* ── Glassmorphism Header Bar ── */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-xl border border-slate-800 space-y-5 relative overflow-hidden">
+      {/* ── Glassmorphism Header Bar & Dual Mode Selector ── */}
+      <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-xl border border-slate-800 space-y-6 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 text-primary-foreground text-xs font-bold border border-primary/30">
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>مصفوفة التحكم في موديولات وصفحات النظام</span>
+              <span>نظام مصفوفة الصلاحيات المتقدم والمخصص</span>
             </div>
-            <h2 className="text-2xl font-black text-white">إدارة صلاحيات الصفحات والإجراءات التفصيلية</h2>
-            <p className="text-xs text-slate-300">حدد الدور المطلوب، ثم فعّل أو عطل صلاحيات العرض، الإضافة، التعديل، والحذف لكل صفحة وموديول.</p>
+            <h2 className="text-2xl font-black text-white">التحكم الفردي والمجموعاتي في جميع شاشات وموديولات النظام</h2>
+            <p className="text-xs text-slate-300">يمكنك تخصيص الصلاحيات لمجموعة معينة (Roles) أو إعطاء صلاحيات استثنائية لموظف محدد بالاسم (Individual User Override).</p>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap relative z-10">
@@ -323,26 +389,71 @@ export default function PermissionsMatrixManager() {
           </div>
         </div>
 
-        {/* Controls Toolbar */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-800/80 relative z-10">
-          <div className="flex items-center gap-3">
-            <Label className="text-xs font-bold text-slate-300 shrink-0">اختيار الدور / المسمى الوظيفي:</Label>
-            <Select value={selectedRole} onValueChange={setSelectedRole}>
-              <SelectTrigger className="w-full h-10 rounded-xl font-bold text-xs bg-slate-800/90 border-slate-700 text-white">
-                <SelectValue placeholder="اختر الدور" />
-              </SelectTrigger>
-              <SelectContent dir={dir} className="bg-slate-900 border-slate-800 text-white">
-                <SelectItem value="admin">👑 المالك / مدير النظام الكامل (Admin)</SelectItem>
-                <SelectItem value="recruiter">💼 مسؤول توظيف HR (Recruiter)</SelectItem>
-                <SelectItem value="reviewer">👁️ مشاهد ومقيم (Reviewer)</SelectItem>
-                {customRoles.map((cr) => (
-                  <SelectItem key={cr.id} value={`custom:${cr.name}`}>
-                    ✨ دور مخصص: {cr.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        {/* Dual Mode Switcher Tabs (Group Roles VS Individual User) */}
+        <div className="p-1.5 bg-slate-800/90 rounded-2xl border border-slate-700/80 flex flex-col sm:flex-row gap-2 relative z-10">
+          <button
+            onClick={() => setPermissionMode("role")}
+            className={`flex-1 flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl font-bold text-xs transition-all ${
+              permissionMode === "role"
+                ? "bg-primary text-primary-foreground shadow-md font-black"
+                : "text-slate-300 hover:text-white hover:bg-slate-700/50"
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>1️⃣ صلاحيات المجموعات والأدوار العامة (Roles & Groups)</span>
+          </button>
+
+          <button
+            onClick={() => setPermissionMode("user")}
+            className={`flex-1 flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl font-bold text-xs transition-all ${
+              permissionMode === "user"
+                ? "bg-emerald-600 text-white shadow-md font-black"
+                : "text-slate-300 hover:text-white hover:bg-slate-700/50"
+            }`}
+          >
+            <UserCheck className="w-4 h-4" />
+            <span>2️⃣ صلاحيات موظف ومستخدم مخصص بالاسم (Individual User Override)</span>
+          </button>
+        </div>
+
+        {/* Dynamic Selector based on Mode (Role Select OR User Select) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 relative z-10">
+          {permissionMode === "role" ? (
+            <div className="flex items-center gap-3">
+              <Label className="text-xs font-bold text-slate-300 shrink-0">اختيار الدور / المجموعة:</Label>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
+                <SelectTrigger className="w-full h-11 rounded-xl font-bold text-xs bg-slate-800 border-slate-700 text-white">
+                  <SelectValue placeholder="اختر الدور" />
+                </SelectTrigger>
+                <SelectContent dir={dir} className="bg-slate-900 border-slate-800 text-white">
+                  <SelectItem value="admin">👑 المالك / مدير النظام الكامل (Admin)</SelectItem>
+                  <SelectItem value="recruiter">💼 مسؤول توظيف HR (Recruiter)</SelectItem>
+                  <SelectItem value="reviewer">👁️ مشاهد ومقيم (Reviewer)</SelectItem>
+                  {customRoles.map((cr) => (
+                    <SelectItem key={cr.id} value={`custom:${cr.name}`}>
+                      ✨ دور مخصص: {cr.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <Label className="text-xs font-bold text-emerald-400 shrink-0">اختر الموظف / المستخدم المحدد:</Label>
+              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                <SelectTrigger className="w-full h-11 rounded-xl font-bold text-xs bg-slate-800 border-emerald-500/40 text-white">
+                  <SelectValue placeholder="اختر الموظف" />
+                </SelectTrigger>
+                <SelectContent dir={dir} className="bg-slate-900 border-slate-800 text-white">
+                  {teamMembers.map((m) => (
+                    <SelectItem key={m.user_id} value={m.user_id}>
+                      👤 {m.full_name || "مستخدم"} ({m.user_id.slice(0, 8)}...)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="relative">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -350,19 +461,18 @@ export default function PermissionsMatrixManager() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="ابحث باسم الصفحة أو الموديول..."
-              className="pr-9 h-10 text-xs rounded-xl bg-slate-800/90 border-slate-700 text-white placeholder:text-slate-500"
+              className="pr-9 h-11 text-xs rounded-xl bg-slate-800/90 border-slate-700 text-white placeholder:text-slate-500"
             />
           </div>
         </div>
       </div>
 
-      {/* ── Hierarchical Module Cards & Sub-pages Grid ── */}
+      {/* ── Hierarchical Module Cards & Sub-pages Inventory Grid ── */}
       <div className="space-y-6">
         {filteredCategories.map((cat) => {
           const CatIcon = cat.icon;
           const isExpanded = expandedCategories[cat.id] ?? true;
 
-          // Check if all pages in category are enabled
           const allCategoryChecked = cat.pages.every((p) => {
             const perm = permissions[p.key];
             return perm?.can_read && perm?.can_create && perm?.can_edit && perm?.can_delete;
@@ -388,7 +498,7 @@ export default function PermissionsMatrixManager() {
                     <div className="flex items-center gap-2">
                       <h3 className="text-base font-black text-foreground">{locale === "en" ? cat.title_en : cat.title_ar}</h3>
                       <Badge className={`${cat.badgeBg} text-[10px] font-bold border`}>
-                        {cat.pages.length} صفحات تابعة
+                        {cat.pages.length} شاشات وخدمات
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{cat.description_ar}</p>
@@ -400,11 +510,11 @@ export default function PermissionsMatrixManager() {
                     variant="outline"
                     size="sm"
                     onClick={() => toggleCategoryAll(cat)}
-                    disabled={selectedRole === "admin"}
+                    disabled={permissionMode === "role" && selectedRole === "admin"}
                     className="rounded-xl text-xs font-bold h-9 gap-1.5 bg-card/80 border-border/80"
                   >
                     <CheckCircle2 className={`w-4 h-4 ${allCategoryChecked ? "text-emerald-500" : "text-muted-foreground"}`} />
-                    <span>تفعيل كل الموديول</span>
+                    <span>تفعيل الموديول بالكامل</span>
                   </Button>
 
                   <Button variant="ghost" size="icon" onClick={() => toggleCategoryExpand(cat.id)} className="h-9 w-9 rounded-xl">
@@ -430,7 +540,7 @@ export default function PermissionsMatrixManager() {
 
                       return (
                         <div key={page.key} className="p-4 sm:px-6 hover:bg-muted/20 transition-colors flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                          {/* Page Title & Info */}
+                          {/* Page Title & Description */}
                           <div className="flex items-start gap-3.5 flex-1 min-w-0">
                             <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
                               <PageIcon className="w-4.5 h-4.5 text-primary" />
@@ -440,7 +550,7 @@ export default function PermissionsMatrixManager() {
                                 <p className="font-bold text-sm text-foreground">{locale === "en" ? page.name_en : page.name_ar}</p>
                                 <button
                                   onClick={() => togglePageAll(page.key)}
-                                  disabled={selectedRole === "admin"}
+                                  disabled={permissionMode === "role" && selectedRole === "admin"}
                                   className="text-[11px] text-primary hover:underline font-semibold"
                                 >
                                   {isPageAllChecked ? "(تعطيل الكل)" : "(تحديد الكل)"}
@@ -450,7 +560,7 @@ export default function PermissionsMatrixManager() {
                             </div>
                           </div>
 
-                          {/* 4 Action Toggles Pills (Read, Add, Edit, Delete) */}
+                          {/* 4 Action Toggles (Read, Add, Edit, Delete) */}
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
                             {/* Read 👁️ */}
                             <div
@@ -465,7 +575,7 @@ export default function PermissionsMatrixManager() {
                                 <Eye className="w-3.5 h-3.5" />
                                 <span>عرض 👁️</span>
                               </div>
-                              <Switch checked={perm.can_read} onCheckedChange={() => togglePermission(page.key, "can_read")} disabled={selectedRole === "admin"} className="scale-75" />
+                              <Switch checked={perm.can_read} onCheckedChange={() => togglePermission(page.key, "can_read")} disabled={permissionMode === "role" && selectedRole === "admin"} className="scale-75" />
                             </div>
 
                             {/* Create ➕ */}
@@ -481,7 +591,7 @@ export default function PermissionsMatrixManager() {
                                 <Plus className="w-3.5 h-3.5" />
                                 <span>إضافة ➕</span>
                               </div>
-                              <Switch checked={perm.can_create} onCheckedChange={() => togglePermission(page.key, "can_create")} disabled={selectedRole === "admin"} className="scale-75" />
+                              <Switch checked={perm.can_create} onCheckedChange={() => togglePermission(page.key, "can_create")} disabled={permissionMode === "role" && selectedRole === "admin"} className="scale-75" />
                             </div>
 
                             {/* Edit ✏️ */}
@@ -497,7 +607,7 @@ export default function PermissionsMatrixManager() {
                                 <Edit3 className="w-3.5 h-3.5" />
                                 <span>تعديل ✏️</span>
                               </div>
-                              <Switch checked={perm.can_edit} onCheckedChange={() => togglePermission(page.key, "can_edit")} disabled={selectedRole === "admin"} className="scale-75" />
+                              <Switch checked={perm.can_edit} onCheckedChange={() => togglePermission(page.key, "can_edit")} disabled={permissionMode === "role" && selectedRole === "admin"} className="scale-75" />
                             </div>
 
                             {/* Delete 🗑️ */}
@@ -513,7 +623,7 @@ export default function PermissionsMatrixManager() {
                                 <Trash2 className="w-3.5 h-3.5" />
                                 <span>حذف 🗑️</span>
                               </div>
-                              <Switch checked={perm.can_delete} onCheckedChange={() => togglePermission(page.key, "can_delete")} disabled={selectedRole === "admin"} className="scale-75" />
+                              <Switch checked={perm.can_delete} onCheckedChange={() => togglePermission(page.key, "can_delete")} disabled={permissionMode === "role" && selectedRole === "admin"} className="scale-75" />
                             </div>
                           </div>
                         </div>
