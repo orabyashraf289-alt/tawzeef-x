@@ -31,6 +31,20 @@ import { useI18n } from "@/contexts/I18nContext";
 import { toast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 
+function getTimeAgo(dateString: string): string {
+  if (!dateString) return "—";
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (diffInSeconds < 60) return "الآن";
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) return `منذ ${diffInMinutes} دقيقة`;
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `منذ ${diffInHours} ساعة`;
+  const diffInDays = Math.floor(diffInHours / 24);
+  return `منذ ${diffInDays} يوم`;
+}
+
 // Permission key icons & labels
 const PERMISSION_ICONS: Record<string, any> = {
   "screen.dashboard": Monitor, "screen.jobs": Briefcase, "screen.candidates": Users,
