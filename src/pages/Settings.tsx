@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import SavedFiltersManager from "@/components/SavedFiltersManager";
 import CompanyTaxonomyManager from "@/components/CompanyTaxonomyManager";
+import CompanySettingsManager from "@/components/CompanySettingsManager";
 import BillingHistory from "@/components/BillingHistory";
 import EmailSettings from "@/components/EmailSettings";
 import NotificationTemplatesSection from "@/components/NotificationTemplatesSection";
@@ -2273,7 +2274,7 @@ export default function SettingsPage() {
                   transition={{ duration: 0.2 }}
                 >
                   {activeTab === "account" && <AccountSection />}
-                  {activeTab === "company" && <CompanySection />}
+                  {activeTab === "company" && <CompanySettingsManager />}
                   {activeTab === "subscription" && <SubscriptionSection />}
                   {activeTab === "preferences" && <PreferencesSection />}
                   {activeTab === "pipeline" && <PipelineStagesManager />}

@@ -1,0 +1,652 @@
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/I18nContext";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useTheme } from "@/contexts/ThemeContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { PageHeader } from "@/components/ui/page-header";
+import { FlaticonAnimatedIcon, FlaticonCategoryIconCard } from "@/components/ui/animated-icons";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Building2, Camera, Trash2, Check, Globe, MapPin, Shield, Lock, Palette,
+  Users, Plus, Mail, RefreshCw, Sparkles, QrCode, Layers, FileSpreadsheet,
+  Link2, UserPlus, AlertCircle
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useCompanyMembers, useRemoveCompanyMember, useCompanyBranches, useCreateCompanyBranch } from "@/hooks/useCompanies";
+import { useCompanyInvitations, useCreateCompanyInvitation, useCancelInvitation } from "@/hooks/useCompanyInvitations";
+
+export default function CompanySettingsManager() {
+  const { user } = useAuth();
+  const { t, locale } = useI18n();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { role: globalRole, isAdmin } = useUserRole();
+  const { primaryColor, setPrimaryColor } = useTheme();
+
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  // States
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [memberRole, setMemberRole] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState("");
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [website, setWebsite] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [city, setCity] = useState("");
+  const [country, setCountry] = useState("SA");
+  const [notes, setNotes] = useState("");
+  const [companySize, setCompanySize] = useState("");
+  const [e2eEnabled, setE2eEnabled] = useState(false);
+
+  // Brand Colors
+  const [brandPrimary, setBrandPrimary] = useState("#0d9488");
+  const [brandAccent, setBrandAccent] = useState("#14b8a6");
+  const [brandFont, setBrandFont] = useState("Cairo, sans-serif");
+  const [brandQrForeground, setBrandQrForeground] = useState("#0f172a");
+
+  // Sub Tab Selection
+  const [activeSubTab, setActiveSubTab] = useState("profile");
+
+  // Members & Branch Hooks
+  const { data: members = [], isLoading: membersLoading } = useCompanyMembers(companyId);
+  const { data: invitations = [], refetch: refetchInvites } = useCompanyInvitations(companyId || "");
+  const { data: branches = [], isLoading: branchesLoading } = useCompanyBranches(companyId);
+  const createBranch = useCreateCompanyBranch();
+  const createInvite = useCreateCompanyInvitation();
+  const cancelInvite = useCancelInvitation();
+  const removeMember = useRemoveCompanyMember();
+
+  // Branch Form
+  const [branchName, setBranchName] = useState("");
+  const [branchCity, setBranchCity] = useState("");
+  const [branchAddress, setBranchAddress] = useState("");
+
+  // Invite Form
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"admin" | "recruiter" | "reviewer">("recruiter");
+  const [inviteOpen, setInviteOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("company_name, company_logo").eq("user_id", user.id).single().then(({ data }: any) => {
+      if (data) {
+        setCompanyName(data.company_name || "");
+        setCompanyLogo(data.company_logo || null);
+      }
+    });
+
+    supabase.from("company_members")
+      .select("company_id, member_role")
+      .eq("user_id", user.id)
+      .order("joined_at", { ascending: true })
+      .then(({ data }: any) => {
+        const memberData = data && data.length > 0 ? data[0] : null;
+        if (memberData?.company_id) {
+          setCompanyId(memberData.company_id);
+          setMemberRole(memberData.member_role || null);
+          supabase.from("companies")
+            .select("name, logo_url, website, industry, country, city, notes, e2e_encryption, brand_settings")
+            .eq("id", memberData.company_id)
+            .maybeSingle()
+            .then(({ data: compData }: any) => {
+              if (compData) {
+                setCompanyName(compData.name || "");
+                setCompanyLogo(compData.logo_url || null);
+                setWebsite(compData.website || "");
+                setIndustry(compData.industry || "");
+                setCity(compData.city || "");
+                setCountry(compData.country || "SA");
+                setE2eEnabled(!!compData.e2e_encryption);
+
+                if (compData.brand_settings) {
+                  const bs = compData.brand_settings;
+                  setBrandPrimary(bs.primaryColor || "#0d9488");
+                  setBrandAccent(bs.accentColor || "#14b8a6");
+                  setBrandFont(bs.fontFamily || "Cairo, sans-serif");
+                  setBrandQrForeground(bs.qrForeground || "#0f172a");
+                }
+
+                const rawNotes = compData.notes;
+                if (rawNotes && rawNotes.startsWith("{")) {
+                  try {
+                    const parsed = JSON.parse(rawNotes);
+                    setCompanySize(parsed.size || "");
+                    setNotes(parsed.description || "");
+                  } catch (e) {
+                    setNotes(rawNotes);
+                  }
+                } else {
+                  setNotes(rawNotes || "");
+                }
+              }
+            });
+        }
+      });
+  }, [user]);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: locale === "en" ? "Logo too large (max 2MB)" : "حجم الشعار كبير (الحد 2 ميجا)", variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    const ext = file.name.split(".").pop();
+    const path = `${user.id}/company-logo.${ext}`;
+    const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (uploadError) {
+      toast({ title: "Error", description: uploadError.message, variant: "destructive" });
+      setUploading(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+    const newUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+    await supabase.from("profiles").update({ company_logo: newUrl } as any).eq("user_id", user.id);
+    if (companyId) {
+      await supabase.from("companies").update({ logo_url: newUrl } as any).eq("id", companyId);
+    }
+    setCompanyLogo(newUrl);
+    queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
+    queryClient.invalidateQueries({ queryKey: ["layout-profile", user.id] });
+    toast({ title: locale === "en" ? "Logo updated ✅" : "تم تحديث الشعار بنجاح ✅" });
+    setUploading(false);
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!user) return;
+    setUploading(true);
+    await supabase.from("profiles").update({ company_logo: null } as any).eq("user_id", user.id);
+    if (companyId) {
+      await supabase.from("companies").update({ logo_url: null } as any).eq("id", companyId);
+    }
+    setCompanyLogo(null);
+    queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
+    queryClient.invalidateQueries({ queryKey: ["layout-profile", user.id] });
+    toast({ title: locale === "en" ? "Logo removed" : "تم إزالة الشعار" });
+    setUploading(false);
+  };
+
+  const handleSaveCompanyInfo = async () => {
+    if (!user) return;
+    setLoading(true);
+
+    await supabase.from("profiles").update({ company_name: companyName } as any).eq("user_id", user.id);
+
+    let activeCompanyId = companyId;
+    if (!activeCompanyId) {
+      const { data: memberRows } = await supabase
+        .from("company_members")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .order("joined_at", { ascending: false });
+
+      const latestMember = memberRows && memberRows.length > 0 ? memberRows[0] : null;
+      if (latestMember?.company_id) {
+        activeCompanyId = latestMember.company_id;
+        setCompanyId(activeCompanyId);
+      }
+    }
+
+    const rawNotesString = JSON.stringify({ size: companySize, description: notes });
+
+    if (activeCompanyId) {
+      const { error: compErr } = await supabase.from("companies").update({
+        name: companyName,
+        logo_url: companyLogo,
+        website,
+        industry,
+        city,
+        country,
+        notes: rawNotesString,
+        e2e_encryption: e2eEnabled,
+        brand_settings: {
+          primaryColor: brandPrimary,
+          accentColor: brandAccent,
+          fontFamily: brandFont,
+          qrForeground: brandQrForeground
+        }
+      } as any).eq("id", activeCompanyId);
+
+      if (compErr) {
+        toast({ title: "خطأ في التحديث", description: compErr.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+    } else {
+      // Create new company
+      const { data: newComp, error: compErr } = await supabase.from("companies").insert({
+        name: companyName,
+        logo_url: companyLogo,
+        website,
+        industry,
+        city,
+        country,
+        notes: rawNotesString,
+        e2e_encryption: e2eEnabled,
+        owner_user_id: user.id,
+        status: "active",
+        brand_settings: {
+          primaryColor: brandPrimary,
+          accentColor: brandAccent,
+          fontFamily: brandFont,
+          qrForeground: brandQrForeground
+        }
+      } as any).select().single();
+
+      if (compErr) {
+        toast({ title: "خطأ في الإنشاء", description: compErr.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
+      if (newComp) {
+        setCompanyId(newComp.id);
+        await supabase.from("company_members").insert({
+          company_id: newComp.id,
+          user_id: user.id,
+          member_role: "owner"
+        } as any);
+
+        await supabase.from("jobs").update({ company_id: newComp.id } as any).eq("user_id", user.id).is("company_id", null);
+        await supabase.from("candidates").update({ company_id: newComp.id } as any).eq("user_id", user.id).is("company_id", null);
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
+    queryClient.invalidateQueries({ queryKey: ["layout-profile", user.id] });
+    toast({ title: locale === "en" ? "Company settings saved ✅" : "تم حفظ إعدادات الشركة بنجاح ✅" });
+    setLoading(false);
+  };
+
+  const handleAddBranch = async () => {
+    if (!companyId || !branchName.trim()) return;
+    await createBranch.mutateAsync({
+      company_id: companyId,
+      name: branchName,
+      city: branchCity || null,
+      address: branchAddress || null,
+    });
+    setBranchName("");
+    setBranchCity("");
+    setBranchAddress("");
+    toast({ title: "تم إضافة الفرع الجديد ✅" });
+  };
+
+  const handleSendInvite = async () => {
+    if (!companyId || !inviteEmail.trim()) return;
+    await createInvite.mutateAsync({
+      company_id: companyId,
+      email: inviteEmail.trim(),
+      role: inviteRole,
+    });
+    setInviteEmail("");
+    refetchInvites();
+    toast({ title: "تم إرسال دعوة الانضمام بنجاح 📩" });
+  };
+
+  return (
+    <div className="space-y-6 text-right" dir="rtl">
+      {/* ── Modern Page Header ── */}
+      <PageHeader
+        badgeText="مركز إدارة وبيانات المؤسسة والشركة"
+        badgeIcon={Building2}
+        title={companyName || "إعدادات الشركة والهوية المؤسسية"}
+        description="تعديل اسم الشركة، الشعار، الهوية البصرية، الفروع، وإدارة أعضاء الفريق والصلاحيات."
+        icon={Building2}
+        accentColor="emerald"
+        actions={
+          <Button
+            onClick={handleSaveCompanyInfo}
+            disabled={loading}
+            className="rounded-xl h-11 px-6 text-xs font-bold gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20"
+          >
+            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+            {loading ? "جاري الحفظ..." : "حفظ التغييرات 💾"}
+          </Button>
+        }
+      />
+
+      {/* ── Tabs Navigation Bar ── */}
+      <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="w-full">
+        <TabsList className="w-full justify-start overflow-x-auto h-12 p-1 bg-muted/40 rounded-2xl border border-border/60">
+          <TabsTrigger value="profile" className="rounded-xl text-xs font-bold gap-2 px-4 py-2">
+            <Building2 className="w-4 h-4 text-emerald-500" />
+            <span>الملف التعريفي والبيانات</span>
+          </TabsTrigger>
+          <TabsTrigger value="brand" className="rounded-xl text-xs font-bold gap-2 px-4 py-2">
+            <Palette className="w-4 h-4 text-indigo-500" />
+            <span>الهوية البصرية والألوان</span>
+          </TabsTrigger>
+          <TabsTrigger value="branches" className="rounded-xl text-xs font-bold gap-2 px-4 py-2">
+            <MapPin className="w-4 h-4 text-blue-500" />
+            <span>الفروع والمقرات</span>
+          </TabsTrigger>
+          <TabsTrigger value="members" className="rounded-xl text-xs font-bold gap-2 px-4 py-2">
+            <Users className="w-4 h-4 text-purple-500" />
+            <span>أعضاء الفريق والدعوات</span>
+          </TabsTrigger>
+          <TabsTrigger value="security" className="rounded-xl text-xs font-bold gap-2 px-4 py-2">
+            <Shield className="w-4 h-4 text-amber-500" />
+            <span>الأمان والتشفير</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ── 1. Company Profile & Details ── */}
+        <TabsContent value="profile" className="mt-6 space-y-6">
+          <Card className="border-border/60 rounded-3xl p-6 shadow-xs">
+            <div className="flex flex-col md:flex-row items-start gap-6">
+              <div className="relative group shrink-0">
+                {companyLogo ? (
+                  <img src={companyLogo} alt="Logo" className="w-24 h-24 rounded-3xl object-contain border-2 border-border/60 bg-card p-1.5 shadow-sm" />
+                ) : (
+                  <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border-2 border-border/60 flex items-center justify-center shadow-sm">
+                    <Building2 className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                )}
+                <label className="absolute -bottom-1 -left-1 w-8 h-8 rounded-full bg-card border border-border shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                  <Camera className="w-4 h-4 text-muted-foreground" />
+                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploading} />
+                </label>
+                {companyLogo && (
+                  <button
+                    onClick={handleRemoveLogo}
+                    className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-card border border-border shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-destructive/10 text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+                {uploading && (
+                  <div className="absolute inset-0 rounded-3xl bg-background/70 flex items-center justify-center">
+                    <RefreshCw className="w-6 h-6 border-2 border-primary animate-spin" />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 space-y-4 w-full">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs font-bold text-muted-foreground mb-1 block">اسم الشركة الرسمية *</Label>
+                    <Input
+                      value={companyName}
+                      onChange={e => setCompanyName(e.target.value)}
+                      placeholder="أدخل اسم الشركة"
+                      className="h-11 rounded-xl font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-bold text-muted-foreground mb-1 block">الموقع الإلكتروني الرسمي</Label>
+                    <Input
+                      value={website}
+                      onChange={e => setWebsite(e.target.value)}
+                      placeholder="https://company.com"
+                      className="h-11 rounded-xl font-mono text-xs"
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs font-bold text-muted-foreground mb-1 block">مجال العمل / القطاع</Label>
+                    <Input
+                      value={industry}
+                      onChange={e => setIndustry(e.target.value)}
+                      placeholder="مثال: تقنية معلومات، الرعاية الصحية، التعليم"
+                      className="h-11 rounded-xl text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-bold text-muted-foreground mb-1 block">حجم الشركة (عدد الموظفين)</Label>
+                    <select
+                      value={companySize}
+                      onChange={e => setCompanySize(e.target.value)}
+                      className="flex h-11 w-full rounded-xl border border-input bg-card px-3 py-2 text-xs font-bold"
+                    >
+                      <option value="">اختر الحجم...</option>
+                      <option value="1-10">١ - ١٠ موظفين</option>
+                      <option value="11-50">١١ - ٥٠ موظفاً</option>
+                      <option value="51-200">٥١ - ٢٠٠ موظف</option>
+                      <option value="201-500">٢٠١ - ٥٠٠ موظف</option>
+                      <option value="501-1000">٥٠١ - ١٠٠٠ موظف</option>
+                      <option value="1000+">أكثر من ١٠٠٠ موظف</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs font-bold text-muted-foreground mb-1 block">المدينة المقر الرئيسي</Label>
+                    <Input
+                      value={city}
+                      onChange={e => setCity(e.target.value)}
+                      placeholder="مثال: الرياض"
+                      className="h-11 rounded-xl text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-bold text-muted-foreground mb-1 block">الدولة</Label>
+                    <Input
+                      value={country}
+                      onChange={e => setCountry(e.target.value)}
+                      placeholder="مثال: المملكة العربية السعودية"
+                      className="h-11 rounded-xl text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-bold text-muted-foreground mb-1 block">نبذة وبذة تعريفية عن نشاط الشركة</Label>
+                  <Textarea
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    placeholder="اكتب نبذة قصيرة ومختصرة عن الشركة ورؤيتها وتخصصاتها..."
+                    className="min-h-[90px] rounded-xl text-xs leading-relaxed"
+                  />
+                </div>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* ── 2. Branding & Theme Colors ── */}
+        <TabsContent value="brand" className="mt-6 space-y-6">
+          <Card className="border-border/60 rounded-3xl p-6 space-y-6 shadow-xs">
+            <div>
+              <h3 className="font-black text-base text-foreground">هوية ثيم المنصة والألوان المميزة</h3>
+              <p className="text-xs text-muted-foreground mt-1">اختر اللون المميز الذي يعبر عن هوية شركتك ليتم تطبيقه عبر لوحات التحكم والموديولات.</p>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {[
+                { name: "أخضر سعودي (الافتراضي)", value: "160 84% 25%", colorClass: "bg-[#0b5f43]" },
+                { name: "أزرق ملكي", value: "221 83% 45%", colorClass: "bg-[#0f52ba]" },
+                { name: "بنفسجي إمبراطوري", value: "262 83% 48%", colorClass: "bg-[#6c3082]" },
+                { name: "أحمر قرمزي", value: "347 77% 42%", colorClass: "bg-[#9b111e]" },
+                { name: "ذهبي ناري", value: "24 95% 45%", colorClass: "bg-[#d4af37]" }
+              ].map((color) => {
+                const isSelected = primaryColor === color.value;
+                return (
+                  <button
+                    key={color.value}
+                    onClick={() => setPrimaryColor(color.value)}
+                    className={cn(
+                      "flex items-center gap-2.5 p-3 rounded-2xl border-2 transition-all text-right",
+                      isSelected ? "border-primary bg-primary/5 shadow-sm font-black" : "border-border/60 hover:border-border"
+                    )}
+                  >
+                    <div className={cn("w-6 h-6 rounded-full shrink-0 flex items-center justify-center shadow-sm", color.colorClass)}>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                    </div>
+                    <span className="text-xs font-bold text-foreground truncate">{color.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Public Career Page Card Preview */}
+            <div className="p-5 rounded-2xl border border-border/70 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent space-y-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-500" />
+                <h4 className="font-bold text-xs">معاينة الهوية البصرية لصفحة الوظائف العامة (Career Portal)</h4>
+              </div>
+              <div className="p-4 rounded-xl bg-card border border-border flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {companyLogo ? (
+                    <img src={companyLogo} alt="Logo" className="w-10 h-10 rounded-lg object-contain" />
+                  ) : (
+                    <Building2 className="w-8 h-8 text-emerald-500" />
+                  )}
+                  <div>
+                    <p className="font-black text-sm">{companyName || "اسم الشركة"}</p>
+                    <p className="text-[11px] text-muted-foreground">{industry || "قطاع التكنولوجيا"} • {city || "الرياض"}</p>
+                  </div>
+                </div>
+                <Badge className="bg-emerald-600 text-white text-[10px]">فرص وظيفية نشطة</Badge>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* ── 3. Company Branches ── */}
+        <TabsContent value="branches" className="mt-6 space-y-6">
+          <Card className="border-border/60 rounded-3xl p-6 space-y-6 shadow-xs">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-base text-foreground">فروع ومقرات الشركة</h3>
+                <p className="text-xs text-muted-foreground mt-1">إضافة وإدارة فروع ومقرات العمل التابعة للشركة.</p>
+              </div>
+            </div>
+
+            {/* Add Branch Form */}
+            <div className="p-4 rounded-2xl bg-muted/30 border border-border/60 space-y-3">
+              <h4 className="font-bold text-xs text-foreground">إضافة فرع جديد:</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Input
+                  placeholder="اسم الفرع (مثل: فرع جدة الرئيسي)"
+                  value={branchName}
+                  onChange={e => setBranchName(e.target.value)}
+                  className="h-10 text-xs rounded-xl"
+                />
+                <Input
+                  placeholder="المدينة"
+                  value={branchCity}
+                  onChange={e => setBranchCity(e.target.value)}
+                  className="h-10 text-xs rounded-xl"
+                />
+                <Input
+                  placeholder="العنوان التفصيلي"
+                  value={branchAddress}
+                  onChange={e => setBranchAddress(e.target.value)}
+                  className="h-10 text-xs rounded-xl"
+                />
+              </div>
+              <Button onClick={handleAddBranch} disabled={!branchName.trim()} className="gap-1.5 rounded-xl h-9 text-xs font-bold">
+                <Plus className="w-4 h-4" />إضافة الفرع
+              </Button>
+            </div>
+
+            {/* Branches List */}
+            <div className="space-y-2">
+              {branches.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground text-xs">لا يوجد فروع مضافة حتى الآن.</div>
+              ) : (
+                branches.map((b: any) => (
+                  <div key={b.id} className="p-3.5 rounded-2xl bg-card border border-border/60 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <MapPin className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <div>
+                        <p className="font-bold text-xs text-foreground">{b.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{b.city || "مدينة غير محددة"} • {b.address || "بدون عنوان صريح"}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* ── 4. Team Members & Invitations ── */}
+        <TabsContent value="members" className="mt-6 space-y-6">
+          <Card className="border-border/60 rounded-3xl p-6 space-y-6 shadow-xs">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-base text-foreground">أعضاء الفريق وفريق التوظيف</h3>
+                <p className="text-xs text-muted-foreground mt-1">دعوة وإدارة الموظفين ومسؤولي التوظيف بالشركة.</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="البريد الإلكتروني للعضو..."
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  className="h-10 text-xs rounded-xl w-60"
+                  dir="ltr"
+                />
+                <Button onClick={handleSendInvite} disabled={!inviteEmail.trim()} className="gap-1.5 rounded-xl h-10 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white">
+                  <UserPlus className="w-4 h-4" />إرسال دعوة
+                </Button>
+              </div>
+            </div>
+
+            {/* Members List */}
+            <div className="space-y-2">
+              <h4 className="font-bold text-xs text-muted-foreground">أعضاء الشركة الحاليين:</h4>
+              {members.map((m: any) => (
+                <div key={m.id} className="p-3.5 rounded-2xl bg-card border border-border/60 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-xs text-primary">
+                      {m.profiles?.full_name?.slice(0, 2) || "U"}
+                    </div>
+                    <div>
+                      <p className="font-bold text-xs text-foreground">{m.profiles?.full_name || "عضو جديد"}</p>
+                      <p className="text-[10px] text-muted-foreground">{m.profiles?.job_title || "مسؤول توظيف"}</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-bold">
+                    {m.member_role === "owner" ? "👑 المالك" : m.member_role === "admin" ? "مدير HR" : "مسؤول توظيف"}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* ── 5. Security & E2E Encryption ── */}
+        <TabsContent value="security" className="mt-6 space-y-6">
+          <Card className="border-border/60 rounded-3xl p-6 space-y-6 shadow-xs">
+            <div>
+              <h3 className="font-black text-base text-foreground">الأمان وتشفير البيانات المؤسسية</h3>
+              <p className="text-xs text-muted-foreground mt-1">إعدادات الحماية والتشفير لملاحظات وسجلات الشركة.</p>
+            </div>
+
+            <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/20">
+              <div className="space-y-1 text-right">
+                <Label className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-emerald-500" />
+                  التشفير الشامل بين الأطراف (End-to-End Encryption)
+                </Label>
+                <p className="text-xs text-muted-foreground max-w-xl">
+                  عند تفعيل هذا الخيار يتم تشفير جميع ملاحظات وتقييمات المرشحين محلياً قبل حفظها على قواعد البيانات للحفاظ على سرية البيانات.
+                </p>
+              </div>
+              <Switch checked={e2eEnabled} onCheckedChange={setE2eEnabled} />
+            </div>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
