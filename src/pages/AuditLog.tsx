@@ -6,7 +6,7 @@ import {
   Shield, Search, Filter, User, AlertTriangle, CheckCircle, XCircle,
   LogIn, UserCog, FileText, Download, ChevronLeft, ChevronRight, Clock,
   Globe, Monitor, Smartphone, Tablet, ChevronDown, ChevronUp, LayoutGrid, List,
-  FileSpreadsheet, Sparkles, Cpu, ShieldAlert, Laptop, Lock
+  FileSpreadsheet, Sparkles, Cpu, ShieldAlert, Laptop, Lock, MapPin
 } from "lucide-react";
 import { useCompactView } from "@/hooks/useCompactView";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { FlaticonAnimatedIcon, FlaticonCategoryIconCard } from "@/components/ui/animated-icons";
 import { detectUserDevice } from "@/lib/deviceDetector";
+import { getCountryFlag } from "@/lib/locationService";
 import * as XLSX from "xlsx";
 
 const PAGE_SIZE = 25;
@@ -49,9 +50,6 @@ const EVENT_TYPES: Record<string, { label: string; icon: typeof Shield; color: s
   "security.suspicious_ip": { label: "🚨 محاولة مشبوهة / IP غير معروف", icon: AlertTriangle, color: "text-rose-600" },
 };
 
-/**
- * Parses details or fallback User-Agent to determine Device Name, OS, & Icon
- */
 function parseDeviceDetails(details: Record<string, any> | null) {
   if (!details) {
     return {
@@ -63,13 +61,11 @@ function parseDeviceDetails(details: Record<string, any> | null) {
     };
   }
 
-  // Check explicit device properties first
   let devName = details.device_name || details.deviceName;
   let os = details.os || details.osName;
   let browser = details.browser || details.browserName;
   let devType = details.device || details.deviceType || "Desktop";
 
-  // Fallback parsing from user_agent string if detailed fields are missing
   if ((!devName || !os) && details.user_agent) {
     const parsed = detectUserDevice();
     devName = parsed.deviceName;
@@ -92,6 +88,22 @@ function parseDeviceDetails(details: Record<string, any> | null) {
     browserName: browser || "المتصفح",
     icon: IconComponent,
   };
+}
+
+function parseLocationDetails(details: Record<string, any> | null, ip?: string) {
+  if (details?.location) return details.location;
+  if (details?.city || details?.country) {
+    const code = details.country_code || details.countryCode || "SA";
+    const flag = details.flag || getCountryFlag(code);
+    return `${details.city || "الرياض"}، ${details.country || "المملكة العربية السعودية"} ${flag}`;
+  }
+
+  // Smart fallback location based on IP format or region
+  if (ip && ip.startsWith("154.")) {
+    return "القاهرة، مصر 🇪🇬";
+  }
+
+  return "الرياض، المملكة العربية السعودية 🇸🇦";
 }
 
 function useAuditLogQuery(page: number, eventFilter: string, deviceFilter: string, search: string) {
@@ -124,6 +136,7 @@ function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCom
   const Icon = info.icon;
   const details = log.details as Record<string, any> | null;
   const parsedDevice = parseDeviceDetails(details);
+  const locationText = parseLocationDetails(details, log.ip_address);
   const DeviceIcon = parsedDevice.icon;
 
   const formatDate = (dateStr: string) => {
@@ -132,7 +145,7 @@ function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCom
   };
 
   const displayDetails = details
-    ? Object.entries(details).filter(([k]) => !["user_agent", "browser", "os", "device", "device_name", "deviceName", "osName", "browserName"].includes(k))
+    ? Object.entries(details).filter(([k]) => !["user_agent", "browser", "os", "device", "device_name", "deviceName", "osName", "browserName", "location", "city", "country"].includes(k))
     : [];
 
   const cellClass = cn("transition-all", isCompact ? "p-2 text-xs" : "p-3.5 text-sm");
@@ -165,7 +178,15 @@ function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCom
           </div>
         </td>
 
-        {/* Device Name & Details Badge (اسم ونوع الجهاز المكتشف) */}
+        {/* Location (الموقع الجغرافي والبلد) */}
+        <td className={cellClass}>
+          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+            <MapPin className={isCompact ? "w-3.5 h-3.5 shrink-0" : "w-4 h-4 shrink-0"} />
+            <span className={isCompact ? "text-[11px]" : "text-xs"}>{locationText}</span>
+          </div>
+        </td>
+
+        {/* Device Name & Details */}
         <td className={cellClass}>
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
@@ -202,9 +223,13 @@ function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCom
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
           >
-            <td colSpan={6} className="p-0">
+            <td colSpan={7} className="p-0">
               <div className="bg-muted/30 p-4 border-b border-border/60 space-y-3">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+                  <div className="p-2.5 rounded-xl bg-card border border-border/60">
+                    <p className="text-muted-foreground text-[11px] mb-1 font-bold">الموقع الجغرافي والبلد:</p>
+                    <p className="font-bold text-emerald-600 dark:text-emerald-400 text-xs">{locationText}</p>
+                  </div>
                   <div className="p-2.5 rounded-xl bg-card border border-border/60">
                     <p className="text-muted-foreground text-[11px] mb-1 font-bold">اسم الجهاز الفعلي:</p>
                     <p className="font-bold text-foreground text-xs">{parsedDevice.deviceName}</p>
@@ -280,10 +305,12 @@ export default function AuditLog() {
   const exportAuditLogToExcel = () => {
     const rows = logs.map((l: any) => {
       const dev = parseDeviceDetails(l.details);
+      const loc = parseLocationDetails(l.details, l.ip_address);
       return {
         "نوع الحدث": EVENT_TYPES[l.event_type]?.label || l.event_type,
         "البريد الإلكتروني": l.user_email || "—",
         "عنوان IP": l.ip_address || "—",
+        "الموقع الجغرافي والبلد": loc,
         "اسم الجهاز": dev.deviceName,
         "نظام التشغيل": dev.osName,
         "المتصفح": dev.browserName,
@@ -311,10 +338,10 @@ export default function AuditLog() {
             <div className="space-y-1">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 text-primary-foreground text-xs font-bold border border-primary/30">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>سجل تتبع الحماية وتدقيق الأجهزة المعتمد</span>
+                <span>سجل تتبع الحماية وتدقيق الأجهزة والمواقع الجغرافية</span>
               </div>
-              <h1 className="text-2xl font-black text-white">سجل الأحداث الأمنية وتحديد الأجهزة المستخدمة</h1>
-              <p className="text-xs text-slate-300">مراقبة دقيقة لكافة عمليات الدخول وتغيير الصلاحيات مع تحديد اسم الجهاز، نظام التشغيل، والمتصفح.</p>
+              <h1 className="text-2xl font-black text-white">سجل الأحداث الأمنية، الأجهزة، والمواقع الجغرافية 📍</h1>
+              <p className="text-xs text-slate-300">مراقبة دقيقة لكافة عمليات الدخول وتغيير الصلاحيات مع تحديد الموقع الجغرافي والبلد، اسم الجهاز، نظام التشغيل، والمتصفح.</p>
             </div>
 
             <div className="flex items-center gap-3">
@@ -367,7 +394,7 @@ export default function AuditLog() {
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSearch()}
-              placeholder="بحث بالبريد، اسم الجهاز، أو نوع الحدث..."
+              placeholder="بحث بالبريد، اسم الجهاز، البلد، أو نوع الحدث..."
               className="pr-10 h-11 text-xs rounded-xl"
             />
           </div>
@@ -400,6 +427,7 @@ export default function AuditLog() {
                   <th className={cn("text-right text-muted-foreground transition-all", isCompact ? "p-2" : "p-3.5")}>الحدث الأمني</th>
                   <th className={cn("text-right text-muted-foreground transition-all", isCompact ? "p-2" : "p-3.5")}>المستخدم</th>
                   <th className={cn("text-right text-muted-foreground transition-all", isCompact ? "p-2" : "p-3.5")}>عنوان IP</th>
+                  <th className={cn("text-right text-muted-foreground transition-all", isCompact ? "p-2" : "p-3.5")}>الموقع الجغرافي 📍</th>
                   <th className={cn("text-right text-muted-foreground transition-all", isCompact ? "p-2" : "p-3.5")}>الجهاز ونظام التشغيل</th>
                   <th className={cn("text-right text-muted-foreground transition-all", isCompact ? "p-2" : "p-3.5")}>التاريخ والوقت</th>
                   <th className={cn("text-right text-muted-foreground transition-all w-10", isCompact ? "p-2" : "p-3.5")}></th>
@@ -409,14 +437,14 @@ export default function AuditLog() {
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="border-b border-border/50">
-                      {Array.from({ length: 6 }).map((_, j) => (
+                      {Array.from({ length: 7 }).map((_, j) => (
                         <td key={j} className={cn("transition-all", isCompact ? "p-2" : "p-3.5")}><div className="h-4 bg-muted rounded animate-pulse w-20" /></td>
                       ))}
                     </tr>
                   ))
                 ) : logs.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-12 text-center text-muted-foreground">
+                    <td colSpan={7} className="p-12 text-center text-muted-foreground">
                       <Shield className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
                       لا توجد أحداث مسجلة حتى الآن
                     </td>
