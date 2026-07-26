@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, Search, Calendar, User, Clock, ArrowLeft, ArrowRight, X,
   CheckCircle2, AlertCircle, Trash2, Sliders, ChevronLeft, ChevronRight, ClipboardList, GripVertical,
-  AlertTriangle, Sparkles
+  AlertTriangle, Sparkles, FileSpreadsheet, LayoutGrid, List, Briefcase, UserCheck, FileText
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +19,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { DndContext, useDraggable, useDroppable, DragEndEvent } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
+import { PageHeader } from "@/components/ui/page-header";
+import { FlaticonAnimatedIcon, FlaticonCategoryIconCard } from "@/components/ui/animated-icons";
+import * as XLSX from "xlsx";
 
 interface Task {
   id: string;
@@ -504,58 +507,45 @@ export default function TaskBoard() {
         dir={dir}
       >
         
-        {/* Page Header */}
-        <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-6 relative z-10">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight flex items-center gap-2.5">
-              <ClipboardList className="w-8 h-8 text-primary" />
-              <span>{locale === "ar" ? "لوحة المهام (كانبان)" : "Task Board (Kanban)"}</span>
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1.5">
-              {locale === "ar"
-                ? "تنظيم ومتابعة وإسناد المهام لأعضاء الفريق عبر لوحة عمل متكاملة وسلسة الاستخدام."
-                : "Organize, track, and assign tasks to team members across an integrated work board."}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            {/* Search Input */}
-            <div className="relative flex-1 sm:flex-initial">
-              <Search className={`w-4 h-4 absolute ${dir === "rtl" ? "right-3" : "left-3"} top-3 text-muted-foreground pointer-events-none`} />
-              <Input
-                placeholder={locale === "ar" ? "بحث عن مهمة..." : "Search task..."}
-                value={searchTerm === " " ? "" : searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={cn("bg-card/45 backdrop-blur-sm border-border/80 rounded-xl text-xs h-10 w-full sm:w-56 focus:ring-1 focus:ring-primary focus:border-primary", dir === "rtl" ? "pr-9 pl-4" : "pl-9 pr-4")}
-              />
-            </div>
-            
-            {/* Priority Filter */}
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="bg-card/45 backdrop-blur-sm border border-border/80 rounded-xl px-3 py-2 text-xs h-10 focus:ring-1 focus:ring-primary focus:outline-none transition-all"
-            >
-              <option value="all">{locale === "ar" ? "كل الأولويات" : "All Priorities"}</option>
-              <option value="high">{locale === "ar" ? "أولوية عالية" : "High Priority"}</option>
-              <option value="medium">{locale === "ar" ? "أولوية متوسطة" : "Medium Priority"}</option>
-              <option value="low">{locale === "ar" ? "أولوية منخفضة" : "Low Priority"}</option>
-            </select>
-
-            {/* Due Date Sort */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="bg-card/45 backdrop-blur-sm border border-border/80 rounded-xl px-3 py-2 text-xs h-10 focus:ring-1 focus:ring-primary focus:outline-none transition-all"
-            >
-              <option value="dueDateAsc">{locale === "ar" ? "الأقرب تاريخاً" : "Due Date: Earliest"}</option>
-              <option value="dueDateDesc">{locale === "ar" ? "الأبعد تاريخاً" : "Due Date: Latest"}</option>
-            </select>
-
-            <Button onClick={() => setIsDrawerOpen(true)} className="rounded-xl flex items-center justify-center gap-2 font-bold shadow-md shadow-primary/20 bg-primary hover:bg-primary/90 text-xs py-2 px-4 h-10 transition-all hover:scale-105 active:scale-95">
-              <Plus className="w-4 h-4" />
-              <span>{locale === "ar" ? "إنشاء مهمة جديدة" : "Add Task"}</span>
-            </Button>
-          </div>
+        {/* Clean Theme-Adaptive Page Header */}
+        <motion.div variants={itemVariants}>
+          <PageHeader
+            badgeText={locale === "ar" ? "نظام تتبع وإسناد مهام فريق التوظيف" : "HR Team Task Tracking & Workflow"}
+            badgeIcon={Sparkles}
+            title={locale === "ar" ? "لوحة المهام وإدارة العمليات (Kanban & Task Hub)" : "Task Management & Operations Hub"}
+            description={locale === "ar" ? "تنظيم، إسناد، وتتبع المهام التوظيفية وإجراءات الفحص والمقابلات بسلاسة بين أعضاء الفريق." : "Organize, assign, and track recruitment tasks, screening actions, and interview follow-ups."}
+            icon={ClipboardList}
+            accentColor="emerald"
+            actions={
+              <div className="flex items-center gap-3 flex-wrap">
+                <Button
+                  onClick={() => {
+                    const rows = tasks.map(t => ({
+                      "عنوان المهمة": locale === "ar" ? t.title : t.titleEn,
+                      "الحالة": COLUMNS.find(c => c.id === t.column)?.name || t.column,
+                      "الأولوية": t.priority === "high" ? "عالية" : t.priority === "medium" ? "متوسطة" : "منخفضة",
+                      "المسؤول": locale === "ar" ? t.assignee : t.assigneeEn,
+                      "تاريخ الاستحقاق": t.dueDate,
+                      "الوصف": locale === "ar" ? t.description : t.descriptionEn,
+                    }));
+                    const worksheet = XLSX.utils.json_to_sheet(rows);
+                    const workbook = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(workbook, worksheet, "Tasks");
+                    XLSX.writeFile(workbook, `TawzeefX_Tasks_${new Date().toISOString().slice(0, 10)}.xlsx`);
+                  }}
+                  variant="outline"
+                  className="rounded-xl h-11 px-4 text-xs font-bold gap-2 bg-card hover:bg-muted shadow-xs"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+                  {locale === "ar" ? "تصدير المهام Excel 📊" : "Export Tasks Excel"}
+                </Button>
+                <Button onClick={() => setIsDrawerOpen(true)} className="rounded-xl h-11 px-5 text-xs font-bold gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20">
+                  <Plus className="w-4 h-4" />
+                  <span>{locale === "ar" ? "إضافة مهمة جديدة" : "Add New Task"}</span>
+                </Button>
+              </div>
+            }
+          />
         </motion.div>
 
         {/* Statistics Bar */}
