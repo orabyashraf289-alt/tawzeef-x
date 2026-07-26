@@ -18,6 +18,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
+import { PageHeader } from "@/components/ui/page-header";
+import { FlaticonAnimatedIcon, FlaticonCategoryIconCard } from "@/components/ui/animated-icons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -283,43 +285,44 @@ export default function RecruiterDashboard() {
         animate="show"
         className="p-4 lg:p-8 space-y-6 relative"
       >
-        {/* Header */}
-        <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 200 }} className="w-12 h-12 rounded-2xl bg-gradient-to-br from-accent to-accent/60 flex items-center justify-center shadow-lg">
-              <Briefcase className="w-6 h-6 text-accent-foreground animate-pulse" />
-            </motion.div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">{greeting()}، {displayName} 👋</h1>
-              <p className="text-muted-foreground text-sm flex items-center gap-2">
-                <Badge variant="outline" className="text-[10px] font-bold border-accent/30 text-accent">{t("role.recruiter")}</Badge>
-                {locale === "en" ? "Your recruitment overview" : "ملخص نشاط التوظيف"}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {unreadNotifications > 0 && (
-              <Link to="/notifications">
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button variant="outline" size="sm" className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/10">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive" />
-                    </span>
-                    {unreadNotifications} {t("dashboard.notifNew")}
+        {/* Clean Theme-Adaptive Page Header & Live Stats */}
+        <motion.div variants={item}>
+          <PageHeader
+            badgeText={locale === "en" ? "Live HR Operations & Intelligence" : "مركز العمليات التوظيفية ومؤشرات الأداء المباشرة"}
+            badgeIcon={Sparkles}
+            title={`${greeting()}، ${displayName} 👋`}
+            description={locale === "en" ? "Real-time overview of candidates, open positions, pipeline stages, and interview metrics." : "متابعة فورية ومباشرة لحالة المرشحين، الوظائف المفتوحة، مراحل التوظيف، وتنبيهات النظام."}
+            icon={Briefcase}
+            accentColor="emerald"
+            actions={
+              <div className="flex items-center gap-3 flex-wrap">
+                {unreadNotifications > 0 && (
+                  <Link to="/notifications">
+                    <Button variant="outline" size="sm" className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/10 rounded-xl h-11 px-4 text-xs font-bold shadow-xs">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive" />
+                      </span>
+                      {unreadNotifications} {t("dashboard.notifNew")}
+                    </Button>
+                  </Link>
+                )}
+                <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5 shadow-xs font-bold text-xs">
+                  <Clock className="w-4 h-4 text-emerald-500" />
+                  <LiveClock />
+                  <span className="text-muted-foreground text-xs">•</span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date().toLocaleDateString(locale === "en" ? "en-US" : "ar-SA", { weekday: "long", day: "numeric", month: "short" })}
+                  </span>
+                </div>
+                <Link to="/jobs">
+                  <Button className="rounded-xl h-11 px-5 text-xs font-bold gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20">
+                    <Zap className="w-4 h-4" />إضافة وظيفة جديدة
                   </Button>
-                </motion.div>
-              </Link>
-            )}
-            <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2 shadow-sm">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <LiveClock />
-              <span className="text-muted-foreground text-xs">•</span>
-              <span className="text-xs text-muted-foreground">
-                {new Date().toLocaleDateString(locale === "en" ? "en-US" : "ar-SA", { weekday: "long", day: "numeric", month: "short" })}
-              </span>
-            </div>
-          </div>
+                </Link>
+              </div>
+            }
+          />
         </motion.div>
 
         {/* Today's Productivity Strip */}

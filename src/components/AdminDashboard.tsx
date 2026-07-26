@@ -21,6 +21,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { cn } from "@/lib/utils";
 import KPIDetailsDialog from "@/components/KPIDetailsDialog";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
+import { PageHeader } from "@/components/ui/page-header";
+import { FlaticonAnimatedIcon, FlaticonCategoryIconCard } from "@/components/ui/animated-icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -439,48 +441,42 @@ export default function AdminDashboard() {
         animate="show"
         className="p-4 lg:p-8 space-y-6 relative"
       >
-        {/* Header */}
-        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 200 }} className="w-12 h-12 rounded-2xl bg-gradient-to-br from-destructive to-destructive/60 flex items-center justify-center shadow-lg">
-              <Crown className="w-6 h-6 text-white animate-pulse" />
-            </motion.div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">{greeting}، {displayName} 👋</h1>
-              <div className="text-muted-foreground text-sm flex items-center gap-2">
-                <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] font-bold">
-                  <Crown className="w-3 h-3 ml-1" />{t("role.systemAdmin")}
-                </Badge>
-                {locale === "en" ? "System administration panel" : "لوحة إدارة النظام"}
+        {/* Clean Theme-Adaptive Page Header */}
+        <motion.div variants={itemVariants}>
+          <PageHeader
+            badgeText={locale === "en" ? "Super Admin Command Center" : "مركز التحكم وإدارة النظام الكامل"}
+            badgeIcon={Crown}
+            title={`${greeting}، ${displayName} 👋`}
+            description={locale === "en" ? "System-wide metrics, multi-company overview, active subscriptions, security audit, and role administration." : "متابعة شاملة لجميع الشركات، الاشتراكات الفعالة، أداء مسارات التوظيف، وسجلات الأمان."}
+            icon={Crown}
+            accentColor="purple"
+            actions={
+              <div className="flex items-center gap-3 flex-wrap">
+                {unreadNotifications > 0 && (
+                  <Link to="/notifications">
+                    <Button variant="outline" size="sm" className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/10 rounded-xl h-11 px-4 text-xs font-bold shadow-xs">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive" />
+                      </span>
+                      {unreadNotifications} {t("dashboard.notifNew")}
+                    </Button>
+                  </Link>
+                )}
+                <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5 shadow-xs font-bold text-xs">
+                  <Clock className="w-4 h-4 text-purple-500" />
+                  <LiveClock />
+                  <span className="text-muted-foreground text-xs">•</span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date().toLocaleDateString(locale === "en" ? "en-US" : "ar-SA", { weekday: "long", day: "numeric", month: "short" })}
+                  </span>
+                </div>
+                <Button size="sm" variant="outline" className="rounded-xl h-11 px-4 text-xs font-bold gap-2 bg-card hover:bg-muted shadow-xs" onClick={togglePresentation}>
+                  <Maximize2 className="w-4 h-4 text-purple-500" />{locale === "en" ? "Present" : "وضع العرض 🖥️"}
+                </Button>
               </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {unreadNotifications > 0 && (
-              <Link to="/notifications">
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button variant="outline" size="sm" className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/10">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive" />
-                    </span>
-                    {unreadNotifications}
-                  </Button>
-                </motion.div>
-              </Link>
-            )}
-            <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2 shadow-sm">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <LiveClock />
-              <span className="text-muted-foreground text-xs">•</span>
-              <span className="text-xs text-muted-foreground">
-                {new Date().toLocaleDateString(locale === "en" ? "en-US" : "ar-SA", { weekday: "long", day: "numeric", month: "short" })}
-              </span>
-            </div>
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={togglePresentation}>
-              <Maximize2 className="w-4 h-4" />{locale === "en" ? "Present" : "عرض"}
-            </Button>
-          </div>
+            }
+          />
         </motion.div>
 
         {/* System Health Strip */}
