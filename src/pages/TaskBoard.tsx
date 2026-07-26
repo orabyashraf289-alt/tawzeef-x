@@ -21,71 +21,11 @@ import { cn } from "@/lib/utils";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
 import { PageHeader } from "@/components/ui/page-header";
 import { FlaticonAnimatedIcon, FlaticonCategoryIconCard } from "@/components/ui/animated-icons";
+import TaskDetailModal, { ExtendedTask } from "@/components/TaskDetailModal";
 import * as XLSX from "xlsx";
+import { useCandidates, useJobs } from "@/hooks/useJobs";
 
-interface Task {
-  id: string;
-  title: string;
-  titleEn: string;
-  description: string;
-  descriptionEn: string;
-  assignee: string;
-  assigneeEn: string;
-  dueDate: string;
-  priority: "high" | "medium" | "low";
-  column: "backlog" | "todo" | "in_progress" | "in_review" | "done";
-}
-
-const initialTasks: Task[] = [
-  {
-    id: "task-1",
-    title: "تصميم واجهة لوحة تحكم التقييم الشامل",
-    titleEn: "Design 360-Evaluation dashboard UI",
-    description: "إعداد التصميم والتجربة التفاعلية لتقييم الـ 360 درجة ليتناسب مع أجهزة الجوال.",
-    descriptionEn: "Setup design and interactive experience for 360 evaluation to fit mobile devices.",
-    assignee: "أحمد الحربي",
-    assigneeEn: "Ahmad Al-Harbi",
-    dueDate: "2026-06-20",
-    priority: "high",
-    column: "in_progress"
-  },
-  {
-    id: "task-2",
-    title: "ربط بوابة الدفع للاشتراكات",
-    titleEn: "Integrate subscription payment gateway",
-    description: "إعداد بوابة دفع تابي وسبلا لتناسب السوق السعودية والخليجية.",
-    descriptionEn: "Configure Tabby and Stc Pay gateways for Saudi and Gulf markets.",
-    assignee: "خالد منصور",
-    assigneeEn: "Khaled Mansour",
-    dueDate: "2026-06-25",
-    priority: "high",
-    column: "todo"
-  },
-  {
-    id: "task-3",
-    title: "تحديث شروط سياسة الخصوصية",
-    titleEn: "Update privacy policy terms",
-    description: "صياغة الشروط الجديدة بما يتوافق مع هيئة البيانات والذكاء الاصطناعي (سدايا).",
-    descriptionEn: "Draft new terms complying with the Saudi Data & AI Authority (SDAIA).",
-    assignee: "سارة العتيبي",
-    assigneeEn: "Sarah Al-Otaibi",
-    dueDate: "2026-06-18",
-    priority: "low",
-    column: "done"
-  },
-  {
-    id: "task-4",
-    title: "تحسين سرعة تحميل صور المرشحين",
-    titleEn: "Optimize candidate profile image loading",
-    description: "ضغط الصور سحابياً لتقليل استهلاك الباقة لمستخدمي الجوال.",
-    descriptionEn: "Compress images in cloud storage to reduce bandwidth for mobile users.",
-    assignee: "خالد منصور",
-    assigneeEn: "Khaled Mansour",
-    dueDate: "2026-06-30",
-    priority: "medium",
-    column: "backlog"
-  }
-];
+export type Task = ExtendedTask;
 
 const mapDbTaskToTask = (t: any): Task => ({
   id: t.id,
@@ -98,6 +38,13 @@ const mapDbTaskToTask = (t: any): Task => ({
   dueDate: t.due_date,
   priority: t.priority as any,
   column: t.column_status as any,
+  candidateId: t.candidate_id || null,
+  candidateName: t.candidates?.name || null,
+  jobId: t.job_id || null,
+  jobTitle: t.jobs?.title || null,
+  subtasks: t.subtasks || [],
+  tags: t.tags || [],
+  comments: t.comments || [],
 });
 
 const COLUMNS = [
@@ -300,6 +247,14 @@ export default function TaskBoard() {
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"dueDateAsc" | "dueDateDesc">("dueDateAsc");
+  const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
+  const [selectedTask, setSelectedTask] = useState<ExtendedTask | null>(null);
+
+  // Candidate and Job linking
+  const { data: candidatesList } = useCandidates();
+  const { data: jobsList } = useJobs();
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string>("");
+  const [selectedJobId, setSelectedJobId] = useState<string>("");
 
   // New task form state
   const [taskTitle, setTaskTitle] = useState("");
@@ -312,7 +267,7 @@ export default function TaskBoard() {
   const [taskPriority, setTaskPriority] = useState<"high" | "medium" | "low">("medium");
   const [taskColumn, setTaskColumn] = useState<"backlog" | "todo" | "in_progress" | "in_review" | "done">("todo");
 
-  // Fetch tasks
+  // Fetch tasks with candidate and job joins
   const { data: dbTasks, isLoading } = useQuery({
     queryKey: ["tasks", user?.id],
     queryFn: async () => {
@@ -320,7 +275,7 @@ export default function TaskBoard() {
       
       const { data, error } = await supabase
         .from("tasks" as any)
-        .select("*")
+        .select("*, candidates(name), jobs(title)")
         .order("created_at", { ascending: false });
         
       if (error) {
@@ -335,6 +290,25 @@ export default function TaskBoard() {
       return data.map(mapDbTaskToTask);
     },
     enabled: !!user,
+  });
+
+  const updateTaskFullMutation = useMutation({
+    mutationFn: async (updated: ExtendedTask) => {
+      const { error } = await supabase
+        .from("tasks" as any)
+        .update({
+          subtasks: updated.subtasks || [],
+          tags: updated.tags || [],
+          comments: updated.comments || [],
+          column_status: updated.column,
+          priority: updated.priority,
+        })
+        .eq("id", updated.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", user?.id] });
+    },
   });
 
   const tasks = useMemo(() => {
@@ -391,6 +365,8 @@ export default function TaskBoard() {
           due_date: newTask.dueDate,
           priority: newTask.priority,
           column_status: newTask.column,
+          candidate_id: newTask.candidateId || null,
+          job_id: newTask.jobId || null,
           user_id: user.id,
         }])
         .select()
@@ -488,7 +464,9 @@ export default function TaskBoard() {
       assigneeEn: taskAssigneeEn || taskAssignee,
       dueDate: taskDueDate || new Date().toISOString().slice(0, 10),
       priority: taskPriority,
-      column: taskColumn
+      column: taskColumn,
+      candidateId: selectedCandidateId || null,
+      jobId: selectedJobId || null,
     });
   };
 
@@ -640,9 +618,10 @@ export default function TaskBoard() {
                           return (
                             <DraggableTaskCard key={task.id} task={task} locale={locale} dir={dir}>
                               <motion.div
+                                onClick={() => setSelectedTask(task)}
                                 whileHover={{ y: -6, scale: 1.01 }}
                                 transition={{ type: "spring", stiffness: 350, damping: 18 }}
-                                className="bg-card/40 dark:bg-card/25 border border-border/40 hover:border-primary/30 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 space-y-3.5 relative group/card overflow-hidden cursor-grab active:cursor-grabbing"
+                                className="bg-card/40 dark:bg-card/25 border border-border/40 hover:border-primary/50 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 space-y-3.5 relative group/card overflow-hidden cursor-pointer"
                               >
                                 {/* Priority Badge & Delete */}
                                 <div className="flex items-center justify-between relative z-10">
@@ -660,6 +639,22 @@ export default function TaskBoard() {
                                   </button>
                                 </div>
 
+                                {/* Candidate / Job Badges */}
+                                {(task.candidateName || task.jobTitle) && (
+                                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5 relative z-10">
+                                    {task.candidateName && (
+                                      <Badge variant="outline" className="text-[9px] font-bold border-primary/30 text-primary bg-primary/5">
+                                        👤 {task.candidateName}
+                                      </Badge>
+                                    )}
+                                    {task.jobTitle && (
+                                      <Badge variant="outline" className="text-[9px] font-bold border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5">
+                                        💼 {task.jobTitle}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
+
                                 {/* Title & Description */}
                                 <div className="space-y-1.5 relative z-10">
                                   <h4 className="text-xs font-bold text-foreground leading-snug group-hover/card:text-primary transition-colors">
@@ -670,21 +665,18 @@ export default function TaskBoard() {
                                   </p>
                                 </div>
 
-                                {/* Progress Bar */}
-                                <div className="space-y-1 relative z-10">
-                                  <div className="flex justify-between text-[9px] text-muted-foreground/80">
-                                    <span>{locale === "ar" ? "نسبة الإنجاز" : "Completion"}</span>
-                                    <span className="font-bold">{getProgressValue(task.column)}%</span>
+                                {/* Subtasks Check Bar */}
+                                {task.subtasks && task.subtasks.length > 0 && (
+                                  <div className="flex items-center justify-between text-[9px] font-bold text-muted-foreground bg-muted/30 px-2 py-1 rounded-md relative z-10">
+                                    <span className="flex items-center gap-1">
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                      {locale === "ar" ? "الأنشطة الفرعية" : "Subtasks"}
+                                    </span>
+                                    <span>
+                                      {task.subtasks.filter(s => s.completed).length}/{task.subtasks.length}
+                                    </span>
                                   </div>
-                                  <div className="relative h-1.5 w-full bg-muted/40 rounded-full overflow-hidden">
-                                    <motion.div 
-                                      initial={{ width: 0 }} 
-                                      animate={{ width: `${getProgressValue(task.column)}%` }} 
-                                      transition={{ duration: 0.5 }} 
-                                      className={cn("absolute h-full rounded-full", getProgressColor(task.column))} 
-                                    />
-                                  </div>
-                                </div>
+                                )}
 
                                 {/* Date & Assignee Wrapper */}
                                 <div className="flex flex-col gap-2 pt-2 border-t border-border/30 relative z-10">
@@ -883,6 +875,36 @@ export default function TaskBoard() {
                     />
                   </div>
 
+                  {/* Candidate Attachment */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold">{locale === "ar" ? "ربط بمرشح (اختياري)" : "Link Candidate (Optional)"}</Label>
+                    <select
+                      value={selectedCandidateId}
+                      onChange={(e) => setSelectedCandidateId(e.target.value)}
+                      className="w-full bg-card/45 backdrop-blur-sm border border-border/80 rounded-xl px-3 py-2 text-xs h-10 focus:ring-1 focus:ring-primary focus:outline-none transition-all"
+                    >
+                      <option value="">{locale === "ar" ? "-- بدون مرشح --" : "-- None --"}</option>
+                      {candidatesList?.map((c: any) => (
+                        <option key={c.id} value={c.id}>{c.name} ({c.job_title || "مرشح"})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Job Attachment */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold">{locale === "ar" ? "ربط بوظيفة (اختياري)" : "Link Job (Optional)"}</Label>
+                    <select
+                      value={selectedJobId}
+                      onChange={(e) => setSelectedJobId(e.target.value)}
+                      className="w-full bg-card/45 backdrop-blur-sm border border-border/80 rounded-xl px-3 py-2 text-xs h-10 focus:ring-1 focus:ring-primary focus:outline-none transition-all"
+                    >
+                      <option value="">{locale === "ar" ? "-- بدون وظيفة --" : "-- None --"}</option>
+                      {jobsList?.map((j: any) => (
+                        <option key={j.id} value={j.id}>{j.title}</option>
+                      ))}
+                    </select>
+                  </div>
+
                   {/* Priority & Column Grid */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -927,6 +949,21 @@ export default function TaskBoard() {
             </div>
           )}
         </AnimatePresence>
+
+        {/* Task Detail & Subtasks Modal */}
+        <TaskDetailModal
+          task={selectedTask}
+          isOpen={!!selectedTask}
+          onClose={() => setSelectedTask(null)}
+          onUpdateTask={(updated) => {
+            setSelectedTask(updated);
+            updateTaskFullMutation.mutate(updated);
+          }}
+          onDeleteTask={(taskId) => {
+            deleteTaskMutation.mutate(taskId);
+            setSelectedTask(null);
+          }}
+        />
 
       </motion.div>
     </DashboardLayout>
