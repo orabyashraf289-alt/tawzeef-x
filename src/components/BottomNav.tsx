@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { FlaticonAnimatedIcon } from "@/components/ui/animated-icons";
 import { useI18n } from "@/contexts/I18nContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useScreenPermissions } from "@/hooks/useScreenPermissions";
@@ -90,11 +91,11 @@ export default function BottomNav() {
                   transition={{ type: "spring", stiffness: 350, damping: 25 }}
                 />
               )}
-              <item.icon
-                className={cn(
-                  "w-5 h-5 transition-colors",
-                  isActive ? "text-primary" : "text-muted-foreground"
-                )}
+              <FlaticonAnimatedIcon
+                icon={item.icon}
+                animation={isActive ? "bounce" : "float"}
+                className="w-5 h-5"
+                colorClass={isActive ? "text-primary font-bold" : "text-muted-foreground"}
               />
               <span
                 className={cn(

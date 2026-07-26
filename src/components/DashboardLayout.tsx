@@ -13,6 +13,7 @@ import { useScreenPermissions } from "@/hooks/useScreenPermissions";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { Badge } from "@/components/ui/badge";
+import { FlaticonAnimatedIcon } from "@/components/ui/animated-icons";
 import { motion, AnimatePresence } from "framer-motion";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import OnboardingTour, { useOnboardingTour, TourTriggerButton } from "@/components/OnboardingTour";
@@ -361,10 +362,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   />
                 )}
                 <span className="relative z-10 flex items-center gap-3 w-full">
-                  <item.icon className={cn(
-                    "w-[18px] h-[18px] flex-shrink-0 transition-colors relative z-10",
-                    isActive ? "text-primary" : ""
-                  )} />
+                  <FlaticonAnimatedIcon
+                    icon={item.icon}
+                    animation={isActive ? "bounce" : "float"}
+                    className="w-[18px] h-[18px] flex-shrink-0 relative z-10"
+                    colorClass={isActive ? "text-primary font-bold" : "text-muted-foreground"}
+                  />
                   <span className="flex-1 relative z-10">{t(item.labelKey)}</span>
                   {item.path === "/notifications" && unreadNotifCount > 0 && (
                     <span className="relative z-10 flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold shadow-sm">
