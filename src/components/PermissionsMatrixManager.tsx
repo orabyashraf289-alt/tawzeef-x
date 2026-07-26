@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCustomRoles } from "@/hooks/useUserRole";
+import { FlaticonAnimatedIcon, FlaticonCategoryIconCard } from "@/components/ui/animated-icons";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, Check, Search, Download, FileSpreadsheet, Save, RefreshCw,
@@ -491,9 +492,7 @@ export default function PermissionsMatrixManager() {
                 onClick={() => toggleCategoryExpand(cat.id)}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-card border border-border/60 shadow-sm flex items-center justify-center shrink-0">
-                    <CatIcon className="w-6 h-6 text-primary" />
-                  </div>
+                  <FlaticonCategoryIconCard icon={CatIcon} gradient={cat.color} />
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-base font-black text-foreground">{locale === "en" ? cat.title_en : cat.title_ar}</h3>
@@ -543,7 +542,7 @@ export default function PermissionsMatrixManager() {
                           {/* Page Title & Description */}
                           <div className="flex items-start gap-3.5 flex-1 min-w-0">
                             <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                              <PageIcon className="w-4.5 h-4.5 text-primary" />
+                              <FlaticonAnimatedIcon icon={PageIcon} animation="bounce" className="w-4.5 h-4.5" colorClass="text-primary" />
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
