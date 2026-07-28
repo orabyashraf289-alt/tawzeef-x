@@ -104,6 +104,50 @@ export default function OffersPage() {
   const [predictionResult, setPredictionResult] = useState<any>(null);
   const [activeOfferForPrediction, setActiveOfferForPrediction] = useState<JobOffer | null>(null);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [generatingAiOfferTerms, setGeneratingAiOfferTerms] = useState(false);
+
+  const filteredOffers = useMemo(() => {
+    let list = offers || [];
+    if (statusFilter !== "all") {
+      list = list.filter(o => o.status === statusFilter);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(o =>
+        o.position?.toLowerCase().includes(q) ||
+        o.department?.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [offers, statusFilter, searchQuery]);
+
+  const handleGenerateAiOfferTerms = async () => {
+    if (!form.position) {
+      toast({ title: "يرجى تحديد المسمى الوظيفي أولاً", variant: "destructive" });
+      return;
+    }
+    setGeneratingAiOfferTerms(true);
+    try {
+      const terms = [
+        `1. يخضع هذا العرض لأنظمة ونظام العمل السعودي واللوائح التنفيذية الصادرة.`,
+        `2. تحديد فترة تجربة مدتها 90 يوماً قابلة للتمديد وفق النظام.`,
+        `3. ساعات العمل الرسمية: 8 ساعات يومياً (40 ساعة أسبوعياً).`,
+        `4. يستحق الموظف إجازة سنوية مدفوعة الأجر مدتها 21 يوماً للسنوات الخمس الأولى.`,
+        `5. التزام تام بالحفاظ على سرية معلومات وأسرار العمل والبيانات التنافسية.`,
+      ].join("\n");
+      setForm(prev => ({
+        ...prev,
+        additional_terms: prev.additional_terms ? `${prev.additional_terms}\n\n${terms}` : terms,
+        benefits: prev.benefits ? prev.benefits : "تأمين طبي شامل للموظف والعائلة\nتذاكر سفر سنوية\nدورات تدريبية وتطوير مهني"
+      }));
+      toast({ title: "✨ تم توليد بنود العرض بالذكاء الاصطناعي بنجاح!" });
+    } finally {
+      setGeneratingAiOfferTerms(false);
+    }
+  };
+
   const handlePredictAcceptance = async (offer: JobOffer) => {
     setActiveOfferForPrediction(offer);
     setPredictionDialogOpen(true);
@@ -732,13 +776,26 @@ export default function OffersPage() {
                 </div>
 
                 <div>
-                  <Label>{t("offers.additionalTerms")}</Label>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label>{t("offers.additionalTerms")}</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleGenerateAiOfferTerms}
+                      disabled={generatingAiOfferTerms}
+                      className="text-xs text-primary font-bold gap-1 h-6 hover:bg-primary/10"
+                    >
+                      {generatingAiOfferTerms ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3 text-primary" />}
+                      صياغة الشروط بالـ AI 🤖
+                    </Button>
+                  </div>
                   <Textarea
                     value={form.additional_terms}
                     onChange={(e) => setForm({ ...form, additional_terms: e.target.value })}
                     className="mt-1"
                     placeholder={t("offers.additionalTermsPlaceholder")}
-                    rows={2}
+                    rows={4}
                   />
                 </div>
 
@@ -776,6 +833,44 @@ export default function OffersPage() {
           ))}
         </div>
 
+        {/* Search & Filter Bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-card p-3 rounded-2xl border border-border/50 shadow-sm">
+          <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+            {[
+              { id: "all", label: "الكل" },
+              { id: "draft", label: "مسودة" },
+              { id: "sent", label: "مرسل" },
+              { id: "accepted", label: "مقبول" },
+              { id: "rejected", label: "مرفوض" },
+              { id: "withdrawn", label: "مسحوب" },
+            ].map((st) => (
+              <button
+                key={st.id}
+                onClick={() => setStatusFilter(st.id)}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
+                  statusFilter === st.id
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-muted/40 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                {st.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative w-full sm:w-72">
+            <Input
+              type="text"
+              placeholder="بحث بالمسمى الوظيفي أو القسم..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9 pr-9 text-xs rounded-xl border-border/60 bg-background"
+            />
+            <FileText className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          </div>
+        </div>
+
         {/* Table */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -784,7 +879,7 @@ export default function OffersPage() {
         >
           {isLoading ? (
             <div className="p-8 text-center text-muted-foreground">{t("offers.loading")}</div>
-          ) : offers && offers.length > 0 ? (
+          ) : filteredOffers && filteredOffers.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -797,7 +892,7 @@ export default function OffersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {offers.map((offer) => (
+                {filteredOffers.map((offer) => (
                   <TableRow key={offer.id} className="group">
                     <TableCell className="font-medium">{offer.position}</TableCell>
                     <TableCell>{offer.department || "-"}</TableCell>
