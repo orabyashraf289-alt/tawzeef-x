@@ -88,6 +88,12 @@ export default function Interviews() {
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [selectedCalDate, setSelectedCalDate] = useState<string | null>(null);
   const [evalDialog, setEvalDialog] = useState<any | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("الكل");
+  const [rescheduleDialog, setRescheduleDialog] = useState<any | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [reportModalData, setReportModalData] = useState<any | null>(null);
   const [form, setForm] = useState({
     candidate_name: "", position: "", date: "", time: "",
     type: "عن بُعد", interviewer: "", meeting_type: "jitsi" as "jitsi" | "external",
@@ -95,13 +101,53 @@ export default function Interviews() {
   });
 
   const filteredInterviews = useMemo(() => {
-    if (!selectedCalDate || viewMode !== "calendar") return interviews || [];
-    return (interviews || []).filter(i => i.date === selectedCalDate);
-  }, [interviews, selectedCalDate, viewMode]);
+    let list = interviews || [];
+
+    if (viewMode === "calendar" && selectedCalDate) {
+      list = list.filter(i => i.date === selectedCalDate);
+    }
+
+    if (statusFilter !== "الكل") {
+      list = list.filter(i => i.status === statusFilter);
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(i =>
+        i.candidate_name?.toLowerCase().includes(q) ||
+        i.position?.toLowerCase().includes(q) ||
+        i.interviewer?.toLowerCase().includes(q)
+      );
+    }
+
+    return list;
+  }, [interviews, selectedCalDate, viewMode, statusFilter, searchQuery]);
 
   const scheduled = (interviews || []).filter(i => i.status === "مجدولة").length;
   const completed = (interviews || []).filter(i => i.status === "مكتملة").length;
   const cancelled = (interviews || []).filter(i => i.status === "ملغاة").length;
+
+  const handleCancelInterview = async (interviewId: string) => {
+    const { error } = await supabase.from("interviews").update({ status: "ملغاة" } as any).eq("id", interviewId);
+    if (error) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["interviews"] });
+    toast({ title: "تم إلغاء المقابلة ❌", description: "تم تحديث حالة المقابلة إلى ملغاة بنجاح" });
+  };
+
+  const handleRescheduleInterview = async () => {
+    if (!rescheduleDialog || !rescheduleDate || !rescheduleTime) return;
+    const { error } = await supabase.from("interviews").update({ date: rescheduleDate, time: rescheduleTime, status: "مجدولة" } as any).eq("id", rescheduleDialog.id);
+    if (error) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["interviews"] });
+    toast({ title: "تمت إعادة الجدولة بنجاح 📅", description: `تم تحديث الموعد إلى ${rescheduleDate} الساعة ${rescheduleTime}` });
+    setRescheduleDialog(null);
+  };
 
   const handleAdd = async () => {
     if (!form.candidate_name || !form.position || !form.date || !form.time) return;
@@ -230,6 +276,39 @@ export default function Interviews() {
             </div>
           ))}
         </motion.div>
+
+        {/* Search & Filter Bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-card p-3 rounded-2xl border border-border/50 shadow-sm">
+          {/* Status Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+            {["الكل", "مجدولة", "مكتملة", "ملغاة"].map((st) => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
+                  statusFilter === st
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-muted/40 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                {st}
+              </button>
+            ))}
+          </div>
+
+          {/* Search Box */}
+          <div className="relative w-full sm:w-72">
+            <Input
+              type="text"
+              placeholder="بحث باسم المرشح أو الوظيفة..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9 pr-9 text-xs rounded-xl border-border/60 bg-background"
+            />
+            <User className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          </div>
+        </div>
 
         {/* Calendar View */}
         {viewMode === "calendar" && (
@@ -364,10 +443,32 @@ export default function Interviews() {
                                 time={interview.time}
                               />
                               {hasActionPermission("action.edit_interviews") && (
-                                <Button size="sm" variant="outline" className="text-xs h-7"
-                                  onClick={() => { setRatingDialog(interview); setRatingValue(0); setRatingNotes(""); }}>
-                                  {t("interviews.evaluate")}
-                                </Button>
+                                <>
+                                  <Button size="sm" variant="outline" className="text-xs h-7"
+                                    onClick={() => { setRatingDialog(interview); setRatingValue(0); setRatingNotes(""); }}>
+                                    {t("interviews.evaluate")}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-7 text-amber-600 hover:text-amber-700 border-amber-500/20 hover:bg-amber-500/10"
+                                    onClick={() => {
+                                      setRescheduleDialog(interview);
+                                      setRescheduleDate(interview.date);
+                                      setRescheduleTime(interview.time || "");
+                                    }}
+                                  >
+                                    جدولة 📅
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-xs h-7 text-destructive hover:bg-destructive/10"
+                                    onClick={() => handleCancelInterview(interview.id)}
+                                  >
+                                    إلغاء ❌
+                                  </Button>
+                                </>
                               )}
                             </>
                           )}
@@ -616,6 +717,29 @@ export default function Interviews() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setRatingDialog(null)}>{t("common.cancel")}</Button>
             <Button onClick={handleRate} className="bg-primary text-primary-foreground hover:bg-primary/90" disabled={ratingValue === 0}>{t("interviews.saveRating")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={!!rescheduleDialog} onOpenChange={() => setRescheduleDialog(null)}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>إعادة جدولة المقابلة 📅 — {rescheduleDialog?.candidate_name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>تاريخ المقابلة الجديد</Label>
+              <Input type="date" value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} />
+            </div>
+            <div>
+              <Label>وقت المقابلة الجديد</Label>
+              <Input type="time" value={rescheduleTime} onChange={(e) => setRescheduleTime(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRescheduleDialog(null)}>إلغاء</Button>
+            <Button onClick={handleRescheduleInterview} className="bg-primary text-primary-foreground">تأكيد الموعد الجديد</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
