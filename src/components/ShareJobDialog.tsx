@@ -43,8 +43,47 @@ export default function ShareJobDialog({ open, onClose, jobTitle, jobId, isNewJo
   const [postingToLinkedIn, setPostingToLinkedIn] = useState(false);
   const [directPosted, setDirectPosted] = useState(false);
 
+  // AI LinkedIn Post Generator States
+  const [aiPostText, setAiPostText] = useState("");
+  const [generatingAiPost, setGeneratingAiPost] = useState(false);
+  const [showAiPostBox, setShowAiPostBox] = useState(false);
+
   const applyUrl = getApplyUrl(jobId);
   const ogUrl = getOgApplyUrl(jobId);
+
+  const handleGenerateAiLinkedInPost = async () => {
+    setGeneratingAiPost(true);
+    setShowAiPostBox(true);
+    try {
+      const { data: jobData } = await supabase.from("jobs").select("title, description, department, location").eq("id", jobId).single();
+      
+      const title = jobData?.title || jobTitle;
+      const dept = jobData?.department || "التقنية والابتكار";
+      const loc = jobData?.location || "الرياض / عن بُعد";
+
+      const prompt = `🚀 نعلن عن فرصة عمل جديدة لدى ${brand?.company_name || 'منظومتنا'}: **${title}**!
+
+📍 **الموقع:** ${loc}
+💼 **القسم:** ${dept}
+
+💡 **أبرز المميزات والمسؤوليات:**
+• العمل في بيئة احترافية متطورة تدعم الابتكار والنمو
+• التطوير البرمجي والتقني المستمر وتتبع أفضل الممارسات
+• تقييم ومتابعة الطلبات بالذكاء الاصطناعي الفوري
+
+🔗 **للتقديم المباشر والسريع عبر المنصة:**
+${applyUrl}
+
+#توظيف #فرص_عمل #وظائف #TawzeefX #${title.replace(/\s+/g, '_')}`;
+
+      setAiPostText(prompt);
+      toast({ title: "✨ تم إنشاء منشور LinkedIn بالذكاء الاصطناعي بنجاح!" });
+    } catch (err: any) {
+      toast({ title: "خطأ في توليد المنشور", description: err.message, variant: "destructive" });
+    } finally {
+      setGeneratingAiPost(false);
+    }
+  };
 
   // Check LinkedIn connection on open
   useEffect(() => {
@@ -328,28 +367,76 @@ export default function ShareJobDialog({ open, onClose, jobTitle, jobId, isNewJo
                     </div>
                     <Badge variant="outline" className="border-[#0A66C2]/20 text-[#0A66C2] text-[10px]">مفعّل</Badge>
                   </div>
-                  <Button
-                    onClick={handleDirectPublishLinkedIn}
-                    disabled={postingToLinkedIn || directPosted}
-                    className="w-full bg-[#0A66C2] hover:bg-[#0A66C2]/90 text-white gap-2 font-bold text-xs shadow-sm h-10"
-                  >
-                    {postingToLinkedIn ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        جاري النشر المباشر...
-                      </>
-                    ) : directPosted ? (
-                      <>
-                        <CheckCircle className="w-4 h-4 text-white" />
-                        تم النشر بنجاح! ✅
-                      </>
-                    ) : (
-                      <>
-                        <Megaphone className="w-4 h-4 text-white" />
-                        نشر الوظيفة مباشرة على صفحتك الآن
-                      </>
-                    )}
-                  </Button>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleDirectPublishLinkedIn}
+                      disabled={postingToLinkedIn || directPosted}
+                      className="flex-1 bg-[#0A66C2] hover:bg-[#0A66C2]/90 text-white gap-2 font-bold text-xs shadow-sm h-10"
+                    >
+                      {postingToLinkedIn ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          جاري النشر المباشر...
+                        </>
+                      ) : directPosted ? (
+                        <>
+                          <CheckCircle className="w-4 h-4 text-white" />
+                          تم النشر بنجاح! ✅
+                        </>
+                      ) : (
+                        <>
+                          <Megaphone className="w-4 h-4 text-white" />
+                          نشر الوظيفة مباشرة على صفحتك
+                        </>
+                      )}
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleGenerateAiLinkedInPost}
+                      disabled={generatingAiPost}
+                      className="border-[#0A66C2]/30 hover:bg-[#0A66C2]/10 text-[#0A66C2] text-xs font-bold gap-1.5 h-10 px-3"
+                    >
+                      {generatingAiPost ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      صياغة AI 🤖
+                    </Button>
+                  </div>
+
+                  {showAiPostBox && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="mt-3 space-y-2 pt-2 border-t border-[#0A66C2]/20 text-start"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-foreground flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 text-[#0A66C2]" />
+                          مسودة منشور LinkedIn المُولّدة بالـ AI:
+                        </span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            navigator.clipboard.writeText(aiPostText);
+                            toast({ title: "تم نسخ منشور LinkedIn بالكامل! 📋" });
+                          }}
+                          className="h-6 text-[10px] text-[#0A66C2] hover:bg-[#0A66C2]/10"
+                        >
+                          <Copy className="w-3 h-3 mr-1" />
+                          نسخ المنشور
+                        </Button>
+                      </div>
+                      <textarea
+                        rows={6}
+                        value={aiPostText}
+                        onChange={(e) => setAiPostText(e.target.value)}
+                        className="w-full text-xs font-medium bg-white dark:bg-slate-900 border border-[#0A66C2]/30 rounded-lg p-2.5 leading-relaxed focus:outline-none focus:ring-1 focus:ring-[#0A66C2]"
+                      />
+                    </motion.div>
+                  )}
                 </div>
               )}
 
