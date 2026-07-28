@@ -66,7 +66,10 @@ const allNavItems = [
   { icon: Settings, labelKey: "nav.settings", path: "/settings", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment", "enterprise"] },
 ];
 
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+
 export default function DashboardLayout({ children }: { children: ReactNode }) {
+  useRealtimeSync();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [navLoading, setNavLoading] = useState(false);
   const location = useLocation();
