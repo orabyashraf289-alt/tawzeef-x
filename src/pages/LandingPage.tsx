@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { motion, useScroll, useTransform, AnimatePresence, useInView, useMotionValue, useSpring, useMotionTemplate } from "framer-motion";
 import { useRef, useState, useEffect, useCallback } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
+import { Icons8StyleIcon } from "@/components/ui/animated-icons";
 
 import { supabase } from "@/integrations/supabase/client";
 
