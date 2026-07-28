@@ -1,5 +1,5 @@
 /**
- * Security utilities for input validation, sanitization, and rate limiting.
+ * Security utilities for input validation, sanitization, rate limiting, and audit logging.
  */
 
 // ─── Input Sanitization ───
@@ -20,7 +20,69 @@ export function sanitizeInput(input: string, maxLength = 500): string {
   return sanitizeHtml(input.trim().slice(0, maxLength));
 }
 
-// ─── Password Strength & Customizable Policy ───
+// ─── Input Validation ───
+export function isValidEmail(email: string): boolean {
+  if (!email || email.length > 254) return false;
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  return emailRegex.test(email.trim());
+}
+
+export function detectSuspiciousInput(input: string): boolean {
+  if (!input) return false;
+  const suspiciousPatterns = [
+    /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+    /javascript:/gi,
+    /onerror=/gi,
+    /onload=/gi,
+    /SELECT\s+.*\s+FROM/gi,
+    /UNION\s+SELECT/gi,
+    /DROP\s+TABLE/gi,
+  ];
+  return suspiciousPatterns.some((pattern) => pattern.test(input));
+}
+
+export function translateAuthError(errorMessage: string): string {
+  if (!errorMessage) return "حدث خطأ غير متوقع في عملية التحقق";
+  const lower = errorMessage.toLowerCase();
+  if (lower.includes("invalid login credentials") || lower.includes("invalid_credentials")) {
+    return "البريد الإلكتروني أو كلمة المرور غير صحيحة";
+  }
+  if (lower.includes("user already registered") || lower.includes("already exists")) {
+    return "هذا البريد الإلكتروني مسجل بالفعل، حاول تسجيل الدخول";
+  }
+  if (lower.includes("email not confirmed")) {
+    return "يرجى تأكيد البريد الإلكتروني الخاص بك أولاً عبر الرابط المرسل لبريدك";
+  }
+  if (lower.includes("too many requests") || lower.includes("rate limit")) {
+    return "تجاوزت الحد المسموح من المحاولات، يرجى الانتظار بضع دقائق";
+  }
+  if (lower.includes("password should be at least")) {
+    return "يجب أن تكون كلمة المرور 6 أحرف على الأقل";
+  }
+  return errorMessage;
+}
+
+// ─── Rate Limiting ───
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+export function isRateLimited(key: string, maxAttempts = 5, windowMs = 5 * 60 * 1000): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(key);
+
+  if (!entry || now > entry.resetTime) {
+    rateLimitMap.set(key, { count: 1, resetTime: now + windowMs });
+    return false;
+  }
+
+  entry.count++;
+  if (entry.count > maxAttempts) {
+    return true;
+  }
+
+  return false;
+}
+
+// ─── Password Strength ───
 export interface PasswordPolicy {
   min_length: number;
   require_uppercase: boolean;
@@ -38,165 +100,69 @@ export interface PasswordStrength {
 
 export function checkPasswordStrength(password: string, policy?: Partial<PasswordPolicy>): PasswordStrength {
   const minLength = policy?.min_length ?? 8;
-  const reqUpper = policy?.require_uppercase ?? true;
-  const reqLower = policy?.require_lowercase ?? true;
-  const reqNumbers = policy?.require_numbers ?? true;
-  const reqSpecial = policy?.require_special ?? true;
-
   let score = 0;
   const suggestions: string[] = [];
-  let totalCriteria = 0;
 
-  // 1. Length criteria
-  totalCriteria++;
-  if (password.length >= minLength) {
-    score++;
-  } else {
-    suggestions.push(`ألا يقل طول كلمة المرور عن ${minLength} أحرف`);
+  if (password.length >= minLength) score++;
+  else suggestions.push(`كلمة المرور يجب أن تكون ${minLength} أحرف على الأقل`);
+
+  if (/[A-Z]/.test(password)) score++;
+  else suggestions.push("أضف حرفاً كبيراً (A-Z)");
+
+  if (/[0-9]/.test(password)) score++;
+  else suggestions.push("أضف رقماً (0-9)");
+
+  if (/[^a-zA-Z0-9]/.test(password)) score++;
+  else suggestions.push("أضف رمزاً خاصاً (!@#$%^&*)");
+
+  let label = "ضعيفة جداً";
+  let color = "text-rose-500";
+
+  if (score >= 4) {
+    label = "قوية جداً";
+    color = "text-emerald-500";
+  } else if (score >= 3) {
+    label = "قوية";
+    color = "text-teal-500";
+  } else if (score >= 2) {
+    label = "متوسطة";
+    color = "text-amber-500";
   }
 
-  // 2. Uppercase criteria
-  if (reqUpper) {
-    totalCriteria++;
-    if (/[A-Z]/.test(password)) {
-      score++;
-    } else {
-      suggestions.push("أن تحتوي على حرف كبير واحد على الأقل");
-    }
-  }
-
-  // 3. Lowercase criteria
-  if (reqLower) {
-    totalCriteria++;
-    if (/[a-z]/.test(password)) {
-      score++;
-    } else {
-      suggestions.push("أن تحتوي على حرف صغير واحد على الأقل");
-    }
-  }
-
-  // 4. Number criteria
-  if (reqNumbers) {
-    totalCriteria++;
-    if (/\d/.test(password)) {
-      score++;
-    } else {
-      suggestions.push("أن تحتوي على رقم واحد على الأقل");
-    }
-  }
-
-  // 5. Special character criteria
-  if (reqSpecial) {
-    totalCriteria++;
-    if (/[^A-Za-z0-9]/.test(password)) {
-      score++;
-    } else {
-      suggestions.push("أن تحتوي على رمز خاص واحد على الأقل (مثال: @، #، $)");
-    }
-  }
-
-  // Cap score out of criteria met, then scale to 0-4 range
-  let normalizedScore = 0;
-  if (totalCriteria > 0) {
-    normalizedScore = Math.round((score / totalCriteria) * 4);
-  } else {
-    normalizedScore = 4;
-  }
-  normalizedScore = Math.min(Math.max(0, normalizedScore), 4);
-
-  // Common password patterns penalty
-  const commonPatterns = ["123456", "password", "qwerty", "abc123", "111111", "admin"];
-  if (commonPatterns.some((p) => password.toLowerCase().includes(p))) {
-    normalizedScore = Math.max(0, normalizedScore - 2);
-    suggestions.push("تجنب كلمات المرور الشائعة والمكررة");
-  }
-
-  const levels: Record<number, { label: string; color: string }> = {
-    0: { label: "ضعيفة جداً", color: "hsl(0 84% 60%)" },
-    1: { label: "ضعيفة", color: "hsl(25 95% 53%)" },
-    2: { label: "متوسطة", color: "hsl(45 93% 47%)" },
-    3: { label: "قوية", color: "hsl(142 71% 45%)" },
-    4: { label: "قوية جداً", color: "hsl(152 56% 40%)" },
-  };
-
-  return { score: normalizedScore, ...levels[normalizedScore], suggestions };
+  return { score, label, color, suggestions };
 }
 
-// ─── Client-Side Rate Limiter ───
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
-
-export function isRateLimited(key: string, maxAttempts: number, windowMs: number): boolean {
-  const now = Date.now();
-  const entry = rateLimitStore.get(key);
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitStore.set(key, { count: 1, resetAt: now + windowMs });
-    return false;
-  }
-
-  entry.count++;
-  if (entry.count > maxAttempts) return true;
-  return false;
+// ─── Audit Logging ───
+export function logAuditEvent(params: {
+  eventType: string;
+  userId?: string;
+  userEmail?: string;
+  details?: any;
+}) {
+  try {
+    console.log(`[AUDIT LOG] ${params.eventType}`, {
+      timestamp: new Date().toISOString(),
+      ...params,
+    });
+  } catch {}
 }
 
-export function getRateLimitRemaining(key: string, maxAttempts: number): number {
-  const entry = rateLimitStore.get(key);
-  if (!entry || Date.now() > entry.resetAt) return maxAttempts;
-  return Math.max(0, maxAttempts - entry.count);
-}
-
-// ─── CSRF Token (for forms) ───
-export function generateCsrfToken(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-// ─── Email Validation ───
-export function isValidEmail(email: string): boolean {
-  const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  return re.test(email.trim());
-}
-
-// ─── Suspicious Activity Detection ───
-export function detectSuspiciousInput(input: string): boolean {
-  const patterns = [
-    /<script\b/i,
-    /javascript:/i,
-    /on\w+\s*=/i,
-    /eval\s*\(/i,
-    /document\.\w+/i,
-    /window\.\w+/i,
-    /(<|%3C)\s*\/?\s*(script|iframe|object|embed|form|input|svg)/i,
-  ];
-  return patterns.some((p) => p.test(input));
-}
-
-// ─── AES-GCM Encrypt & Decrypt (p2-e2e) ───
-const ENCRYPTION_SALT = "hire_buddy_secure_salt_2026";
-
-async function getKey(companyId: string): Promise<any> {
+// ─── Encryption / Decryption ───
+async function getKey(companyId: string): Promise<CryptoKey> {
   const enc = new TextEncoder();
-  const rawKey = enc.encode(companyId + ENCRYPTION_SALT);
-  
-  const cryptoObj = typeof window !== "undefined" ? window.crypto : (globalThis as any).crypto;
-  if (!cryptoObj || !cryptoObj.subtle) {
-    throw new Error("Crypto API not available");
-  }
-
-  const baseKey = await cryptoObj.subtle.importKey(
+  const baseKey = await crypto.subtle.importKey(
     "raw",
-    rawKey,
-    { name: "PBKDF2" },
+    enc.encode(companyId.padEnd(32, "0").slice(0, 32)),
+    "PBKDF2",
     false,
     ["deriveKey"]
   );
-  
-  return cryptoObj.subtle.deriveKey(
+
+  return crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt: enc.encode("fixed_salt_for_derivation_2026"),
-      iterations: 1000,
+      salt: enc.encode("tawzeefx_salt"),
+      iterations: 100000,
       hash: "SHA-256"
     },
     baseKey,
@@ -226,7 +192,6 @@ export async function encryptField(text: string, companyId: string): Promise<str
     combined.set(iv, 0);
     combined.set(new Uint8Array(encrypted), iv.length);
     
-    // Cross-platform Base64 encoding
     if (typeof btoa !== "undefined") {
       return "enc:" + btoa(String.fromCharCode(...combined));
     } else {
