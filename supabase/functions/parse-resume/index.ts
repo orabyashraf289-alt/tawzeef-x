@@ -29,16 +29,24 @@ Deno.serve(async (req) => {
       ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
       : "https://api.lovable.dev/v1/chat/completions";
 
-    const prompt = `You are a resume parser. Given a resume URL and applicant name, extract structured data.
-The resume is at: ${resumeUrl}
-Applicant name: ${applicantName || "Unknown"}
+    const prompt = `You are a high-precision multi-lingual resume parser. Given a resume URL and applicant name, extract comprehensive structured entity data with maximum accuracy.
+Resume URL: ${resumeUrl}
+Applicant Name: ${applicantName || "Unknown"}
 
-Based on common resume formats, extract:
-- skills: array of technical and soft skills (in Arabic or English as they appear)
-- specialty: the main field/specialty of the applicant (e.g., "تطوير البرمجيات", "التسويق الرقمي", "إدارة المشاريع")
-- experience_summary: brief summary of experience
+Extract all available information from the resume text:
+- skills: array of technical, professional, and soft skills (normalized in English and Arabic)
+- specialty: applicant's main professional title/field (e.g., "مطور برمجيات كامل", "مدير توظيف الموارد البشرية", "محلل بيانات")
+- experience_summary: concise overall experience summary
+- years_of_experience: total estimated years of experience as a number (e.g. 5)
+- phone: extracted phone number if present
+- email: extracted email if present
+- education: array of education objects ({ degree, fieldOfStudy, institution, graduationYear })
+- work_history: array of work history objects ({ company, title, duration, achievements })
+- certifications: array of certification objects ({ name, issuer, year })
+- executive_summary_ar: detailed executive evaluation summary in Arabic
+- executive_summary_en: detailed executive evaluation summary in English
 
-Return ONLY valid JSON with these fields. If you cannot determine a field, use reasonable defaults based on the applicant name and URL context.`;
+Return ONLY valid JSON using the function call extract_resume_data.`;
 
     const response = await fetch(API_URL, {
       method: "POST",
@@ -49,7 +57,7 @@ Return ONLY valid JSON with these fields. If you cannot determine a field, use r
       body: JSON.stringify({
         model: isDirectGemini ? "gemini-2.0-flash" : "google/gemini-2.0-flash",
         messages: [
-          { role: "system", content: "You extract structured data from resumes. Always respond with valid JSON only." },
+          { role: "system", content: "You are a professional HR AI parsing engine. Always extract structured data with maximum precision into valid JSON tool calls." },
           { role: "user", content: prompt },
         ],
         tools: [
@@ -57,25 +65,83 @@ Return ONLY valid JSON with these fields. If you cannot determine a field, use r
             type: "function",
             function: {
               name: "extract_resume_data",
-              description: "Extract structured resume data",
+              description: "Extract high precision structured resume data",
               parameters: {
                 type: "object",
                 properties: {
                   skills: {
                     type: "array",
                     items: { type: "string" },
-                    description: "List of skills found in the resume",
+                    description: "List of technical, soft, and domain skills",
                   },
                   specialty: {
                     type: "string",
-                    description: "Main specialty/field of the applicant",
+                    description: "Main professional specialty or current title",
                   },
                   experience_summary: {
                     type: "string",
-                    description: "Brief experience summary",
+                    description: "Summary of overall work experience",
+                  },
+                  years_of_experience: {
+                    type: "number",
+                    description: "Total estimated years of experience",
+                  },
+                  phone: {
+                    type: "string",
+                    description: "Contact phone number",
+                  },
+                  email: {
+                    type: "string",
+                    description: "Contact email address",
+                  },
+                  education: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        degree: { type: "string" },
+                        fieldOfStudy: { type: "string" },
+                        institution: { type: "string" },
+                        graduationYear: { type: "string" },
+                      },
+                    },
+                    description: "Educational history",
+                  },
+                  work_history: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        company: { type: "string" },
+                        title: { type: "string" },
+                        duration: { type: "string" },
+                        achievements: { type: "string" },
+                      },
+                    },
+                    description: "Past employment history",
+                  },
+                  certifications: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string" },
+                        issuer: { type: "string" },
+                        year: { type: "string" },
+                      },
+                    },
+                    description: "Certifications and licenses",
+                  },
+                  executive_summary_ar: {
+                    type: "string",
+                    description: "Arabic executive summary of candidate fit",
+                  },
+                  executive_summary_en: {
+                    type: "string",
+                    description: "English executive summary of candidate fit",
                   },
                 },
-                required: ["skills", "specialty"],
+                required: ["skills", "specialty", "experience_summary"],
                 additionalProperties: false,
               },
             },
@@ -89,20 +155,7 @@ Return ONLY valid JSON with these fields. If you cannot determine a field, use r
       const err = await getResponseError(response);
       console.error("AI gateway error:", response.status, err);
       
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limited, try again later" }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Credits exhausted" }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
-      return new Response(JSON.stringify({ skills: [], specialty: "" }), {
+      return new Response(JSON.stringify({ skills: [], specialty: "", experience_summary: "" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -117,17 +170,16 @@ Return ONLY valid JSON with these fields. If you cannot determine a field, use r
       });
     }
 
-    return new Response(JSON.stringify({ skills: [], specialty: "" }), {
+    return new Response(JSON.stringify({ skills: [], specialty: "", experience_summary: "" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("parse-resume error:", e);
-    return new Response(JSON.stringify({ skills: [], specialty: "" }), {
+    return new Response(JSON.stringify({ skills: [], specialty: "", experience_summary: "" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
-
 
 async function getResponseError(response: Response): Promise<string> {
   try {

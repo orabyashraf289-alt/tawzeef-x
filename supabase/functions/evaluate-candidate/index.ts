@@ -26,47 +26,59 @@ function generateSmartFallbackEvaluation(candidate: any, job: any) {
     ).length;
   }
 
-  let score = 70;
+  let skillsMatchScore = candidateSkills.length > 0 ? Math.min(95, Math.max(50, matchedSkillsCount * 20 + 40)) : 60;
+  let experienceMatchScore = 70;
   if (candidate.experience) {
     const expYears = parseInt(candidate.experience, 10);
     if (!isNaN(expYears)) {
-      if (expYears >= 5) score += 15;
-      else if (expYears >= 2) score += 10;
-    } else score += 5;
+      if (expYears >= 5) experienceMatchScore = 95;
+      else if (expYears >= 3) experienceMatchScore = 85;
+      else if (expYears >= 1) experienceMatchScore = 70;
+    }
   }
 
-  if (candidateSkills.length > 0) score += Math.min(15, candidateSkills.length * 3);
-  if (matchedSkillsCount > 0) score += Math.min(10, matchedSkillsCount * 5);
-  if (candidate.summary && candidate.summary.length > 15) score += 5;
+  let educationMatchScore = candidate.education ? 85 : 65;
+  let culturalFitScore = 80;
 
-  score = Math.min(96, Math.max(58, score));
+  const score = Math.round(skillsMatchScore * 0.35 + experienceMatchScore * 0.30 + educationMatchScore * 0.20 + culturalFitScore * 0.15);
 
   let recommendation = "مناسب";
-  if (score >= 85) recommendation = "مناسب جداً";
-  else if (score >= 70) recommendation = "مناسب";
-  else if (score >= 50) recommendation = "يحتاج تطوير";
+  if (score >= 85) recommendation = "مناسب جداً (موصى به بلقطة ممتازة)";
+  else if (score >= 70) recommendation = "مناسب (موصى به للمقابلة)";
+  else if (score >= 50) recommendation = "يحتاج تطوير وفحص فني";
   else recommendation = "غير مناسب";
 
   const strengths: string[] = [];
-  if (candidate.experience) strengths.push(`خبرة عمل سابقة (${candidate.experience})`);
-  if (candidateSkills.length > 0) strengths.push(`امتلاك مهارات أساسية: ${candidateSkills.slice(0, 3).join("، ")}`);
-  if (candidate.summary) strengths.push("ملخص مهني واضح ومكتمل");
-  if (strengths.length === 0) strengths.push("مؤهل تعليمي وخبرات متوافقة مبدئياً");
+  if (candidate.experience) strengths.push(`خبرة سابقة (${candidate.experience}) تتناسب مع المتطلبات`);
+  if (candidateSkills.length > 0) strengths.push(`امتلاك المهارات الأساسية: ${candidateSkills.slice(0, 4).join("، ")}`);
+  if (candidate.summary) strengths.push("ملخص مهني واضح ومكتمل البيانات");
+  if (strengths.length === 0) strengths.push("مؤهل تعليمي متوافق مبدئياً مع شاغر الوظيفة");
 
   const weaknesses: string[] = [
-    candidateSkills.length < 3 ? "يفضل إضافة وتفصيل المهارات التقنية والتخصصية" : "قد يحتاج لتدريب أولي على بيئة وأدوات العمل للشركة",
-    "يتطلب إجراء مقابلة تقنية لتقييم المهارات التطبيقية"
+    candidateSkills.length < 3 ? "تحديد وتفصيل المهارات التطبيقية بحاجة لتعزيز" : "يتطلب تدريباً أولياً على أدوات وسير العمل التخصصي للشركة",
+    "التحقق المباشر عبر مقابلة تقنية لإثبات الخبرة العملية"
+  ];
+
+  const tailoredInterviewQuestions = [
+    `صف مشروعاً تقنياً رئيسياً قمت بتطبيقه باستخدام مهاراتك في ${candidateSkills[0] || "مجالك"} وكيف تعاملت مع التحديات؟`,
+    `كيف تضمن جودة العمل واستيفاء المواعيد النهائية عند إدارة المهام المتعددة؟`,
+    `حدثنا عن موقف واجهت فيه اختلافاً في وجهات النظر مع فريق العمل وكيف وصلت لحل عملي؟`
   ];
 
   const roleName = job?.title || candidate.role || "الوظيفة الشاغرة";
-  const summary = `أظهر المرشح توافقاً بمعدل ${score}% مع متطلبات ${roleName}. يمتلك المؤهلات للقيام بالمهام الرئيسية المطلوب إنجازها.`;
+  const summary = `أظهر المرشح توافقاً بمعدل ${score}% مع متطلبات ${roleName}. يمتلك الجدارات الأساسية لإنجاز المهام المطلوبة.`;
 
   return {
     score,
+    skillsMatchScore,
+    experienceMatchScore,
+    educationMatchScore,
+    culturalFitScore,
     summary,
     strengths,
     weaknesses,
     recommendation,
+    tailoredInterviewQuestions,
   };
 }
 
@@ -173,15 +185,20 @@ serve(async (req) => {
                 type: "function",
                 function: {
                   name: "evaluate_candidate",
-                  description: "تقييم مدى توافق المرشح مع الوظيفة",
+                  description: "تقييم عالي الدقة لمدى توافق المرشح مع الوظيفة",
                   parameters: {
                     type: "object",
                     properties: {
-                      score: { type: "integer", description: "نسبة التوافق من 0 إلى 100" },
-                      summary: { type: "string", description: "ملخص التقييم في 2-3 جمل" },
-                      strengths: { type: "array", items: { type: "string" }, description: "نقاط القوة (3-5 نقاط)" },
-                      weaknesses: { type: "array", items: { type: "string" }, description: "نقاط الضعف أو الفجوات (2-4 نقاط)" },
-                      recommendation: { type: "string", description: "التوصية النهائية: مناسب جداً / مناسب / يحتاج تطوير / غير مناسب" },
+                      score: { type: "integer", description: "نسبة التوافق الكلية من 0 إلى 100" },
+                      skillsMatchScore: { type: "integer", description: "درجة مطابقة المهارات (0-100)" },
+                      experienceMatchScore: { type: "integer", description: "درجة مطابقة سنوات وتخصص الخبرة (0-100)" },
+                      educationMatchScore: { type: "integer", description: "درجة مطابقة المؤهل العلمي (0-100)" },
+                      culturalFitScore: { type: "integer", description: "درجة التوافق التنظيمي والمالي (0-100)" },
+                      summary: { type: "string", description: "ملخص التقييم التحليلي في 2-3 جمل بالعربية" },
+                      strengths: { type: "array", items: { type: "string" }, description: "أهم نقاط القوة البارزة (3-5 نقاط)" },
+                      weaknesses: { type: "array", items: { type: "string" }, description: "الفجوات والمخاطر المتوقعة (2-4 نقاط)" },
+                      recommendation: { type: "string", description: "التوصية النهائية باللغة العربية" },
+                      tailoredInterviewQuestions: { type: "array", items: { type: "string" }, description: "3 أسئلة مقابلة تقنية مخصصة لهذا المرشح" },
                     },
                     required: ["score", "summary", "strengths", "weaknesses", "recommendation"],
                     additionalProperties: false,
@@ -193,7 +210,7 @@ serve(async (req) => {
             messages: [
               {
                 role: "system",
-                content: `أنت خبير موارد بشرية متخصص في تقييم المرشحين. قيّم المرشح التالي بناءً على معلوماته ومدى توافقه مع الوظيفة المطلوبة.`,
+                content: `أنت خبير كبار الموارد البشرية ومحلل جدارات التوظيف بالذكاء الاصطناعي. قيّم المرشح التالي بدقة متناهية بناءً على معلوماته ومدى توافقه مع الوظيفة.`,
               },
               {
                 role: "user",
