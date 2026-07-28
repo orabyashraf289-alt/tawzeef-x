@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import SARSymbol from "@/components/SARSymbol";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useOffers, useSendOffer, useDeleteOffer, useCreateOffer, useUpdateOffer, useWithdrawOffer, type JobOffer } from "@/hooks/useOffers";
