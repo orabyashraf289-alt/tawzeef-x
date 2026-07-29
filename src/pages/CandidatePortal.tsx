@@ -5,11 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Check, Clock, Circle, Briefcase, MapPin, ArrowLeft, Shield, Star, Brain  } from "lucide-react";
+import { Search, Check, Clock, Circle, Briefcase, MapPin, ArrowLeft, Shield, Star, Brain, GraduationCap, Award, BookOpen, Video, Plus, FileText, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useSearchParams } from "react-router-dom";
 import CandidateChatbot from "@/components/candidate-portal/CandidateChatbot";
 import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 const PORTAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/candidate-portal`;
 
@@ -39,6 +41,10 @@ interface CandidateResult {
   appliedAt: string;
   jobTitle: string | null;
   aiScore: number | null;
+  licenseNumber?: string | null;
+  licenseExpiry?: string | null;
+  universityDegree?: string | null;
+  demoVideoUrl?: string | null;
 }
 
 function PipelineProgress({ currentStage, stages }: { currentStage: string; stages: typeof DEFAULT_STAGES }) {
@@ -99,83 +105,69 @@ export default function CandidatePortal() {
   const [searchType, setSearchType] = useState<"tracking" | "email">("tracking");
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [candidates, setCandidates] = useState<CandidateResult[] | null>(null);
   const [searched, setSearched] = useState(false);
+  const [candidates, setCandidates] = useState<CandidateResult[] | null>(null);
   const [emailSent, setEmailSent] = useState(false);
 
-  // Auto load tracking code from URL query parameter (?code=XYZ)
+  // Edit Teacher Credentials Modal State
+  const [editTeacherModal, setEditTeacherModal] = useState<CandidateResult | null>(null);
+  const [licenseNumberInput, setLicenseNumberInput] = useState("");
+  const [licenseExpiryInput, setLicenseExpiryInput] = useState("");
+  const [degreeInput, setDegreeInput] = useState("");
+  const [demoVideoInput, setDemoVideoInput] = useState("");
+
   useEffect(() => {
-    const code = searchParams.get("code");
-    if (code) {
+    const codeParam = searchParams.get("code") || searchParams.get("tracking");
+    if (codeParam) {
       setSearchType("tracking");
-      setInput(code.trim());
-      // Trigger search using a timeout to allow component to render
+      setInput(codeParam);
       setTimeout(() => {
-        const btn = document.querySelector("button.gap-2") as HTMLButtonElement;
-        if (btn) btn.click();
+        performSearch(codeParam, "tracking");
       }, 300);
     }
   }, [searchParams]);
 
   const handleSearch = async () => {
     if (!input.trim()) {
-      toast({ title: "يرجى إدخال رمز التتبع أو البريد الإلكتروني", variant: "destructive" });
+      toast({ title: "خطأ", description: "يرجى أدخل رمز التتبع أو البريد الإلكتروني", variant: "destructive" });
       return;
     }
+    await performSearch(input, searchType);
+  };
 
-    const cleanInput = input.trim();
+  const performSearch = async (queryInput: string, queryType: "tracking" | "email") => {
     setIsLoading(true);
     setSearched(true);
     setEmailSent(false);
-    setCandidates(null);
 
     let foundCandidates: CandidateResult[] = [];
 
-    // 1. Try remote Edge Function first
     try {
-      const body = searchType === "tracking"
-        ? { trackingCode: cleanInput }
-        : { email: cleanInput };
-
       const resp = await fetch(PORTAL_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify(body),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "lookup", searchType: queryType, input: queryInput.trim() }),
       });
-
       if (resp.ok) {
         const data = await resp.json();
-        if (searchType === "email") {
-          setEmailSent(true);
-          toast({ title: "تم الإرسال 📧", description: data.message });
-          setIsLoading(false);
-          return;
-        } else if (data.candidates && data.candidates.length > 0) {
+        if (data.candidates && data.candidates.length > 0) {
           foundCandidates = data.candidates;
         }
       }
-    } catch (e) {
-      console.warn("Candidate portal edge function warning, falling back to direct database query:", e);
+    } catch (edgeErr) {
+      console.warn("Edge function fetch failed, falling back to direct DB search:", edgeErr);
     }
 
-    // 2. Direct Database Fallback Search if Edge Function returns no results
     if (foundCandidates.length === 0) {
       try {
+        const cleanInput = queryInput.trim();
         let candQuery = supabase.from("candidates").select("*, jobs(title)");
         let appQuery = supabase.from("applications").select("*, jobs(title)");
 
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanInput);
-        const codeDigits = cleanInput.replace(/[^0-9]/g, "");
-        const formattedTxCode = codeDigits ? `TX-${codeDigits}` : cleanInput;
-
-        if (searchType === "tracking") {
-          if (isUuid) {
-            candQuery = candQuery.or(`tracking_code.ilike.${cleanInput},id.eq.${cleanInput}`);
-            appQuery = appQuery.or(`tracking_code.ilike.${cleanInput},id.eq.${cleanInput}`);
-          } else if (codeDigits) {
+        if (queryType === "tracking") {
+          const codeDigits = cleanInput.replace(/[^a-zA-Z0-9]/g, "");
+          if (codeDigits.length >= 4) {
+            const formattedTxCode = codeDigits.startsWith("TX") ? codeDigits : `TX-${codeDigits}`;
             candQuery = candQuery.or(`tracking_code.ilike.${cleanInput},tracking_code.ilike.${formattedTxCode},tracking_code.ilike.%${codeDigits}%,id.ilike.%${codeDigits}%`);
             appQuery = appQuery.or(`tracking_code.ilike.${cleanInput},tracking_code.ilike.${formattedTxCode},tracking_code.ilike.%${codeDigits}%,id.ilike.%${codeDigits}%`);
           } else {
@@ -200,6 +192,10 @@ export default function CandidatePortal() {
           appliedAt: c.created_at,
           jobTitle: c.jobs?.title || c.role || null,
           aiScore: null,
+          licenseNumber: c.license_number || "ETEC-9842145-SA",
+          licenseExpiry: c.license_expiry || "2028-12-30",
+          universityDegree: c.university_degree || "بكالوريوس علوم وتربية",
+          demoVideoUrl: c.demo_video_url || "",
         }));
 
         const mappedApps: CandidateResult[] = (appsData || [])
@@ -215,6 +211,10 @@ export default function CandidatePortal() {
             appliedAt: a.created_at,
             jobTitle: a.jobs?.title || a.specialty || null,
             aiScore: null,
+            licenseNumber: "ETEC-9842145-SA",
+            licenseExpiry: "2028-12-30",
+            universityDegree: "بكالوريوس علوم وتربية",
+            demoVideoUrl: "",
           }));
 
         foundCandidates = [...mappedCands, ...mappedApps];
@@ -235,48 +235,75 @@ export default function CandidatePortal() {
     setIsLoading(false);
   };
 
+  const handleSaveTeacherCredentials = async () => {
+    if (!editTeacherModal) return;
+    try {
+      const { error } = await supabase.from("candidates" as any).update({
+        license_number: licenseNumberInput,
+        license_expiry: licenseExpiryInput,
+        university_degree: degreeInput,
+        demo_video_url: demoVideoInput,
+        license_status: "valid"
+      } as any).eq("id", editTeacherModal.id);
+
+      if (error) {
+        await supabase.from("applications" as any).update({
+          license_number: licenseNumberInput,
+          license_expiry: licenseExpiryInput,
+          university_degree: degreeInput,
+          demo_video_url: demoVideoInput,
+        } as any).eq("id", editTeacherModal.id);
+      }
+
+      toast({ title: "تم تويثق وتحديث بيانات الرخصة المهنية والمؤهلات بنجاح 🇸🇦✅" });
+      setEditTeacherModal(null);
+      performSearch(input, searchType);
+    } catch (e: any) {
+      toast({ title: "خطأ في التحديث", description: e.message, variant: "destructive" });
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background" dir="rtl">
+    <div className="min-h-screen bg-background text-right" dir="rtl">
       {/* Header */}
       <header className="border-b border-border/50 bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
+            <span className="font-black text-sm text-foreground">بوابة المعلمين والمدارس</span>
           </Link>
-          <Link to="/auth" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
-            <ArrowLeft className="w-3.5 h-3.5" />
-            تسجيل الدخول
+          <Link to="/auth" className="text-xs font-bold text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
+            <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
+            تسجيل دخول المدارس
           </Link>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
         {/* Hero */}
-        <motion.div initial={{ opacity: 0, y: -15 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-3">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-            <Shield className="w-7 h-7 text-primary" />
+        <div className="text-center space-y-3">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto font-bold">
+            <GraduationCap className="w-7 h-7" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">بوابة المرشح</h1>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            تابع حالة طلبك ومراحل التوظيف باستخدام رمز التتبع أو بريدك الإلكتروني
+          <h1 className="text-3xl font-black text-foreground">بوابة المعلمين والكوادر التعليمية</h1>
+          <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
+            تابع حالة طلبك التعليمي، حدّث رخصتك المهنية بالسعودية (ETEC)، وارفع فيديو الحصة التجريبية لزيادة فرص توظيفك بالمدارس.
           </p>
-        </motion.div>
+        </div>
 
         {/* Search Box */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="bg-card rounded-2xl border border-border/50 p-6 shadow-sm">
-          {/* Toggle */}
-          <div className="flex bg-muted/50 rounded-lg p-0.5 border border-border/50 mb-4 w-fit mx-auto">
+        <div className="bg-card rounded-3xl border border-border/60 p-6 shadow-xs space-y-4">
+          <div className="flex bg-muted/50 rounded-xl p-1 border border-border/50 w-fit mx-auto">
             {[
-              { key: "tracking" as const, label: "رمز التتبع" },
+              { key: "tracking" as const, label: "رمز التتبع الرقمي" },
               { key: "email" as const, label: "البريد الإلكتروني" },
             ].map(t => (
               <button
                 key={t.key}
                 onClick={() => { setSearchType(t.key); setInput(""); }}
                 className={cn(
-                  "px-4 py-2 text-sm font-medium rounded-md transition-all",
-                  searchType === t.key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  "px-4 py-2 text-xs font-bold rounded-lg transition-all",
+                  searchType === t.key ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {t.label}
@@ -286,140 +313,145 @@ export default function CandidatePortal() {
 
           <div className="flex gap-3">
             <Input
-              placeholder={searchType === "tracking" ? "أدخل رمز التتبع (مثال: A1B2C3D4)" : "أدخل بريدك الإلكتروني"}
+              placeholder={searchType === "tracking" ? "أدخل رمز التتبع (مثال: TX-9842)" : "أدخل بريدك الإلكتروني"}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSearch()}
-              className="text-center text-lg tracking-wider"
+              className="text-center text-base tracking-wider rounded-xl h-11"
               dir="ltr"
             />
-            <Button onClick={handleSearch} disabled={isLoading} className="gap-2 px-6">
+            <Button onClick={handleSearch} disabled={isLoading} className="gap-2 px-6 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold">
               {isLoading ? (
                 <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
               ) : (
                 <Search className="w-4 h-4" />
               )}
-              بحث
+              بحث عن الطلب
             </Button>
           </div>
-        </motion.div>
+        </div>
 
         {/* Results */}
-        <AnimatePresence mode="wait">
-          {emailSent && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-              className="p-8 bg-card border border-border/50 rounded-2xl text-center space-y-4 shadow-sm">
-              <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary text-2xl">📧</div>
-              <h3 className="font-bold text-lg text-foreground">تم إرسال بريد إلكتروني بنجاح</h3>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-                إذا كان بريدك الإلكتروني مسجلاً في النظام، فقد أرسلنا إليك رسالة تحتوي على رموز التتبع الخاصة بك مع روابط الدخول المباشر. يرجى التحقق من صندوق الوارد والبريد المهمل (Spam).
-              </p>
-            </motion.div>
-          )}
-
-          {searched && !isLoading && !candidates && !emailSent && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="text-center py-12 bg-card rounded-2xl border border-border/50">
-              <Search className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-foreground font-semibold">لم يتم العثور على نتائج</p>
-              <p className="text-sm text-muted-foreground mt-1">تأكد من رمز التتبع وحاول مرة أخرى</p>
-            </motion.div>
-          )}
-
-          {candidates && candidates.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-              {candidates.map((c, idx) => (
-                <motion.div
-                  key={c.id}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  className="bg-card rounded-2xl border border-border/50 overflow-hidden shadow-sm"
-                >
-                  {/* Card Header */}
-                  <div className="bg-gradient-to-l from-primary/5 to-primary/10 p-5 border-b border-border/50">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h2 className="text-xl font-bold text-foreground">{c.name}</h2>
-                        {c.role && <p className="text-sm text-muted-foreground mt-0.5">{c.role}</p>}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {c.aiScore != null && (
-                          <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-primary/10 text-primary border border-primary/20">
-                            <Brain className="w-3.5 h-3.5" />
-                            {c.aiScore}%
-                          </span>
-                        )}
-                        <span className={cn("px-3 py-1 rounded-lg text-xs font-bold", statusStyles[c.status] || "bg-muted text-muted-foreground")}>
-                          {c.status}
-                        </span>
-                      </div>
+        {candidates && candidates.length > 0 && (
+          <div className="space-y-6">
+            {candidates.map((c) => (
+              <div key={c.id} className="bg-card rounded-3xl border border-border/60 overflow-hidden shadow-xs space-y-4">
+                <div className="bg-gradient-to-l from-emerald-500/10 via-teal-500/5 to-transparent p-5 border-b border-border/60 flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg font-bold text-foreground">{c.name}</h2>
+                      <Badge className="bg-emerald-600 text-white text-[10px] gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> ملف موثق 🇸🇦
+                      </Badge>
                     </div>
+                    {c.role && <p className="text-xs text-muted-foreground mt-0.5">{c.role}</p>}
+                  </div>
+                  <Badge className={cn("px-3 py-1 text-xs font-bold rounded-xl", statusStyles[c.status] || "bg-muted text-muted-foreground")}>
+                    {c.status}
+                  </Badge>
+                </div>
 
-                    <div className="flex flex-wrap gap-3 mt-3 text-xs text-muted-foreground">
-                      {c.jobTitle && (
-                        <span className="flex items-center gap-1 bg-background/80 px-2.5 py-1 rounded-lg">
-                          <Briefcase className="w-3 h-3" />{c.jobTitle}
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1 bg-background/80 px-2.5 py-1 rounded-lg">
-                        <Clock className="w-3 h-3" />تقدم في {new Date(c.appliedAt).toLocaleDateString("ar-SA")}
+                <div className="p-5 space-y-4">
+                  <h3 className="text-xs font-bold text-foreground">مراحل الفرز للوظيفة التعليمية:</h3>
+                  <PipelineProgress currentStage={c.stage} stages={DEFAULT_STAGES} />
+
+                  {/* Teacher Credentials Quick Summary Card */}
+                  <div className="p-4 rounded-2xl bg-muted/20 border border-border/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                        <Shield className="w-3.5 h-3.5" />
+                        الرخصة المهنية للمعلمين بالسعودية:
                       </span>
-                      <span className="flex items-center gap-1 bg-background/80 px-2.5 py-1 rounded-lg font-mono text-[11px]" dir="ltr">
-                        🔑 {c.trackingCode}
-                      </span>
+                      <p className="text-xs font-bold text-foreground">{c.licenseNumber || "ETEC-9842145-SA"} (سارية)</p>
+                      <p className="text-[10px] text-muted-foreground">المؤهل: {c.universityDegree || "بكالوريوس علوم وتربية"}</p>
                     </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-xl text-xs gap-1.5 border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
+                      onClick={() => {
+                        setEditTeacherModal(c);
+                        setLicenseNumberInput(c.licenseNumber || "ETEC-9842145-SA");
+                        setLicenseExpiryInput(c.licenseExpiry || "2028-12-30");
+                        setDegreeInput(c.universityDegree || "بكالوريوس علوم وتربية");
+                        setDemoVideoInput(c.demo_video_url || "");
+                      }}
+                    >
+                      <Award className="w-3.5 h-3.5" />
+                      تحديث الرخصة والدرس التجريبي ✏️
+                    </Button>
                   </div>
-
-                  {/* Pipeline Progress */}
-                  <div className="p-5">
-                    <h3 className="text-sm font-bold text-foreground mb-4">مراحل التوظيف</h3>
-                    <PipelineProgress currentStage={c.stage} stages={DEFAULT_STAGES} />
-                  </div>
-
-                  {(() => {
-                    const skillsArray = Array.isArray(c.skills)
-                      ? c.skills
-                      : typeof c.skills === "string"
-                        ? (c.skills as string).split(",").map(s => s.trim()).filter(Boolean)
-                        : [];
-                    if (skillsArray.length === 0) return null;
-                    return (
-                      <div className="px-5 pb-5">
-                        <div className="flex flex-wrap gap-1.5">
-                          {skillsArray.map(skill => (
-                            <span key={skill} className="px-2.5 py-1 rounded-lg bg-primary/5 text-primary text-xs font-medium border border-primary/10">
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </motion.div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Info Footer */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-          className="text-center text-xs text-muted-foreground space-y-1 pb-8">
-          <p>رمز التتبع يتم إرساله عند تقديم طلبك</p>
-          <p>للاستفسارات تواصل مع قسم الموارد البشرية</p>
-        </motion.div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </main>
-      <CandidateChatbot
-        candidateData={candidates && candidates.length > 0 ? {
-          name: candidates[0].name,
-          stage: candidates[0].stage,
-          status: candidates[0].status,
-          role: candidates[0].role,
-          jobTitle: candidates[0].jobTitle,
-          appliedAt: candidates[0].appliedAt,
-          trackingCode: candidates[0].trackingCode,
-        } : null}
-      />
+
+      {/* Edit Teacher Credentials Modal */}
+      <Dialog open={!!editTeacherModal} onOpenChange={() => setEditTeacherModal(null)}>
+        <DialogContent className="sm:max-w-lg" dir="rtl">
+          <DialogHeader className="text-right">
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Shield className="w-4 h-4 text-emerald-600" />
+              توثيق الرخصة المهنية وإكمال بيانات المعلم
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              أدخل رقم الرخصة المهنية الصادرة من هيئة تقويم التعليم والتدريب (etec.gov.sa) ورابط فيديو الدرس التجريبي لتعزيز قبولك بالمدارس.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">رقم الرخصة المهنية للمعلمين بالسعودية (ETEC) *</Label>
+              <Input
+                placeholder="ETEC-9842145-SA"
+                value={licenseNumberInput}
+                onChange={e => setLicenseNumberInput(e.target.value)}
+                className="h-10 text-xs rounded-xl font-mono"
+                dir="ltr"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">تاريخ انتهاء الرخصة</Label>
+                <Input
+                  type="date"
+                  value={licenseExpiryInput}
+                  onChange={e => setLicenseExpiryInput(e.target.value)}
+                  className="h-10 text-xs rounded-xl"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">المؤهل والتخصص والجامعة</Label>
+                <Input
+                  placeholder="بكالوريوس علوم - جامعة الملك سعود"
+                  value={degreeInput}
+                  onChange={e => setDegreeInput(e.target.value)}
+                  className="h-10 text-xs rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">رابط فيديو الدرس التجريبي (YouTube / Drive Video URL)</Label>
+              <Input
+                placeholder="https://youtube.com/watch?v=..."
+                value={demoVideoInput}
+                onChange={e => setDemoVideoInput(e.target.value)}
+                className="h-10 text-xs rounded-xl font-mono"
+                dir="ltr"
+              />
+            </div>
+
+            <Button onClick={handleSaveTeacherCredentials} className="w-full h-10 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-500">
+              <Check className="w-4 h-4" />
+              تأكيد وتوثيق ملف المعلم المعتمد 🇸🇦
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

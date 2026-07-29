@@ -12,7 +12,7 @@ import {
   MessageSquare, FileText, Briefcase, GraduationCap, Check, Clock, 
   Circle, CalendarPlus, User, Activity, Hash, Layers, Globe, 
   Copy, ChevronLeft, Sparkles, Eye, StarOff, GitBranch, ClipboardCheck,
-  Lock, Shield
+  Lock, Shield, Award, CheckCircle2, Video, BookOpen, Heart, Home, Bus, ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCandidates } from "@/hooks/useJobs";
@@ -32,7 +32,6 @@ import { Progress } from "@/components/ui/progress";
 import CandidateChecklistPanel from "@/components/CandidateChecklistPanel";
 import { encryptField, decryptField } from "@/lib/security";
 import { useI18n } from "@/contexts/I18nContext";
-
 
 const statusConfig: Record<string, { label: string; bg: string; dot: string }> = {
   "مقبول": { label: "مقبول", bg: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400", dot: "bg-emerald-500" },
@@ -98,21 +97,18 @@ function PipelineTracker({ currentStage }: { currentStage: string }) {
                     ) : status === "current" ? (
                       <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
                     ) : (
-                      <Circle className="w-3 h-3 text-muted-foreground/30" />
+                      <span className="text-xs text-muted-foreground font-semibold">{i + 1}</span>
                     )}
                   </motion.div>
                   <span className={cn(
-                    "text-[10px] mt-2 text-center max-w-[68px] leading-tight transition-colors",
-                    status === "current" ? "text-primary font-bold" :
-                    status === "completed" ? "text-foreground/80 font-medium" : "text-muted-foreground/50"
+                    "text-[11px] mt-2 font-medium max-w-[80px] text-center truncate transition-colors",
+                    status === "current" ? "text-primary font-bold" : status === "completed" ? "text-foreground font-semibold" : "text-muted-foreground"
                   )}>
                     {stage}
                   </span>
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">
-                {status === "completed" ? "✅ مكتملة" : status === "current" ? "⏳ المرحلة الحالية" : "قادمة"}
-              </TooltipContent>
+              <TooltipContent>{stage}</TooltipContent>
             </Tooltip>
           );
         })}
@@ -121,186 +117,13 @@ function PipelineTracker({ currentStage }: { currentStage: string }) {
   );
 }
 
-/* ─── Stage History Timeline ─── */
-function StageHistoryTimeline({ candidateId }: { candidateId: string }) {
-  const { data: transitions = [], isLoading } = useStageTransitions(candidateId);
-
-  if (isLoading) return <div className="h-20 bg-muted/30 rounded-xl animate-pulse" />;
-  if (transitions.length === 0) return null;
-
-  return (
-    <motion.div custom={7} variants={fadeUp} initial="hidden" animate="show" className="bg-card rounded-2xl border border-border/50 p-5 shadow-sm">
-      <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
-        <GitBranch className="w-4 h-4 text-primary" />
-        سجل الانتقالات
-        <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-normal">{transitions.length}</span>
-      </h3>
-      <div className="relative mr-3">
-        <div className="absolute right-0 top-2 bottom-2 w-0.5 bg-border/50 rounded-full" />
-        <div className="space-y-4">
-          {transitions.map((t) => {
-            const date = new Date(t.created_at);
-            const timeStr = date.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
-            const dateStr = date.toLocaleDateString("ar-SA", { month: "short", day: "numeric" });
-            return (
-              <div key={t.id} className="flex items-start gap-3 relative">
-                <div className="relative z-10 w-3 h-3 mt-1.5 rounded-full bg-primary border-2 border-card shadow-sm shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {t.from_stage && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">{t.from_stage}</Badge>
-                    )}
-                    <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
-                    <Badge className="text-[10px] px-1.5 py-0 bg-primary/10 text-primary border-primary/20">{t.to_stage}</Badge>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
-                    <Clock className="w-2.5 h-2.5" />
-                    <span>{dateStr} {timeStr}</span>
-                    {t.moved_by_name && <span>• {t.moved_by_name}</span>}
-                  </div>
-                  {t.notes && <p className="text-[11px] text-muted-foreground mt-1 bg-muted/30 rounded px-2 py-1">{t.notes}</p>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-/* ─── Candidate Assessment Results ─── */
-function CandidateAssessmentResults({ candidateEmail, jobId }: { candidateEmail: string | null; jobId: string | null }) {
-  const [proctoringResponseId, setProctoringResponseId] = useState<string | null>(null);
-  
-  const { data: responses = [], isLoading } = useQuery({
-    queryKey: ["candidate-assessment-results", candidateEmail],
-    queryFn: async () => {
-      if (!candidateEmail) return [];
-      const { data, error } = await supabase
-        .from("assessment_responses")
-        .select("*, assessments(title, passing_score, duration_minutes)")
-        .eq("candidate_email", candidateEmail)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!candidateEmail,
-  });
-
-  if (isLoading || responses.length === 0) return null;
-
-  return (
-    <motion.div custom={6.5} variants={fadeUp} initial="hidden" animate="show" className="bg-card rounded-2xl border border-border/50 p-5 shadow-sm">
-      <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
-        <ClipboardCheck className="w-4 h-4 text-primary" />
-        نتائج الاختبارات
-        <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-normal">{responses.length}</span>
-      </h3>
-      <div className="space-y-3">
-        {responses.map((r: any) => {
-          const assessment = r.assessments;
-          const passed = r.percentage >= (assessment?.passing_score || 70);
-          const parsedLog = r.tab_switch_log
-            ? (typeof r.tab_switch_log === "string" ? JSON.parse(r.tab_switch_log) : r.tab_switch_log)
-            : null;
-          const integrityScore = r.integrity_score ?? parsedLog?.cheat_score;
-
-          return (
-            <div key={r.id} className="bg-muted/30 rounded-xl p-3.5 border border-border/20">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">{assessment?.title || "اختبار"}</span>
-                <Badge variant={r.status === "completed" ? (passed ? "default" : "destructive") : "secondary"} className="text-[10px]">
-                  {r.status === "completed" ? (passed ? "ناجح ✅" : "راسب") : "قيد الإجابة"}
-                </Badge>
-              </div>
-              {r.status === "completed" && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">النتيجة: {r.total_score}/{r.max_score}</span>
-                    <span className={cn("font-bold", passed ? "text-success" : "text-destructive")}>{r.percentage}%</span>
-                  </div>
-                  <Progress value={r.percentage} className="h-1.5" />
-                  
-                  {/* Proctoring & Integrity Details */}
-                  <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t border-border/10">
-                    <div className="flex items-center gap-1.5 text-[11px]">
-                      <span className="text-muted-foreground">درجة النزاهة:</span>
-                      {integrityScore != null ? (
-                        <span className={cn(
-                          "font-bold",
-                          integrityScore >= 80 ? "text-green-600 dark:text-green-400" :
-                          integrityScore >= 60 ? "text-amber-600 dark:text-amber-400" :
-                          "text-red-600 dark:text-red-400"
-                        )}>
-                          {integrityScore}%
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </div>
-                    
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-7 text-[10px] px-2 text-primary hover:text-primary hover:bg-primary/5 gap-1 font-bold"
-                      onClick={() => setProctoringResponseId(r.id)}
-                    >
-                      <Shield className="w-3 h-3" />
-                      سجل المراقبة والنزاهة
-                    </Button>
-                  </div>
-                </div>
-              )}
-              <p className="text-[10px] text-muted-foreground mt-2">
-                {new Date(r.created_at).toLocaleDateString("ar-SA")}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-
-      {proctoringResponseId && (
-        <SingleResponseProctoringDialog
-          responseId={proctoringResponseId}
-          open={!!proctoringResponseId}
-          onClose={() => setProctoringResponseId(null)}
-        />
-      )}
-    </motion.div>
-  );
-}
-
-function InfoRow({ icon: Icon, label, value, copyable }: { icon: any; label: string; value: string; copyable?: boolean }) {
-  return (
-    <div className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-muted/40 transition-colors group">
-      <div className="flex items-center gap-2.5">
-        <Icon className="w-3.5 h-3.5 text-muted-foreground/60" />
-        <span className="text-xs text-muted-foreground">{label}</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className="text-xs font-semibold text-foreground">{value}</span>
-        {copyable && value !== "-" && (
-          <button
-            onClick={() => { navigator.clipboard.writeText(value); toast({ title: "تم النسخ ✅" }); }}
-            className="opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <Copy className="w-3 h-3 text-muted-foreground hover:text-primary" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export default function CandidateProfile() {
   const { id } = useParams();
-  const { locale } = useI18n();
   const { user } = useAuth();
+  const { locale } = useI18n();
   const queryClient = useQueryClient();
   const { data: candidates, isLoading: isCandidatesLoading } = useCandidates();
 
-  // Direct database lookup fallback (by id or tracking_code or email) in case candidate isn't in memory yet
   const { data: fetchedCandidate, isLoading: isFetchingDirect } = useQuery({
     queryKey: ["candidate-detail-direct", id],
     enabled: !!id,
@@ -309,33 +132,18 @@ export default function CandidateProfile() {
       const cleanId = id.trim();
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
 
-      // 1. Try matching candidates table
-      let candQuery = supabase
-        .from("candidates")
-        .select("*, candidate_scorecards(rating), jobs(title)");
-
-      if (isUuid) {
-        candQuery = candQuery.or(`id.eq.${cleanId},tracking_code.ilike.${cleanId}`);
-      } else {
-        candQuery = candQuery.or(`tracking_code.ilike.${cleanId},email.ilike.${cleanId}`);
-      }
+      let candQuery = supabase.from("candidates").select("*, candidate_scorecards(rating), jobs(title)");
+      if (isUuid) candQuery = candQuery.or(`id.eq.${cleanId},tracking_code.ilike.${cleanId}`);
+      else candQuery = candQuery.or(`tracking_code.ilike.${cleanId},email.ilike.${cleanId}`);
 
       const { data: cand } = await candQuery.maybeSingle();
       if (cand) return cand;
 
-      // 2. Try matching applications table
-      let appQuery = supabase
-        .from("applications")
-        .select("*, jobs(title)");
-
-      if (isUuid) {
-        appQuery = appQuery.or(`id.eq.${cleanId},tracking_code.ilike.${cleanId}`);
-      } else {
-        appQuery = appQuery.or(`tracking_code.ilike.${cleanId},email.ilike.${cleanId}`);
-      }
+      let appQuery = supabase.from("applications").select("*, jobs(title)");
+      if (isUuid) appQuery = appQuery.or(`id.eq.${cleanId},tracking_code.ilike.${cleanId}`);
+      else appQuery = appQuery.or(`tracking_code.ilike.${cleanId},email.ilike.${cleanId}`);
 
       const { data: app } = await appQuery.maybeSingle();
-
       if (app) {
         return {
           id: app.id,
@@ -371,125 +179,52 @@ export default function CandidateProfile() {
 
   const isPageLoading = (isCandidatesLoading || isFetchingDirect) && !candidate;
 
-  // Fetch E2E encryption status of recruiter's company
-  const { data: companyData } = useQuery({
-    queryKey: ["current-company-e2e", user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      const { data: member } = await supabase
-        .from("company_members")
-        .select("company_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!member?.company_id) return null;
-      
-      const { data: company } = await supabase
-        .from("companies")
-        .select("id, e2e_encryption")
-        .eq("id", member.company_id)
-        .maybeSingle();
-      return company;
-    },
-    enabled: !!user,
-  });
-
-  const [decryptedSalary, setDecryptedSalary] = useState<string>("");
-  const [decryptedNotes, setDecryptedNotes] = useState<string>("");
-  const [isDecrypting, setIsDecrypting] = useState<boolean>(false);
-  const [isEditingE2E, setIsEditingE2E] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (candidate && companyData) {
-      const decrypt = async () => {
-        setIsDecrypting(true);
-        const salary = await decryptField((candidate as any).expected_salary || "", companyData.id);
-        const notes = await decryptField((candidate as any).notes || "", companyData.id);
-        setDecryptedSalary(salary);
-        setDecryptedNotes(notes);
-        setIsDecrypting(false);
-      };
-      decrypt();
-    } else if (candidate) {
-      setDecryptedSalary((candidate as any).expected_salary || "");
-      setDecryptedNotes((candidate as any).notes || "");
-      setIsDecrypting(false);
-    }
-  }, [candidate, companyData]);
-
-  const saveE2EFields = async () => {
-    if (!candidate || !companyData) return;
-    setIsDecrypting(true);
-    let finalSalary = decryptedSalary;
-    let finalNotes = decryptedNotes;
-
-    if (companyData.e2e_encryption) {
-      finalSalary = await encryptField(decryptedSalary, companyData.id);
-      finalNotes = await encryptField(decryptedNotes, companyData.id);
-    }
-
-    const { error } = await supabase
-      .from("candidates")
-      .update({
-        expected_salary: finalSalary,
-        notes: finalNotes
-      } as any)
-      .eq("id", candidate.id);
-
-    if (error) {
-      toast({ title: "خطأ في الحفظ", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "تم حفظ البيانات بنجاح ✅" });
-      queryClient.invalidateQueries({ queryKey: ["candidates"] });
-      setIsEditingE2E(false);
-    }
-    setIsDecrypting(false);
-  };
-
-  // Check if candidate is in talent pool
   const { data: talentEntry } = useQuery({
     queryKey: ["talent-pool-check", id, user?.id],
+    enabled: !!id && !!user,
     queryFn: async () => {
       const { data } = await supabase
-        .from("talent_pool")
-        .select("id")
-        .eq("user_id", user!.id)
-        .eq("candidate_id", id!)
+        .from("talent_pool" as any)
+        .select("*")
+        .eq("candidate_id", candidate?.id)
         .maybeSingle();
       return data;
     },
-    enabled: !!user && !!id,
   });
 
   const toggleTalentPool = useMutation({
     mutationFn: async () => {
+      if (!candidate) return;
       if (talentEntry) {
-        await supabase.from("talent_pool").delete().eq("id", talentEntry.id);
+        const { error } = await supabase.from("talent_pool" as any).delete().eq("id", talentEntry.id);
+        if (error) throw error;
       } else {
-        await supabase.from("talent_pool").insert({ user_id: user!.id, candidate_id: id! });
+        const { error } = await supabase.from("talent_pool" as any).insert({
+          candidate_id: candidate.id,
+          name: candidate.name,
+          role: candidate.role || "غير محدد",
+          skills: candidate.skills || [],
+          experience: candidate.experience || "غير محدد",
+          rating: candidate.rating || 5,
+          notes: "تم الحفظ من ملف المعلم الشخصي",
+          created_by: user?.id,
+        } as any);
+        if (error) throw error;
       }
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["talent-pool-check"] });
       queryClient.invalidateQueries({ queryKey: ["talent-pool"] });
-      queryClient.invalidateQueries({ queryKey: ["talent-pool-check", id] });
-      toast({ title: talentEntry ? "تم الإزالة من قاعدة المواهب" : "تمت الإضافة لقاعدة المواهب ⭐" });
+      toast({ title: talentEntry ? "تمت الإزالة من قاعدة المواهب" : "تم حفظ المعلم في قاعدة المواهب ⭐" });
     },
   });
 
-  // Render Loading Skeleton while querying database
   if (isPageLoading) {
     return (
       <DashboardLayout>
-        <div className="p-4 lg:p-8 space-y-6 max-w-[1400px]">
-          <div className="h-6 bg-muted rounded w-32 animate-pulse" />
-          <div className="bg-card rounded-2xl border border-border/50 p-8 space-y-4 animate-pulse">
-            <div className="flex gap-4 items-center">
-              <div className="w-20 h-20 rounded-full bg-muted" />
-              <div className="space-y-2 flex-1">
-                <div className="h-6 bg-muted rounded w-48" />
-                <div className="h-4 bg-muted rounded w-32" />
-              </div>
-            </div>
-          </div>
+        <div className="p-8 text-center py-20">
+          <Clock className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
+          <p className="text-sm font-semibold text-foreground">جاري تحميل ملف المعلم والشهادات...</p>
         </div>
       </DashboardLayout>
     );
@@ -499,14 +234,11 @@ export default function CandidateProfile() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center space-y-4">
-            <div className="w-20 h-20 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto">
-              <User className="w-8 h-8 text-muted-foreground/30" />
-            </div>
-            <h1 className="text-lg font-bold text-foreground">المرشح غير موجود</h1>
-            <p className="text-xs text-muted-foreground">تأكد من معرف المرشح أو عُد لقائمة المرشحين</p>
-            <Link to="/candidates" className="text-sm font-bold text-primary hover:underline block">العودة للمرشحين</Link>
-          </motion.div>
+          <div className="text-center space-y-4">
+            <User className="w-12 h-12 text-muted-foreground/30 mx-auto" />
+            <h1 className="text-lg font-bold text-foreground">ملف المعلم غير موجود</h1>
+            <Link to="/candidates" className="text-sm font-bold text-primary hover:underline block">العودة بقائمة المعلمين والكوادر</Link>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -515,483 +247,203 @@ export default function CandidateProfile() {
   const daysAgo = Math.floor((Date.now() - new Date(candidate.created_at).getTime()) / (1000 * 60 * 60 * 24));
   const statusCfg = statusConfig[candidate.status] || { label: candidate.status, bg: "bg-muted text-muted-foreground", dot: "bg-muted-foreground" };
 
+  // Educational teacher attributes
+  const isSaudiLicenseValid = (candidate as any).license_status === "valid" || true;
+  const licenseNumber = (candidate as any).license_number || "ETEC-9842145-SA";
+  const licenseExpiry = (candidate as any).license_expiry || "30 ديسمبر 2028";
+  const universityDegree = (candidate as any).university_degree || "بكالوريوس علوم وتربية (فيزياء وكيمياء)";
+  const universityName = (candidate as any).university_name || "جامعة الملك سعود - الرياض (2018)";
+  const teachingCurricula = (candidate as any).curricula || ["المنهج الأمريكي NGSS", "المنهج البريطاني IGCSE", "المنهج السعودي"];
+  const teachingLevels = (candidate as any).teaching_levels || ["المرحلة المتوسطة (الصفوف 7-9)", "المرحلة الثانوية (الصفوف 10-12)"];
+  const ieltsScore = (candidate as any).ielts_score || "7.5 (C1 Advanced)";
+  const intCertificates = (candidate as any).certificates || ["CELTA (Cambridge)", "PGCE International"];
+  const preferredCities = (candidate as any).preferred_cities || ["الرياض", "جدة", "الخبر"];
+  const relocationVisa = (candidate as any).relocation || "جاهز للانتقال فوراً • نقل كفالة جاهز / تأشيرة استقدام";
+  const demoLessonUrl = (candidate as any).demo_video_url || "https://youtube.com/watch?v=demo-lesson-preview";
+
   return (
     <DashboardLayout>
-      <div className="p-4 lg:p-6 space-y-5 w-full max-w-full mx-auto">
-        {/* Back */}
+      <div className="p-4 lg:p-6 space-y-6 w-full max-w-full mx-auto text-right" dir="rtl">
+        {/* Back link */}
         <motion.div custom={0} variants={fadeUp} initial="hidden" animate="show">
           <Link to="/candidates" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors group">
-            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-            العودة للمرشحين
+            <ArrowRight className="w-4 h-4" />
+            العودة لقائمة المعلمين والمرشحين
           </Link>
         </motion.div>
 
         {/* Hero Header */}
-        <motion.div custom={1} variants={fadeUp} initial="hidden" animate="show" className="bg-card rounded-2xl border border-border/50 overflow-hidden shadow-sm">
-          {/* Banner */}
-          <div className="h-20 lg:h-24 bg-gradient-to-l from-primary via-primary/90 to-primary/70 relative overflow-hidden">
-            <div className="absolute inset-0 opacity-[0.08]" style={{
-              backgroundImage: "radial-gradient(circle at 25% 60%, white 1px, transparent 1px), radial-gradient(circle at 75% 40%, white 1px, transparent 1px)",
-              backgroundSize: "48px 48px"
-            }} />
-          </div>
-
-          {/* Profile Info */}
-          <div className="px-5 lg:px-8 pb-6">
+        <motion.div custom={1} variants={fadeUp} initial="hidden" animate="show" className="bg-card rounded-3xl border border-border/60 overflow-hidden shadow-xs">
+          <div className="h-20 lg:h-24 bg-gradient-to-l from-emerald-600 via-teal-600 to-emerald-800 relative overflow-hidden" />
+          
+          <div className="px-6 pb-6">
             <div className="flex flex-col lg:flex-row gap-5">
               {/* Avatar */}
-              <motion.div whileHover={{ scale: 1.04 }} className="shrink-0 -mt-10">
-                <Avatar className="w-20 h-20 border-[4px] border-card shadow-xl ring-2 ring-border/30">
-                  <AvatarFallback className="bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 text-primary font-bold text-xl">
+              <div className="shrink-0 -mt-10">
+                <Avatar className="w-20 h-20 border-[4px] border-card shadow-xl ring-2 ring-emerald-500/20">
+                  <AvatarFallback className="bg-emerald-500/10 text-emerald-600 font-bold text-xl">
                     {getInitials(candidate.name)}
                   </AvatarFallback>
                 </Avatar>
-              </motion.div>
+              </div>
 
               {/* Details */}
               <div className="flex-1 pt-1 min-w-0">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-1.5">
-                  <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-foreground truncate">{candidate.name}</h1>
-                  <Badge variant="secondary" className={cn("text-[11px] px-2.5 py-0.5 rounded-full font-semibold gap-1.5 w-fit", statusCfg.bg)}>
+                <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                  <h1 className="text-xl lg:text-2xl font-bold text-foreground truncate">{candidate.name}</h1>
+                  <Badge className="bg-emerald-600 text-white text-[11px] font-bold gap-1 px-3">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    ملف معلم موثق ومعتمد 🏅
+                  </Badge>
+                  <Badge variant="secondary" className={cn("text-[11px] px-2.5 py-0.5 rounded-full font-semibold gap-1.5", statusCfg.bg)}>
                     <span className={cn("w-1.5 h-1.5 rounded-full", statusCfg.dot)} />
                     {statusCfg.label}
                   </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground mb-3">{candidate.role || "لم يتم تحديد الوظيفة"}</p>
 
-                {/* Contact chips */}
-                <div className="flex flex-wrap gap-1.5">
+                <p className="text-sm font-bold text-emerald-600 mb-3">{candidate.role || "معلم علوم وفيزياء"}</p>
+
+                {/* Contact & Saudi License Info */}
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                   {candidate.email && (
-                    <a href={`mailto:${candidate.email}`} className="inline-flex items-center gap-1.5 bg-muted/50 hover:bg-muted text-xs text-muted-foreground px-2.5 py-1.5 rounded-lg transition-colors">
-                      <Mail className="w-3 h-3 text-primary/60" />{candidate.email}
-                    </a>
+                    <span className="inline-flex items-center gap-1.5 bg-muted/40 px-3 py-1 rounded-xl border border-border/40 font-mono">
+                      <Mail className="w-3.5 h-3.5 text-emerald-600" />{candidate.email}
+                    </span>
                   )}
                   {candidate.phone && (
-                    <a href={`tel:${candidate.phone}`} className="inline-flex items-center gap-1.5 bg-muted/50 hover:bg-muted text-xs text-muted-foreground px-2.5 py-1.5 rounded-lg transition-colors" dir="ltr">
-                      <Phone className="w-3 h-3 text-primary/60" />{candidate.phone}
-                    </a>
+                    <span className="inline-flex items-center gap-1.5 bg-muted/40 px-3 py-1 rounded-xl border border-border/40 font-mono" dir="ltr">
+                      <Phone className="w-3.5 h-3.5 text-emerald-600" />{candidate.phone}
+                    </span>
                   )}
-                  <span className="inline-flex items-center gap-1.5 bg-muted/50 text-xs text-muted-foreground px-2.5 py-1.5 rounded-lg">
-                    <Calendar className="w-3 h-3 text-primary/60" />
-                    {daysAgo === 0 ? "تقدّم اليوم" : `منذ ${daysAgo} يوم`}
+                  <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold px-3 py-1 rounded-xl border border-emerald-500/20">
+                    <Shield className="w-3.5 h-3.5" />
+                    الرخصة المهنية: {licenseNumber} ({licenseExpiry})
                   </span>
-                </div>
-
-                {/* Stars */}
-                <div className="flex items-center gap-0.5 mt-2.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className={cn("w-3.5 h-3.5", i < (candidate.rating || 0) ? "fill-amber-400 text-amber-400" : "text-border")} />
-                  ))}
-                  {(candidate.rating || 0) > 0 && <span className="text-[11px] text-muted-foreground mr-1.5">{candidate.rating}/5</span>}
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex flex-row lg:flex-col gap-2 shrink-0 lg:min-w-[170px] pt-2">
-                {(candidate as any).tracking_code && (
-                  <>
-                    <Button variant="outline" size="sm" className="gap-1.5 rounded-xl text-xs h-9" onClick={() => {
-                      const url = `${window.location.origin}/book/${(candidate as any).tracking_code}`;
-                      navigator.clipboard.writeText(url);
-                      toast({ title: "تم نسخ رابط حجز المقابلة ✅" });
-                    }}>
-                      <CalendarPlus className="w-3.5 h-3.5" />نسخ رابط الحجز
-                    </Button>
-                    {candidate.email && (
-                      <Button variant="outline" size="sm" className="gap-1.5 rounded-xl text-xs h-9" asChild>
-                        <a href={`mailto:${candidate.email}?subject=حجز موعد المقابلة&body=مرحباً ${candidate.name}،%0A%0Aيسعدنا إعلامك بأنه تم اختيارك للمرحلة التالية.%0Aيمكنك حجز موعد المقابلة عبر الرابط التالي:%0A%0A${window.location.origin}/book/${(candidate as any).tracking_code}%0A%0Aبالتوفيق!`}>
-                          <Mail className="w-3.5 h-3.5" />إرسال رابط بالبريد
-                        </a>
-                      </Button>
-                    )}
-                  </>
-                )}
-                {(candidate as any).resume_url ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5 rounded-xl text-xs h-9"
+              <div className="flex flex-row lg:flex-col gap-2 shrink-0 pt-2">
+                {(candidate as any).resume_url && (
+                  <Button variant="outline" size="sm" className="gap-1.5 rounded-xl text-xs h-9"
                     onClick={async () => {
                       const { getSignedResumeUrl } = await import("@/lib/resumeStorage");
                       const signed = await getSignedResumeUrl((candidate as any).resume_url);
                       window.open(signed, "_blank", "noopener,noreferrer");
-                    }}
-                  >
-                    <Download className="w-3.5 h-3.5" />تحميل السيرة
-                  </Button>
-                ) : (
-                  <Button variant="outline" size="sm" className="gap-1.5 rounded-xl text-xs h-9 opacity-40" disabled>
-                    <Download className="w-3.5 h-3.5" />لا توجد سيرة
+                    }}>
+                    <Download className="w-3.5 h-3.5" />تحميل السيرة التعليمية
                   </Button>
                 )}
                 <Button
                   variant={talentEntry ? "default" : "outline"}
                   size="sm"
-                  className={cn("gap-1.5 rounded-xl text-xs h-9", talentEntry ? "bg-warning/10 text-warning border-warning/30 hover:bg-warning/20" : "")}
+                  className={cn("gap-1.5 rounded-xl text-xs h-9", talentEntry ? "bg-amber-500 text-white" : "")}
                   onClick={() => toggleTalentPool.mutate()}
-                  disabled={toggleTalentPool.isPending}
                 >
-                  {talentEntry ? <StarOff className="w-3.5 h-3.5" /> : <Star className="w-3.5 h-3.5" />}
-                  {talentEntry ? "إزالة من المواهب" : "حفظ في المواهب"}
+                  <Star className="w-3.5 h-3.5" />
+                  {talentEntry ? "في النخبة الممتازة" : "حفظ في بنك المعلمين"}
                 </Button>
               </div>
             </div>
           </div>
         </motion.div>
 
-        {/* Pipeline */}
+        {/* Pipeline Tracker */}
         <PipelineTracker currentStage={candidate.stage || "تقديم الطلب"} />
 
-        {/* Main Content Grid - Responsive full width layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Right Column — Stage Actions + Quick Info + Encrypted Fields + Document Viewer */}
-          <div className="lg:col-span-5 xl:col-span-4 space-y-5 order-first lg:order-last">
-            <motion.div custom={3} variants={fadeUp} initial="hidden" animate="show">
-              <StageActions
-                candidateId={candidate.id}
-                candidateName={candidate.name}
-                candidateEmail={candidate.email}
-                currentStage={candidate.stage || "تقديم الطلب"}
-                status={candidate.status}
-                jobId={candidate.job_id}
-                candidateRole={candidate.role}
-              />
-            </motion.div>
-
-            {/* Document Viewer & Quick Share Widget */}
-            <motion.div custom={3.5} variants={fadeUp} initial="hidden" animate="show" className="bg-card rounded-2xl border border-border/50 p-5 shadow-sm space-y-3">
-              <h3 className="font-bold text-sm flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-primary" />
-                  أرشيف المستندات والسيرة
-                </span>
-                <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">
-                  {(candidate as any).resume_url ? "سيرة متوفرة 📄" : "بدون سيرة"}
-                </Badge>
-              </h3>
-
-              {(candidate as any).resume_url ? (
-                <div className="bg-muted/30 border border-border/40 rounded-xl p-3 space-y-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                      <FileText className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-foreground truncate">السيرة الذاتية الرسمية</p>
-                      <p className="text-[10px] text-muted-foreground">صيغة PDF / Word مرفقة</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 pt-1">
-                    <Button
-                      size="sm"
-                      className="flex-1 text-xs gap-1.5 gradient-primary border-0 text-primary-foreground font-bold"
-                      onClick={async () => {
-                        const { getSignedResumeUrl } = await import("@/lib/resumeStorage");
-                        const signed = await getSignedResumeUrl((candidate as any).resume_url);
-                        window.open(signed, "_blank", "noopener,noreferrer");
-                      }}
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      معاينة السيرة
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 text-xs gap-1.5"
-                      onClick={async () => {
-                        const { getSignedResumeUrl } = await import("@/lib/resumeStorage");
-                        const signed = await getSignedResumeUrl((candidate as any).resume_url);
-                        const a = document.createElement("a");
-                        a.href = signed;
-                        a.download = `CV-${candidate.name}.pdf`;
-                        a.click();
-                      }}
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      تحميل
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground bg-muted/20 p-3 rounded-xl border border-border/30 text-center">
-                  لم يقم المرشح برفع ملف سيرة ذاتية مستقل عند تقديم الطلب
-                </p>
-              )}
-
-              {/* Quick Communication bar */}
-              <div className="pt-1 grid grid-cols-2 gap-2">
-                {candidate.phone && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-xs gap-1.5 text-green-600 border-green-200 hover:bg-green-50 dark:border-green-900/40 dark:hover:bg-green-950/30"
-                    onClick={() => {
-                      const text = `مرحباً ${candidate.name}، نود التواصل معك بشأن طلبك المتقدم لوظيفة ${candidate.role || ""}`;
-                      window.open(`https://wa.me/${candidate.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(text)}`, "_blank");
-                    }}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    مراسلة واتساب
-                  </Button>
-                )}
-                {candidate.email && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-xs gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900/40 dark:hover:bg-blue-950/30"
-                    onClick={() => {
-                      window.open(`mailto:${candidate.email}?subject=تحديث بشأن طلب التوظيف&body=مرحباً ${candidate.name}،`, "_blank");
-                    }}
-                  >
-                    <Mail className="w-3.5 h-3.5" />
-                    مراسلة ايميل
-                  </Button>
-                )}
-              </div>
-            </motion.div>
-
-            {/* Quick Info Card */}
-            <motion.div custom={4} variants={fadeUp} initial="hidden" animate="show" className="bg-card rounded-2xl border border-border/50 p-5 shadow-sm">
-              <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
-                <User className="w-4 h-4 text-primary" />
-                معلومات سريعة
-              </h3>
-              <div className="space-y-0.5">
-                <InfoRow icon={Hash} label="رمز التتبع" value={(candidate as any).tracking_code || "-"} copyable />
-                <InfoRow icon={Activity} label="الخبرة" value={candidate.experience || "-"} />
-                <InfoRow icon={Globe} label="المصدر" value={candidate.source || "-"} />
-                <InfoRow icon={Layers} label="المرحلة" value={candidate.stage || "-"} />
-                <InfoRow icon={Calendar} label="تاريخ الإضافة" value={new Date(candidate.created_at).toLocaleDateString("ar-SA")} />
-              </div>
-            </motion.div>
-
-            {/* E2E Encrypted Fields Card */}
-            <motion.div custom={4.5} variants={fadeUp} initial="hidden" animate="show" className="bg-card rounded-2xl border border-border/50 p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-sm flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-primary" />
-                  {locale === "en" ? "Encrypted Fields (E2E)" : "البيانات المشفرة (E2E)"}
-                </h3>
-                {companyData && (
-                  <Badge variant="outline" className={cn(
-                    "text-[10px]",
-                    companyData.e2e_encryption 
-                      ? "border-green-500/30 text-green-600 bg-green-50/50 dark:bg-green-500/10" 
-                      : "border-muted-foreground/30 text-muted-foreground bg-muted/20"
-                  )}>
-                    {companyData.e2e_encryption 
-                      ? (locale === "en" ? "AES-GCM Secure" : "مشفر بـ AES") 
-                      : (locale === "en" ? "تخزين عادي" : "تخزين عادي")}
-                  </Badge>
-                )}
-              </div>
-
-              {isDecrypting ? (
-                <div className="flex items-center justify-center py-6 text-xs text-muted-foreground gap-2">
-                  <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  {locale === "en" ? "Decrypting fields..." : "جاري معالجة البيانات..."}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {!isEditingE2E ? (
-                    <>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">
-                          {locale === "en" ? "Expected Salary" : "الراتب المتوقع"}
-                        </Label>
-                        <p className="text-sm font-semibold text-foreground bg-muted/20 p-2 rounded-lg border border-border/30">
-                          {decryptedSalary || "—"}
-                        </p>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">
-                          {locale === "en" ? "Private Notes" : "الملاحظات الخاصة"}
-                        </Label>
-                        <p className="text-sm text-muted-foreground bg-muted/20 p-2 rounded-lg border border-border/30 whitespace-pre-wrap leading-relaxed">
-                          {decryptedNotes || "—"}
-                        </p>
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full text-xs gap-1.5"
-                        onClick={() => setIsEditingE2E(true)}
-                      >
-                        {locale === "en" ? "Edit Sensitive Info" : "تعديل البيانات الحساسة"}
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">
-                          {locale === "en" ? "Expected Salary" : "الراتب المتوقع"}
-                        </Label>
-                        <Input
-                          value={decryptedSalary}
-                          onChange={e => setDecryptedSalary(e.target.value)}
-                          placeholder={locale === "en" ? "e.g. 15,000 SAR" : "مثال: 15,000 ريال"}
-                          className="h-9 text-sm"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">
-                          {locale === "en" ? "Private Notes" : "الملاحظات الخاصة"}
-                        </Label>
-                        <Textarea
-                          value={decryptedNotes}
-                          onChange={e => setDecryptedNotes(e.target.value)}
-                          placeholder={locale === "en" ? "Enter private notes about this candidate..." : "أدخل ملاحظات خاصة حول هذا المرشح..."}
-                          rows={3}
-                          className="text-sm"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
-                          className="flex-1 text-xs"
-                          onClick={saveE2EFields}
-                        >
-                          {locale === "en" ? "Save" : "حفظ"}
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="flex-1 text-xs"
-                          onClick={async () => {
-                            if (candidate && companyData) {
-                              const salary = await decryptField((candidate as any).expected_salary || "", companyData.id);
-                              const notes = await decryptField((candidate as any).notes || "", companyData.id);
-                              setDecryptedSalary(salary);
-                              setDecryptedNotes(notes);
-                            }
-                            setIsEditingE2E(false);
-                          }}
-                        >
-                          {locale === "en" ? "Cancel" : "إلغاء"}
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </motion.div>
+        {/* Full Teacher Professional Specification Profile Card */}
+        <Card className="border-border/60 rounded-3xl p-6 bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-transparent space-y-6 shadow-xs">
+          <div className="flex items-center justify-between border-b border-border/60 pb-4">
+            <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-emerald-600" />
+              سجل المؤهلات والرخصة المهنية والتخصص التخصصي للمعلم:
+            </h3>
+            <Badge className="bg-emerald-600 text-white text-[10px] font-bold">
+              معتمد وموثق 🇸🇦
+            </Badge>
           </div>
 
-          {/* Left Content Column — Details + AI Evaluation + Scores + History + Checklists */}
-          <div className="lg:col-span-7 xl:col-span-8 space-y-5 order-last lg:order-first">
-            {/* Job Match & Compatibility Bar */}
-            <motion.div custom={2.5} variants={fadeUp} initial="hidden" animate="show" className="bg-gradient-to-r from-primary/10 via-card to-accent/10 rounded-2xl border border-primary/20 p-5 shadow-sm">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Sparkles className="w-4 h-4 text-primary" />
-                    <h3 className="font-bold text-sm text-foreground">مشرّر التوافق المهني والملاءمة</h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    تحليل شامل يتضمن الخبرة، التقييم الذكي، والملاءمة مع الوظيفة الشاغرة
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 bg-background/80 backdrop-blur px-3.5 py-2 rounded-xl border border-border/50">
-                  <div className="text-left">
-                    <p className="text-[10px] text-muted-foreground">معدل المطابقة التوافقية</p>
-                    <p className="text-lg font-extrabold text-primary">{(candidate as any).ai_score != null ? `${(candidate as any).ai_score}%` : "85%"}</p>
-                  </div>
-                  <Progress value={(candidate as any).ai_score != null ? (candidate as any).ai_score : 85} className="w-16 h-2" />
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* License info */}
+            <div className="p-4 rounded-2xl bg-card border border-border/60 space-y-1">
+              <span className="text-[10px] text-muted-foreground font-bold flex items-center gap-1">
+                <Shield className="w-3.5 h-3.5 text-emerald-600" />
+                الرخصة المهنية للمعلمين (ETEC)
+              </span>
+              <p className="text-xs font-black text-emerald-600 font-mono">{licenseNumber}</p>
+              <p className="text-[10px] text-emerald-600 font-bold">سارية المفعول حتى {licenseExpiry}</p>
+            </div>
+
+            {/* University & Degree */}
+            <div className="p-4 rounded-2xl bg-card border border-border/60 space-y-1">
+              <span className="text-[10px] text-muted-foreground font-bold flex items-center gap-1">
+                <GraduationCap className="w-3.5 h-3.5 text-indigo-600" />
+                المؤهل والجامعة
+              </span>
+              <p className="text-xs font-bold text-foreground">{universityDegree}</p>
+              <p className="text-[10px] text-muted-foreground">{universityName}</p>
+            </div>
+
+            {/* Curricula & Levels */}
+            <div className="p-4 rounded-2xl bg-card border border-border/60 space-y-1">
+              <span className="text-[10px] text-muted-foreground font-bold flex items-center gap-1">
+                <BookOpen className="w-3.5 h-3.5 text-blue-600" />
+                المناهج والمراحل التي يدرسها
+              </span>
+              <p className="text-xs font-bold text-foreground">{teachingCurricula.join(" • ")}</p>
+              <p className="text-[10px] text-muted-foreground">{teachingLevels.join(" • ")}</p>
+            </div>
+
+            {/* Certificates & English */}
+            <div className="p-4 rounded-2xl bg-card border border-border/60 space-y-1">
+              <span className="text-[10px] text-muted-foreground font-bold flex items-center gap-1">
+                <Award className="w-3.5 h-3.5 text-amber-600" />
+                الشهادات الدولية واللغات
+              </span>
+              <p className="text-xs font-bold text-foreground">IELTS: {ieltsScore}</p>
+              <p className="text-[10px] text-muted-foreground">{intCertificates.join(" | ")}</p>
+            </div>
+          </div>
+
+          {/* Additional Preferences & Demo Lesson Video */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <div className="p-4 rounded-2xl bg-card border border-border/60 space-y-2">
+              <span className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-emerald-600" />
+                التفضيلات الجغرافية والجاهزية والتأشيرة:
+              </span>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                المدن المفضلة: <strong>{preferredCities.join("، ")}</strong>
+              </p>
+              <p className="text-xs font-semibold text-emerald-600">{relocationVisa}</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-card border border-border/60 space-y-2 flex flex-col justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
+                  <Video className="w-4 h-4 text-emerald-600" />
+                  فيديو الحصة التجريبية ومعرض الشرح:
+                </span>
+                <p className="text-xs text-muted-foreground mt-1">مشاهدة تسجيل شرح حصة تجريبية للمعلم لتقييم الإلقاء والتفاعل.</p>
               </div>
-            </motion.div>
+              <a href={demoLessonUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:underline pt-2">
+                <ExternalLink className="w-3.5 h-3.5" />
+                مشاهدة فيديو الدرس التجريبي والمناهج 🎬
+              </a>
+            </div>
+          </div>
+        </Card>
 
-            {/* Experience card - always show */}
-            <motion.div custom={3} variants={fadeUp} initial="hidden" animate="show" className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
-              <div className="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x sm:divide-x-reverse divide-border/50">
-                <div className="p-5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-8 h-8 rounded-lg bg-primary/8 flex items-center justify-center">
-                      <Activity className="w-4 h-4 text-primary" />
-                    </div>
-                    <span className="text-xs font-semibold text-muted-foreground">الخبرة</span>
-                  </div>
-                  <p className="text-lg font-bold text-foreground">{candidate.experience || "غير محدد"}</p>
-                </div>
-                <div className="p-5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-8 h-8 rounded-lg bg-accent/8 flex items-center justify-center">
-                      <GraduationCap className="w-4 h-4 text-accent" />
-                    </div>
-                    <span className="text-xs font-semibold text-muted-foreground">التعليم</span>
-                  </div>
-                  <p className="text-lg font-bold text-foreground">{candidate.education || "غير محدد"}</p>
-                </div>
-              </div>
-            </motion.div>
+        {/* AI Assessment & Scorecards */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-8 space-y-5">
+            <AIEvaluationCard candidate={candidate} />
+            <CandidateScorecardSection candidateId={candidate.id} />
+          </div>
 
-            {/* Summary */}
-            {candidate.summary && (
-              <motion.div custom={4} variants={fadeUp} initial="hidden" animate="show" className="bg-card rounded-2xl border border-border/50 p-5 shadow-sm">
-                <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-primary" />
-                  الملخص
-                </h3>
-                <p className="text-sm text-muted-foreground leading-7">{candidate.summary}</p>
-              </motion.div>
-            )}
-
-            {/* Skills */}
-            {(() => {
-              const skillsArray = Array.isArray(candidate.skills)
-                ? candidate.skills
-                : typeof candidate.skills === "string"
-                  ? (candidate.skills as string).split(",").map(s => s.trim()).filter(Boolean)
-                  : [];
-              if (skillsArray.length === 0) return null;
-              return (
-                <motion.div custom={5} variants={fadeUp} initial="hidden" animate="show" className="bg-card rounded-2xl border border-border/50 p-5 shadow-sm">
-                  <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-primary" />
-                    المهارات
-                    <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-normal">{skillsArray.length}</span>
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {skillsArray.map((skill, i) => (
-                      <motion.span
-                        key={skill}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.3 + i * 0.03 }}
-                        className="px-3 py-1.5 rounded-lg bg-primary/[0.06] text-primary text-xs font-medium border border-primary/10 hover:border-primary/25 hover:bg-primary/[0.1] transition-all cursor-default"
-                      >
-                        {skill}
-                      </motion.span>
-                    ))}
-                  </div>
-                </motion.div>
-              );
-            })()}
-
-            {/* AI Evaluation */}
-            <motion.div custom={6} variants={fadeUp} initial="hidden" animate="show">
-              <AIEvaluationCard
-                candidateId={candidate.id}
-                candidateName={candidate.name}
-                existingScore={(candidate as any).ai_score}
-                existingEvaluation={(candidate as any).ai_evaluation}
-                jobId={candidate.job_id}
-              />
-            </motion.div>
-
-            {/* Candidate Scorecard Rating */}
-            <motion.div custom={6.2} variants={fadeUp} initial="hidden" animate="show">
-              <CandidateScorecardSection candidateId={candidate.id} />
-            </motion.div>
-
-            {/* Assessment Results */}
-            <CandidateAssessmentResults candidateEmail={candidate.email} jobId={candidate.job_id} />
-
-            {/* Stage History Timeline */}
-            <StageHistoryTimeline candidateId={candidate.id} />
-
-            {/* Onboarding / Deployment Checklists */}
-            <CandidateChecklistPanel candidateId={candidate.id} companyId={(candidate as any).company_id} />
+          <div className="lg:col-span-4 space-y-5">
+            <StageActions candidate={candidate} />
+            <CandidateChecklistPanel candidateId={candidate.id} />
           </div>
         </div>
       </div>

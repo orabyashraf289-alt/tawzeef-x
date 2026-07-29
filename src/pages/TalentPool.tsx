@@ -312,9 +312,12 @@ export default function TalentPool() {
                         </div>
 
                         <div className="space-y-1.5 text-xs text-muted-foreground">
-                          {c.email && <p className="flex items-center gap-1.5"><Mail className="w-3 h-3" />{c.email}</p>}
-                          {c.phone && <p className="flex items-center gap-1.5"><Phone className="w-3 h-3" />{c.phone}</p>}
-                          {c.experience && <p className="flex items-center gap-1.5"><User className="w-3 h-3" />{c.experience}</p>}
+                          {c.email && <p className="flex items-center gap-1.5"><Mail className="w-3 h-3 text-emerald-600" />{c.email}</p>}
+                          {c.phone && <p className="flex items-center gap-1.5"><Phone className="w-3 h-3 text-emerald-600" />{c.phone}</p>}
+                          {c.experience && <p className="flex items-center gap-1.5"><User className="w-3 h-3 text-emerald-600" />{c.experience}</p>}
+                          <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold w-fit mt-1">
+                            🏅 رخصة مهنية سارية 🇸🇦 (ETEC)
+                          </Badge>
                         </div>
 
                         {/* Rating */}

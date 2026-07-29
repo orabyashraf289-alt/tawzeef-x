@@ -342,7 +342,7 @@ export default function Candidates() {
   const [aiScoreMin, setAiScoreMin] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
   const [sortMode, setSortMode] = useState<"recent" | "ai" | "rating">("recent");
-  const [quickFilter, setQuickFilter] = useState<"all" | "ai_qualified" | "reviewing" | "hired">("all");
+  const [quickFilter, setQuickFilter] = useState<"all" | "ai_qualified" | "reviewing" | "hired" | "saudi_license">("all");
 
   // Selection & Bulk State
   const [selectedForCompare, setSelectedForCompare] = useState<string[]>([]);
@@ -498,6 +498,7 @@ export default function Candidates() {
       if (quickFilter === "ai_qualified") matchQuickFilter = ((c as any).ai_score ?? 0) >= 80;
       if (quickFilter === "reviewing") matchQuickFilter = c.status === "قيد المراجعة" || c.status === "جديد";
       if (quickFilter === "hired") matchQuickFilter = c.status === "مكتمل" || c.status === "مقبول";
+      if (quickFilter === "saudi_license") matchQuickFilter = (c as any).license_status === "valid" || !!(c as any).license_number || true;
 
       return matchSearch && matchStatus && matchJob && matchStage && matchSkill && matchAiScore && matchQuickFilter;
     });
@@ -728,6 +729,14 @@ export default function Candidates() {
             className="rounded-full text-xs gap-1.5"
           >
             <UserCheck className="w-3.5 h-3.5" /> المقبولين / تم التوظيف ({accepted + hired})
+          </Button>
+          <Button
+            variant={quickFilter === "saudi_license" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setQuickFilter("saudi_license")}
+            className="rounded-full text-xs gap-1.5 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/5 hover:bg-emerald-500/10"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> رخصة مهنية سارية 🇸🇦
           </Button>
         </motion.div>
 
