@@ -3,10 +3,8 @@ import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMySubscription, useSubscriptionPlans, useCanPostJob } from "@/hooks/useSubscription";
+import { useMySubscription, useSubscriptionPlans, useCompanyInvoices, type CompanyInvoice } from "@/hooks/useSubscription";
 import { useMemo } from "react";
 import { toast } from "@/hooks/use-toast";
 
@@ -14,7 +12,7 @@ export default function BillingHistory() {
   const { user } = useAuth();
   const { data: activeSub, isLoading: isSubLoading } = useMySubscription();
   const { data: plans, isLoading: isPlansLoading } = useSubscriptionPlans();
-  const { used, limit, remaining } = useCanPostJob();
+  const { data: dbInvoices, isLoading: isInvoicesLoading } = useCompanyInvoices();
 
   // Resolve current active plan details
   const currentPlan = useMemo(() => {
@@ -22,49 +20,62 @@ export default function BillingHistory() {
     return plans.find(p => p.id === activeSub.plan_id) || plans.find(p => p.name === "free") || null;
   }, [plans, activeSub]);
 
-  // Dynamically generate billing history invoices since subscription starts_at date
-  const invoices = useMemo(() => {
+  // Use database invoices if available, otherwise generate dynamic invoices fallback
+  const invoicesList = useMemo(() => {
+    if (dbInvoices && dbInvoices.length > 0) {
+      return dbInvoices.map((inv) => ({
+        id: inv.invoice_number || inv.id,
+        date: inv.created_at,
+        amount: inv.amount,
+        plan: inv.plan_name_ar,
+        companyName: inv.company_name,
+        jobPostsLimit: inv.job_posts_limit,
+        status: inv.status === "paid" ? "Paid" : "Pending",
+      }));
+    }
+
     if (!activeSub || !currentPlan) return [];
-    
+
     const list: Array<{
       id: string;
       date: string;
       amount: number;
       plan: string;
+      companyName?: string;
+      jobPostsLimit: number;
       status: string;
     }> = [];
-    
+
     const startDate = new Date(activeSub.starts_at || new Date());
     const currentDate = new Date();
-    
+
     let tempDate = new Date(startDate);
     let index = 1;
-    
-    // Safety check to prevent infinite loops
+
     let iterations = 0;
     while (tempDate <= currentDate && iterations < 100) {
       iterations++;
       const year = tempDate.getFullYear();
-      const month = String(tempDate.getMonth() + 1).padStart(2, '0');
-      const day = String(tempDate.getDate()).padStart(2, '0');
-      
+      const month = String(tempDate.getMonth() + 1).padStart(2, "0");
+      const day = String(tempDate.getDate()).padStart(2, "0");
+
       list.unshift({
-        id: `INV-${year}-${month}-${String(index).padStart(3, '0')}`,
+        id: `INV-${year}-${month}-${String(index).padStart(3, "0")}`,
         date: `${year}-${month}-${day}`,
         amount: currentPlan.price,
         plan: currentPlan.name_ar || currentPlan.name,
-        status: "Paid"
+        jobPostsLimit: currentPlan.job_posts_limit,
+        status: "Paid",
       });
-      
-      // Advance by 1 month
+
       tempDate.setMonth(tempDate.getMonth() + 1);
       index++;
     }
-    
-    return list;
-  }, [activeSub, currentPlan]);
 
-  const handleDownloadInvoice = (inv: { id: string; date: string; amount: number; plan: string; status: string }) => {
+    return list;
+  }, [dbInvoices, activeSub, currentPlan]);
+
+  const handleDownloadInvoice = (inv: { id: string; date: string; amount: number; plan: string; companyName?: string; jobPostsLimit: number; status: string }) => {
     const html = `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
@@ -118,13 +129,13 @@ export default function BillingHistory() {
   <div class="info-grid">
     <div class="info-block">
       <p class="section-title">فاتورة إلى</p>
-      <strong>عميل Tawzeef-X</strong>
+      <strong>${inv.companyName || "شركة عميل Tawzeef-X"}</strong>
       <p style="margin-top:4px; color:#64748b;">منصة توظيف ذكي متكامل</p>
     </div>
     <div class="info-block">
       <p class="section-title">معلومات الفاتورة</p>
-      <strong>رقم: ${inv.id}</strong>
-      <p style="margin-top:4px;">تاريخ الاستحقاق: ${new Date(inv.date).toLocaleDateString("ar-SA")}</p>
+      <strong>رقم الفاتورة: ${inv.id}</strong>
+      <p style="margin-top:4px;">الحد المخصص: ${inv.jobPostsLimit === -1 ? "منشورات غير محدودة" : `${inv.jobPostsLimit} منشور`}</p>
     </div>
   </div>
 
@@ -137,7 +148,7 @@ export default function BillingHistory() {
     </thead>
     <tbody>
       <tr>
-        <td>اشتراك شهري — باقة <strong>${inv.plan}</strong></td>
+        <td>اشتراك باقة <strong>${inv.plan}</strong></td>
         <td style="text-align:left;">${inv.amount} ر.س</td>
       </tr>
       <tr>
@@ -168,16 +179,15 @@ export default function BillingHistory() {
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
 
-  if (isSubLoading || isPlansLoading) {
+  if (isSubLoading || isPlansLoading || isInvoicesLoading) {
     return <div className="text-center py-6 text-xs text-muted-foreground">جاري تحميل سجل الفواتير...</div>;
   }
 
   return (
     <div className="space-y-6">
-      {/* Dynamic Billing history table */}
       <div className="space-y-3">
         <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
-          {invoices.length === 0 ? (
+          {invoicesList.length === 0 ? (
             <div className="text-center py-8 text-xs text-muted-foreground">لا يوجد سجل مدفوعات حالياً لهذه الشركة.</div>
           ) : (
             <div className="overflow-x-auto">
@@ -193,7 +203,7 @@ export default function BillingHistory() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
-                  {invoices.map(inv => (
+                  {invoicesList.map((inv) => (
                     <tr key={inv.id} className="hover:bg-muted/10 transition-colors">
                       <td className="p-3 font-medium text-foreground">{inv.id}</td>
                       <td className="p-3 text-muted-foreground">{new Date(inv.date).toLocaleDateString("ar-SA")}</td>

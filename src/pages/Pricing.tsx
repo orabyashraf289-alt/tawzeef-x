@@ -60,13 +60,13 @@ export default function Pricing() {
           className="text-center mb-16"
         >
           <Badge variant="outline" className="mb-4 px-4 py-1.5 text-sm font-semibold">
-            💰 خطط الأسعار
+            💰 خطط الأسعار والاشتراكات
           </Badge>
           <h1 className="text-4xl md:text-5xl font-black text-foreground mb-4" style={{ fontFamily: "'Cairo', sans-serif" }}>
             اختر الباقة المناسبة لشركتك
           </h1>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto" style={{ fontFamily: "'Cairo', sans-serif" }}>
-            ابدأ مجاناً وقم بالترقية حسب احتياجاتك. جميع الباقات تشمل المزايا الأساسية.
+            ابدأ مجاناً وقدم طلب ترقية الباقة حسب احتياجاتك ليقوم فريق الإدارة بتفعيلها فوراً.
           </p>
         </motion.div>
 
@@ -141,7 +141,7 @@ export default function Pricing() {
                     ))}
                   </ul>
 
-                  {user && (role === "recruiter" || role === "admin") ? (
+                  {user && (role === "recruiter" || role === "admin" || role === "super_admin") ? (
                     <Button
                       onClick={() => setSelectedPlan({
                         id: plan.id,
@@ -160,7 +160,7 @@ export default function Pricing() {
                       variant={isPro || isBasic ? "default" : "outline"}
                       style={{ fontFamily: "'Cairo', sans-serif" }}
                     >
-                      {plan.price === 0 ? "الباقة الافتراضية" : "اشترك الآن"}
+                      {plan.price === 0 ? "الباقة الحالية" : "طلب ترقية الباقة 🚀"}
                     </Button>
                   ) : (
                     <Link to={`/auth?mode=signup&plan=${plan.name}`}>
@@ -193,9 +193,9 @@ export default function Pricing() {
           className="text-center mt-16"
         >
           <p className="text-muted-foreground text-sm" style={{ fontFamily: "'Cairo', sans-serif" }}>
-            تحتاج باقة مخصصة؟{" "}
+            تحتاج باقة مخصصة بحدود خاصة؟{" "}
             <a href="mailto:support@tawzeef-x.com" className="text-primary font-semibold hover:underline">
-              تواصل معنا
+              تواصل مع فريق إدارة Tawzeef-X
             </a>
           </p>
         </motion.div>

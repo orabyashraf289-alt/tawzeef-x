@@ -27,6 +27,37 @@ export interface CompanySubscription {
   expires_at: string | null;
 }
 
+export interface SubscriptionUpgradeRequest {
+  id: string;
+  company_id: string;
+  requested_by_user_id: string | null;
+  target_plan_id: string;
+  target_plan_name: string;
+  status: "pending" | "approved" | "rejected";
+  notes: string | null;
+  created_at: string;
+  company_name?: string;
+  requester_name?: string;
+}
+
+export interface CompanyInvoice {
+  id: string;
+  invoice_number: string;
+  company_id: string;
+  subscription_id: string | null;
+  plan_id: string;
+  plan_name_ar: string;
+  amount: number;
+  currency: string;
+  job_posts_limit: number;
+  starts_at: string;
+  expires_at: string | null;
+  status: "paid" | "pending" | "cancelled";
+  issued_by_user_id: string | null;
+  created_at: string;
+  company_name?: string;
+}
+
 export function useSubscriptionPlans() {
   return useQuery({
     queryKey: ["subscription-plans"],
@@ -109,45 +140,33 @@ export function useCanPostJob() {
   };
 }
 
-export function useUpgradeSubscription() {
+export function useCreateUpgradeRequest() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ planId, limit }: { planId: string; limit: number }) => {
-      if (!user) throw new Error("User not authenticated");
+    mutationFn: async ({ targetPlanId, targetPlanName, notes }: { targetPlanId: string; targetPlanName: string; notes?: string }) => {
+      if (!user) throw new Error("المستخدم غير مسجل الدخول");
 
-      // 1) Get all company memberships
-      const { data: memberRows, error: memberErr } = await supabase
+      const { data: memberRows } = await supabase
         .from("company_members" as any)
         .select("company_id")
         .eq("user_id", user.id);
 
-      if (memberErr || !memberRows || memberRows.length === 0) throw new Error("No company found for user");
+      if (!memberRows || memberRows.length === 0) throw new Error("لم يتم العثور على شركة مرتبطة بالحساب");
 
-      const companyIds = memberRows.map((r: any) => r.company_id);
-      const { data: companiesData } = await supabase
-        .from("companies")
-        .select("id, parent_company_id")
-        .in("id", companyIds);
+      const companyId = memberRows[0].company_id;
 
-      if (!companiesData || companiesData.length === 0) throw new Error("No company found for user");
-
-      // Prefer main company (parent_company_id is null)
-      const mainCompany = companiesData.find((c) => !c.parent_company_id);
-      const activeCompany = mainCompany || companiesData[0];
-      const targetCompanyId = activeCompany.parent_company_id || activeCompany.id;
-
-      // 2) Update subscription
       const { data, error } = await supabase
-        .from("company_subscriptions" as any)
-        .update({
-          plan_id: planId,
-          job_posts_limit: limit,
-          job_posts_used: 0,
-          updated_at: new Date().toISOString()
+        .from("subscription_upgrade_requests" as any)
+        .insert({
+          company_id: companyId,
+          requested_by_user_id: user.id,
+          target_plan_id: targetPlanId,
+          target_plan_name: targetPlanName,
+          status: "pending",
+          notes: notes || null,
         } as any)
-        .eq("company_id", targetCompanyId)
         .select()
         .single();
 
@@ -155,8 +174,179 @@ export function useUpgradeSubscription() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-subscription", user?.id] });
-      queryClient.invalidateQueries({ queryKey: ["subscription-plans"] });
-    }
+      queryClient.invalidateQueries({ queryKey: ["my-upgrade-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-upgrade-requests"] });
+    },
+  });
+}
+
+export function useUpgradeRequests() {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["admin-upgrade-requests", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from("subscription_upgrade_requests" as any)
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      if (!data || data.length === 0) return [];
+
+      const companyIds = Array.from(new Set(data.map((r: any) => r.company_id)));
+      const userIds = Array.from(new Set(data.map((r: any) => r.requested_by_user_id).filter(Boolean)));
+
+      const { data: cos } = await supabase.from("companies").select("id, name").in("id", companyIds);
+      const { data: profiles } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
+
+      return data.map((r: any) => {
+        const co = (cos || []).find((c) => c.id === r.company_id);
+        const pr = (profiles || []).find((p) => p.user_id === r.requested_by_user_id);
+        return {
+          ...r,
+          company_name: co?.name || "شركة غير معرفة",
+          requester_name: pr?.full_name || "مستخدم غير معرف",
+        } as SubscriptionUpgradeRequest;
+      });
+    },
+    enabled: !!user,
+  });
+}
+
+export function useAdminCustomUpgradeSubscription() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({
+      companyId,
+      ownerUserId,
+      planId,
+      planNameAr,
+      jobPostsLimit,
+      price,
+      startsAt,
+      expiresAt,
+      issueInvoice = true,
+    }: {
+      companyId: string;
+      ownerUserId?: string | null;
+      planId: string;
+      planNameAr: string;
+      jobPostsLimit: number;
+      price: number;
+      startsAt: string;
+      expiresAt: string | null;
+      issueInvoice?: boolean;
+    }) => {
+      if (!user) throw new Error("المستخدم غير مصرح له");
+
+      const activeUserId = ownerUserId || user.id;
+
+      // 1) Update/Upsert company subscription
+      const { data: existing } = await supabase
+        .from("company_subscriptions" as any)
+        .select("id")
+        .eq("company_id", companyId)
+        .maybeSingle();
+
+      let subId = existing?.id;
+
+      if (existing) {
+        const { error } = await supabase
+          .from("company_subscriptions" as any)
+          .update({
+            plan_id: planId,
+            job_posts_limit: jobPostsLimit,
+            job_posts_used: 0,
+            status: "active",
+            starts_at: startsAt,
+            expires_at: expiresAt,
+            updated_at: new Date().toISOString(),
+          } as any)
+          .eq("company_id", companyId);
+        if (error) throw error;
+      } else {
+        const { data: created, error } = await supabase
+          .from("company_subscriptions" as any)
+          .insert({
+            company_id: companyId,
+            user_id: activeUserId,
+            plan_id: planId,
+            job_posts_limit: jobPostsLimit,
+            job_posts_used: 0,
+            status: "active",
+            starts_at: startsAt,
+            expires_at: expiresAt,
+          } as any)
+          .select()
+          .single();
+        if (error) throw error;
+        subId = created?.id;
+      }
+
+      // 2) Generate Invoice if requested
+      if (issueInvoice) {
+        const invoiceCount = Math.floor(100 + Math.random() * 900);
+        const year = new Date().getFullYear();
+        const month = String(new Date().getMonth() + 1).padStart(2, "0");
+        const invoiceNum = `INV-${year}-${month}-${invoiceCount}`;
+
+        await supabase.from("company_invoices" as any).insert({
+          invoice_number: invoiceNum,
+          company_id: companyId,
+          subscription_id: subId || null,
+          plan_id: planId,
+          plan_name_ar: planNameAr,
+          amount: price,
+          currency: "SAR",
+          job_posts_limit: jobPostsLimit,
+          starts_at: startsAt,
+          expires_at: expiresAt,
+          status: "paid",
+          issued_by_user_id: user.id,
+        } as any);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-companies-list"] });
+      queryClient.invalidateQueries({ queryKey: ["my-subscription"] });
+      queryClient.invalidateQueries({ queryKey: ["company-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-upgrade-requests"] });
+    },
+  });
+}
+
+export function useCompanyInvoices() {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["company-invoices", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from("company_invoices" as any)
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      if (!data || data.length === 0) return [];
+
+      const companyIds = Array.from(new Set(data.map((i: any) => i.company_id)));
+      const { data: cos } = await supabase.from("companies").select("id, name").in("id", companyIds);
+
+      return data.map((inv: any) => {
+        const co = (cos || []).find((c) => c.id === inv.company_id);
+        return {
+          ...inv,
+          company_name: co?.name || "شركة غير معرفة",
+        } as CompanyInvoice;
+      });
+    },
+    enabled: !!user,
   });
 }
