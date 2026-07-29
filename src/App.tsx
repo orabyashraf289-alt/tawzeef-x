@@ -13,8 +13,6 @@ import { PageSkeleton } from "@/components/Skeletons";
 import { SessionManager } from "@/components/SessionManager";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
-
-
 // Eagerly loaded (critical path)
 import LandingPage from "./pages/LandingPage";
 import Auth from "./pages/Auth";
@@ -73,6 +71,8 @@ const AcceptInvitation = lazy(() => import("./pages/AcceptInvitation"));
 const QualityReport = lazy(() => import("./pages/QualityReport"));
 const TaskBoard = lazy(() => import("./pages/TaskBoard"));
 const PerformanceEvaluation = lazy(() => import("./pages/PerformanceEvaluation"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
 
 function PageLoader() {
   return <PageSkeleton />;
@@ -109,9 +109,10 @@ function AnimatedRoutes() {
         <Route path="/contact" element={<Contact />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<BlogPost />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
         <Route path="/typography" element={<TypographyTest />} />
         <Route path="/invitation/:token" element={<AcceptInvitation />} />
-
 
         {/* Protected - any authenticated user */}
         <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
@@ -119,24 +120,23 @@ function AnimatedRoutes() {
 
         {/* Role-protected: admin + recruiter + reviewer */}
         <Route path="/dashboard" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Dashboard /></RoleProtectedRoute>} />
-        <Route path="/tasks" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><TaskBoard /></RoleProtectedRoute>} />
-        <Route path="/evaluation" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><PerformanceEvaluation /></RoleProtectedRoute>} />
+        <Route path="/jobs" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Jobs /></RoleProtectedRoute>} />
+        <Route path="/jobs/:id" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><JobDetails /></RoleProtectedRoute>} />
         <Route path="/candidates" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Candidates /></RoleProtectedRoute>} />
         <Route path="/candidates/:id" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><CandidateProfile /></RoleProtectedRoute>} />
+        <Route path="/ai-assistant" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><AIAssistant /></RoleProtectedRoute>} />
+        <Route path="/reports" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Reports /></RoleProtectedRoute>} />
         <Route path="/interviews" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Interviews /></RoleProtectedRoute>} />
         <Route path="/notifications" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Notifications /></RoleProtectedRoute>} />
-        <Route path="/tutorial" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Tutorial /></RoleProtectedRoute>} />
+        <Route path="/pipeline" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Pipeline /></RoleProtectedRoute>} />
+        <Route path="/offers" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Offers /></RoleProtectedRoute>} />
         <Route path="/settings" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Settings /></RoleProtectedRoute>} />
+        <Route path="/hiring-plan" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><HiringPlan /></RoleProtectedRoute>} />
+        <Route path="/tutorial" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Tutorial /></RoleProtectedRoute>} />
+        <Route path="/talent-pool" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><TalentPool /></RoleProtectedRoute>} />
+        <Route path="/task-board" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><TaskBoard /></RoleProtectedRoute>} />
+        <Route path="/performance-evaluation" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><PerformanceEvaluation /></RoleProtectedRoute>} />
 
-        {/* Role-protected: admin + recruiter only */}
-        <Route path="/jobs" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><Jobs /></RoleProtectedRoute>} />
-        <Route path="/jobs/:id" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><JobDetails /></RoleProtectedRoute>} />
-        <Route path="/pipeline" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><Pipeline /></RoleProtectedRoute>} />
-        <Route path="/offers" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><Offers /></RoleProtectedRoute>} />
-        <Route path="/reports" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><Reports /></RoleProtectedRoute>} />
-        <Route path="/hiring-plan" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><HiringPlan /></RoleProtectedRoute>} />
-        <Route path="/ai-assistant" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><AIAssistant /></RoleProtectedRoute>} />
-        <Route path="/talent-pool" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><TalentPool /></RoleProtectedRoute>} />
         <Route path="/question-bank" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><QuestionBank /></RoleProtectedRoute>} />
         <Route path="/resume-archive" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><ResumeArchive /></RoleProtectedRoute>} />
         <Route path="/workflow" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><WorkflowEditor /></RoleProtectedRoute>} />
@@ -190,11 +190,7 @@ const App = () => {
                 <Toaster />
                 <Sonner />
                 <BrowserRouter>
-                  <Suspense fallback={<PageLoader />}>
-                    <ErrorBoundary>
-                      <AnimatedRoutes />
-                    </ErrorBoundary>
-                  </Suspense>
+                  <AnimatedRoutes />
                 </BrowserRouter>
               </TooltipProvider>
             </AuthProvider>
@@ -206,4 +202,3 @@ const App = () => {
 };
 
 export default App;
-
