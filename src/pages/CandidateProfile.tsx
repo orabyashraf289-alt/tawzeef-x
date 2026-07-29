@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ArrowRight, Mail, Phone, MapPin, Calendar, Star, Download, 
   MessageSquare, FileText, Briefcase, GraduationCap, Check, Clock, 
