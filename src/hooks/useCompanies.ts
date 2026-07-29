@@ -14,7 +14,15 @@ export interface Company {
   industry: string | null;
   country: string | null;
   city: string | null;
+  address?: string | null;
   owner_user_id: string | null;
+  manager_user_id?: string | null;
+  manager_profile?: {
+    full_name: string | null;
+    job_title?: string | null;
+    avatar_url?: string | null;
+    email?: string | null;
+  } | null;
   status: string;
   created_at: string;
   parent_company_id?: string | null;
@@ -24,8 +32,13 @@ export interface CompanyMember {
   id: string;
   company_id: string;
   user_id: string;
-  member_role: "owner" | "hr" | "viewer";
+  member_role: "owner" | "hr" | "viewer" | "admin";
   joined_at: string;
+  profiles?: {
+    full_name: string | null;
+    job_title?: string | null;
+    avatar_url?: string | null;
+  } | null;
 }
 
 // Admin: list all companies
@@ -80,12 +93,27 @@ export function useCompanyMembers(companyId: string | undefined) {
   return useQuery({
     queryKey: ["company-members", companyId],
     queryFn: async () => {
+      if (!companyId) return [];
       const { data, error } = await supabase
         .from("company_members" as any)
         .select("*")
-        .eq("company_id", companyId!);
+        .eq("company_id", companyId);
       if (error) throw error;
-      return data as unknown as CompanyMember[];
+      if (!data || data.length === 0) return [];
+
+      const userIds = Array.from(new Set(data.map((m: any) => m.user_id)));
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, job_title, avatar_url")
+        .in("user_id", userIds);
+
+      return data.map((m: any) => {
+        const pr = (profiles || []).find((p: any) => p.user_id === m.user_id);
+        return {
+          ...m,
+          profiles: pr || null,
+        };
+      }) as CompanyMember[];
     },
     enabled: !!companyId,
   });
@@ -112,7 +140,7 @@ export function useMyCompanyRole(companyId: string | null | undefined) {
 export function useAddCompanyMember() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ companyId, userId, role }: { companyId: string; userId: string; role: "owner" | "hr" | "viewer" }) => {
+    mutationFn: async ({ companyId, userId, role }: { companyId: string; userId: string; role: "owner" | "hr" | "viewer" | "admin" }) => {
       const { error } = await supabase.from("company_members" as any).insert({
         company_id: companyId,
         user_id: userId,
@@ -236,6 +264,7 @@ export function useDeleteCompany() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["all-companies"] });
+      qc.invalidateQueries({ queryKey: ["company-branches"] });
       toast({ title: "تم الحذف ✅" });
     },
     onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
@@ -267,52 +296,84 @@ export function useCompanyStats(companyId: string | undefined) {
   });
 }
 
-// Fetch all branches of a parent company
+// Fetch all branches of a parent company with assigned manager profiles
 export function useCompanyBranches(parentId: string | undefined) {
   return useQuery({
     queryKey: ["company-branches", parentId],
     queryFn: async () => {
+      if (!parentId) return [];
       const { data, error } = await supabase
         .from("companies" as any)
         .select("*")
-        .eq("parent_company_id", parentId!)
+        .eq("parent_company_id", parentId)
         .order("created_at", { ascending: false });
+
       if (error) throw error;
-      return data as unknown as Company[];
+      if (!data || data.length === 0) return [];
+
+      const managerUserIds = Array.from(new Set(data.map((c: any) => c.manager_user_id).filter(Boolean)));
+      let profilesMap: Record<string, any> = {};
+
+      if (managerUserIds.length > 0) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("user_id, full_name, job_title, avatar_url")
+          .in("user_id", managerUserIds);
+
+        (profs || []).forEach((p: any) => {
+          profilesMap[p.user_id] = p;
+        });
+      }
+
+      return data.map((c: any) => ({
+        ...c,
+        manager_profile: c.manager_user_id ? profilesMap[c.manager_user_id] || null : null,
+      })) as Company[];
     },
     enabled: !!parentId,
   });
 }
 
-// Create a branch for a parent company
+// Create a branch for a parent company with assigned manager
 export function useCreateCompanyBranch() {
   const qc = useQueryClient();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async (input: Partial<Company> & { parent_company_id: string }) => {
+    mutationFn: async (input: Partial<Company> & { parent_company_id: string; manager_user_id?: string | null }) => {
       // 1) Insert branch company
       const { data: comp, error: compErr } = await supabase
         .from("companies" as any)
         .insert({
           ...input,
           status: "active",
-          owner_user_id: user?.id || null
+          owner_user_id: user?.id || null,
+          manager_user_id: input.manager_user_id || null,
         } as any)
         .select()
         .single();
 
       if (compErr) throw compErr;
 
-      // 2) Add current user as owner of the branch in company_members
+      // 2) Add owner to company_members
       if (user) {
-        const { error: memErr } = await supabase
+        await supabase
           .from("company_members" as any)
           .insert({
             company_id: comp.id,
             user_id: user.id,
             member_role: "owner"
           } as any);
-        if (memErr) throw memErr;
+      }
+
+      // 3) Add assigned branch manager to company_members if specified and not user
+      if (input.manager_user_id && input.manager_user_id !== user?.id) {
+        await supabase
+          .from("company_members" as any)
+          .insert({
+            company_id: comp.id,
+            user_id: input.manager_user_id,
+            member_role: "hr"
+          } as any);
       }
 
       return comp as unknown as Company;
@@ -320,7 +381,7 @@ export function useCreateCompanyBranch() {
     onSuccess: (_, v) => {
       qc.invalidateQueries({ queryKey: ["company-branches", v.parent_company_id] });
       qc.invalidateQueries({ queryKey: ["my-companies", user?.id] });
-      toast({ title: "تم إنشاء الفرع بنجاح ✅" });
+      toast({ title: "تم إنشاء الفرع وتعيين المسؤول بنجاح ✅" });
     },
     onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });

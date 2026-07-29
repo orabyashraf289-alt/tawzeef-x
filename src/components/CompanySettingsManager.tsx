@@ -16,13 +16,21 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   Building2, Camera, Trash2, Check, Globe, MapPin, Shield, Lock, Palette,
   Users, Plus, Mail, RefreshCw, Sparkles, QrCode, Layers, FileSpreadsheet,
-  Link2, UserPlus, AlertCircle
+  Link2, UserPlus, AlertCircle, UserCheck, Crown, Edit2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useCompanyMembers, useRemoveCompanyMember, useCompanyBranches, useCreateCompanyBranch } from "@/hooks/useCompanies";
+import {
+  useCompanyMembers,
+  useRemoveCompanyMember,
+  useCompanyBranches,
+  useCreateCompanyBranch,
+  useUpdateCompany,
+} from "@/hooks/useCompanies";
 import { useCompanyInvitations, useCreateCompanyInvitation, useCancelInvitation } from "@/hooks/useCompanyInvitations";
 
 export default function CompanySettingsManager() {
@@ -63,19 +71,23 @@ export default function CompanySettingsManager() {
   const { data: invitations = [], refetch: refetchInvites } = useCompanyInvitations(companyId || "");
   const { data: branches = [], isLoading: branchesLoading } = useCompanyBranches(companyId);
   const createBranch = useCreateCompanyBranch();
+  const updateCompany = useUpdateCompany();
   const createInvite = useCreateCompanyInvitation();
   const cancelInvite = useCancelInvitation();
   const removeMember = useRemoveCompanyMember();
 
-  // Branch Form
+  // Branch Form & Edit Manager Dialog
   const [branchName, setBranchName] = useState("");
   const [branchCity, setBranchCity] = useState("");
   const [branchAddress, setBranchAddress] = useState("");
+  const [branchManagerUserId, setBranchManagerUserId] = useState<string>("none");
+
+  const [editManagerDialog, setEditManagerDialog] = useState<{ branchId: string; branchName: string; currentManagerUserId: string | null } | null>(null);
+  const [selectedNewManagerId, setSelectedNewManagerId] = useState<string>("none");
 
   // Invite Form
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "recruiter" | "reviewer">("recruiter");
-  const [inviteOpen, setInviteOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -273,15 +285,27 @@ export default function CompanySettingsManager() {
   const handleAddBranch = async () => {
     if (!companyId || !branchName.trim()) return;
     await createBranch.mutateAsync({
-      company_id: companyId,
+      parent_company_id: companyId,
       name: branchName,
       city: branchCity || null,
       address: branchAddress || null,
+      manager_user_id: branchManagerUserId === "none" ? null : branchManagerUserId,
     });
     setBranchName("");
     setBranchCity("");
     setBranchAddress("");
-    toast({ title: "تم إضافة الفرع الجديد ✅" });
+    setBranchManagerUserId("none");
+  };
+
+  const handleUpdateBranchManager = async () => {
+    if (!editManagerDialog) return;
+    const newManager = selectedNewManagerId === "none" ? null : selectedNewManagerId;
+    await updateCompany.mutateAsync({
+      id: editManagerDialog.branchId,
+      manager_user_id: newManager,
+    });
+    setEditManagerDialog(null);
+    toast({ title: "تم تحديث مدير الفرع بنجاح ✅" });
   };
 
   const handleSendInvite = async () => {
@@ -303,7 +327,7 @@ export default function CompanySettingsManager() {
         badgeText="مركز إدارة وبيانات المؤسسة والشركة"
         badgeIcon={Building2}
         title={companyName || "إعدادات الشركة والهوية المؤسسية"}
-        description="تعديل اسم الشركة، الشعار، الهوية البصرية، الفروع، وإدارة أعضاء الفريق والصلاحيات."
+        description="تعديل اسم الشركة، الشعار، الهوية البصرية، الفروع وتعيين مدراء الفروع، وإدارة أعضاء الفريق."
         icon={Building2}
         accentColor="emerald"
         actions={
@@ -331,7 +355,7 @@ export default function CompanySettingsManager() {
           </TabsTrigger>
           <TabsTrigger value="branches" className="rounded-xl text-xs font-bold gap-2 px-4 py-2">
             <MapPin className="w-4 h-4 text-blue-500" />
-            <span>الفروع والمقرات</span>
+            <span>الفروع وإسناد المدراء</span>
           </TabsTrigger>
           <TabsTrigger value="members" className="rounded-xl text-xs font-bold gap-2 px-4 py-2">
             <Users className="w-4 h-4 text-purple-500" />
@@ -519,63 +543,179 @@ export default function CompanySettingsManager() {
           </Card>
         </TabsContent>
 
-        {/* ── 3. Company Branches ── */}
+        {/* ── 3. Company Branches & Manager Assignment ── */}
         <TabsContent value="branches" className="mt-6 space-y-6">
           <Card className="border-border/60 rounded-3xl p-6 space-y-6 shadow-xs">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-black text-base text-foreground">فروع ومقرات الشركة</h3>
-                <p className="text-xs text-muted-foreground mt-1">إضافة وإدارة فروع ومقرات العمل التابعة للشركة.</p>
+                <h3 className="font-black text-base text-foreground">فروع ومقرات الشركة والمدراء المسؤولين</h3>
+                <p className="text-xs text-muted-foreground mt-1">إضافة فروع وتحديد مدير/مسؤول توظيف محدد لكل فرع تابع للشركة الأم.</p>
               </div>
+              <Badge variant="outline" className="text-xs font-bold text-primary border-primary/30">
+                {branches.length} فرع مضاف
+              </Badge>
             </div>
 
             {/* Add Branch Form */}
-            <div className="p-4 rounded-2xl bg-muted/30 border border-border/60 space-y-3">
-              <h4 className="font-bold text-xs text-foreground">إضافة فرع جديد:</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <Input
-                  placeholder="اسم الفرع (مثل: فرع جدة الرئيسي)"
-                  value={branchName}
-                  onChange={e => setBranchName(e.target.value)}
-                  className="h-10 text-xs rounded-xl"
-                />
-                <Input
-                  placeholder="المدينة"
-                  value={branchCity}
-                  onChange={e => setBranchCity(e.target.value)}
-                  className="h-10 text-xs rounded-xl"
-                />
-                <Input
-                  placeholder="العنوان التفصيلي"
-                  value={branchAddress}
-                  onChange={e => setBranchAddress(e.target.value)}
-                  className="h-10 text-xs rounded-xl"
-                />
+            <div className="p-5 rounded-2xl bg-muted/30 border border-border/60 space-y-4">
+              <h4 className="font-bold text-sm text-foreground flex items-center gap-2">
+                <Plus className="w-4 h-4 text-primary" />
+                إضافة فرع جديد وإسناد مسؤول للفرع:
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">اسم الفرع *</Label>
+                  <Input
+                    placeholder="مثال: فرع جدة الرئيسي"
+                    value={branchName}
+                    onChange={e => setBranchName(e.target.value)}
+                    className="h-10 text-xs rounded-xl"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">المدينة</Label>
+                  <Input
+                    placeholder="جدة"
+                    value={branchCity}
+                    onChange={e => setBranchCity(e.target.value)}
+                    className="h-10 text-xs rounded-xl"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">العنوان التفصيلي</Label>
+                  <Input
+                    placeholder="طريق الملك عبد العزيز"
+                    value={branchAddress}
+                    onChange={e => setBranchAddress(e.target.value)}
+                    className="h-10 text-xs rounded-xl"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">مدير / مسؤول الفرع</Label>
+                  <Select value={branchManagerUserId} onValueChange={setBranchManagerUserId}>
+                    <SelectTrigger className="h-10 text-xs rounded-xl">
+                      <SelectValue placeholder="اختر مسؤول الفرع" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">بدون تعيين حالياً</SelectItem>
+                      {members.map((m: any) => (
+                        <SelectItem key={m.user_id} value={m.user_id}>
+                          👤 {m.profiles?.full_name || "موظف"} ({m.profiles?.job_title || "مسؤول توظيف"})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <Button onClick={handleAddBranch} disabled={!branchName.trim()} className="gap-1.5 rounded-xl h-9 text-xs font-bold">
-                <Plus className="w-4 h-4" />إضافة الفرع
+              <Button onClick={handleAddBranch} disabled={!branchName.trim()} className="gap-1.5 rounded-xl h-10 text-xs font-bold bg-primary text-primary-foreground">
+                <Plus className="w-4 h-4" />حفظ وإضافة الفرع
               </Button>
             </div>
 
             {/* Branches List */}
-            <div className="space-y-2">
+            <div className="space-y-3">
+              <h4 className="font-bold text-xs text-muted-foreground">قائمة الفروع التابعة للشركة الأم:</h4>
               {branches.length === 0 ? (
-                <div className="p-6 text-center text-muted-foreground text-xs">لا يوجد فروع مضافة حتى الآن.</div>
+                <div className="p-8 text-center text-muted-foreground text-xs bg-muted/20 rounded-2xl border border-border/40 space-y-2">
+                  <MapPin className="w-8 h-8 text-muted-foreground/30 mx-auto" />
+                  <p>لا يوجد فروع مضافة حتى الآن تحت الشركة الأم.</p>
+                </div>
               ) : (
                 branches.map((b: any) => (
-                  <div key={b.id} className="p-3.5 rounded-2xl bg-card border border-border/60 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <MapPin className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <div>
-                        <p className="font-bold text-xs text-foreground">{b.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{b.city || "مدينة غير محددة"} • {b.address || "بدون عنوان صريح"}</p>
+                  <div key={b.id} className="p-4 rounded-2xl bg-card border border-border/60 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs hover:border-primary/40 transition-colors">
+                    <div className="flex items-start md:items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                        <MapPin className="w-5 h-5" />
                       </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-sm text-foreground">{b.name}</p>
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                            {b.city || "مدينة غير محددة"}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{b.address || "العنوان التفصيلي غير محدد"}</p>
+                      </div>
+                    </div>
+
+                    {/* Assigned Manager Card */}
+                    <div className="flex items-center gap-3 bg-muted/30 p-2.5 rounded-xl border border-border/40">
+                      <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">
+                        <UserCheck className="w-4 h-4" />
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] text-muted-foreground font-semibold">مدير / مسؤول الفرع:</p>
+                        <p className="text-xs font-bold text-foreground">
+                          {b.manager_profile?.full_name ? (
+                            <>👑 {b.manager_profile.full_name} <span className="text-[10px] text-muted-foreground font-normal">({b.manager_profile.job_title || "مسؤول توظيف"})</span></>
+                          ) : (
+                            <span className="text-amber-600 italic">غير معين</span>
+                          )}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-primary hover:bg-primary/10"
+                        onClick={() => {
+                          setEditManagerDialog({
+                            branchId: b.id,
+                            branchName: b.name,
+                            currentManagerUserId: b.manager_user_id || null,
+                          });
+                          setSelectedNewManagerId(b.manager_user_id || "none");
+                        }}
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   </div>
                 ))
               )}
             </div>
           </Card>
+
+          {/* Edit Manager Modal */}
+          <Dialog open={!!editManagerDialog} onOpenChange={() => setEditManagerDialog(null)}>
+            <DialogContent className="sm:max-w-md" dir="rtl">
+              <DialogHeader className="text-right">
+                <DialogTitle className="text-base font-bold flex items-center gap-2">
+                  <Crown className="w-4 h-4 text-emerald-600" />
+                  تعيين مدير فرع {editManagerDialog?.branchName}
+                </DialogTitle>
+                <DialogDescription>
+                  اختر الموظف أو مسؤول التوظيف ليكون مسؤولاً عن هذا الفرع ومتابعة وظائفه ومرشحيه.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 mt-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">الموظف المسؤول عن الفرع</Label>
+                  <Select value={selectedNewManagerId} onValueChange={setSelectedNewManagerId}>
+                    <SelectTrigger className="h-10 text-xs rounded-xl">
+                      <SelectValue placeholder="اختر مسؤول الفرع" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">بدون تعيين (إلغاء التعيين)</SelectItem>
+                      {members.map((m: any) => (
+                        <SelectItem key={m.user_id} value={m.user_id}>
+                          👤 {m.profiles?.full_name || "موظف"} ({m.profiles?.job_title || "مسؤول توظيف"})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button
+                  onClick={handleUpdateBranchManager}
+                  className="w-full font-bold h-10 text-xs gap-2 bg-primary text-primary-foreground"
+                >
+                  <Check className="w-4 h-4" />
+                  تأكيد تعيين مدير الفرع
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* ── 4. Team Members & Invitations ── */}
