@@ -87,7 +87,8 @@ export default function CompanySettingsManager() {
 
   // Invite Form
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "recruiter" | "reviewer">("recruiter");
+  const [inviteRole, setInviteRole] = useState<"owner" | "hr" | "viewer">("hr");
+  const [inviteBranchId, setInviteBranchId] = useState<string>("none");
 
   useEffect(() => {
     if (!user) return;
@@ -310,14 +311,17 @@ export default function CompanySettingsManager() {
 
   const handleSendInvite = async () => {
     if (!companyId || !inviteEmail.trim()) return;
+    const targetBranch = branches.find((b: any) => b.id === inviteBranchId);
     await createInvite.mutateAsync({
-      company_id: companyId,
+      companyId: companyId,
+      branchId: inviteBranchId === "none" ? null : inviteBranchId,
+      branchName: targetBranch ? targetBranch.name : null,
       email: inviteEmail.trim(),
       role: inviteRole,
     });
     setInviteEmail("");
+    setInviteBranchId("none");
     refetchInvites();
-    toast({ title: "تم إرسال دعوة الانضمام بنجاح 📩" });
   };
 
   return (
@@ -718,25 +722,40 @@ export default function CompanySettingsManager() {
           </Dialog>
         </TabsContent>
 
-        {/* ── 4. Team Members & Invitations ── */}
+        {/* ── 4. Team Members & Branch Manager Invitations ── */}
         <TabsContent value="members" className="mt-6 space-y-6">
           <Card className="border-border/60 rounded-3xl p-6 space-y-6 shadow-xs">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h3 className="font-black text-base text-foreground">أعضاء الفريق وفريق التوظيف</h3>
-                <p className="text-xs text-muted-foreground mt-1">دعوة وإدارة الموظفين ومسؤولي التوظيف بالشركة.</p>
+                <h3 className="font-black text-base text-foreground">أعضاء الفريق ودعوات مدراء الفروع</h3>
+                <p className="text-xs text-muted-foreground mt-1">دعوة الموظفين كـ "مدراء فروع" أو أعضاء فريق التوظيف عبر البريد مع إرسال التنبيهات.</p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                 <Input
                   placeholder="البريد الإلكتروني للعضو..."
                   value={inviteEmail}
                   onChange={e => setInviteEmail(e.target.value)}
-                  className="h-10 text-xs rounded-xl w-60"
+                  className="h-10 text-xs rounded-xl min-w-[200px]"
                   dir="ltr"
                 />
-                <Button onClick={handleSendInvite} disabled={!inviteEmail.trim()} className="gap-1.5 rounded-xl h-10 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white">
-                  <UserPlus className="w-4 h-4" />إرسال دعوة
+
+                <Select value={inviteBranchId} onValueChange={setInviteBranchId}>
+                  <SelectTrigger className="h-10 text-xs rounded-xl min-w-[150px]">
+                    <SelectValue placeholder="الفرع المستهدف" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">الشركة الرئيسية</SelectItem>
+                    {branches.map((b: any) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        📍 فرع: {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Button onClick={handleSendInvite} disabled={!inviteEmail.trim()} className="gap-1.5 rounded-xl h-10 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shrink-0">
+                  <UserPlus className="w-4 h-4" />إرسال دعوة بالبريد 📩
                 </Button>
               </div>
             </div>

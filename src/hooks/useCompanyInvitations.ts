@@ -8,6 +8,7 @@ export type InvitationStatus = "pending" | "accepted" | "declined" | "expired";
 export interface CompanyInvitation {
   id: string;
   company_id: string;
+  branch_id?: string | null;
   email: string;
   member_role: "owner" | "hr" | "viewer";
   token: string;
@@ -61,10 +62,14 @@ export function useCreateCompanyInvitation() {
   return useMutation({
     mutationFn: async ({
       companyId,
+      branchId,
+      branchName,
       email,
       role,
     }: {
       companyId: string;
+      branchId?: string | null;
+      branchName?: string | null;
       email: string;
       role: "owner" | "hr" | "viewer";
     }) => {
@@ -80,6 +85,7 @@ export function useCreateCompanyInvitation() {
         .from("company_invitations" as any)
         .insert({
           company_id: companyId,
+          branch_id: branchId || null,
           email: email.trim().toLowerCase(),
           member_role: role,
           invited_by: user?.id,
@@ -87,32 +93,37 @@ export function useCreateCompanyInvitation() {
         .select()
         .single();
       if (error) throw error;
-      return { ...(data as any), companyName };
+      return { ...(data as any), companyName, branchName };
     },
     onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ["company-invitations", data.company_id] });
-      toast({ title: "تم إرسال الدعوة ✅", description: "سيتم إرسال بريد إلكتروني للدعوة أيضاً" });
+      toast({ title: "تم إرسال دعوة الانضمام بنجاح 📩", description: "سيتم إرسال البريد الإلكتروني مع تفاصيل الفرع للموظف" });
 
       const inviteLink = `${window.location.origin}/invitation/${data.token}`;
+      const branchNotice = data.branchName ? ` وتولي إدارة فرع <strong>${data.branchName}</strong>` : "";
+      const emailSubject = data.branchName
+        ? `دعوة للانضمام وتولي إدارة فرع ${data.branchName} - شركة ${data.companyName}`
+        : `دعوة للانضمام إلى شركة ${data.companyName} على منصة Tawzeef-X`;
+
       supabase.functions.invoke("send-email", {
         body: {
           to: data.email,
-          subject: `دعوة للانضمام إلى شركة ${data.companyName} على منصة Tawzeef-X`,
+          subject: emailSubject,
           html: `
             <div style="font-family: 'Cairo', Arial, sans-serif; direction: rtl; text-align: right; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
               <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #0d9488; margin: 0;">دعوة انضمام - Tawzeef-X</h2>
+                <h2 style="color: #0d9488; margin: 0;">منصة التوظيف الذكية Tawzeef-X</h2>
               </div>
               <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 20px;" />
               <p style="font-size: 16px; color: #1e293b; line-height: 1.6;">مرحباً بك،</p>
               <p style="font-size: 15px; color: #334155; line-height: 1.8;">
-                لقد تمت دعوتك للانضمام إلى شركة <strong>${data.companyName}</strong> كعضو بفريق التوظيف (بصلاحية <strong>${data.member_role === 'owner' ? 'مالك' : data.member_role === 'hr' ? 'HR' : 'مشاهد'}</strong>) على منصة <strong>Tawzeef-X</strong>.
+                لقد تمت دعوتك للانضمام إلى شركة <strong>${data.companyName}</strong>${branchNotice} كمسؤول توظيف وإدارة على منصة <strong>Tawzeef-X</strong>.
               </p>
               <p style="font-size: 15px; color: #334155; line-height: 1.8;">
-                يرجى الضغط على الرابط التالي لمراجعة وقبول أو رفض الدعوة:
+                يرجى الضغط على الرابط التالي لمراجعة وتأكيد قبول الدعوة وتفعيل حسابك المباشر:
               </p>
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${inviteLink}" style="background-color: #0d9488; color: #ffffff; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-size: 15px; font-weight: bold; display: inline-block;">قبول الدعوة الآن</a>
+                <a href="${inviteLink}" style="background-color: #0d9488; color: #ffffff; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-size: 15px; font-weight: bold; display: inline-block;">قبول الدعوة وتأكيد الحساب الآن</a>
               </div>
               <p style="font-size: 13px; color: #94a3b8; line-height: 1.6;">
                 * تنتهي صلاحية هذه الدعوة تلقائياً بعد 7 أيام.
@@ -152,12 +163,13 @@ export function useAcceptInvitation() {
     mutationFn: async (token: string) => {
       const { data, error } = await supabase.rpc("accept_company_invitation" as any, { _token: token });
       if (error) throw error;
-      return data as { success: boolean; code?: string; company_id?: string };
+      return data as { success: boolean; code?: string; company_id?: string; branch_id?: string };
     },
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["my-pending-invitations"] });
       qc.invalidateQueries({ queryKey: ["my-companies"] });
-      if (res?.success) toast({ title: "تم القبول ✅", description: "أصبحت عضواً في الشركة" });
+      qc.invalidateQueries({ queryKey: ["company-branches"] });
+      if (res?.success) toast({ title: "تم القبول وتأكيد الحساب بنجاح ✅", description: "أصبحت الآن مسجلاً بالشركة وتوليت الإدارة." });
       else
         toast({
           title: "تعذّر قبول الدعوة",
