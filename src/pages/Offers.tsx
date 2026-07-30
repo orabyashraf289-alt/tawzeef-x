@@ -3,8 +3,9 @@ import SARSymbol from "@/components/SARSymbol";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useOffers, useSendOffer, useDeleteOffer, useCreateOffer, useUpdateOffer, useWithdrawOffer, type JobOffer } from "@/hooks/useOffers";
 import { getPublicBaseUrl } from "@/lib/getPublicUrl";
-import { useCandidates, useJobs } from "@/hooks/useJobs";
+import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
+
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1081,10 +1082,15 @@ export default function OffersPage() {
               </TableBody>
             </Table>
           ) : (
-            <div className="p-8 text-center text-muted-foreground">
-              {t("offers.noOffers")}
-            </div>
+            <EmptyState
+              icon={FileText}
+              title={t("offers.noOffers")}
+              description="لم يتم تقديم أي عرض وظيفي حتى الآن. ابدأ بإنشاء عرض وظيفي جديد وإرساله للمرشح."
+              actionLabel={t("offers.createOffer")}
+              onAction={() => setDialogOpen(true)}
+            />
           )}
+
         </motion.div>
 
         {/* Edit Offer Dialog */}

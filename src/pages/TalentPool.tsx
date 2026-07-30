@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
+import EmptyState from "@/components/EmptyState";
 import DashboardLayout from "@/components/DashboardLayout";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -251,13 +253,12 @@ export default function TalentPool() {
             ))}
           </div>
         ) : entries.length === 0 && !hasFilters ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20 bg-card rounded-2xl border border-border/50">
-            <div className="w-16 h-16 rounded-2xl bg-warning/10 flex items-center justify-center mx-auto mb-4">
-              <Star className="w-8 h-8 text-warning/50" />
-            </div>
-            <p className="text-foreground font-semibold mb-1">{locale === "en" ? "Talent pool is empty" : "قاعدة المواهب فارغة"}</p>
-            <p className="text-sm text-muted-foreground">{locale === "en" ? "Add outstanding candidates from the candidates page" : "أضف مرشحين مميزين من صفحة المرشحين لحفظهم هنا"}</p>
-          </motion.div>
+          <EmptyState
+            icon={Star}
+            title={locale === "en" ? "Talent pool is empty" : "قاعدة المواهب فارغة"}
+            description={locale === "en" ? "Add outstanding candidates from the candidates page to save them here." : "أضف مرشحين مميزين من صفحة المرشحين لحفظهم هنا والرجوع إليهم مستقبلاً."}
+          />
+
         ) : entries.length === 0 && hasFilters ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16 bg-card rounded-2xl border border-border/50">
             <Search className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
