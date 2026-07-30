@@ -21,6 +21,8 @@ import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/contexts/I18nContext";
 
+import { TalentPoolSkeleton } from "@/components/Skeletons";
+
 export default function TalentPool() {
   const { user } = useAuth();
   const { t, locale, dir } = useI18n();
@@ -160,6 +162,14 @@ export default function TalentPool() {
 
   const getInitials = (name: string) => name?.split(" ").map((n: string) => n[0]).join("") || "?";
   const hasFilters = search || tagFilter !== "all" || scoreFilter !== "all";
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <TalentPoolSkeleton />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

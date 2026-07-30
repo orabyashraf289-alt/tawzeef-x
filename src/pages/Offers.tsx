@@ -66,11 +66,21 @@ import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 
+import { OffersSkeleton } from "@/components/Skeletons";
+
 export default function OffersPage() {
   const { t, locale } = useI18n();
   const { data: offers, isLoading } = useOffers();
   const { data: candidates } = useCandidates();
   const { data: jobs } = useJobs();
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <OffersSkeleton />
+      </DashboardLayout>
+    );
+  }
   const sendOffer = useSendOffer();
   const deleteOffer = useDeleteOffer();
   const createOffer = useCreateOffer();

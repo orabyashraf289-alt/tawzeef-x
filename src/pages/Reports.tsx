@@ -35,13 +35,23 @@ const tooltipStyle = {
   boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.08)",
 };
 
+import { ReportsSkeleton } from "@/components/Skeletons";
+
 export default function Reports() {
   const { toast } = useToast();
-  const { data: candidates } = useCandidates();
-  const { data: jobs } = useJobs();
+  const { data: candidates, isLoading: loadingCand } = useCandidates();
+  const { data: jobs, isLoading: loadingJobs } = useJobs();
   const { data: interviews } = useInterviews();
   const { data: offers } = useOffers();
   const dynamicStages = useActiveStages();
+
+  if (loadingCand || loadingJobs) {
+    return (
+      <DashboardLayout>
+        <ReportsSkeleton />
+      </DashboardLayout>
+    );
+  }
   const reportRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
