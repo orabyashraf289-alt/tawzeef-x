@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
+import { SEO } from "@/components/marketing/SEO";
 import ShareJobDialog from "@/components/ShareJobDialog";
 import { getApplyUrl, getOgApplyUrl } from "@/lib/getPublicUrl";
 import { useScreenPermissions } from "@/hooks/useScreenPermissions";
@@ -181,6 +182,11 @@ export default function JobDetails() {
 
   return (
     <DashboardLayout>
+      <SEO 
+        title={`شاغر ${job.title} | ${schoolName}`}
+        description={`تفاصيل متطلبات التقديم والخبرة لشاغر ${job.title} في ${schoolName} بالمملكة العربية السعودية.`}
+        canonical={`https://www.tawzeefx.com/jobs/${job.id}`}
+      />
       <div className="p-6 lg:p-8 space-y-6 text-right" dir="rtl">
         {/* Back link */}
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }}>

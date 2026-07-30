@@ -244,32 +244,72 @@ export function TableSkeleton({ rows = 6, cols = 5 }: { rows?: number; cols?: nu
 /** Full page skeleton used in ProtectedRoute and lazy loading */
 export function PageSkeleton() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background" dir="rtl">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.3 }}
-        className="text-center space-y-4"
-      >
-        <div className="relative mx-auto w-12 h-12">
-          <motion.div
-            className="absolute inset-0 rounded-full border-[3px] border-primary/20"
-          />
-          <motion.div
-            className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-primary"
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
-          />
+    <div className="min-h-screen bg-background p-4 lg:p-8 space-y-6" dir="rtl">
+      {/* Header bar bone */}
+      <div className="flex items-center justify-between pb-4 border-b border-border/50">
+        <div className="space-y-2">
+          <Bone className="h-7 w-48 rounded-xl" />
+          <Bone className="h-4 w-72 rounded-lg" />
         </div>
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="text-muted-foreground text-sm font-medium"
-        >
-          جاري التحميل...
-        </motion.p>
-      </motion.div>
+        <div className="flex gap-3">
+          <Bone className="h-10 w-28 rounded-xl" />
+          <Bone className="h-10 w-32 rounded-xl" />
+        </div>
+      </div>
+
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[0, 1, 2, 3].map((i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05 }}
+            className="p-5 rounded-2xl bg-card border border-border/50 space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <Bone className="h-4 w-24 rounded-md" />
+              <Bone className="h-9 w-9 rounded-xl" />
+            </div>
+            <Bone className="h-8 w-20 rounded-lg" />
+            <Bone className="h-3 w-32 rounded-md" />
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Main Content Area Skeleton */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 p-6 rounded-2xl bg-card border border-border/50 space-y-4">
+          <div className="flex items-center justify-between">
+            <Bone className="h-5 w-36 rounded-lg" />
+            <Bone className="h-8 w-24 rounded-lg" />
+          </div>
+          <div className="space-y-3 pt-2">
+            {[0, 1, 2, 3].map((j) => (
+              <div key={j} className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border/30">
+                <div className="flex items-center gap-3">
+                  <Bone className="h-10 w-10 rounded-full" />
+                  <div className="space-y-1.5">
+                    <Bone className="h-4 w-32 rounded-md" />
+                    <Bone className="h-3 w-24 rounded-md" />
+                  </div>
+                </div>
+                <Bone className="h-6 w-16 rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-6 rounded-2xl bg-card border border-border/50 space-y-4">
+          <Bone className="h-5 w-28 rounded-lg" />
+          <Bone className="h-40 w-full rounded-xl" />
+          <div className="space-y-2 pt-2">
+            <Bone className="h-3 w-full rounded-md" />
+            <Bone className="h-3 w-4/5 rounded-md" />
+            <Bone className="h-3 w-2/3 rounded-md" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

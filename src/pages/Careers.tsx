@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 import SARSymbol from "@/components/SARSymbol";
+import { SEO } from "@/components/marketing/SEO";
 
 function usePublicJobs(companyId?: string | null) {
   return useQuery({
@@ -182,6 +183,10 @@ export default function Careers() {
 
   return (
     <div className="min-h-screen bg-background" dir="rtl" style={styleVars}>
+      <SEO 
+        title={brand ? `فرص العمل والتوظيف في ${brand.name} | Tawzeef-X` : "استكشف الفرص والوظائف الشاغرة | Tawzeef-X"} 
+        description="تصفح جميع الوظائف والفرص الشاغرة ودمج رخصتك المهنية وسيرتك الذاتية للتقديم المباشر." 
+      />
       {/* Header */}
       <header className="sticky top-0 z-30 bg-card/90 backdrop-blur-xl border-b border-border/50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">

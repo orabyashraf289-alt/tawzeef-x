@@ -1016,12 +1016,15 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
                     {/* Full Name */}
                     <div className="space-y-1.5 text-right">
-                      <label className="text-xs font-semibold text-slate-600 tracking-wide block">
+                      <label htmlFor="auth-fullname" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
                         الاسم الكامل
                       </label>
                       <div className="relative">
                         <User className={iconClass("name")} />
                         <Input
+                          id="auth-fullname"
+                          name="fullName"
+                          aria-label="الاسم الكامل"
                           value={form.fullName}
                           onChange={e => setForm({ ...form, fullName: e.target.value })}
                           onFocus={() => setFocusedField("name")}
@@ -1042,12 +1045,15 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                         transition={{ duration: 0.25 }}
                         className="space-y-1.5 text-right"
                       >
-                        <label className="text-xs font-semibold text-slate-600 tracking-wide block">
+                        <label htmlFor="auth-company" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
                           اسم الشركة / المؤسسة
                         </label>
                         <div className="relative">
                           <Building2 className={iconClass("companyName")} />
                           <Input
+                            id="auth-company"
+                            name="companyName"
+                            aria-label="اسم الشركة أو المؤسسة"
                             value={form.companyName}
                             onChange={e => setForm({ ...form, companyName: e.target.value })}
                             onFocus={() => setFocusedField("companyName")}
@@ -1064,12 +1070,15 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
                 {/* Email */}
                 <div className="space-y-1.5 text-right">
-                  <label className="text-xs font-semibold text-slate-600 tracking-wide block">
+                  <label htmlFor="auth-email" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
                     البريد الإلكتروني
                   </label>
                   <div className="relative">
                     <Mail className={iconClass("email")} />
                     <Input
+                      id="auth-email"
+                      name="email"
+                      aria-label="البريد الإلكتروني"
                       type="email"
                       value={form.email}
                       onChange={e => setForm({ ...form, email: e.target.value })}
@@ -1085,12 +1094,15 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
                 {/* Password */}
                 <div className="space-y-1.5 text-right">
-                  <label className="text-xs font-semibold text-slate-600 tracking-wide block">
+                  <label htmlFor="auth-password" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
                     كلمة المرور
                   </label>
                   <div className="relative">
                     <Lock className={iconClass("password")} />
                     <Input
+                      id="auth-password"
+                      name="password"
+                      aria-label="كلمة المرور"
                       type={showPassword ? "text" : "password"}
                       value={form.password}
                       onChange={e => setForm({ ...form, password: e.target.value })}

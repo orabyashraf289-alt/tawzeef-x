@@ -17,14 +17,13 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import SARSymbol from "@/components/SARSymbol";
-import { validateFile } from "@/lib/fileValidation";
-import { motion, AnimatePresence } from "framer-motion";
+import { SEO } from "@/components/marketing/SEO";
 
 /* ───────── Form Field Wrapper ───────── */
-function FormField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function FormField({ label, required, htmlFor, children }: { label: string; required?: boolean; htmlFor?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5 text-right" dir="rtl">
-      <Label className="text-xs font-bold text-foreground/90 flex items-center justify-between">
+      <Label htmlFor={htmlFor} className="text-xs font-bold text-foreground/90 flex items-center justify-between cursor-pointer">
         <span>{label} {required && <span className="text-destructive font-black">*</span>}</span>
       </Label>
       {children}
@@ -312,6 +311,10 @@ export default function ApplyJob() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans text-right" dir="rtl">
+      <SEO 
+        title={`التقديم على شاغر ${job?.title || "معلم"} | Tawzeef-X`}
+        description={`قدم الآن على شاغر ${job?.title || "معلم"} في ${job?.school_name || "المدارس المعتمدة"} عبر منصة توظيف X.`}
+      />
       {/* Header */}
       <header className="border-b border-border/60 bg-card/80 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -354,17 +357,25 @@ export default function ApplyJob() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <FormField label="الاسم الكامل للمعلم" required>
+                  <FormField label="الاسم الكامل للمعلم" required htmlFor="applicant-name">
                     <Input
+                      id="applicant-name"
+                      name="name"
+                      required
+                      aria-label="الاسم الكامل للمعلم"
                       value={form.name}
                       onChange={e => setForm({ ...form, name: e.target.value })}
                       placeholder="أدخل اسمك الثلاثي"
                       className={inputClass}
                     />
                   </FormField>
-                  <FormField label="البريد الإلكتروني" required>
+                  <FormField label="البريد الإلكتروني" required htmlFor="applicant-email">
                     <Input
+                      id="applicant-email"
+                      name="email"
                       type="email"
+                      required
+                      aria-label="البريد الإلكتروني"
                       value={form.email}
                       onChange={e => setForm({ ...form, email: e.target.value })}
                       placeholder="name@example.com"
@@ -375,8 +386,12 @@ export default function ApplyJob() {
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <FormField label="رقم الجوال (السعودي/الخليجي)" required>
+                  <FormField label="رقم الجوال (السعودي/الخليجي)" required htmlFor="applicant-phone">
                     <Input
+                      id="applicant-phone"
+                      name="phone"
+                      required
+                      aria-label="رقم الجوال"
                       value={form.phone}
                       onChange={e => setForm({ ...form, phone: e.target.value })}
                       placeholder="05xxxxxxxx"
@@ -384,8 +399,11 @@ export default function ApplyJob() {
                       className={cn(inputClass, "text-left")}
                     />
                   </FormField>
-                  <FormField label="سنوات الخبرة في التدريس">
+                  <FormField label="سنوات الخبرة في التدريس" htmlFor="applicant-experience">
                     <Input
+                      id="applicant-experience"
+                      name="experience"
+                      aria-label="سنوات الخبرة"
                       value={form.experience}
                       onChange={e => setForm({ ...form, experience: e.target.value })}
                       placeholder="مثال: 5 سنوات بالمرحلة الثانوية"
@@ -401,8 +419,11 @@ export default function ApplyJob() {
                     بيانات الرخصة المهنية للمعلمين بالمملكة العربية السعودية (etec.gov.sa):
                   </span>
                   <div className="grid sm:grid-cols-2 gap-3">
-                    <FormField label="رقم الرخصة المهنية للمعلمين (ETEC)">
+                    <FormField label="رقم الرخصة المهنية للمعلمين (ETEC)" htmlFor="applicant-license">
                       <Input
+                        id="applicant-license"
+                        name="licenseNumber"
+                        aria-label="رقم الرخصة المهنية"
                         placeholder="ETEC-9842145-SA"
                         value={form.licenseNumber}
                         onChange={e => setForm({ ...form, licenseNumber: e.target.value })}
@@ -410,8 +431,11 @@ export default function ApplyJob() {
                         dir="ltr"
                       />
                     </FormField>
-                    <FormField label="المؤهل والجامعة وسنة التخرج">
+                    <FormField label="المؤهل والجامعة وسنة التخرج" htmlFor="applicant-degree">
                       <Input
+                        id="applicant-degree"
+                        name="universityDegree"
+                        aria-label="المؤهل والجامعة وسنة التخرج"
                         placeholder="بكالوريوس علوم - جامعة الملك سعود (2018)"
                         value={form.universityDegree}
                         onChange={e => setForm({ ...form, universityDegree: e.target.value })}
@@ -419,8 +443,11 @@ export default function ApplyJob() {
                       />
                     </FormField>
                   </div>
-                  <FormField label="رابط فيديو الحصة التجريبية (Demo Lesson Video URL)">
+                  <FormField label="رابط فيديو الحصة التجريبية (Demo Lesson Video URL)" htmlFor="applicant-video">
                     <Input
+                      id="applicant-video"
+                      name="demoVideoUrl"
+                      aria-label="رابط فيديو الحصة التجريبية"
                       placeholder="https://youtube.com/watch?v=..."
                       value={form.demoVideoUrl}
                       onChange={e => setForm({ ...form, demoVideoUrl: e.target.value })}

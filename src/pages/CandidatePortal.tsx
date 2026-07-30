@@ -12,6 +12,7 @@ import CandidateChatbot from "@/components/candidate-portal/CandidateChatbot";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { SEO } from "@/components/marketing/SEO";
 
 const PORTAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/candidate-portal`;
 
@@ -265,6 +266,10 @@ export default function CandidatePortal() {
 
   return (
     <div className="min-h-screen bg-background text-right" dir="rtl">
+      <SEO 
+        title="بوابة تتبع الطلبات والرخص المهنية | Tawzeef-X"
+        description="تابِع حالة طلب التوظيف، توثيق الرخصة المهنية للمعلمين، وجدولة المقابلات الشخصية مباشرة برمز التتبع."
+      />
       {/* Header */}
       <header className="border-b border-border/50 bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
