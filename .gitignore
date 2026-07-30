@@ -29,5 +29,15 @@ dist-ssr
 .prewarm
 .lovable
 
+# Redundant lockfiles & scratch files
+bun.lock
+bun.lockb
+scratch/
+*.scratch.*
+test-*.ts
+create-*.ts
+check-*.ts
+
+
 
 .vercel

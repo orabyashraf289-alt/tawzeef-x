@@ -6,6 +6,33 @@ import { logAuditEvent } from "@/hooks/useAuditLog";
 
 export type AppRole = "admin" | "recruiter" | "reviewer" | "job_seeker";
 
+export interface UserRoleRecord {
+  id: string;
+  user_id: string;
+  role: AppRole;
+  created_at: string;
+}
+
+export interface ActivityLogRecord {
+  id: string;
+  user_id: string;
+  user_name?: string;
+  action: string;
+  entity_type?: string;
+  entity_id?: string;
+  details?: string;
+  created_at: string;
+}
+
+export interface InvitationRecord {
+  id: string;
+  email: string;
+  role: AppRole;
+  status: string;
+  token?: string;
+  created_at: string;
+}
+
 export function useUserRole() {
   const { user } = useAuth();
 
@@ -43,7 +70,7 @@ export function useAllUserRoles() {
         .from("user_roles" as any)
         .select("*");
       if (error) throw error;
-      return data as any[];
+      return (data || []) as UserRoleRecord[];
     },
     enabled: !!user,
   });
@@ -113,7 +140,7 @@ export function useInvitations() {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as any[];
+      return (data || []) as InvitationRecord[];
     },
     enabled: !!user,
   });
@@ -131,12 +158,12 @@ export function useSendInvitation() {
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invitations"] });
       queryClient.invalidateQueries({ queryKey: ["activity-log"] });
       toast({ title: "تم إرسال الدعوة بنجاح ✅", description: "يمكنك نسخ رابط التسجيل ومشاركته" });
     },
-    onError: (e: any) => toast({ title: "خطأ في إرسال الدعوة", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ في إرسال الدعوة", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -152,7 +179,7 @@ export function useActivityLog() {
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
-      return data as any[];
+      return (data || []) as ActivityLogRecord[];
     },
     enabled: !!user,
   });
