@@ -45,13 +45,6 @@ export default function Reports() {
   const { data: offers } = useOffers();
   const dynamicStages = useActiveStages();
 
-  if (loadingCand || loadingJobs) {
-    return (
-      <DashboardLayout>
-        <ReportsSkeleton />
-      </DashboardLayout>
-    );
-  }
   const reportRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
@@ -599,6 +592,14 @@ export default function Reports() {
   const chartInterviewsLabel = t("reports.interviews");
   const chartHiredLabel = t("reports.hired");
   const chartCandidateCountLabel = t("reports.candidateCount");
+
+  if (loadingCand || loadingJobs) {
+    return (
+      <DashboardLayout>
+        <ReportsSkeleton />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

@@ -74,13 +74,6 @@ export default function OffersPage() {
   const { data: candidates } = useCandidates();
   const { data: jobs } = useJobs();
 
-  if (isLoading) {
-    return (
-      <DashboardLayout>
-        <OffersSkeleton />
-      </DashboardLayout>
-    );
-  }
   const sendOffer = useSendOffer();
   const deleteOffer = useDeleteOffer();
   const createOffer = useCreateOffer();
@@ -510,6 +503,14 @@ export default function OffersPage() {
       onSuccess: () => setEditingOffer(null),
     });
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <OffersSkeleton />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
