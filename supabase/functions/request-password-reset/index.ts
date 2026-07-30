@@ -1,5 +1,6 @@
 import nodemailer from "npm:nodemailer@6.9.16";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -56,6 +57,10 @@ async function sha256(input: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+    // Rate limit: 3 requests per minute per IP (email enumeration protection)
+    const { allowed } = checkRateLimit(req, 3, 60_000);
+    if (!allowed) return rateLimitResponse(corsHeaders);
 
   try {
     const { email } = await req.json();

@@ -2,6 +2,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 
+export interface AuditLogRecord {
+  id: string;
+  event_type: string;
+  user_id: string | null;
+  user_email: string | null;
+  details: Record<string, unknown>;
+  ip_address?: string | null;
+  user_agent?: string | null;
+  created_at: string;
+}
+
 export type AuditEventType =
   | "login.success"
   | "login.failed"
@@ -21,7 +32,7 @@ export async function logAuditEvent(params: {
   eventType: AuditEventType;
   userId?: string | null;
   userEmail?: string | null;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }) {
   try {
     const unauthEvents: string[] = ["login.failed", "login.otp_failed"];
@@ -70,7 +81,7 @@ export function useAuditLog(limit = 100) {
         .order("created_at", { ascending: false })
         .limit(limit);
       if (error) throw error;
-      return data as any[];
+      return data as AuditLogRecord[];
     },
     enabled: !!user,
   });

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -917,6 +918,10 @@ async function handleToolCall(tc: any, userId: string): Promise<{ result: string
 // ============================================================================
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+    // Rate limit: 20 requests per minute per IP (AI cost protection)
+    const { allowed } = checkRateLimit(req, 20, 60_000);
+    if (!allowed) return rateLimitResponse(corsHeaders);
 
   try {
     const { messages, resume_text, attached_files_text, model_override, disable_tools, stream } = await req.json();

@@ -6,8 +6,22 @@ interface RateLimitStore {
 
 const rateLimitMap: RateLimitStore = {};
 
+// Periodic cleanup every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const ip in rateLimitMap) {
+    if (now > rateLimitMap[ip].resetTime) {
+      delete rateLimitMap[ip];
+    }
+  }
+}, 300000);
+
+export function getClientIp(req: Request): string {
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("cf-connecting-ip") || "unknown";
+}
+
 export function checkRateLimit(req: Request, maxRequests = 60, windowMs = 60000): { allowed: boolean; remaining: number } {
-  const ip = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+  const ip = getClientIp(req);
   const now = Date.now();
 
   if (!rateLimitMap[ip] || now > rateLimitMap[ip].resetTime) {
@@ -23,4 +37,14 @@ export function checkRateLimit(req: Request, maxRequests = 60, windowMs = 60000)
   }
 
   return { allowed: true, remaining };
+}
+
+export function rateLimitResponse(corsHeaders: Record<string, string>) {
+  return new Response(
+    JSON.stringify({ error: "تم تجاوز حد الطلبات المسموح به، يرجى المحاولة لاحقاً" }),
+    {
+      status: 429,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    }
+  );
 }

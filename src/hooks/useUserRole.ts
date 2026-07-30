@@ -98,7 +98,7 @@ export function useUpdateUserRole() {
       logAuditEvent({ eventType: "role.changed", userId: variables.userId, details: { newRole: variables.role } });
       toast({ title: "تم تحديث الصلاحية بنجاح ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -125,7 +125,7 @@ export function useDeleteTeamMember() {
       logAuditEvent({ eventType: "member.deleted", details: { deletedUserId: userId } });
       toast({ title: "تم حذف العضو بنجاح ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ في حذف العضو", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ في حذف العضو", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -260,7 +260,7 @@ export function useCreateCustomRole() {
       qc.invalidateQueries({ queryKey: ["custom-roles"] });
       toast({ title: "تم إضافة الدور المخصص بنجاح! 🎉" });
     },
-    onError: (e: any) => toast({ title: "خطأ في إضافة الدور المخصص", description: e.message, variant: "destructive" })
+    onError: (e: Error) => toast({ title: "خطأ في إضافة الدور المخصص", description: e.message, variant: "destructive" })
   });
 }
 

@@ -2,6 +2,53 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+export interface SubscriptionPlanRow {
+  id: string;
+  name: string;
+  name_ar: string;
+  description: string | null;
+  price: number;
+  currency: string;
+  billing_period: string;
+  job_posts_limit: number;
+  features: string | string[];
+  is_active: boolean;
+  sort_order: number;
+}
+
+export interface CompanyMemberRow {
+  company_id: string;
+  user_id: string;
+}
+
+export interface UpgradeRequestRow {
+  id: string;
+  company_id: string;
+  requested_by_user_id: string | null;
+  target_plan_id: string;
+  target_plan_name: string;
+  status: "pending" | "approved" | "rejected";
+  notes: string | null;
+  created_at: string;
+}
+
+export interface InvoiceRow {
+  id: string;
+  invoice_number: string;
+  company_id: string;
+  subscription_id: string | null;
+  plan_id: string;
+  plan_name_ar: string;
+  amount: number;
+  currency: string;
+  job_posts_limit: number;
+  starts_at: string;
+  expires_at: string | null;
+  status: "paid" | "pending" | "cancelled";
+  issued_by_user_id: string | null;
+  created_at: string;
+}
+
 export interface SubscriptionPlan {
   id: string;
   name: string;
@@ -68,7 +115,7 @@ export function useSubscriptionPlans() {
         .eq("is_active", true)
         .order("sort_order");
       if (error) throw error;
-      return (data as any[]).map(p => ({
+      return (data as SubscriptionPlanRow[]).map(p => ({
         ...p,
         features: Array.isArray(p.features) ? p.features : JSON.parse(p.features || "[]"),
       })) as SubscriptionPlan[];
@@ -92,7 +139,7 @@ export function useMySubscription() {
 
       if (memberErr || !memberRows || memberRows.length === 0) return null;
 
-      const companyIds = memberRows.map((r: any) => r.company_id);
+      const companyIds = memberRows.map((r: CompanyMemberRow) => r.company_id);
       const { data: companiesData } = await supabase
         .from("companies")
         .select("id, parent_company_id")
@@ -113,7 +160,7 @@ export function useMySubscription() {
         .maybeSingle();
 
       if (error) throw error;
-      return (data as any) as CompanySubscription | null;
+      return (data as unknown) as CompanySubscription | null;
     },
     enabled: !!user,
   });
@@ -196,13 +243,13 @@ export function useUpgradeRequests() {
       if (error) throw error;
       if (!data || data.length === 0) return [];
 
-      const companyIds = Array.from(new Set(data.map((r: any) => r.company_id)));
-      const userIds = Array.from(new Set(data.map((r: any) => r.requested_by_user_id).filter(Boolean)));
+      const companyIds = Array.from(new Set(data.map((r: UpgradeRequestRow) => r.company_id)));
+      const userIds = Array.from(new Set(data.map((r: UpgradeRequestRow) => r.requested_by_user_id).filter(Boolean)));
 
       const { data: cos } = await supabase.from("companies").select("id, name").in("id", companyIds);
       const { data: profiles } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
 
-      return data.map((r: any) => {
+      return data.map((r: UpgradeRequestRow) => {
         const co = (cos || []).find((c) => c.id === r.company_id);
         const pr = (profiles || []).find((p) => p.user_id === r.requested_by_user_id);
         return {
@@ -336,10 +383,10 @@ export function useCompanyInvoices() {
       if (error) throw error;
       if (!data || data.length === 0) return [];
 
-      const companyIds = Array.from(new Set(data.map((i: any) => i.company_id)));
+      const companyIds = Array.from(new Set(data.map((i: InvoiceRow) => i.company_id)));
       const { data: cos } = await supabase.from("companies").select("id, name").in("id", companyIds);
 
-      return data.map((inv: any) => {
+      return data.map((inv: InvoiceRow) => {
         const co = (cos || []).find((c) => c.id === inv.company_id);
         return {
           ...inv,

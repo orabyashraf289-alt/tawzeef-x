@@ -3,6 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
+export interface CompanyInvitationRow extends CompanyInvitation {
+  company?: {
+    name: string;
+    name_en: string | null;
+    logo_url: string | null;
+  };
+}
+
 export type InvitationStatus = "pending" | "accepted" | "declined" | "expired";
 
 export interface CompanyInvitation {
@@ -50,7 +58,7 @@ export function useMyPendingInvitations() {
         .eq("status", "pending")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as any[];
+      return data as CompanyInvitationRow[];
     },
     enabled: !!user?.email,
   });
@@ -79,7 +87,7 @@ export function useCreateCompanyInvitation() {
         .select("name")
         .eq("id", companyId)
         .maybeSingle();
-      const companyName = companyData ? (companyData as any).name : "شركتنا";
+      const companyName = companyData ? (companyData as { name?: string })?.name : "شركتنا";
 
       const { data, error } = await supabase
         .from("company_invitations" as any)
@@ -93,9 +101,9 @@ export function useCreateCompanyInvitation() {
         .select()
         .single();
       if (error) throw error;
-      return { ...(data as any), companyName, branchName };
+      return { ...(data as Record<string, unknown>), companyName, branchName };
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: Record<string, unknown>) => {
       qc.invalidateQueries({ queryKey: ["company-invitations", data.company_id] });
       toast({ title: "تم إرسال دعوة الانضمام بنجاح 📩", description: "سيتم إرسال البريد الإلكتروني مع تفاصيل الفرع للموظف" });
 
@@ -138,7 +146,7 @@ export function useCreateCompanyInvitation() {
         console.error("Failed to send invitation email:", err);
       });
     },
-    onError: (e: any) =>
+    onError: (e: Error) =>
       toast({ title: "خطأ في إرسال الدعوة", description: e.message, variant: "destructive" }),
   });
 }
@@ -177,7 +185,7 @@ export function useAcceptInvitation() {
           variant: "destructive",
         });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 

@@ -5,6 +5,13 @@ import { toast } from "@/hooks/use-toast";
 import { getPublicBaseUrl } from "@/lib/getPublicUrl";
 import { logAuditEvent } from "@/hooks/useAuditLog";
 
+export interface JobOfferWithCandidate extends JobOffer {
+  candidates: {
+    name: string;
+    email: string;
+  } | null;
+}
+
 export interface JobOffer {
   id: string;
   user_id: string;
@@ -161,7 +168,7 @@ export function useCreateOffer() {
       queryClient.invalidateQueries({ queryKey: ["offers"] });
       toast({ title: "تم إنشاء العرض بنجاح ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -239,7 +246,7 @@ export function useSendOffer() {
       logAuditEvent({ eventType: "offer.sent", userId: data.user_id, details: { offerId: data.id, position: data.position } });
       toast({ title: "تم إرسال العرض بنجاح ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -248,7 +255,7 @@ export function useUpdateOfferStatus() {
 
   return useMutation({
     mutationFn: async ({ id, status, response_notes }: { id: string; status: string; response_notes?: string }) => {
-      const update: any = { status };
+      const update: Record<string, unknown> = { status };
       if (status === "accepted" || status === "rejected") {
         update.response_date = new Date().toISOString();
       }
@@ -266,7 +273,7 @@ export function useUpdateOfferStatus() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["offers"] });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -284,7 +291,7 @@ export function useWithdrawOffer() {
       if (error) throw error;
 
       // Notify candidate via email
-      const candidate = (data as any).candidates;
+      const candidate = (data as unknown as JobOfferWithCandidate).candidates;
       if (candidate?.email) {
         const html = `
         <div dir="rtl" style="font-family: 'Segoe UI', Tahoma, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb;">
@@ -319,7 +326,7 @@ export function useWithdrawOffer() {
       logAuditEvent({ eventType: "offer.withdrawn", userId: data.user_id, details: { offerId: data.id, position: data.position } });
       toast({ title: "تم سحب العرض بنجاح ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -352,7 +359,7 @@ export function useUpdateOffer() {
       queryClient.invalidateQueries({ queryKey: ["offers"] });
       toast({ title: "تم تعديل العرض بنجاح ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -368,6 +375,6 @@ export function useDeleteOffer() {
       queryClient.invalidateQueries({ queryKey: ["offers"] });
       toast({ title: "تم حذف العرض ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
