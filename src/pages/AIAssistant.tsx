@@ -1839,28 +1839,17 @@ export default function AIAssistant() {
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Streamlined Glassmorphic Header */}
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 bg-card/60 backdrop-blur-md shrink-0">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="lg:hidden shrink-0 w-8 h-8 rounded-xl hover:bg-muted/80"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-              >
-                <MessageSquare className="w-4 h-4" />
-              </Button>
-            </div>
-            <AIChatHeader
-              onClearChat={handleNewChat}
-              messageCount={messages.length}
-              isStreaming={isLoading}
-            />
-            <div className="flex items-center gap-2">
-              <ExportConversation messages={messages.map(m => ({ role: m.role, content: m.content }))} />
-              <ModelSelector value={modelChoice} onChange={setModelChoice} />
-            </div>
-          </div>
+          {/* Unified Clean Header */}
+          <AIChatHeader
+            onClearChat={handleNewChat}
+            messageCount={messages.length}
+            isStreaming={isLoading}
+            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          >
+            <ExportConversation messages={messages.map(m => ({ role: m.role, content: m.content }))} />
+            <ModelSelector value={modelChoice} onChange={setModelChoice} />
+          </AIChatHeader>
+
 
 
           {/* Messages */}
@@ -2125,20 +2114,29 @@ export default function AIAssistant() {
             )}
           </div>
 
-          {/* AI Strategic Roadmap Card & Smart Suggestions when new chat */}
+          {/* Clean Minimalist Welcome Screen when starting a new chat */}
           {messages.length <= 1 && (
-            <div className="px-4 pb-3 w-full max-w-full mx-auto">
-              <AIStrategicRoadmapCard onPromptClick={(promptText) => { setInput(promptText); setTimeout(() => handleSend(), 50); }} />
-              <SmartSuggestions onSelect={(text) => setInput(text)} />
-            </div>
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center justify-center text-center my-auto py-6 max-w-xl mx-auto px-4"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary via-primary/80 to-purple-600 flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 mb-3 border border-primary/20 animate-bounce-subtle">
+                <Bot className="w-7 h-7" />
+              </div>
+              <h2 className="text-lg font-bold text-foreground mb-1">كيف يمكنني مساعدتك اليوم في التوظيف؟</h2>
+              <p className="text-xs text-muted-foreground max-w-md leading-relaxed mb-5 font-medium">
+                أنا مستشارك الذكي المتقدم في منصة Tawzeef-X. اختر إحدى المهام أدناه أو اكتب سؤالك المباشر.
+              </p>
+              <AISuggestionChips
+                onSelectSuggestion={(prompt) => {
+                  setInput(prompt);
+                }}
+                className="w-full"
+              />
+            </motion.div>
           )}
 
-          {/* Quick Actions Bar - active chat floating shortcuts */}
-          {messages.length > 1 && (
-            <div className="px-4 pt-2 pb-1 w-full max-w-full mx-auto">
-              <QuickActions onSelect={(text) => { setInput(text); setTimeout(() => handleSend(), 50); }} />
-            </div>
-          )}
 
           {/* Legacy resume indicator (kept for backward-compat) */}
           {resumeFile && (
