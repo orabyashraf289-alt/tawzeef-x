@@ -15,6 +15,7 @@ interface FileAttachmentProps {
   onAdd: (files: AttachedFile[]) => void;
   onRemove: (idx: number) => void;
   disabled?: boolean;
+  hideButton?: boolean;
 }
 
 const MAX_FILES = 5;
@@ -26,7 +27,7 @@ function detectType(file: File): AttachedFile["type"] {
   return "document";
 }
 
-export default function FileAttachment({ files, onAdd, onRemove, disabled }: FileAttachmentProps) {
+export default function FileAttachment({ files, onAdd, onRemove, disabled, hideButton }: FileAttachmentProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,17 +68,20 @@ export default function FileAttachment({ files, onAdd, onRemove, disabled }: Fil
         onChange={handleSelect}
         disabled={disabled}
       />
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="shrink-0 w-10 h-10 rounded-xl"
-        onClick={() => inputRef.current?.click()}
-        disabled={disabled}
-        title="إرفاق ملفات (PDF, Word, صور)"
-      >
-        <Paperclip className="w-4 h-4 text-muted-foreground" />
-      </Button>
+      {!hideButton && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0 w-10 h-10 rounded-xl hover:bg-muted"
+          onClick={() => inputRef.current?.click()}
+          disabled={disabled}
+          title="إرفاق ملفات (PDF, Word, صور)"
+        >
+          <Paperclip className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+        </Button>
+      )}
+
 
       <AnimatePresence>
         {files.length > 0 && (

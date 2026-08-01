@@ -2163,15 +2163,19 @@ export default function AIAssistant() {
             </div>
           )}
 
-          {/* Multi-file attachments preview */}
-          <div className="px-4 pb-1.5 w-full max-w-full mx-auto">
-            <FileAttachment
-              files={attachedFiles}
-              onAdd={(newOnes) => setAttachedFiles(prev => [...prev, ...newOnes])}
-              onRemove={(idx) => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
-              disabled={isLoading}
-            />
-          </div>
+          {/* Multi-file attachments preview (badges list only) */}
+          {attachedFiles.length > 0 && (
+            <div className="px-4 pb-1.5 w-full max-w-full mx-auto">
+              <FileAttachment
+                files={attachedFiles}
+                onAdd={(newOnes) => setAttachedFiles(prev => [...prev, ...newOnes])}
+                onRemove={(idx) => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
+                disabled={isLoading}
+                hideButton={true}
+              />
+            </div>
+          )}
+
 
           {/* Input Floating Capsule Card */}
           <div className="p-4 pt-1 pb-6 shrink-0 relative w-full max-w-full mx-auto z-20">
