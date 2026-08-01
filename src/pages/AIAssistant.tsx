@@ -1148,7 +1148,8 @@ export default function AIAssistant() {
   const { t } = useI18n();
   const { user } = useAuth();
   const addJobMutation = useAddJob();
-  const [messages, setMessages] = useState<Message[]>([WELCOME_MSG]);
+  const [messages, setMessages] = useState<Message[]>([]);
+
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [qrDialog, setQrDialog] = useState<{ open: boolean; jobId: string; jobTitle: string }>({ open: false, jobId: "", jobTitle: "" });
@@ -1225,7 +1226,7 @@ export default function AIAssistant() {
       content: m.content,
       ...(m.metadata && typeof m.metadata === "object" ? m.metadata : {}),
     }));
-    setMessages(loaded.length > 0 ? loaded : [WELCOME_MSG]);
+    setMessages(loaded.length > 0 ? loaded : []);
     setActiveConversationId(convId);
     setSidebarOpen(false);
   };
@@ -1306,10 +1307,11 @@ export default function AIAssistant() {
   };
 
   const handleNewChat = () => {
-    setMessages([WELCOME_MSG]);
+    setMessages([]);
     setActiveConversationId(null);
     setSidebarOpen(false);
   };
+
 
   const handleDeleteConversation = async (convId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -2114,28 +2116,40 @@ export default function AIAssistant() {
             )}
           </div>
 
-          {/* Clean Minimalist Welcome Screen when starting a new chat */}
-          {messages.length <= 1 && (
+          {/* Ultra-Clean Hero Welcome Screen when starting a new chat */}
+          {messages.length === 0 && (
             <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center justify-center text-center my-auto py-6 max-w-xl mx-auto px-4"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center justify-center text-center my-auto py-10 max-w-xl mx-auto px-4"
             >
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary via-primary/80 to-purple-600 flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 mb-3 border border-primary/20 animate-bounce-subtle">
-                <Bot className="w-7 h-7" />
+              <div className="relative mb-3">
+                <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-primary via-primary/80 to-purple-600 flex items-center justify-center text-primary-foreground shadow-xl shadow-primary/20 border border-primary/20">
+                  <Bot className="w-8 h-8" />
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-background animate-pulse" />
               </div>
-              <h2 className="text-lg font-bold text-foreground mb-1">كيف يمكنني مساعدتك اليوم في التوظيف؟</h2>
-              <p className="text-xs text-muted-foreground max-w-md leading-relaxed mb-5 font-medium">
-                أنا مستشارك الذكي المتقدم في منصة Tawzeef-X. اختر إحدى المهام أدناه أو اكتب سؤالك المباشر.
+              
+              <Badge variant="outline" className="mb-2.5 bg-primary/10 text-primary border-primary/20 px-3 py-0.5 text-[11px] gap-1 font-bold">
+                <Sparkles className="w-3 h-3 text-primary animate-pulse" />
+                مساعد التوظيف الذكي v2.0
+              </Badge>
+
+              <h2 className="text-xl font-extrabold text-foreground mb-1">كيف تود تطوير عملية التوظيف اليوم؟</h2>
+              <p className="text-xs text-muted-foreground max-w-md leading-relaxed mb-6 font-medium">
+                أنا مستشارك الذكي المتقدم في منصة Tawzeef-X. اختر إحدى المهام أدناه أو اكتب سؤالك لتلقي تقارير وتحليلات فورية.
               </p>
+
               <AISuggestionChips
                 onSelectSuggestion={(prompt) => {
                   setInput(prompt);
+                  setTimeout(() => handleSend(), 50);
                 }}
                 className="w-full"
               />
             </motion.div>
           )}
+
 
 
           {/* Legacy resume indicator (kept for backward-compat) */}
