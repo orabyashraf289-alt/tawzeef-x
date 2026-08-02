@@ -638,7 +638,8 @@ export default function CompanySettingsManager() {
                             {b.city || "مدينة غير محددة"}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground">{b.address || "العنوان التفصيلي غير محدد"}</p>
+                        <p className="text-xs text-muted-foreground">{b.address || (b as any).notes || "العنوان التفصيلي غير محدد"}</p>
+
                       </div>
                     </div>
 

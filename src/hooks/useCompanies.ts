@@ -213,9 +213,14 @@ export function useCreateCompany() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: Partial<Company>) => {
+      const { address, ...restInput } = input as any;
+      const payload = {
+        ...restInput,
+        ...(address ? { notes: address } : {}),
+      };
       const { data, error } = await supabase
         .from("companies" as any)
-        .insert(input as any)
+        .insert(payload as any)
         .select()
         .single();
       if (error) throw error;
@@ -265,7 +270,12 @@ export function useUpdateCompany() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...input }: Partial<Company> & { id: string }) => {
-      const { error } = await supabase.from("companies" as any).update(input as any).eq("id", id);
+      const { address, ...restInput } = input as any;
+      const payload = {
+        ...restInput,
+        ...(address !== undefined ? { notes: address } : {}),
+      };
+      const { error } = await supabase.from("companies" as any).update(payload as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: (_, v) => {
@@ -350,6 +360,7 @@ export function useCompanyBranches(parentId: string | undefined) {
 
       return data.map((c: CompanyRow) => ({
         ...c,
+        address: (c as any).address || (c as any).notes || null,
         manager_profile: c.manager_user_id ? profilesMap[c.manager_user_id] || null : null,
       })) as Company[];
     },
@@ -363,21 +374,26 @@ export function useCreateCompanyBranch() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async (input: Partial<Company> & { parent_company_id: string; manager_user_id?: string | null }) => {
+      const { address, ...restInput } = input as any;
+      const payload = {
+        ...restInput,
+        ...(address ? { notes: address } : {}),
+        status: "active",
+        owner_user_id: user?.id || null,
+        manager_user_id: input.manager_user_id || null,
+      };
+
       // 1) Insert branch company
       const { data: comp, error: compErr } = await supabase
         .from("companies" as any)
-        .insert({
-          ...input,
-          status: "active",
-          owner_user_id: user?.id || null,
-          manager_user_id: input.manager_user_id || null,
-        } as any)
+        .insert(payload as any)
         .select()
         .single();
 
       if (compErr) throw compErr;
 
       // 2) Add owner to company_members
+
       if (user) {
         await supabase
           .from("company_members" as any)
