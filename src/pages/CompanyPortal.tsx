@@ -285,11 +285,12 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
                           {b.city && <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3 text-primary/75" />{b.city}</span>}
                           {b.contact_phone && <span className="flex items-center gap-0.5"><Phone className="w-3 h-3 text-primary/75" />{b.contact_phone}</span>}
                         </div>
-                        {b.notes && (
+                        {formatNotesText(b.notes) && (
                           <p className="text-[10px] text-muted-foreground bg-muted/30 p-1.5 rounded-lg border border-border/20 mt-1.5 line-clamp-2">
-                            {b.notes}
+                            {formatNotesText(b.notes)}
                           </p>
                         )}
+
                       </div>
                     </div>
 
@@ -324,15 +325,38 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
   );
 }
 
-function EditBranchDialog({ branch, onClose }: { branch: any; onClose: () => void }) {
-  const updateBranch = useUpdateCompany();
+function formatNotesText(notesStr?: string | null): string {
+  if (!notesStr) return "";
+  if (notesStr.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(notesStr);
+      return parsed.description || parsed.address || "";
+    } catch {
+      return notesStr;
+    }
+  }
+  return notesStr;
+}
+
+const EditBranchDialog = ({
+  branch,
+  open,
+  onClose,
+  updateBranch
+}: {
+  branch: any;
+  open: boolean;
+  onClose: () => void;
+  updateBranch: ReturnType<typeof useUpdateCompany>;
+}) => {
   const { user } = useAuth();
   
   const [name, setName] = useState(branch.name || "");
   const [city, setCity] = useState(branch.city || "");
   const [email, setEmail] = useState(branch.contact_email || "");
   const [phone, setPhone] = useState(branch.contact_phone || "");
-  const [notes, setNotes] = useState(branch.notes || "");
+  const [notes, setNotes] = useState(formatNotesText(branch.notes));
+
   const [logoUrl, setLogoUrl] = useState(branch.logo_url || "");
   const [uploading, setUploading] = useState(false);
 

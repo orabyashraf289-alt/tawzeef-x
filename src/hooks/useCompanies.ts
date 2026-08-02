@@ -69,14 +69,22 @@ export function prepareCompanyPayload(input: Record<string, any>, existingNotes?
   let existingMeta: Record<string, any> = {};
   if (existingNotes) {
     try {
-      existingMeta = JSON.parse(existingNotes);
+      existingMeta = typeof existingNotes === "string" && existingNotes.startsWith("{")
+        ? JSON.parse(existingNotes)
+        : { description: existingNotes };
     } catch {
       existingMeta = { description: existingNotes };
     }
   }
 
   // Extract non-schema custom fields
-  const { parent_company_id, manager_user_id, address, e2e_encryption, brand_settings, notes: inputNotes, ...schemaFields } = input;
+  const { parent_company_id, manager_user_id, address, e2e_encryption, brand_settings, notes: inputNotes, description: inputDesc, ...schemaFields } = input;
+
+  const cleanDesc = typeof inputNotes === "string" && !inputNotes.startsWith("{")
+    ? inputNotes
+    : typeof inputDesc === "string"
+    ? inputDesc
+    : existingMeta.description || null;
 
   const mergedMeta = {
     ...existingMeta,
@@ -85,7 +93,7 @@ export function prepareCompanyPayload(input: Record<string, any>, existingNotes?
     ...(address !== undefined ? { address } : {}),
     ...(e2e_encryption !== undefined ? { e2e_encryption } : {}),
     ...(brand_settings !== undefined ? { brand_settings } : {}),
-    ...(typeof inputNotes === "string" && inputNotes ? { description: inputNotes } : {}),
+    ...(cleanDesc ? { description: cleanDesc } : {}),
   };
 
   return {
@@ -98,21 +106,30 @@ export function prepareCompanyPayload(input: Record<string, any>, existingNotes?
 export function parseCompanyRow(c: Record<string, any>): Company {
   if (!c) return c as Company;
   let meta: Record<string, any> = {};
-  if (c.notes) {
+  let isJsonNotes = false;
+
+  if (c.notes && typeof c.notes === "string" && c.notes.startsWith("{")) {
     try {
       meta = JSON.parse(c.notes);
+      isJsonNotes = typeof meta === "object" && meta !== null;
     } catch {}
   }
 
+  const cleanNotes = isJsonNotes
+    ? (typeof meta.description === "string" ? meta.description : typeof meta.address === "string" ? meta.address : null)
+    : c.notes;
+
   return {
     ...c,
+    notes: cleanNotes,
     parent_company_id: c.parent_company_id || meta.parent_company_id || null,
     manager_user_id: c.manager_user_id || meta.manager_user_id || null,
-    address: c.address || meta.address || (typeof meta.description === "string" ? meta.description : null),
+    address: c.address || meta.address || cleanNotes || null,
     e2e_encryption: c.e2e_encryption || meta.e2e_encryption || false,
     brand_settings: c.brand_settings || meta.brand_settings || null,
   } as Company;
 }
+
 
 // Admin: list all companies
 export function useAllCompanies() {
