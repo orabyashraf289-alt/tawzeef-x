@@ -76,16 +76,49 @@ export function useOffers() {
   return useQuery({
     queryKey: ["offers", user?.id],
     queryFn: async () => {
+      // 1. Fetch user's company memberships to enforce multi-tenant isolation
+      let userCompanyIds: string[] = [];
+      let companyUserIds: string[] = [];
+      if (user?.id) {
+        try {
+          const { data: members } = await supabase
+            .from("company_members")
+            .select("company_id")
+            .eq("user_id", user.id);
+          if (members && members.length > 0) {
+            userCompanyIds = members.map((m: any) => m.company_id).filter(Boolean);
+            const { data: compMems } = await supabase
+              .from("company_members")
+              .select("user_id")
+              .in("company_id", userCompanyIds);
+            if (compMems) {
+              companyUserIds = compMems.map((m: any) => m.user_id).filter(Boolean);
+            }
+          }
+        } catch (e) {
+          console.warn("Could not fetch user company memberships for offers:", e);
+        }
+      }
+
       const { data, error } = await supabase
         .from("job_offers")
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as JobOffer[];
+
+      // 2. Strict Multi-Tenant Isolation Filter
+      if (companyUserIds.length > 0) {
+        return (data || []).filter((o: any) =>
+          o.user_id === user?.id || companyUserIds.includes(o.user_id)
+        ) as JobOffer[];
+      }
+
+      return (data || []).filter((o: any) => o.user_id === user?.id) as JobOffer[];
     },
     enabled: !!user,
   });
 }
+
 
 export function useOffer(id: string) {
   const { user } = useAuth();

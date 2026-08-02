@@ -119,106 +119,36 @@ export default function TeamManagement() {
     return myCompanies.find(c => !c.parent_company_id) || myCompanies[0];
   }, [myCompanies]);
 
+  const { data: companyMembers = [] } = useCompanyMembers(activeCompany?.id);
   const { data: companyBranches = [] } = useCompanyBranches(activeCompany?.id);
 
-  const [profiles, setProfiles] = useState<any[]>([]);
-  const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState<string>("all");
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [memberDetailOpen, setMemberDetailOpen] = useState<string | null>(null);
-  const [editMemberOpen, setEditMemberOpen] = useState<string | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editRole, setEditRole] = useState<AppRole>("recruiter");
-  const { data: dbPermissions, isLoading: permissionsLoading } = useAllPermissions();
-  const { data: customRoles = [] } = useCustomRoles();
-  const createCustomRole = useCreateCustomRole();
-  const deleteCustomRole = useDeleteCustomRole();
+  // Strict Multi-Tenant User Isolation: Only include users who belong to the active company
+  const companyUserIds = useMemo(() => {
+    const memberIds = (companyMembers || []).map((m: any) => m.user_id).filter(Boolean);
+    if (user?.id) memberIds.push(user.id);
+    return Array.from(new Set(memberIds));
+  }, [companyMembers, user?.id]);
 
-  const [openAddCustomRole, setOpenAddCustomRole] = useState(false);
-  const [customRoleForm, setCustomRoleForm] = useState({
-    name: "",
-    description: "",
-    permissions: [] as string[]
-  });
-
-  const [createdEmpCredentials, setCreatedEmpCredentials] = useState<{ email: string; pass: string; name: string; role: string } | null>(null);
-  const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
-  const [inviteForm, setInviteForm] = useState({
-    email: "",
-    fullName: "",
-    password: "",
-    role: "recruiter" as string,
-    branchId: "none"
-  });
-
-  const permQueryClient = useQueryClient();
-  const [localPermissions, setLocalPermissions] = useState<PermissionRow[]>([]);
-  const [permissionsChanged, setPermissionsChanged] = useState(false);
-
-  // Sync DB permissions to local state
-  useEffect(() => {
-    if (dbPermissions) {
-      setLocalPermissions(dbPermissions);
-      setPermissionsChanged(false);
+  const roles = useMemo(() => {
+    if (!userRoles) return [];
+    if (companyUserIds.length === 0) {
+      return user?.id ? userRoles.filter((r: any) => r.user_id === user.id) : [];
     }
-  }, [dbPermissions]);
-
-  const togglePermission = (key: string, role: "admin" | "recruiter" | "reviewer") => {
-    if (role === "admin") {
-      toast({ title: t("team.cannotDisableAdmin"), variant: "destructive" });
-      return;
-    }
-    setLocalPermissions(prev => prev.map(p => p.permission_key === key ? { ...p, [role]: !p[role] } : p));
-    setPermissionsChanged(true);
-  };
-
-  const savePermissions = async () => {
-    try {
-      for (const p of localPermissions) {
-        const updateData: any = { admin: p.admin, recruiter: p.recruiter, reviewer: p.reviewer, updated_at: new Date().toISOString(), updated_by: user?.id };
-        await supabase
-          .from("role_permissions" as any)
-          .update(updateData)
-          .eq("permission_key", p.permission_key);
-      }
-      setPermissionsChanged(false);
-      permQueryClient.invalidateQueries({ queryKey: ["role-permissions"] });
-      toast({ title: t("team.permissionsSaved") });
-    } catch (e: any) {
-      toast({ title: e.message, variant: "destructive" });
-    }
-  };
-
-  const resetPermissions = () => {
-    if (dbPermissions) {
-      setLocalPermissions(dbPermissions);
-      setPermissionsChanged(false);
-      toast({ title: t("team.permissionsReset") });
-    }
-  };
-
-  const screenPermissions = localPermissions.filter(p => p.permission_key.startsWith("screen."));
-  const actionPermissions = localPermissions.filter(p => p.permission_key.startsWith("action."));
-  const permLabels = locale === "en" ? PERMISSION_LABELS_EN : PERMISSION_LABELS_AR;
-
-  const roleLabels: Record<string, string> = { admin: t("team.roleAdmin"), recruiter: t("team.roleRecruiter"), reviewer: t("team.roleReviewer"), branch_manager: "مدير فرع" };
-  const roleColors: Record<string, string> = { admin: "bg-destructive/10 text-destructive", recruiter: "bg-primary/10 text-primary", reviewer: "bg-warning/10 text-warning", branch_manager: "bg-emerald-500/10 text-emerald-600 font-bold" };
-
-  const roles = userRoles || [];
-  const allInvitations = invitations || [];
-  const allActivity = activityLog || [];
-  const allCandidates = candidates || [];
-  const allJobs = jobs || [];
-  const allInterviews = interviews || [];
+    return userRoles.filter((r: any) => companyUserIds.includes(r.user_id));
+  }, [userRoles, companyUserIds, user?.id]);
 
   useEffect(() => {
     const fetchProfiles = async () => {
-      const { data } = await supabase.from("profiles").select("*");
+      if (companyUserIds.length === 0) {
+        setProfiles([]);
+        return;
+      }
+      const { data } = await supabase.from("profiles").select("*").in("user_id", companyUserIds);
       if (data) setProfiles(data);
     };
-    if (roles.length > 0) fetchProfiles();
-  }, [roles]);
+    fetchProfiles();
+  }, [companyUserIds]);
+
 
   const teamStats = useMemo(() => ({
     totalUsers: roles.length,

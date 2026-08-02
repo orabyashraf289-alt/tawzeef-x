@@ -392,13 +392,42 @@ export function useCandidates() {
         })();
       }
 
-      return [...(candidatesData || []), ...convertedApps];
+      const allMerged = [...(candidatesData || []), ...convertedApps];
+
+      // Strict Multi-Tenant Candidate & CV Isolation:
+      // A candidate belongs to the current user/company ONLY IF:
+      // - The candidate is owned by the user (user_id === user.id)
+      // - OR the candidate's company_id belongs to the user's company memberships
+      // - OR the candidate's job_id belongs to one of the user's created jobs
+      const ownJobs = user?.id ? await supabase.from("jobs").select("id").eq("user_id", user.id).then(r => r.data || []) : [];
+      const ownJobIds = ownJobs.map((j: any) => j.id);
+
+      let userCompanyIds: string[] = [];
+      if (user?.id) {
+        try {
+          const { data: members } = await supabase.from("company_members").select("company_id").eq("user_id", user.id);
+          if (members) userCompanyIds = members.map((m: any) => m.company_id).filter(Boolean);
+        } catch (e) {
+          console.warn("Could not fetch user company memberships for candidate isolation:", e);
+        }
+      }
+
+      if (userCompanyIds.length > 0) {
+        return allMerged.filter(c =>
+          c.user_id === user?.id ||
+          (c.company_id && userCompanyIds.includes(c.company_id)) ||
+          ownJobIds.includes(c.job_id)
+        );
+      }
+
+      return allMerged.filter(c => c.user_id === user?.id || ownJobIds.includes(c.job_id));
     },
     enabled: !!user,
     staleTime: 5 * 1000,
     gcTime: 5 * 60 * 1000,
   });
 }
+
 
 export function usePaginatedCandidates(page = 0, pageSize = 50) {
   const { user } = useAuth();
