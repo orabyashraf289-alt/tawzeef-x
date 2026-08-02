@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import {
   Building2, Camera, Trash2, Check, Globe, MapPin, Shield, Lock, Palette,
   Users, Plus, Mail, RefreshCw, Sparkles, QrCode, Layers, FileSpreadsheet,
-  Link2, UserPlus, AlertCircle, UserCheck, Crown, Edit2
+  Link2, UserPlus, AlertCircle, UserCheck, Crown, Edit2, Phone
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -30,7 +30,9 @@ import {
   useCompanyBranches,
   useCreateCompanyBranch,
   useUpdateCompany,
+  useDeleteCompany,
 } from "@/hooks/useCompanies";
+
 import { useCompanyInvitations, useCreateCompanyInvitation, useCancelInvitation } from "@/hooks/useCompanyInvitations";
 
 export default function CompanySettingsManager() {
@@ -72,18 +74,57 @@ export default function CompanySettingsManager() {
   const { data: branches = [], isLoading: branchesLoading } = useCompanyBranches(companyId);
   const createBranch = useCreateCompanyBranch();
   const updateCompany = useUpdateCompany();
+  const deleteCompany = useDeleteCompany();
   const createInvite = useCreateCompanyInvitation();
   const cancelInvite = useCancelInvitation();
   const removeMember = useRemoveCompanyMember();
 
-  // Branch Form & Edit Manager Dialog
+  // Branch Form & Edit Branch Dialog
   const [branchName, setBranchName] = useState("");
   const [branchCity, setBranchCity] = useState("");
   const [branchAddress, setBranchAddress] = useState("");
   const [branchManagerUserId, setBranchManagerUserId] = useState<string>("none");
 
-  const [editManagerDialog, setEditManagerDialog] = useState<{ branchId: string; branchName: string; currentManagerUserId: string | null } | null>(null);
-  const [selectedNewManagerId, setSelectedNewManagerId] = useState<string>("none");
+  const [editingBranchData, setEditingBranchData] = useState<{
+    id: string;
+    name: string;
+    city: string;
+    address: string;
+    contact_phone: string;
+    contact_email: string;
+    manager_user_id: string;
+  } | null>(null);
+
+  const handleSaveBranchFullDetails = async () => {
+    if (!editingBranchData || !editingBranchData.name.trim()) return;
+    const managerId = editingBranchData.manager_user_id === "none" ? null : editingBranchData.manager_user_id;
+
+    await updateCompany.mutateAsync({
+      id: editingBranchData.id,
+      name: editingBranchData.name.trim(),
+      city: editingBranchData.city || null,
+      address: editingBranchData.address || null,
+      notes: editingBranchData.address || null,
+      contact_phone: editingBranchData.contact_phone || null,
+      contact_email: editingBranchData.contact_email || null,
+      manager_user_id: managerId,
+    });
+
+    queryClient.invalidateQueries({ queryKey: ["company-branches", companyId] });
+    queryClient.invalidateQueries({ queryKey: ["my-companies"] });
+
+    setEditingBranchData(null);
+    toast({ title: "تم تحديث كافة بيانات الفرع والمسؤول بنجاح ✅" });
+  };
+
+  const handleDeleteBranch = async (branchId: string) => {
+    if (!confirm("هل أنت تأكد من رغبتك في حذف هذا الفرع؟")) return;
+    await deleteCompany.mutateAsync(branchId);
+    queryClient.invalidateQueries({ queryKey: ["company-branches", companyId] });
+    queryClient.invalidateQueries({ queryKey: ["my-companies"] });
+    setEditingBranchData(null);
+  };
+
 
   // Invite Form
   const [inviteEmail, setInviteEmail] = useState("");
@@ -631,51 +672,64 @@ export default function CompanySettingsManager() {
                       <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
                         <MapPin className="w-5 h-5" />
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-1 text-right">
                         <div className="flex items-center gap-2">
                           <p className="font-bold text-sm text-foreground">{b.name}</p>
-                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground font-semibold">
                             {b.city || "مدينة غير محددة"}
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">{b.address || (b as any).notes || "العنوان التفصيلي غير محدد"}</p>
-
+                        {(b.contact_phone || b.contact_email) && (
+                          <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground pt-0.5">
+                            {b.contact_phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-primary/70" />{b.contact_phone}</span>}
+                            {b.contact_email && <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-primary/70" />{b.contact_email}</span>}
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Assigned Manager Card */}
-                    <div className="flex items-center gap-3 bg-muted/30 p-2.5 rounded-xl border border-border/40">
-                      <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">
-                        <UserCheck className="w-4 h-4" />
+                    {/* Assigned Manager & Action Button */}
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex items-center gap-3 bg-muted/30 p-2.5 rounded-xl border border-border/40">
+                        <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">
+                          <UserCheck className="w-4 h-4" />
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] text-muted-foreground font-semibold">مدير / مسؤول الفرع:</p>
+                          <p className="text-xs font-bold text-foreground">
+                            {b.manager_profile?.full_name ? (
+                              <>👑 {b.manager_profile.full_name} <span className="text-[10px] text-muted-foreground font-normal">({b.manager_profile.job_title || "مسؤول توظيف"})</span></>
+                            ) : (
+                              <span className="text-amber-600 italic">غير معين</span>
+                            )}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-[10px] text-muted-foreground font-semibold">مدير / مسؤول الفرع:</p>
-                        <p className="text-xs font-bold text-foreground">
-                          {b.manager_profile?.full_name ? (
-                            <>👑 {b.manager_profile.full_name} <span className="text-[10px] text-muted-foreground font-normal">({b.manager_profile.job_title || "مسؤول توظيف"})</span></>
-                          ) : (
-                            <span className="text-amber-600 italic">غير معين</span>
-                          )}
-                        </p>
-                      </div>
+
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-primary hover:bg-primary/10"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 h-9 rounded-xl font-bold text-xs hover:bg-primary/10 hover:text-primary border-border/60 shadow-2xs"
                         onClick={() => {
-                          setEditManagerDialog({
-                            branchId: b.id,
-                            branchName: b.name,
-                            currentManagerUserId: b.manager_user_id || null,
+                          setEditingBranchData({
+                            id: b.id,
+                            name: b.name || "",
+                            city: b.city || "",
+                            address: b.address || b.notes || "",
+                            contact_phone: b.contact_phone || "",
+                            contact_email: b.contact_email || "",
+                            manager_user_id: b.manager_user_id || "none",
                           });
-                          setSelectedNewManagerId(b.manager_user_id || "none");
                         }}
                       >
-                        <Edit2 className="w-3.5 h-3.5" />
+                        <Edit2 className="w-3.5 h-3.5 text-primary" />
+                        تعديل الفرع والمسؤول
                       </Button>
                     </div>
                   </div>
                 ))
+
               )}
             </div>
           </Card>
@@ -807,6 +861,134 @@ export default function CompanySettingsManager() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* ── Full Branch Edit Dialog ── */}
+      <Dialog open={!!editingBranchData} onOpenChange={() => setEditingBranchData(null)}>
+        <DialogContent className="max-w-lg rounded-3xl p-6" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right font-black text-lg text-foreground flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-primary" />
+              تعديل بيانات الفرع والمسؤول
+            </DialogTitle>
+            <DialogDescription className="text-right text-xs text-muted-foreground">
+              تعديل كافة بيانات الفرع والمدينة والعنوان التفصيلي وتخصيص مدير الفرع.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingBranchData && (
+            <div className="space-y-4 py-2 text-right">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold">اسم الفرع *</Label>
+                  <Input
+                    value={editingBranchData.name}
+                    onChange={(e) => setEditingBranchData({ ...editingBranchData, name: e.target.value })}
+                    placeholder="اسم الفرع..."
+                    className="rounded-xl h-10 text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold">المدينة</Label>
+                  <Input
+                    value={editingBranchData.city}
+                    onChange={(e) => setEditingBranchData({ ...editingBranchData, city: e.target.value })}
+                    placeholder="الرياض، جدة..."
+                    className="rounded-xl h-10 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold">العنوان التفصيلي للفرع</Label>
+                <Textarea
+                  value={editingBranchData.address}
+                  onChange={(e) => setEditingBranchData({ ...editingBranchData, address: e.target.value })}
+                  placeholder="أدخل الشارع، الحي، الرمز البريدي والتفاصيل..."
+                  rows={2}
+                  className="rounded-xl text-xs resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold">رقم هاتف التواصل للفرع</Label>
+                  <Input
+                    value={editingBranchData.contact_phone}
+                    onChange={(e) => setEditingBranchData({ ...editingBranchData, contact_phone: e.target.value })}
+                    placeholder="05XXXXXXXX"
+                    className="rounded-xl h-10 text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold">البريد الإلكتروني للفرع</Label>
+                  <Input
+                    type="email"
+                    value={editingBranchData.contact_email}
+                    onChange={(e) => setEditingBranchData({ ...editingBranchData, contact_email: e.target.value })}
+                    placeholder="branch@company.com"
+                    className="rounded-xl h-10 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5 border-t border-border/40 pt-3">
+                <Label className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                  <Crown className="w-4 h-4 text-amber-500" />
+                  المدير / المسؤول المباشر عن الفرع
+                </Label>
+                <Select
+                  value={editingBranchData.manager_user_id}
+                  onValueChange={(val) => setEditingBranchData({ ...editingBranchData, manager_user_id: val })}
+                >
+                  <SelectTrigger className="w-full rounded-xl h-10 text-xs">
+                    <SelectValue placeholder="اختر المسؤول..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">بدون تعيين حالياً (تخطي)</SelectItem>
+                    {members.map((m: any) => (
+                      <SelectItem key={m.user_id} value={m.user_id}>
+                        👤 {m.profiles?.full_name || "عضو بدون اسم"} ({m.profiles?.job_title || "مسؤول توظيف"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-border/40">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-destructive hover:bg-destructive/10 text-xs gap-1.5 font-bold rounded-xl"
+                  onClick={() => handleDeleteBranch(editingBranchData.id)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  حذف الفرع
+                </Button>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditingBranchData(null)}
+                    className="rounded-xl text-xs font-bold"
+                  >
+                    إلغاء
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleSaveBranchFullDetails}
+                    disabled={!editingBranchData.name.trim() || updateCompany.isPending}
+                    className="rounded-xl text-xs font-bold gap-1.5"
+                  >
+                    {updateCompany.isPending ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : "حفظ والتحديث ✅"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
