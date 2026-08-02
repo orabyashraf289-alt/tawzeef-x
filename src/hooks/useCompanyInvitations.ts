@@ -93,7 +93,6 @@ export function useCreateCompanyInvitation() {
         .from("company_invitations" as any)
         .insert({
           company_id: companyId,
-          branch_id: branchId || null,
           email: email.trim().toLowerCase(),
           member_role: role,
           invited_by: user?.id,
@@ -101,8 +100,9 @@ export function useCreateCompanyInvitation() {
         .select()
         .single();
       if (error) throw error;
-      return { ...(data as Record<string, unknown>), companyName, branchName };
+      return { ...(data as Record<string, unknown>), companyName, branchName, branchId };
     },
+
     onSuccess: (data: Record<string, unknown>) => {
       qc.invalidateQueries({ queryKey: ["company-invitations", data.company_id] });
       toast({ title: "تم إرسال دعوة الانضمام بنجاح 📩", description: "سيتم إرسال البريد الإلكتروني مع تفاصيل الفرع للموظف" });
