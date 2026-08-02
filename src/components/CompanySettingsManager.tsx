@@ -649,50 +649,80 @@ export default function CompanySettingsManager() {
             </div>
 
             {/* Branches List */}
-            <div className="space-y-3">
-              <h4 className="font-bold text-xs text-muted-foreground">قائمة الفروع التابعة للشركة الأم:</h4>
+            <div className="space-y-4">
+              <h4 className="font-bold text-xs text-muted-foreground uppercase tracking-wider">قائمة الفروع التابعة للشركة الأم:</h4>
               {branches.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground text-xs bg-muted/20 rounded-2xl border border-border/40 space-y-2">
-                  <MapPin className="w-8 h-8 text-muted-foreground/30 mx-auto" />
-                  <p>لا يوجد فروع مضافة حتى الآن تحت الشركة الأم.</p>
+                <div className="p-10 text-center text-muted-foreground text-xs bg-muted/20 rounded-3xl border border-border/40 space-y-2">
+                  <Building2 className="w-10 h-10 text-muted-foreground/30 mx-auto" />
+                  <p className="font-bold text-sm text-foreground">لا يوجد فروع مضافة حتى الآن</p>
+                  <p className="text-xs text-muted-foreground">استخدم النموذج أعلاه لإضافة فروع ومقرات الشركة الجديدة وتعيين مسؤول لكل فرع.</p>
                 </div>
               ) : (
                 branches.map((b: any) => (
-                  <div key={b.id} className="p-4 rounded-2xl bg-card border border-border/60 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs hover:border-primary/40 transition-colors">
-                    <div className="flex items-start md:items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
-                        <MapPin className="w-5 h-5" />
+                  <div
+                    key={b.id}
+                    className="group p-5 rounded-3xl bg-card border border-border/60 hover:border-primary/40 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative overflow-hidden"
+                  >
+                    {/* Top hover accent bar */}
+                    <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-primary/40 via-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+
+                    {/* Left Details Block */}
+                    <div className="flex items-start gap-4 min-w-0 flex-1">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20 shadow-2xs group-hover:scale-105 transition-transform duration-200">
+                        <Building2 className="w-6 h-6" />
                       </div>
-                      <div className="space-y-1 text-right">
-                        <div className="flex items-center gap-2">
-                          <p className="font-bold text-sm text-foreground">{b.name}</p>
-                          <Badge variant="outline" className="text-[10px] text-muted-foreground font-semibold">
-                            {b.city || "مدينة غير محددة"}
-                          </Badge>
+
+                      <div className="space-y-1.5 min-w-0 flex-1 text-right">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <h4 className="font-black text-base text-foreground tracking-tight">{b.name}</h4>
+                          {b.city && (
+                            <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 font-bold text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              {b.city}
+                            </Badge>
+                          )}
                         </div>
-                        <p className="text-xs text-muted-foreground">{b.address || (b as any).notes || "العنوان التفصيلي غير محدد"}</p>
+
+                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 pr-0.5 font-normal">
+                          {b.address || (b as any).notes || "العنوان التفصيلي غير محدد"}
+                        </p>
+
                         {(b.contact_phone || b.contact_email) && (
-                          <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground pt-0.5">
-                            {b.contact_phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-primary/70" />{b.contact_phone}</span>}
-                            {b.contact_email && <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-primary/70" />{b.contact_email}</span>}
+                          <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                            {b.contact_phone && (
+                              <span className="inline-flex items-center gap-1.5 bg-muted/40 text-muted-foreground px-2.5 py-1 rounded-xl border border-border/40 font-mono text-[11px]">
+                                <Phone className="w-3 h-3 text-primary" />
+                                {b.contact_phone}
+                              </span>
+                            )}
+                            {b.contact_email && (
+                              <span className="inline-flex items-center gap-1.5 bg-muted/40 text-muted-foreground px-2.5 py-1 rounded-xl border border-border/40 text-[11px]">
+                                <Mail className="w-3 h-3 text-primary" />
+                                {b.contact_email}
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Assigned Manager & Action Button */}
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex items-center gap-3 bg-muted/30 p-2.5 rounded-xl border border-border/40">
-                        <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">
-                          <UserCheck className="w-4 h-4" />
+                    {/* Right Block: Branch Manager & Edit Button */}
+                    <div className="flex items-center gap-3 shrink-0 self-end lg:self-center pt-2 lg:pt-0 border-t lg:border-t-0 border-border/40 w-full lg:w-auto justify-between lg:justify-end">
+                      <div className="flex items-center gap-3 bg-muted/30 px-3.5 py-2.5 rounded-2xl border border-border/50 shadow-2xs">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0 border border-emerald-500/20">
+                          <UserCheck className="w-4.5 h-4.5" />
                         </div>
                         <div className="text-right">
-                          <p className="text-[10px] text-muted-foreground font-semibold">مدير / مسؤول الفرع:</p>
-                          <p className="text-xs font-bold text-foreground">
+                          <p className="text-[10px] text-muted-foreground font-semibold">المسؤول المباشر عن الفرع</p>
+                          <p className="text-xs font-bold text-foreground flex items-center gap-1">
                             {b.manager_profile?.full_name ? (
-                              <>👑 {b.manager_profile.full_name} <span className="text-[10px] text-muted-foreground font-normal">({b.manager_profile.job_title || "مسؤول توظيف"})</span></>
+                              <>
+                                <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                <span>{b.manager_profile.full_name}</span>
+                                <span className="text-[10px] text-muted-foreground font-normal">({b.manager_profile.job_title || "مسؤول توظيف"})</span>
+                              </>
                             ) : (
-                              <span className="text-amber-600 italic">غير معين</span>
+                              <span className="text-amber-600 font-medium italic text-[11px]">غير معين (انقر للتعديل)</span>
                             )}
                           </p>
                         </div>
@@ -701,7 +731,7 @@ export default function CompanySettingsManager() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="gap-1.5 h-9 rounded-xl font-bold text-xs hover:bg-primary/10 hover:text-primary border-border/60 shadow-2xs"
+                        className="h-10 px-4 rounded-2xl font-bold text-xs gap-2 border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground shadow-2xs transition-all hover:scale-[1.02] active:scale-[0.98]"
                         onClick={() => {
                           setEditingBranchData({
                             id: b.id,
@@ -714,15 +744,15 @@ export default function CompanySettingsManager() {
                           });
                         }}
                       >
-                        <Edit2 className="w-3.5 h-3.5 text-primary" />
-                        تعديل الفرع والمسؤول
+                        <Edit2 className="w-3.5 h-3.5" />
+                        تعديل الفرع
                       </Button>
                     </div>
                   </div>
                 ))
-
               )}
             </div>
+
           </Card>
         </TabsContent>
 
