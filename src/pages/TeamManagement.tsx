@@ -3,7 +3,7 @@ import { useAllUserRoles, useUpdateUserRole, useDeleteTeamMember, useInvitations
 import { useAllPermissions, type PermissionRow } from "@/hooks/useScreenPermissions";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCandidates, useJobs, useInterviews } from "@/hooks/useJobs";
-import { useMyCompanies, useCompanyBranches } from "@/hooks/useCompanies";
+import { useMyCompanies, useCompanyBranches, useCompanyMembers } from "@/hooks/useCompanies";
 import { useCreateCompanyInvitation } from "@/hooks/useCompanyInvitations";
 import { motion } from "framer-motion";
 import {
