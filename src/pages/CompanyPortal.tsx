@@ -340,16 +340,19 @@ function formatNotesText(notesStr?: string | null): string {
 
 const EditBranchDialog = ({
   branch,
-  open,
+  open = true,
   onClose,
-  updateBranch
+  updateBranch: updateBranchProp
 }: {
   branch: any;
-  open: boolean;
+  open?: boolean;
   onClose: () => void;
-  updateBranch: ReturnType<typeof useUpdateCompany>;
+  updateBranch?: ReturnType<typeof useUpdateCompany>;
 }) => {
   const { user } = useAuth();
+  const defaultUpdateBranch = useUpdateCompany();
+  const updateBranch = updateBranchProp || defaultUpdateBranch;
+
   
   const [name, setName] = useState(branch.name || "");
   const [city, setCity] = useState(branch.city || "");
