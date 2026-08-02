@@ -339,16 +339,7 @@ export default function CompanySettingsManager() {
     setBranchManagerUserId("none");
   };
 
-  const handleUpdateBranchManager = async () => {
-    if (!editManagerDialog) return;
-    const newManager = selectedNewManagerId === "none" ? null : selectedNewManagerId;
-    await updateCompany.mutateAsync({
-      id: editManagerDialog.branchId,
-      manager_user_id: newManager,
-    });
-    setEditManagerDialog(null);
-    toast({ title: "تم تحديث مدير الفرع بنجاح ✅" });
-  };
+
 
   const handleSendInvite = async () => {
     if (!companyId || !inviteEmail.trim()) return;
@@ -733,48 +724,6 @@ export default function CompanySettingsManager() {
               )}
             </div>
           </Card>
-
-          {/* Edit Manager Modal */}
-          <Dialog open={!!editManagerDialog} onOpenChange={() => setEditManagerDialog(null)}>
-            <DialogContent className="sm:max-w-md" dir="rtl">
-              <DialogHeader className="text-right">
-                <DialogTitle className="text-base font-bold flex items-center gap-2">
-                  <Crown className="w-4 h-4 text-emerald-600" />
-                  تعيين مدير فرع {editManagerDialog?.branchName}
-                </DialogTitle>
-                <DialogDescription>
-                  اختر الموظف أو مسؤول التوظيف ليكون مسؤولاً عن هذا الفرع ومتابعة وظائفه ومرشحيه.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4 mt-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">الموظف المسؤول عن الفرع</Label>
-                  <Select value={selectedNewManagerId} onValueChange={setSelectedNewManagerId}>
-                    <SelectTrigger className="h-10 text-xs rounded-xl">
-                      <SelectValue placeholder="اختر مسؤول الفرع" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">بدون تعيين (إلغاء التعيين)</SelectItem>
-                      {members.map((m: any) => (
-                        <SelectItem key={m.user_id} value={m.user_id}>
-                          👤 {m.profiles?.full_name || "موظف"} ({m.profiles?.job_title || "مسؤول توظيف"})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button
-                  onClick={handleUpdateBranchManager}
-                  className="w-full font-bold h-10 text-xs gap-2 bg-primary text-primary-foreground"
-                >
-                  <Check className="w-4 h-4" />
-                  تأكيد تعيين مدير الفرع
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
         </TabsContent>
 
         {/* ── 4. Team Members & Branch Manager Invitations ── */}
