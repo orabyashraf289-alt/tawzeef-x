@@ -64,6 +64,56 @@ export interface CompanyMember {
   } | null;
 }
 
+// Helper to encode custom company metadata into DB-safe notes JSON
+export function prepareCompanyPayload(input: Record<string, any>, existingNotes?: string | null) {
+  let existingMeta: Record<string, any> = {};
+  if (existingNotes) {
+    try {
+      existingMeta = JSON.parse(existingNotes);
+    } catch {
+      existingMeta = { description: existingNotes };
+    }
+  }
+
+  // Extract non-schema custom fields
+  const { parent_company_id, manager_user_id, address, e2e_encryption, brand_settings, notes: inputNotes, ...schemaFields } = input;
+
+  const mergedMeta = {
+    ...existingMeta,
+    ...(parent_company_id !== undefined ? { parent_company_id } : {}),
+    ...(manager_user_id !== undefined ? { manager_user_id } : {}),
+    ...(address !== undefined ? { address } : {}),
+    ...(e2e_encryption !== undefined ? { e2e_encryption } : {}),
+    ...(brand_settings !== undefined ? { brand_settings } : {}),
+    ...(typeof inputNotes === "string" && inputNotes ? { description: inputNotes } : {}),
+  };
+
+  return {
+    ...schemaFields,
+    notes: Object.keys(mergedMeta).length > 0 ? JSON.stringify(mergedMeta) : null,
+  };
+}
+
+// Helper to decode DB row notes JSON back into full Company object
+export function parseCompanyRow(c: Record<string, any>): Company {
+  if (!c) return c as Company;
+  let meta: Record<string, any> = {};
+  if (c.notes) {
+    try {
+      meta = JSON.parse(c.notes);
+    } catch {}
+  }
+
+  return {
+    ...c,
+    parent_company_id: c.parent_company_id || meta.parent_company_id || null,
+    manager_user_id: c.manager_user_id || meta.manager_user_id || null,
+    address: c.address || meta.address || (typeof meta.description === "string" ? meta.description : null),
+    e2e_encryption: c.e2e_encryption || meta.e2e_encryption || false,
+    brand_settings: c.brand_settings || meta.brand_settings || null,
+  } as Company;
+}
+
 // Admin: list all companies
 export function useAllCompanies() {
   return useQuery({
@@ -74,7 +124,7 @@ export function useAllCompanies() {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as unknown as Company[];
+      return (data || []).map(parseCompanyRow);
     },
   });
 }
@@ -89,7 +139,7 @@ export function useCompany(id: string | undefined) {
         .eq("id", id!)
         .maybeSingle();
       if (error) throw error;
-      return data as unknown as Company | null;
+      return data ? parseCompanyRow(data) : null;
     },
     enabled: !!id,
   });
@@ -106,7 +156,10 @@ export function useMyCompanies() {
         .select("member_role, company:company_id(*)")
         .eq("user_id", user!.id);
       if (error) throw error;
-      return (data as CompanyMemberRow[]).map((r) => ({ ...r.company, member_role: r.member_role })) as (Company & { member_role: string })[];
+      return (data as CompanyMemberRow[]).map((r) => ({
+        ...parseCompanyRow(r.company as any),
+        member_role: r.member_role,
+      })) as (Company & { member_role: string })[];
     },
     enabled: !!user,
   });
@@ -213,18 +266,14 @@ export function useCreateCompany() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: Partial<Company>) => {
-      const { address, ...restInput } = input as any;
-      const payload = {
-        ...restInput,
-        ...(address ? { notes: address } : {}),
-      };
+      const payload = prepareCompanyPayload(input);
       const { data, error } = await supabase
         .from("companies" as any)
         .insert(payload as any)
         .select()
         .single();
       if (error) throw error;
-      return data as unknown as Company;
+      return parseCompanyRow(data);
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["all-companies"] });
@@ -270,11 +319,13 @@ export function useUpdateCompany() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...input }: Partial<Company> & { id: string }) => {
-      const { address, ...restInput } = input as any;
-      const payload = {
-        ...restInput,
-        ...(address !== undefined ? { notes: address } : {}),
-      };
+      const { data: existing } = await supabase
+        .from("companies" as any)
+        .select("notes")
+        .eq("id", id)
+        .maybeSingle();
+
+      const payload = prepareCompanyPayload(input, existing?.notes);
       const { error } = await supabase.from("companies" as any).update(payload as any).eq("id", id);
       if (error) throw error;
     },
@@ -338,13 +389,17 @@ export function useCompanyBranches(parentId: string | undefined) {
       const { data, error } = await supabase
         .from("companies" as any)
         .select("*")
-        .eq("parent_company_id", parentId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       if (!data || data.length === 0) return [];
 
-      const managerUserIds = Array.from(new Set(data.map((c: CompanyRow) => c.manager_user_id).filter(Boolean)));
+      const parsedCompanies = data.map(parseCompanyRow);
+      const branchCompanies = parsedCompanies.filter((c) => c.parent_company_id === parentId);
+
+      const managerUserIds = Array.from(
+        new Set(branchCompanies.map((c) => c.manager_user_id).filter(Boolean))
+      ) as string[];
       let profilesMap: Record<string, unknown> = {};
 
       if (managerUserIds.length > 0) {
@@ -358,9 +413,8 @@ export function useCompanyBranches(parentId: string | undefined) {
         });
       }
 
-      return data.map((c: CompanyRow) => ({
+      return branchCompanies.map((c) => ({
         ...c,
-        address: (c as any).address || (c as any).notes || null,
         manager_profile: c.manager_user_id ? profilesMap[c.manager_user_id] || null : null,
       })) as Company[];
     },
@@ -374,14 +428,11 @@ export function useCreateCompanyBranch() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async (input: Partial<Company> & { parent_company_id: string; manager_user_id?: string | null }) => {
-      const { address, ...restInput } = input as any;
-      const payload = {
-        ...restInput,
-        ...(address ? { notes: address } : {}),
+      const payload = prepareCompanyPayload({
+        ...input,
         status: "active",
         owner_user_id: user?.id || null,
-        manager_user_id: input.manager_user_id || null,
-      };
+      });
 
       // 1) Insert branch company
       const { data: comp, error: compErr } = await supabase
