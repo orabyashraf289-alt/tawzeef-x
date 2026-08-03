@@ -1,5 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useAllUserRoles, useUpdateUserRole, useDeleteTeamMember, useInvitations, useSendInvitation, useActivityLog, type AppRole, useCustomRoles, useCreateCustomRole, useDeleteCustomRole } from "@/hooks/useUserRole";
+import { useAllUserRoles, useUpdateUserRole, useDeleteTeamMember, useInvitations, useSendInvitation, useActivityLog, type AppRole, useCustomRoles, useCreateCustomRole, useDeleteCustomRole, useUserRole } from "@/hooks/useUserRole";
 import { useAllPermissions, type PermissionRow } from "@/hooks/useScreenPermissions";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCandidates, useJobs, useInterviews } from "@/hooks/useJobs";
@@ -13,6 +13,7 @@ import {
   RefreshCw, Ban, Monitor, Target, Star, GraduationCap, Zap, Loader2, MapPin
 } from "lucide-react";
 import AdminSubscriptionManager from "@/components/AdminSubscriptionManager";
+import BillingHistory from "@/components/BillingHistory";
 import PermissionsMatrixManager from "@/components/PermissionsMatrixManager";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,7 @@ const PERMISSION_LABELS_EN: Record<string, string> = {
 
 export default function TeamManagement() {
   const { user } = useAuth();
+  const { isSuperAdmin } = useUserRole();
   const { t, locale, dir } = useI18n();
   const { data: userRoles } = useAllUserRoles();
   const updateRole = useUpdateUserRole();
@@ -484,13 +486,16 @@ export default function TeamManagement() {
         <Tabs defaultValue="members" dir={dir}>
           <TabsList className="w-full sm:w-auto flex-wrap">
             <TabsTrigger value="members" className="gap-1.5"><UserCog className="w-3.5 h-3.5" />{t("team.membersTab")}</TabsTrigger>
-            <TabsTrigger value="subscriptions" className="gap-1.5"><Package className="w-3.5 h-3.5" />{t("team.subscriptionsTab")}</TabsTrigger>
+            <TabsTrigger value="subscriptions" className="gap-1.5">
+              <Package className="w-3.5 h-3.5" />
+              {isSuperAdmin ? "الباقات وإدارة الشركات" : "اشتراك الشركة والباقة"}
+            </TabsTrigger>
             <TabsTrigger value="permissions" className="gap-1.5"><Shield className="w-3.5 h-3.5" />{t("team.permissionsTab")}</TabsTrigger>
             <TabsTrigger value="invitations" className="gap-1.5"><Mail className="w-3.5 h-3.5" />{t("team.invitationsTab")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="subscriptions">
-            <AdminSubscriptionManager />
+            {isSuperAdmin ? <AdminSubscriptionManager /> : <BillingHistory />}
           </TabsContent>
 
           <TabsContent value="members" className="space-y-4">
