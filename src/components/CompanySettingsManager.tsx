@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import {
   Building2, Camera, Trash2, Check, Globe, MapPin, Shield, Lock, Palette,
   Users, Plus, Mail, RefreshCw, Sparkles, QrCode, Layers, FileSpreadsheet,
-  Link2, UserPlus, AlertCircle, UserCheck, Crown, Edit2, Phone
+  Link2, UserPlus, AlertCircle, UserCheck, Crown, Edit2, Phone, Monitor, X, Loader2, Download
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
