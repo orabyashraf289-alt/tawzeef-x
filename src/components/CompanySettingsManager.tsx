@@ -59,11 +59,17 @@ export default function CompanySettingsManager() {
   const [companySize, setCompanySize] = useState("");
   const [e2eEnabled, setE2eEnabled] = useState(false);
 
-  // Brand Colors
+  // Brand Colors & Custom Backgrounds
   const [brandPrimary, setBrandPrimary] = useState("#0d9488");
   const [brandAccent, setBrandAccent] = useState("#14b8a6");
   const [brandFont, setBrandFont] = useState("Cairo, sans-serif");
   const [brandQrForeground, setBrandQrForeground] = useState("#0f172a");
+  const [loginBgUrl, setLoginBgUrl] = useState<string | null>(null);
+  const [workspaceBgUrl, setWorkspaceBgUrl] = useState<string | null>(null);
+  const [workspaceBgOpacity, setWorkspaceBgOpacity] = useState<number>(0.15);
+  const [loginBgOverlayOpacity, setLoginBgOverlayOpacity] = useState<number>(0.5);
+  const [uploadingLoginBg, setUploadingLoginBg] = useState(false);
+  const [uploadingWorkspaceBg, setUploadingWorkspaceBg] = useState(false);
 
   // Sub Tab Selection
   const [activeSubTab, setActiveSubTab] = useState("profile");
@@ -169,6 +175,10 @@ export default function CompanySettingsManager() {
                   setBrandAccent(bs.accentColor || "#14b8a6");
                   setBrandFont(bs.fontFamily || "Cairo, sans-serif");
                   setBrandQrForeground(bs.qrForeground || "#0f172a");
+                  setLoginBgUrl(bs.loginBgUrl || null);
+                  setWorkspaceBgUrl(bs.workspaceBgUrl || null);
+                  setWorkspaceBgOpacity(bs.workspaceBgOpacity ?? 0.15);
+                  setLoginBgOverlayOpacity(bs.loginBgOverlayOpacity ?? 0.5);
                 }
 
                 const rawNotes = compData.notes;
@@ -232,6 +242,40 @@ export default function CompanySettingsManager() {
     setUploading(false);
   };
 
+  const handleLoginBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "حجم الصورة كبير جداً (الحد الأقصى 5 ميجابايت)", variant: "destructive" });
+      return;
+    }
+    setUploadingLoginBg(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setLoginBgUrl(event.target?.result as string);
+      setUploadingLoginBg(false);
+      toast({ title: "تم رفع صورة خلفية شاشة الدخول بنجاح ✅" });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleWorkspaceBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "حجم الصورة كبير جداً (الحد الأقصى 5 ميجابايت)", variant: "destructive" });
+      return;
+    }
+    setUploadingWorkspaceBg(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setWorkspaceBgUrl(event.target?.result as string);
+      setUploadingWorkspaceBg(false);
+      toast({ title: "تم رفع صورة خلفية مساحة العمل بنجاح ✅" });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSaveCompanyInfo = async () => {
     if (!user) return;
     setLoading(true);
@@ -254,6 +298,17 @@ export default function CompanySettingsManager() {
     }
 
     const rawNotesString = JSON.stringify({ size: companySize, description: notes });
+    const brandPayload = {
+      primaryColor: brandPrimary,
+      accentColor: brandAccent,
+      fontFamily: brandFont,
+      qrForeground: brandQrForeground,
+      logoUrl: companyLogo,
+      loginBgUrl,
+      workspaceBgUrl,
+      workspaceBgOpacity,
+      loginBgOverlayOpacity,
+    };
 
     if (activeCompanyId) {
       const { error: compErr } = await supabase.from("companies").update({
@@ -265,12 +320,7 @@ export default function CompanySettingsManager() {
         country,
         notes: rawNotesString,
         e2e_encryption: e2eEnabled,
-        brand_settings: {
-          primaryColor: brandPrimary,
-          accentColor: brandAccent,
-          fontFamily: brandFont,
-          qrForeground: brandQrForeground
-        }
+        brand_settings: brandPayload,
       } as any).eq("id", activeCompanyId);
 
       if (compErr) {
@@ -291,12 +341,7 @@ export default function CompanySettingsManager() {
         e2e_encryption: e2eEnabled,
         owner_user_id: user.id,
         status: "active",
-        brand_settings: {
-          primaryColor: brandPrimary,
-          accentColor: brandAccent,
-          fontFamily: brandFont,
-          qrForeground: brandQrForeground
-        }
+        brand_settings: brandPayload,
       } as any).select().single();
 
       if (compErr) {
@@ -553,6 +598,131 @@ export default function CompanySettingsManager() {
                   </button>
                 );
               })}
+            </div>
+
+            {/* Custom Background Images Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border/60">
+              {/* 1. Login Screen Background Image */}
+              <div className="p-5 rounded-3xl bg-muted/30 border border-border/60 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-2xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                      <Monitor className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-foreground">خلفية شاشة تسجيل الدخول</h4>
+                      <p className="text-[11px] text-muted-foreground">صورة تظهر كخلفية لصفحة الدخول للموظفين والمرشحين</p>
+                    </div>
+                  </div>
+                  {loginBgUrl && (
+                    <Button variant="ghost" size="sm" onClick={() => setLoginBgUrl(null)} className="h-8 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 text-xs gap-1">
+                      <X className="w-3.5 h-3.5" /> إلغاء الخلفية
+                    </Button>
+                  )}
+                </div>
+
+                {loginBgUrl ? (
+                  <div className="relative h-36 rounded-2xl overflow-hidden border border-border group shadow-xs">
+                    <img src={loginBgUrl} alt="Login Background" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <label className="cursor-pointer bg-card/90 text-foreground text-xs px-3.5 py-2 rounded-xl font-bold border border-border shadow-sm hover:bg-card">
+                        تغيير الصورة
+                        <input type="file" accept="image/*" className="hidden" onChange={handleLoginBgUpload} />
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center h-36 border-2 border-dashed border-border/80 rounded-2xl cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all text-center p-4">
+                    {uploadingLoginBg ? (
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    ) : (
+                      <>
+                        <Download className="w-6 h-6 text-muted-foreground mb-2 rotate-180" />
+                        <span className="text-xs font-bold text-foreground">اضغط لرفع صورة خلفية تسجيل الدخول</span>
+                        <span className="text-[10px] text-muted-foreground mt-1">PNG, JPG (حجم أقصى 5 ميجابايت)</span>
+                      </>
+                    )}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleLoginBgUpload} />
+                  </label>
+                )}
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-muted-foreground flex justify-between">
+                    <span>درجة تعتيم الطبقة الحامية (Overlay)</span>
+                    <span>{Math.round(loginBgOverlayOpacity * 100)}%</span>
+                  </Label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="0.9"
+                    step="0.05"
+                    value={loginBgOverlayOpacity}
+                    onChange={e => setLoginBgOverlayOpacity(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                  />
+                </div>
+              </div>
+
+              {/* 2. Workspace System Background Image */}
+              <div className="p-5 rounded-3xl bg-muted/30 border border-border/60 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-2xl bg-accent/10 text-accent-foreground flex items-center justify-center border border-accent/20">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-foreground">خلفية مساحة العمل الداخلي</h4>
+                      <p className="text-[11px] text-muted-foreground">صورة خلفية هادئة تظهر خلف اللوحات والجداول بالنظام</p>
+                    </div>
+                  </div>
+                  {workspaceBgUrl && (
+                    <Button variant="ghost" size="sm" onClick={() => setWorkspaceBgUrl(null)} className="h-8 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 text-xs gap-1">
+                      <X className="w-3.5 h-3.5" /> إلغاء الخلفية
+                    </Button>
+                  )}
+                </div>
+
+                {workspaceBgUrl ? (
+                  <div className="relative h-36 rounded-2xl overflow-hidden border border-border group shadow-xs">
+                    <img src={workspaceBgUrl} alt="Workspace Background" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <label className="cursor-pointer bg-card/90 text-foreground text-xs px-3.5 py-2 rounded-xl font-bold border border-border shadow-sm hover:bg-card">
+                        تغيير الصورة
+                        <input type="file" accept="image/*" className="hidden" onChange={handleWorkspaceBgUpload} />
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center h-36 border-2 border-dashed border-border/80 rounded-2xl cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all text-center p-4">
+                    {uploadingWorkspaceBg ? (
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    ) : (
+                      <>
+                        <Download className="w-6 h-6 text-muted-foreground mb-2 rotate-180" />
+                        <span className="text-xs font-bold text-foreground">اضغط لرفع صورة خلفية للنظام ومساحة العمل</span>
+                        <span className="text-[10px] text-muted-foreground mt-1">PNG, JPG (حجم أقصى 5 ميجابايت)</span>
+                      </>
+                    )}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleWorkspaceBgUpload} />
+                  </label>
+                )}
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-muted-foreground flex justify-between">
+                    <span>درجة وضوح خلفية النظام (Opacity)</span>
+                    <span>{Math.round(workspaceBgOpacity * 100)}%</span>
+                  </Label>
+                  <input
+                    type="range"
+                    min="0.05"
+                    max="0.4"
+                    step="0.02"
+                    value={workspaceBgOpacity}
+                    onChange={e => setWorkspaceBgOpacity(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Public Career Page Card Preview */}

@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import OnboardingTour, { useOnboardingTour, TourTriggerButton } from "@/components/OnboardingTour";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useBrandSettings } from "@/hooks/useBrandSettings";
 import BottomNav from "@/components/BottomNav";
 import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
 import { prefetchRoute, recordNavigation } from "@/lib/routePrefetch";
@@ -70,6 +71,7 @@ import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   useRealtimeSync();
+  const { data: brandSettings } = useBrandSettings();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [navLoading, setNavLoading] = useState(false);
   const location = useLocation();
@@ -481,7 +483,16 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="flex min-h-screen bg-muted/30" dir={dir}>
+    <div className="flex min-h-screen bg-muted/30 relative" dir={dir}>
+      {brandSettings?.workspaceBgUrl && (
+        <div
+          className="fixed inset-0 z-0 pointer-events-none bg-cover bg-center transition-opacity"
+          style={{
+            backgroundImage: `url(${brandSettings.workspaceBgUrl})`,
+            opacity: brandSettings.workspaceBgOpacity ?? 0.15,
+          }}
+        />
+      )}
       {/* Desktop Sidebar */}
       <aside className={cn(
         "hidden lg:flex fixed top-0 z-40 h-screen w-60 flex-col glass-sidebar shadow-md",

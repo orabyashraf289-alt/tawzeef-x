@@ -42,6 +42,7 @@ function trustDevice(email: string) {
 }
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBrandSettings } from "@/hooks/useBrandSettings";
 import { motion, AnimatePresence, useMotionValue } from "framer-motion";
 import { lovable } from "@/integrations/lovable/index";
 import { translateAuthError } from "@/lib/authErrors";
@@ -1238,6 +1239,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 /* ─── Page ─── */
 export default function Auth() {
   const { user } = useAuth();
+  const { data: brandSettings } = useBrandSettings();
   const [searchParams] = useSearchParams();
   const [isLogin, setIsLogin] = useState(searchParams.get("mode") !== "signup");
   const [pendingOtp, setPendingOtp] = useState(false);
@@ -1308,7 +1310,17 @@ export default function Auth() {
 
       {/* Background */}
       <div className="absolute inset-0 bg-background">
-        <AuroraBackground />
+        {brandSettings?.loginBgUrl ? (
+          <div className="absolute inset-0 z-0">
+            <img src={brandSettings.loginBgUrl} alt="Custom Login Background" className="w-full h-full object-cover" />
+            <div
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-[2px]"
+              style={{ opacity: brandSettings.loginBgOverlayOpacity ?? 0.5 }}
+            />
+          </div>
+        ) : (
+          <AuroraBackground />
+        )}
       </div>
       <div className="relative z-10 min-h-screen min-h-[100dvh] grid lg:grid-cols-[1fr_1.15fr]">
         <BrandingPanel />
