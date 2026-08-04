@@ -10,8 +10,8 @@ const corsHeaders = {
 // ============================================================================
 // AI MODELS - Hybrid routing
 // ============================================================================
-const MODEL_FAST = "google/gemini-2.0-flash";   // chat / Q&A / detection
-const MODEL_PRO = "google/gemini-1.5-pro";             // tool execution / reasoning
+const MODEL_FAST = "google/gemini-3.6-flash";   // chat / Q&A / detection (Gemini 3.6 Flash)
+const MODEL_PRO = "google/gemini-2.5-pro";             // tool execution / reasoning (Gemini Pro)
 
 // ============================================================================
 // TOOL DEFINITIONS
@@ -965,7 +965,7 @@ serve(async (req) => {
     if (isDirectGemini) {
       effectiveFastModel = effectiveFastModel.replace(/^(google|openai)\//i, "");
       effectiveProModel = effectiveProModel.replace(/^(google|openai)\//i, "");
-      if (effectiveFastModel === "gemini-3-flash-preview") effectiveFastModel = "gemini-2.0-flash";
+      if (effectiveFastModel === "gemini-3.6-flash" || effectiveFastModel === "gemini-3-flash-preview") effectiveFastModel = "gemini-2.0-flash";
       if (effectiveProModel === "gemini-2.5-pro") effectiveProModel = "gemini-1.5-pro";
     }
     const toolsDisabled = disable_tools === true;
