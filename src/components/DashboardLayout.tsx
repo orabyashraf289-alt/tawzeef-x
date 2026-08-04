@@ -483,10 +483,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="flex min-h-screen bg-muted/30 relative" dir={dir}>
+    <div className={cn("flex min-h-screen relative", brandSettings?.workspaceBgUrl ? "bg-transparent" : "bg-muted/30")} dir={dir}>
       {brandSettings?.workspaceBgUrl && (
         <div
-          className="fixed inset-0 z-0 pointer-events-none bg-cover bg-center transition-opacity"
+          className="fixed inset-0 z-0 pointer-events-none bg-cover bg-center transition-all duration-500"
           style={{
             backgroundImage: `url(${brandSettings.workspaceBgUrl})`,
             opacity: brandSettings.workspaceBgOpacity ?? 0.15,
@@ -530,7 +530,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className={cn("flex-1 min-w-0", dir === "rtl" ? "lg:mr-60" : "lg:ml-60")}>
+      <main className={cn("flex-1 min-w-0 relative z-10", dir === "rtl" ? "lg:mr-60" : "lg:ml-60")}>
         {/* Mobile Header */}
         <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between h-14 px-3 bg-card/90 backdrop-blur-xl border-b border-border/50 safe-area-top">
           <div className="flex items-center gap-2.5">

@@ -18,6 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { saveBrandSettings } from "@/lib/posterBrandSettings";
 import {
   Building2, Camera, Trash2, Check, Globe, MapPin, Shield, Lock, Palette,
   Users, Plus, Mail, RefreshCw, Sparkles, QrCode, Layers, FileSpreadsheet,
@@ -252,9 +253,22 @@ export default function CompanySettingsManager() {
     setUploadingLoginBg(true);
     const reader = new FileReader();
     reader.onload = (event) => {
-      setLoginBgUrl(event.target?.result as string);
+      const nextBgUrl = event.target?.result as string;
+      setLoginBgUrl(nextBgUrl);
+      saveBrandSettings({
+        primaryColor: brandPrimary,
+        accentColor: brandAccent,
+        fontFamily: brandFont,
+        qrForeground: brandQrForeground,
+        companyName,
+        logoUrl: companyLogo,
+        loginBgUrl: nextBgUrl,
+        workspaceBgUrl,
+        workspaceBgOpacity,
+        loginBgOverlayOpacity,
+      });
       setUploadingLoginBg(false);
-      toast({ title: "تم رفع صورة خلفية شاشة الدخول بنجاح ✅" });
+      toast({ title: "تم رفع صورة خلفية شاشة الدخول وتفعيلها بنجاح ✅" });
     };
     reader.readAsDataURL(file);
   };
@@ -269,9 +283,22 @@ export default function CompanySettingsManager() {
     setUploadingWorkspaceBg(true);
     const reader = new FileReader();
     reader.onload = (event) => {
-      setWorkspaceBgUrl(event.target?.result as string);
+      const nextBgUrl = event.target?.result as string;
+      setWorkspaceBgUrl(nextBgUrl);
+      saveBrandSettings({
+        primaryColor: brandPrimary,
+        accentColor: brandAccent,
+        fontFamily: brandFont,
+        qrForeground: brandQrForeground,
+        companyName,
+        logoUrl: companyLogo,
+        loginBgUrl,
+        workspaceBgUrl: nextBgUrl,
+        workspaceBgOpacity,
+        loginBgOverlayOpacity,
+      });
       setUploadingWorkspaceBg(false);
-      toast({ title: "تم رفع صورة خلفية مساحة العمل بنجاح ✅" });
+      toast({ title: "تم رفع صورة خلفية مساحة العمل وتفعيلها بنجاح ✅" });
     };
     reader.readAsDataURL(file);
   };
@@ -303,12 +330,15 @@ export default function CompanySettingsManager() {
       accentColor: brandAccent,
       fontFamily: brandFont,
       qrForeground: brandQrForeground,
+      companyName,
       logoUrl: companyLogo,
       loginBgUrl,
       workspaceBgUrl,
       workspaceBgOpacity,
       loginBgOverlayOpacity,
     };
+
+    saveBrandSettings(brandPayload);
 
     if (activeCompanyId) {
       const { error: compErr } = await supabase.from("companies").update({
