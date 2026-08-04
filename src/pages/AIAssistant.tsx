@@ -78,6 +78,7 @@ import ModelCompareDialog from "@/components/ai-assistant/ModelCompareDialog";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
 import SpeakButton from "@/components/ai-assistant/SpeakButton";
 import { extractTextFromPDF, extractTextFromDocx } from "@/lib/fileParser";
+import { cleanAIMessageContent } from "@/lib/cleanAiMessage";
 
 const messageAnimation = {
   hidden: (role: "user" | "assistant") => ({
@@ -1412,12 +1413,13 @@ export default function AIAssistant() {
           const content = parsed.choices?.[0]?.delta?.content as string | undefined;
           if (content) {
             assistantSoFar += content;
+            const cleanedText = cleanAIMessageContent(assistantSoFar);
             setMessages(prev => {
               const last = prev[prev.length - 1];
               if (last?.role === "assistant" && last.isStreaming) {
-                return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
+                return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: cleanedText } : m);
               }
-              return [...prev, { role: "assistant", content: assistantSoFar, isStreaming: true }];
+              return [...prev, { role: "assistant", content: cleanedText, isStreaming: true }];
             });
           }
         } catch {
@@ -1427,8 +1429,8 @@ export default function AIAssistant() {
       }
     }
 
-    setMessages(prev => prev.map((m, i) => i === prev.length - 1 && m.isStreaming ? { ...m, isStreaming: false } : m));
-    return assistantSoFar;
+    setMessages(prev => prev.map((m, i) => i === prev.length - 1 && m.isStreaming ? { ...m, content: cleanAIMessageContent(m.content), isStreaming: false } : m));
+    return cleanAIMessageContent(assistantSoFar);
   }, []);
 
   const getFileText = async (file: File): Promise<string> => {
@@ -1594,7 +1596,7 @@ export default function AIAssistant() {
       } else {
         const data = await resp.json();
         if (data.error) { toast({ title: "خطأ", description: data.error, variant: "destructive" }); setIsLoading(false); return; }
-        const newMsg: Message = { role: "assistant", content: data.content || "" };
+        const newMsg: Message = { role: "assistant", content: cleanAIMessageContent(data.content || "") };
         if (data.type === "job_preview" && data.job_data) newMsg.jobPreview = { data: data.job_data, status: "pending" };
         else if (data.type === "job_created" && data.job) { newMsg.jobCreated = data.job; queryClient.invalidateQueries({ queryKey: ["jobs"] }); }
         else if (data.type === "job_updated" && data.job) { newMsg.jobUpdated = data.job; queryClient.invalidateQueries({ queryKey: ["jobs"] }); }

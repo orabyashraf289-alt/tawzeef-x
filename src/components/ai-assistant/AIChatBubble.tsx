@@ -6,6 +6,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+import { cleanAIMessageContent } from "@/lib/cleanAiMessage";
+
 export interface AIChatBubbleProps {
   role: "user" | "assistant" | "system";
   content: string;
@@ -21,9 +23,10 @@ export default function AIChatBubble({
 }: AIChatBubbleProps) {
   const [copied, setCopied] = useState(false);
   const isUser = role === "user";
+  const displayContent = isUser ? content : cleanAIMessageContent(content);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(content);
+    navigator.clipboard.writeText(displayContent);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -74,10 +77,10 @@ export default function AIChatBubble({
           )}
         >
           {isUser ? (
-            <p className="whitespace-pre-wrap font-medium">{content}</p>
+            <p className="whitespace-pre-wrap font-medium">{displayContent}</p>
           ) : (
             <div className="prose prose-xs dark:prose-invert max-w-none prose-headings:font-bold prose-headings:text-foreground prose-table:border prose-table:border-border prose-th:bg-muted/40 prose-th:p-2 prose-td:p-2 prose-td:border-t prose-td:border-border/40">
-              <ReactMarkdown>{content}</ReactMarkdown>
+              <ReactMarkdown>{displayContent}</ReactMarkdown>
             </div>
           )}
 
