@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import SARSymbol from "@/components/SARSymbol";
 import DashboardLayout from "@/components/DashboardLayout";
+import { useCandidates, useJobs } from "@/hooks/useJobs";
 import { useOffers, useSendOffer, useDeleteOffer, useCreateOffer, useUpdateOffer, useWithdrawOffer, type JobOffer } from "@/hooks/useOffers";
 import { getPublicBaseUrl } from "@/lib/getPublicUrl";
 import EmptyState from "@/components/EmptyState";
