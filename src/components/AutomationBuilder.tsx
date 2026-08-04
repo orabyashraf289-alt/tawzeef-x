@@ -34,7 +34,7 @@ export default function AutomationBuilder() {
       setTitle("");
       setActionDetail("");
       setIsOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Automation rule create error:", err);
     } finally {
       setSaving(false);
