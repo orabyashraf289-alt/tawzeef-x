@@ -11,11 +11,13 @@ import { useCandidates } from "@/hooks/useJobs";
 import { useI18n } from "@/contexts/I18nContext";
 import PipelineStepper from "@/components/PipelineStepper";
 import StageDetailPanel from "@/components/StageDetailPanel";
+import AutomationBuilder from "@/components/AutomationBuilder";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   GitBranch, Plus, Trash2, Check, X, Loader2, Settings2, Users,
   FileText, FileSearch, Phone, Code, Briefcase, Circle,
   Mail, Target, Award, Heart, ThumbsUp, AlertTriangle,
-  Eye, Star, Timer,
+  Eye, Star, Timer, Zap, Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -196,41 +198,59 @@ export default function WorkflowEditor() {
           </div>
         </motion.div>
 
-        {/* Horizontal Stepper */}
-        <Card className="bg-card/80 backdrop-blur-sm">
-          <CardContent className="p-2">
-            <PipelineStepper
-              stages={sortedStages}
-              selectedStageId={selectedStage}
-              onStageClick={(id) => setSelectedStage(selectedStage === id ? null : id)}
-              showAddButton
-              onAddClick={() => setShowBatchAdd(true)}
-              draggable
-              onReorder={(reordered) => {
-                reorderStages.mutate(reordered);
-                toast({ title: "تم إعادة ترتيب المراحل ✅" });
-              }}
-            />
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="stages" className="w-full space-y-6">
+          <TabsList className="grid w-full grid-cols-2 max-w-md h-12 p-1 bg-muted/60 rounded-2xl">
+            <TabsTrigger value="stages" className="rounded-xl font-bold text-xs gap-2">
+              <GitBranch className="w-4 h-4 text-primary" /> {isAr ? "مسارات ومراحل التوظيف" : "Recruitment Pipeline"}
+            </TabsTrigger>
 
-        {/* Batch Add */}
-        <AnimatePresence>
-          {showBatchAdd && (
-            <BatchAddStages onAdd={handleBatchAdd} onClose={() => setShowBatchAdd(false)} />
-          )}
-        </AnimatePresence>
+            <TabsTrigger value="automation" className="rounded-xl font-bold text-xs gap-2">
+              <Zap className="w-4 h-4 text-amber-500" /> {isAr ? "محرك الأتمتة والسيناريوهات" : "Automation Builder"}
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Stage Detail Panel */}
-        <AnimatePresence mode="wait">
-          {selectedStage && selectedStageData && (
-            <StageDetailPanel
-              key={selectedStage}
-              stage={selectedStageData}
-              onClose={() => setSelectedStage(null)}
-            />
-          )}
-        </AnimatePresence>
+          <TabsContent value="stages" className="space-y-6 mt-0">
+            {/* Horizontal Stepper */}
+            <Card className="bg-card/80 backdrop-blur-sm border-border/60 rounded-3xl">
+              <CardContent className="p-2">
+                <PipelineStepper
+                  stages={sortedStages}
+                  selectedStageId={selectedStage}
+                  onStageClick={(id) => setSelectedStage(selectedStage === id ? null : id)}
+                  showAddButton
+                  onAddClick={() => setShowBatchAdd(true)}
+                  draggable
+                  onReorder={(reordered) => {
+                    reorderStages.mutate(reordered);
+                    toast({ title: "تم إعادة ترتيب المراحل ✅" });
+                  }}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Batch Add */}
+            <AnimatePresence>
+              {showBatchAdd && (
+                <BatchAddStages onAdd={handleBatchAdd} onClose={() => setShowBatchAdd(false)} />
+              )}
+            </AnimatePresence>
+
+            {/* Stage Detail Panel */}
+            <AnimatePresence mode="wait">
+              {selectedStage && selectedStageData && (
+                <StageDetailPanel
+                  key={selectedStage}
+                  stage={selectedStageData}
+                  onClose={() => setSelectedStage(null)}
+                />
+              )}
+            </AnimatePresence>
+          </TabsContent>
+
+          <TabsContent value="automation" className="mt-0">
+            <AutomationBuilder />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Delete Confirmation */}
