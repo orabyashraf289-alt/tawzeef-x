@@ -1562,10 +1562,11 @@ export default function AIAssistant() {
         }),
       });
 
-      // Automated retry on 429 rate limit
-      if (resp.status === 429) {
-        toast({ title: "جاري المحاولة مجدداً...", description: "الخادم خاضع لضغط مؤقت، جاري إعادة الطلب خلال ثانية..." });
-        await new Promise(r => setTimeout(r, 1500));
+      // Silent automated exponential retries on 429 rate limit (up to 3 attempts)
+      let attempts = 0;
+      while (resp.status === 429 && attempts < 3) {
+        attempts++;
+        await new Promise(r => setTimeout(r, attempts * 1000));
         resp = await fetch(CHAT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -1579,12 +1580,11 @@ export default function AIAssistant() {
       }
 
       if (resp.status === 429) {
-        toast({ title: "الخادم مشغول حالياً", description: "تم تجاوز حد الطلبات المؤقت. الرجاء المحاولة بعد ثوانٍ.", variant: "destructive" });
         setMessages(prev => [
           ...prev,
           {
             role: "assistant",
-            content: "⚠️ **عذراً يا صديقي!** خوادم الذكاء الاصطناعي تمر بضغط مؤقت أو تم الوصول للحد المسموح من الطلبات المتتابعة. يرجى الانتظار بضع ثوانٍ وإعادة إرسال طلبك وسأجيبك فوراً! 🚀",
+            content: "⚠️ **الخادم مشغول حالياً بكثرة الطلبات المتتابعة.** جاري تحسين الاستجابة، يرجى الانتظار بضع ثوانٍ وإعادة إرسال الطلب! 🚀",
           }
         ]);
         setIsLoading(false);

@@ -1025,32 +1025,6 @@ ${userContext}
      - الراتب المتوقع: [الحد الأدنى - الحد الأقصى ر.س]`;
 
 
-    // ========== Compare-mode / disable_tools: pure streaming text ==========
-    if (toolsDisabled) {
-      const isStream = stream !== false;
-      const streamResponse = await fetch(API_URL, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: effectiveFastModel, messages: [{ role: "system", content: systemPrompt }, ...actualMessages], stream: isStream }),
-      });
-      if (!streamResponse.ok) {
-        const s = streamResponse.status;
-        if (s === 429) return new Response(JSON.stringify({ error: "تم تجاوز حد الطلبات. حاول لاحقاً." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        if (s === 402) return new Response(JSON.stringify({ error: "يرجى إضافة رصيد للاستمرار." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        const err = await getResponseError(streamResponse);
-        return new Response(JSON.stringify({ error: err }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      if (isStream) {
-        if (!streamResponse.body) {
-          return new Response(JSON.stringify({ error: "No stream body" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-        return new Response(streamResponse.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
-      } else {
-        const data = await streamResponse.json();
-        return new Response(JSON.stringify(data), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-    }
-
     async function fetchWithRetry(url: string, opts: any, retries = 3, delayMs = 800): Promise<Response> {
       let r = await fetch(url, opts);
       let attempt = 0;
@@ -1072,6 +1046,32 @@ ${userContext}
       return r;
     }
 
+    // ========== Compare-mode / disable_tools: pure streaming text ==========
+    if (toolsDisabled) {
+      const isStream = stream !== false;
+      const streamResponse = await fetchWithRetry(API_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: effectiveFastModel, messages: [{ role: "system", content: systemPrompt }, ...actualMessages], stream: isStream }),
+      });
+      if (!streamResponse.ok) {
+        const s = streamResponse.status;
+        if (s === 429) return new Response(JSON.stringify({ type: "text", content: "الخادم مشغول حالياً بكثرة الطلبات. يرجى إعادة إرسال طلبك بعد ثوانٍ بسيطة ⏳" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (s === 402) return new Response(JSON.stringify({ error: "يرجى إضافة رصيد للاستمرار." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        const err = await getResponseError(streamResponse);
+        return new Response(JSON.stringify({ error: err }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      if (isStream) {
+        if (!streamResponse.body) {
+          return new Response(JSON.stringify({ error: "No stream body" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        return new Response(streamResponse.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
+      } else {
+        const data = await streamResponse.json();
+        return new Response(JSON.stringify(data), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     // ========== STEP 1: Detect intent ==========
     const detectResponse = await fetchWithRetry(API_URL, {
       method: "POST",
@@ -1081,7 +1081,7 @@ ${userContext}
 
     if (!detectResponse.ok) {
       const s = detectResponse.status;
-      if (s === 429) return new Response(JSON.stringify({ error: "الخادم مشغول حالياً بكثرة الطلبات. يرجى إعادة المحاولة بعد ثوانٍ بسيطة ⏳" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (s === 429) return new Response(JSON.stringify({ type: "text", content: "الخادم مشغول حالياً بكثرة الطلبات. يرجى إعادة إرسال طلبك بعد ثوانٍ بسيطة ⏳" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       if (s === 402) return new Response(JSON.stringify({ error: "يرجى إضافة رصيد للاستمرار." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const err = await getResponseError(detectResponse);
       console.error("AI detect error:", s, err);
@@ -1113,7 +1113,7 @@ ${userContext}
         return new Response(readableStream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
       }
 
-      const streamResponse = await fetch(API_URL, {
+      const streamResponse = await fetchWithRetry(API_URL, {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({ model: effectiveFastModel, messages: [{ role: "system", content: systemPrompt }, ...actualMessages], stream: true }),
@@ -1143,7 +1143,7 @@ ${userContext}
     }
 
     // Use PRO (or override) model for tool result synthesis
-    const followUpStream = await fetch(API_URL, {
+    const followUpStream = await fetchWithRetry(API_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model: effectiveProModel, messages: [{ role: "system", content: systemPrompt }, ...actualMessages, choice.message, ...toolResults], stream: true }),
