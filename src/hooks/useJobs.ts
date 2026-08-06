@@ -159,7 +159,11 @@ export function useAddJob() {
         location: job.location,
         type: job.type,
         description: job.description || null,
-        requirements: job.requirements ? job.requirements.split("\n").filter(Boolean) : null,
+        requirements: Array.isArray(job.requirements)
+          ? job.requirements
+          : typeof job.requirements === "string"
+            ? job.requirements.split("\n").map((s) => s.trim()).filter(Boolean)
+            : null,
         salary_min: job.salaryMin ? parseInt(job.salaryMin) : null,
         salary_max: job.salaryMax ? parseInt(job.salaryMax) : null,
         experience_level: job.experience || null,
@@ -238,7 +242,11 @@ export function useUpdateJob() {
         location: job.location,
         type: job.type,
         description: job.description || null,
-        requirements: job.requirements ? job.requirements.split("\n").filter(Boolean) : null,
+        requirements: Array.isArray(job.requirements)
+          ? job.requirements
+          : typeof job.requirements === "string"
+            ? job.requirements.split("\n").map((s) => s.trim()).filter(Boolean)
+            : null,
         salary_min: job.salaryMin ? parseInt(job.salaryMin) : null,
         salary_max: job.salaryMax ? parseInt(job.salaryMax) : null,
         experience_level: job.experience || null,
