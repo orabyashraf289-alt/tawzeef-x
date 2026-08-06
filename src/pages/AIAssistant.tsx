@@ -1881,6 +1881,61 @@ export default function AIAssistant() {
             <ModelSelector value={modelChoice} onChange={setModelChoice} />
           </AIChatHeader>
 
+          {/* AI Intelligence Ticker & Quick Playbook Toolbar */}
+          <div className="px-4 py-2 border-b border-border/20 bg-card/40 backdrop-blur-md flex items-center justify-between text-xs gap-3 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="font-bold text-foreground/90 text-[11px]">
+                محرك الذكاء الاصطناعي الفعّال:
+              </span>
+              <Badge variant="outline" className="text-[10px] font-extrabold bg-primary/10 text-primary border-primary/20">
+                {MODEL_OPTIONS.find(m => m.id === modelChoice)?.name || "Gemini 3.6 Flash"} ⚡
+              </Badge>
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-[11px] font-bold gap-1 rounded-xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20"
+                onClick={() => {
+                  setInput("أنشئ لي وصفاً وظيفياً متكاملاً لوظيفة معلم رياضيات بالرياض مع الإضافة المباشرة للنظام");
+                  setTimeout(() => handleSend(), 50);
+                }}
+              >
+                <Briefcase className="w-3 h-3" />
+                صياغة وظيفة معلم مع الإضافة الفورية 🚀
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-[11px] font-bold gap-1 rounded-xl bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 border border-indigo-500/20"
+                onClick={() => {
+                  setInput("قم بتحليل أداء التوظيف والوظائف الشاغرة اليوم واستخراج ملخص الإحصائيات");
+                  setTimeout(() => handleSend(), 50);
+                }}
+              >
+                <BarChart3 className="w-3 h-3" />
+                ملخص أداء التوظيف اليومي 📊
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-[11px] font-bold gap-1 rounded-xl bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/20"
+                onClick={() => {
+                  setInput("أنشئ دليل مقابلة وتقييم سلوكي مخصص لمرشح معلم لغة إنجليزية بخبرة 5 سنوات");
+                  setTimeout(() => handleSend(), 50);
+                }}
+              >
+                <CalendarCheck className="w-3 h-3" />
+                دليل وتقييم المقابلة السلوكية 🎯
+              </Button>
+            </div>
+          </div>
+
 
 
           {/* Messages */}
