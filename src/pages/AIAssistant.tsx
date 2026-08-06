@@ -213,25 +213,46 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
 function extractJobFromMessage(content: string): JobData | null {
   if (!content) return null;
-  const titleMatch = content.match(/(?:المسمى الوظيفي|عنوان الوظيفة|الوظيفة|المسمى|Title):\s*\*?([^\n*]+)\*?/i);
-  if (!titleMatch) return null;
 
-  const title = titleMatch[1].trim();
-  const deptMatch = content.match(/(?:القسم|الإدارة|Department):\s*\*?([^\n*]+)\*?/i);
-  const locMatch = content.match(/(?:الموقع|المدينة|Location):\s*\*?([^\n*]+)\*?/i);
-  const typeMatch = content.match(/(?:نوع التوظيف|نوع الدوام|النوع|Type):\s*\*?([^\n*]+)\*?/i);
-  const expMatch = content.match(/(?:الخبرة|مستوى الخبرة|Experience):\s*\*?([^\n*]+)\*?/i);
-  const salaryMatch = content.match(/(?:الراتب|نطاق الراتب|Salary):\s*\*?([^\n*]+)\*?/i);
+  const getField = (labels: string[]) => {
+    const pattern = new RegExp(
+      `(?:[*•#\\-\\s])*\\*?(?:${labels.join("|")})\\*?\\s*:\\s*\\*?([^\\n*]+)\\*?`,
+      "i"
+    );
+    const m = content.match(pattern);
+    return m ? m[1].replace(/[*_#•-]/g, "").trim() : null;
+  };
+
+  const title = getField(["المسمى الوظيفي", "عنوان الوظيفة", "الوظيفة", "المسمى", "Title"]);
+  if (!title) return null;
+
+  const department = getField(["القسم", "الإدارة", "Department"]) || "العامة";
+  const location = getField(["الموقع", "المدينة", "Location"]) || "الرياض";
+  const type = getField(["نوع التوظيف", "نوع الدوام", "النوع", "Type"]) || "دوام كامل";
+  const experience_level = getField(["الخبرة", "مستوى الخبرة", "Experience"]) || "3-5 سنوات";
+  const salaryStr = getField(["الراتب", "نطاق الراتب", "Salary"]);
+
+  let salary_min: number | undefined = undefined;
+  let salary_max: number | undefined = undefined;
+  if (salaryStr) {
+    const nums = salaryStr.match(/\d+/g);
+    if (nums && nums.length >= 2) {
+      salary_min = Number(nums[0]);
+      salary_max = Number(nums[1]);
+    } else if (nums && nums.length === 1) {
+      salary_min = Number(nums[0]);
+    }
+  }
 
   return {
     title,
-    department: deptMatch ? deptMatch[1].trim() : "العامة",
-    location: locMatch ? locMatch[1].trim() : "الرياض",
-    type: typeMatch ? typeMatch[1].trim() : "دوام كامل",
-    experience_level: expMatch ? expMatch[1].trim() : "3-5 سنوات",
+    department,
+    location,
+    type,
+    experience_level,
     description: content.slice(0, 1000),
-    salary_min: salaryMatch ? 6000 : undefined,
-    salary_max: salaryMatch ? 9500 : undefined,
+    salary_min: salary_min ?? 6000,
+    salary_max: salary_max ?? 9500,
   };
 }
 

@@ -1051,11 +1051,23 @@ ${userContext}
       }
     }
 
-    async function fetchWithRetry(url: string, opts: any, retries = 1, delayMs = 1200): Promise<Response> {
+    async function fetchWithRetry(url: string, opts: any, retries = 3, delayMs = 800): Promise<Response> {
       let r = await fetch(url, opts);
-      if (r.status === 429 && retries > 0) {
-        await new Promise((res) => setTimeout(res, delayMs));
+      let attempt = 0;
+      while (r.status === 429 && attempt < retries) {
+        attempt++;
+        await new Promise((res) => setTimeout(res, delayMs * attempt));
         r = await fetch(url, opts);
+      }
+      if (r.status === 429) {
+        // Fallback model retry if primary model hit rate limits
+        try {
+          const bodyObj = JSON.parse(opts.body || "{}");
+          bodyObj.model = "google/gemini-2.5-flash";
+          r = await fetch(url, { ...opts, body: JSON.stringify(bodyObj) });
+        } catch {
+          // ignore JSON parse error
+        }
       }
       return r;
     }
@@ -1069,7 +1081,7 @@ ${userContext}
 
     if (!detectResponse.ok) {
       const s = detectResponse.status;
-      if (s === 429) return new Response(JSON.stringify({ error: "تم تجاوز حد الطلبات. حاول لاحقاً." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (s === 429) return new Response(JSON.stringify({ error: "الخادم مشغول حالياً بكثرة الطلبات. يرجى إعادة المحاولة بعد ثوانٍ بسيطة ⏳" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       if (s === 402) return new Response(JSON.stringify({ error: "يرجى إضافة رصيد للاستمرار." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const err = await getResponseError(detectResponse);
       console.error("AI detect error:", s, err);
