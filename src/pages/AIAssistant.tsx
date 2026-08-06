@@ -50,6 +50,7 @@ import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAddJob } from "@/hooks/useJobs";
+import AddJobDialog from "@/components/AddJobDialog";
 import QRCodeDialog from "@/components/QRCodeDialog";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
@@ -1178,6 +1179,7 @@ export default function AIAssistant() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [qrDialog, setQrDialog] = useState<{ open: boolean; jobId: string; jobTitle: string }>({ open: false, jobId: "", jobTitle: "" });
+  const [editJobModal, setEditJobModal] = useState<{ open: boolean; data: any | null; msgIndex: number | null }>({ open: false, data: null, msgIndex: null });
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1653,13 +1655,24 @@ export default function AIAssistant() {
     }
   };
 
-  const handleConfirmJob = async (msgIndex: number) => {
+  const handleConfirmJob = async (msgIndex: number, overrideData?: any) => {
     const msg = messages[msgIndex];
-    const jobData = msg.jobPreview?.data || extractJobFromMessage(msg.content);
-    if (!jobData || !jobData.title) {
+    const rawJob = overrideData || msg.jobPreview?.data || extractJobFromMessage(msg.content);
+    if (!rawJob || !rawJob.title) {
       toast({ title: "لم يتم التعرف على مسمى الشاغر", description: "يرجى تحديد مسمى الوظيفة والمكان قبل النشر", variant: "destructive" });
       return;
     }
+    const jobData = {
+      title: rawJob.title,
+      department: rawJob.department || "العامة",
+      location: rawJob.location || "الرياض",
+      type: rawJob.type || "دوام كامل",
+      description: rawJob.description || undefined,
+      requirements: rawJob.requirements,
+      experience_level: rawJob.experience_level || rawJob.experience || undefined,
+      salary_min: rawJob.salary_min ?? (rawJob.salaryMin ? Number(rawJob.salaryMin) : undefined),
+      salary_max: rawJob.salary_max ?? (rawJob.salaryMax ? Number(rawJob.salaryMax) : undefined),
+    };
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) { toast({ title: "يجب تسجيل الدخول أولاً", variant: "destructive" }); return; }
@@ -2056,9 +2069,15 @@ export default function AIAssistant() {
                               <div><span className="text-muted-foreground">النوع:</span> <span className="font-bold text-foreground/90">{msg.jobPreview?.data.type || extractJobFromMessage(msg.content)?.type}</span></div>
                             </div>
                             {(!msg.jobPreview || msg.jobPreview.status === "pending") && (
-                              <div className="flex gap-2">
+                              <div className="flex flex-wrap sm:flex-nowrap gap-2">
                                 <Button size="sm" className="flex-1 text-xs h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md transition-transform hover:scale-[1.01]" onClick={() => handleConfirmJob(i)}>
                                   <Check className="w-4 h-4" />إضافة ونشر الشاغر في النظام الآن 🚀
+                                </Button>
+                                <Button variant="outline" size="sm" className="text-xs h-9 gap-1 text-indigo-600 border-indigo-200 hover:bg-indigo-50 font-bold rounded-xl px-3" onClick={() => {
+                                  const jobData = msg.jobPreview?.data || extractJobFromMessage(msg.content);
+                                  if (jobData) setEditJobModal({ open: true, data: jobData, msgIndex: i });
+                                }}>
+                                  <Pencil className="w-3.5 h-3.5" />تعديل قبل النشر
                                 </Button>
                                 <Button variant="outline" size="sm" className="text-xs h-9 gap-1 text-red-600 border-red-200 hover:bg-red-50 font-bold rounded-xl px-3" onClick={() => handleRejectJob(i)}>
                                   <XCircle className="w-3.5 h-3.5" />إلغاء
@@ -2314,6 +2333,18 @@ export default function AIAssistant() {
         baseMessages={compareDialog.baseMessages}
         originalReply={compareDialog.reply}
         originalModelLabel={compareDialog.modelLabel}
+      />
+
+      <AddJobDialog
+        open={editJobModal.open}
+        onClose={() => setEditJobModal({ open: false, data: null, msgIndex: null })}
+        initialData={editJobModal.data}
+        onAdd={async (job) => {
+          if (editJobModal.msgIndex !== null) {
+            await handleConfirmJob(editJobModal.msgIndex, job);
+          }
+          setEditJobModal({ open: false, data: null, msgIndex: null });
+        }}
       />
     </DashboardLayout>
   );
