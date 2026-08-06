@@ -210,6 +210,30 @@ const suggestions = [
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
+function extractJobFromMessage(content: string): JobData | null {
+  if (!content) return null;
+  const titleMatch = content.match(/(?:المسمى الوظيفي|عنوان الوظيفة|الوظيفة|المسمى|Title):\s*\*?([^\n*]+)\*?/i);
+  if (!titleMatch) return null;
+
+  const title = titleMatch[1].trim();
+  const deptMatch = content.match(/(?:القسم|الإدارة|Department):\s*\*?([^\n*]+)\*?/i);
+  const locMatch = content.match(/(?:الموقع|المدينة|Location):\s*\*?([^\n*]+)\*?/i);
+  const typeMatch = content.match(/(?:نوع التوظيف|نوع الدوام|النوع|Type):\s*\*?([^\n*]+)\*?/i);
+  const expMatch = content.match(/(?:الخبرة|مستوى الخبرة|Experience):\s*\*?([^\n*]+)\*?/i);
+  const salaryMatch = content.match(/(?:الراتب|نطاق الراتب|Salary):\s*\*?([^\n*]+)\*?/i);
+
+  return {
+    title,
+    department: deptMatch ? deptMatch[1].trim() : "العامة",
+    location: locMatch ? locMatch[1].trim() : "الرياض",
+    type: typeMatch ? typeMatch[1].trim() : "دوام كامل",
+    experience_level: expMatch ? expMatch[1].trim() : "3-5 سنوات",
+    description: content.slice(0, 1000),
+    salary_min: salaryMatch ? 6000 : undefined,
+    salary_max: salaryMatch ? 9500 : undefined,
+  };
+}
+
 const WELCOME_MSG: Message = {
   role: "assistant",
   content: `مرحباً! أنا مساعدك الذكي للتوظيف 🤖\n\nيمكنني مساعدتك في:\n\n• 🚀 **إنشاء وظائف** مع رمز QR للمشاركة\n• ✏️ **تعديل الوظائف** الحالية\n• 🔄 **نقل المرشحين** بين المراحل\n• 📅 **جدولة المقابلات** مع رابط فيديو\n• 💼 **إنشاء العروض الوظيفية**\n• 📊 **عرض الإحصائيات** والتقارير\n• 📄 **تحليل السير الذاتية**\n\nجرّب أحد الاقتراحات أدناه أو اكتب ما تريد!`,
@@ -1631,11 +1655,14 @@ export default function AIAssistant() {
 
   const handleConfirmJob = async (msgIndex: number) => {
     const msg = messages[msgIndex];
-    if (!msg.jobPreview?.data) return;
+    const jobData = msg.jobPreview?.data || extractJobFromMessage(msg.content);
+    if (!jobData || !jobData.title) {
+      toast({ title: "لم يتم التعرف على مسمى الشاغر", description: "يرجى تحديد مسمى الوظيفة والمكان قبل النشر", variant: "destructive" });
+      return;
+    }
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) { toast({ title: "يجب تسجيل الدخول أولاً", variant: "destructive" }); return; }
-      const jobData = msg.jobPreview.data;
       
       const job = await addJobMutation.mutateAsync({
         title: jobData.title,
@@ -1949,34 +1976,37 @@ export default function AIAssistant() {
                           <VoiceBriefingCard data={msg.voiceBriefing} />
                         )}
 
-                        {/* Job Preview Card */}
-                        {msg.jobPreview && (
+                        {/* Job Preview & Instant Publish Card */}
+                        {(msg.jobPreview || (msg.role === "assistant" && extractJobFromMessage(msg.content))) && !msg.jobCreated && (
                           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15, type: "spring" }}
-                            className={cn("mt-3 p-4 rounded-xl border space-y-3 glass-card-premium",
-                              msg.jobPreview.status === "confirmed" ? "bg-green-500/5 border-green-500/25 text-green-700 dark:text-green-300" :
-                              msg.jobPreview.status === "rejected" ? "bg-red-500/5 border-red-500/25 text-red-700 dark:text-red-300 opacity-60" :
-                              "bg-amber-500/5 border-amber-500/25 text-amber-700 dark:text-amber-300")}>
-                            <div className="flex items-center gap-2 text-xs font-bold">
-                              <Briefcase className="w-4 h-4 text-primary animate-pulse" />
-                              <span className={msg.jobPreview.status === "confirmed" ? "text-green-800 dark:text-green-300" : msg.jobPreview.status === "rejected" ? "text-red-800 dark:text-red-300" : "text-amber-800 dark:text-amber-300"}>
-                                {msg.jobPreview.status === "confirmed" ? "✅ تم إنشاء الوظيفة" : msg.jobPreview.status === "rejected" ? "❌ تم إلغاء الوظيفة" : "⏳ هل تريد إضافة هذه الوظيفة؟"}
-                              </span>
+                            className={cn("mt-3 p-4 rounded-2xl border space-y-3 shadow-md transition-all",
+                              msg.jobPreview?.status === "confirmed" ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-700 dark:text-emerald-300" :
+                              msg.jobPreview?.status === "rejected" ? "bg-red-500/5 border-red-500/25 text-red-700 dark:text-red-300 opacity-60" :
+                              "bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-card border-2 border-emerald-500/40 text-foreground")}>
+                            <div className="flex items-center justify-between text-xs font-bold">
+                              <div className="flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 text-emerald-600 animate-bounce" />
+                                <span className={msg.jobPreview?.status === "confirmed" ? "text-emerald-800 dark:text-emerald-300" : msg.jobPreview?.status === "rejected" ? "text-red-800 dark:text-red-300" : "text-emerald-800 dark:text-emerald-300 font-black"}>
+                                  {msg.jobPreview?.status === "confirmed" ? "✅ تم إضافة الوظيفة في النظام" : msg.jobPreview?.status === "rejected" ? "❌ تم إلغاء الإضافة" : "✨ تمت مراجعة وصياغة الشاغر - إضافة فوري للنظام:"}
+                                </span>
+                              </div>
+                              {(!msg.jobPreview || msg.jobPreview.status === "pending") && (
+                                <Badge className="bg-emerald-600 text-white font-extrabold text-[10px]">جاهز للنشر 🚀</Badge>
+                              )}
                             </div>
-                            <div className="grid grid-cols-2 gap-1.5 text-[11px] font-semibold">
-                              <div><span className="text-muted-foreground">المسمى:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.title}</span></div>
-                              <div><span className="text-muted-foreground">القسم:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.department}</span></div>
-                              <div><span className="text-muted-foreground">الموقع:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.location}</span></div>
-                              <div><span className="text-muted-foreground">النوع:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.type}</span></div>
-                              {msg.jobPreview.data.salary_min && <div><span className="text-muted-foreground">الراتب:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.salary_min} - {msg.jobPreview.data.salary_max}</span></div>}
-                              {msg.jobPreview.data.experience_level && <div><span className="text-muted-foreground">الخبرة:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.experience_level}</span></div>}
+                            <div className="grid grid-cols-2 gap-1.5 text-[11px] font-semibold bg-card/60 p-2.5 rounded-xl border border-border/40">
+                              <div><span className="text-muted-foreground">المسمى:</span> <span className="font-bold text-foreground/90">{msg.jobPreview?.data.title || extractJobFromMessage(msg.content)?.title}</span></div>
+                              <div><span className="text-muted-foreground">القسم:</span> <span className="font-bold text-foreground/90">{msg.jobPreview?.data.department || extractJobFromMessage(msg.content)?.department}</span></div>
+                              <div><span className="text-muted-foreground">الموقع:</span> <span className="font-bold text-foreground/90">{msg.jobPreview?.data.location || extractJobFromMessage(msg.content)?.location}</span></div>
+                              <div><span className="text-muted-foreground">النوع:</span> <span className="font-bold text-foreground/90">{msg.jobPreview?.data.type || extractJobFromMessage(msg.content)?.type}</span></div>
                             </div>
-                            {msg.jobPreview.status === "pending" && (
+                            {(!msg.jobPreview || msg.jobPreview.status === "pending") && (
                               <div className="flex gap-2">
-                                <Button size="sm" className="flex-1 text-xs h-8 gap-1 bg-green-600 hover:bg-green-700 text-white font-bold" onClick={() => handleConfirmJob(i)}>
-                                  <Check className="w-3 h-3" />إضافة للنظام
+                                <Button size="sm" className="flex-1 text-xs h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md transition-transform hover:scale-[1.01]" onClick={() => handleConfirmJob(i)}>
+                                  <Check className="w-4 h-4" />إضافة ونشر الشاغر في النظام الآن 🚀
                                 </Button>
-                                <Button variant="outline" size="sm" className="flex-1 text-xs h-8 gap-1 text-red-600 border-red-200 hover:bg-red-50 font-bold" onClick={() => handleRejectJob(i)}>
-                                  <XCircle className="w-3 h-3" />إلغاء
+                                <Button variant="outline" size="sm" className="text-xs h-9 gap-1 text-red-600 border-red-200 hover:bg-red-50 font-bold rounded-xl px-3" onClick={() => handleRejectJob(i)}>
+                                  <XCircle className="w-3.5 h-3.5" />إلغاء
                                 </Button>
                               </div>
                             )}
