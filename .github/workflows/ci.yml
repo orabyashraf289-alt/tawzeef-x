@@ -1,4 +1,5 @@
 name: CI / Quality & Test Pipeline
+# Automated CI & Quality Assurance Pipeline
 
 on:
   push:
