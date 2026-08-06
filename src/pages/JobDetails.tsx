@@ -384,6 +384,50 @@ export default function JobDetails() {
       </div>
 
       <ShareJobDialog open={shareDialog.open} onClose={() => setShareDialog({ open: false, jobId: "", jobTitle: "" })} jobTitle={shareDialog.jobTitle} jobId={shareDialog.jobId} />
+
+      <AddJobDialog
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        submitLabel="حفظ تعديلات الشاغر"
+        initialData={job ? {
+          title: job.title,
+          department: job.department,
+          location: job.location,
+          type: job.type,
+          description: job.description || "",
+          requirements: Array.isArray(job.requirements) ? job.requirements.join("\n") : (job.requirements || ""),
+          salaryMin: job.salary_min?.toString() || "",
+          salaryMax: job.salary_max?.toString() || "",
+          experience: job.experience_level || "3-5 سنوات",
+        } : null}
+        onAdd={(updatedData) => {
+          if (!job) return;
+          updateJobMutation.mutate(
+            {
+              id: job.id,
+              title: updatedData.title,
+              department: updatedData.department,
+              location: updatedData.location,
+              type: updatedData.type,
+              description: updatedData.description,
+              requirements: updatedData.requirements ? updatedData.requirements.split("\n").filter(Boolean) : [],
+              salary_min: updatedData.salaryMin ? Number(updatedData.salaryMin) : null,
+              salary_max: updatedData.salaryMax ? Number(updatedData.salaryMax) : null,
+              experience_level: updatedData.experience,
+            },
+            {
+              onSuccess: () => {
+                setEditDialogOpen(false);
+                toast({ title: "تم تحديث بيانات الشاغر بنجاح ✅" });
+                queryClient.invalidateQueries({ queryKey: ["jobs"] });
+              },
+              onError: (err: any) => {
+                toast({ title: "خطأ في التحديث", description: err.message, variant: "destructive" });
+              }
+            }
+          );
+        }}
+      />
     </DashboardLayout>
   );
 }
