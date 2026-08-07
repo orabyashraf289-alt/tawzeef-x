@@ -120,7 +120,16 @@ export function useCompanyTaxonomy() {
   const [locations, setLocations] = useState<LocationItem[]>(() => {
     try {
       const saved = localStorage.getItem("company_locations");
-      return saved ? JSON.parse(saved) : DEFAULT_LOCATIONS;
+      if (!saved) return DEFAULT_LOCATIONS;
+      const parsed: LocationItem[] = JSON.parse(saved);
+      const existingIds = new Set(parsed.map(l => l.id));
+      const missingDefault = DEFAULT_LOCATIONS.filter(l => !existingIds.has(l.id));
+      if (missingDefault.length > 0) {
+        const merged = [...parsed, ...missingDefault];
+        try { localStorage.setItem("company_locations", JSON.stringify(merged)); } catch {}
+        return merged;
+      }
+      return parsed;
     } catch {
       return DEFAULT_LOCATIONS;
     }

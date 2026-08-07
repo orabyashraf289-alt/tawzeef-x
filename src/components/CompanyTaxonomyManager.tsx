@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { ALL_AL_ANDALUS_BRANCHES } from "@/data/alAndalusBranches";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -30,13 +31,18 @@ const DEFAULT_DEPARTMENTS = [
 ];
 
 const DEFAULT_LOCATIONS = [
+  ...ALL_AL_ANDALUS_BRANCHES.map((b) => ({
+    id: b.id,
+    name: `${b.city} - ${b.name}`,
+    city: b.city,
+    country: "السعودية",
+    type: b.schoolTypes.join(" / "),
+    address: b.address,
+  })),
   { id: "loc-1", name: "الرياض - المقر الرئيسي", city: "الرياض", country: "السعودية", type: "مكتبي", address: "طريق الملك فهد" },
   { id: "loc-2", name: "جدة - الفرع الغربي", city: "جدة", country: "السعودية", type: "مكتبي", address: "طريق الكورنيش" },
   { id: "loc-3", name: "المنطقة الشرقية - الخبر", city: "الخبر", country: "السعودية", type: "مكتبي", address: "شارع الأمير تركي" },
-  { id: "loc-4", name: "دبي - الإمارات", city: "دبي", country: "الإمارات", type: "مكتبي", address: "مركز دبي المالي" },
-  { id: "loc-5", name: "القاهرة - مصر", city: "القاهرة", country: "مصر", type: "مكتبي", address: "القرية الذكية" },
   { id: "loc-6", name: "عمل عن بُعد (Remote)", city: "عن بُعد", country: "عالمي", type: "عن_بعد", address: "أونلاين" },
-  { id: "loc-7", name: "نظام هجين (Hybrid)", city: "الرياض", country: "السعودية", type: "هجين", address: "مكتبي + عن بعد" },
 ];
 
 const DEFAULT_EXPERIENCE_LEVELS = [
@@ -72,7 +78,16 @@ export default function CompanyTaxonomyManager() {
   const [locations, setLocations] = useState<any[]>(() => {
     try {
       const saved = localStorage.getItem("company_locations");
-      return saved ? JSON.parse(saved) : DEFAULT_LOCATIONS;
+      if (!saved) return DEFAULT_LOCATIONS;
+      const parsed: any[] = JSON.parse(saved);
+      const existingIds = new Set(parsed.map(l => l.id));
+      const missingDefault = DEFAULT_LOCATIONS.filter(l => !existingIds.has(l.id));
+      if (missingDefault.length > 0) {
+        const merged = [...parsed, ...missingDefault];
+        try { localStorage.setItem("company_locations", JSON.stringify(merged)); } catch {}
+        return merged;
+      }
+      return parsed;
     } catch { return DEFAULT_LOCATIONS; }
   });
 
@@ -233,6 +248,28 @@ export default function CompanyTaxonomyManager() {
     toast({ title: `تم حذف المستوى "${name}"` });
   };
 
+  const handleImportAlAndalusBranches = () => {
+    const existingIds = new Set(locations.map(l => l.id));
+    const newItems = ALL_AL_ANDALUS_BRANCHES.filter(b => !existingIds.has(b.id)).map(b => ({
+      id: b.id,
+      name: `${b.city} - ${b.name}`,
+      city: b.city,
+      country: "السعودية",
+      type: b.schoolTypes.join(" / "),
+      address: b.address,
+    }));
+
+    if (newItems.length === 0) {
+      toast({ title: "جميع فروع مدارس الأندلس الـ 13 مضافة بالفعل في تصنيف الفروع ✅" });
+      return;
+    }
+
+    const updated = [...locations, ...newItems];
+    setLocations(updated);
+    try { localStorage.setItem("company_locations", JSON.stringify(updated)); } catch {}
+    toast({ title: `تم استيراد وفهرسة ${newItems.length} فرع جديد لمدارس الأندلس بنجاح 🏫` });
+  };
+
   const handleResetToDefaults = () => {
     setDepartments(DEFAULT_DEPARTMENTS);
     setLocations(DEFAULT_LOCATIONS);
@@ -357,9 +394,14 @@ export default function CompanyTaxonomyManager() {
               <h3 className="text-sm font-bold text-foreground">قائمة مواقع الفروع وأماكن العمل</h3>
               <p className="text-xs text-muted-foreground">حدد المدن والفروع ونمط العمل (مكتبي، عن بُعد، هجين) لشركتك.</p>
             </div>
-            <Button size="sm" onClick={handleOpenAddLocation} className="h-8 text-xs gap-1.5 font-bold bg-emerald-600 hover:bg-emerald-700 text-white">
-              <Plus className="w-3.5 h-3.5" /> إضافة موقع عمل جديد
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={handleImportAlAndalusBranches} className="h-8 text-xs gap-1.5 font-bold text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" /> استيراد فروع مدارس الأندلس الـ 13 🏫
+              </Button>
+              <Button size="sm" onClick={handleOpenAddLocation} className="h-8 text-xs gap-1.5 font-bold bg-emerald-600 hover:bg-emerald-700 text-white">
+                <Plus className="w-3.5 h-3.5" /> إضافة موقع عمل جديد
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

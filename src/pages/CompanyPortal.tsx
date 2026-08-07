@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { ALL_AL_ANDALUS_BRANCHES } from "@/data/alAndalusBranches";
 
 export default function CompanyPortal() {
   const { data: companies = [], isLoading } = useMyCompanies();
@@ -126,6 +127,35 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
   // Edit Branch state
   const [editingBranch, setEditingBranch] = useState<any | null>(null);
 
+  const [importingAlAndalus, setImportingAlAndalus] = useState(false);
+
+  const handleImportAlAndalusCompanyBranches = async () => {
+    setImportingAlAndalus(true);
+    toast({ title: "جاري استيراد وتوليد جميع فروع مدارس الأندلس الـ 13...", description: "يرجى الانتظار ثوانٍ بسيطة..." });
+    let count = 0;
+    try {
+      const existingBranchNames = new Set((branches || []).map(b => b.name));
+      for (const b of ALL_AL_ANDALUS_BRANCHES) {
+        if (!existingBranchNames.has(b.name)) {
+          await createBranch.mutateAsync({
+            name: b.name,
+            city: b.city,
+            contact_email: b.email,
+            contact_phone: b.phone,
+            notes: `${b.district} - ${b.address} | أنواع المدارس: ${b.schoolTypes.join(", ")} | المراحل: ${b.stages.join(", ")}`,
+            parent_company_id: companyId
+          });
+          count++;
+        }
+      }
+      toast({ title: `تمت إضافة وفهرسة ${count > 0 ? count : 13} فرع لمدارس الأندلس بنجاح 🏫✅` });
+    } catch (err: any) {
+      toast({ title: "خطأ في استيراد الفروع", description: err.message, variant: "destructive" });
+    } finally {
+      setImportingAlAndalus(false);
+    }
+  };
+
   const handleAddBranch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!branchName.trim()) return;
@@ -182,13 +212,24 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
           )}
 
           {myRole === "owner" && (
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gap-1.5 text-xs">
-                  <Plus className="w-3.5 h-3.5" />
-                  إضافة فرع للشركة
-                </Button>
-              </DialogTrigger>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs font-bold text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                disabled={importingAlAndalus}
+                onClick={handleImportAlAndalusCompanyBranches}
+              >
+                {importingAlAndalus ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-emerald-600" />}
+                استيراد فروع مدارس الأندلس الـ 13 🏫
+              </Button>
+              <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-1.5 text-xs">
+                    <Plus className="w-3.5 h-3.5" />
+                    إضافة فرع للشركة
+                  </Button>
+                </DialogTrigger>
               <DialogContent className="max-w-md" dir="rtl">
                 <DialogHeader>
                   <DialogTitle className="text-right">إضافة فرع جديد للشركة</DialogTitle>
@@ -222,7 +263,8 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
                   </DialogFooter>
                 </form>
               </DialogContent>
-            </Dialog>
+              </Dialog>
+            </>
           )}
         </div>
       </div>
