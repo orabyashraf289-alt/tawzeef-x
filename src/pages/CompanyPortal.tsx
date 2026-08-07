@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { Building2, Briefcase, Users, FileText, Mail, Loader2, GitFork, Plus, MapPin, Phone, Pencil, Camera, Info } from "lucide-react";
+import { Building2, Briefcase, Users, FileText, Mail, Loader2, GitFork, Plus, MapPin, Phone, Pencil, Camera, Info, Sparkles } from "lucide-react";
 import { useMyCompanies, useCompanyStats, useMyCompanyRole, useCompanyBranches, useCreateCompanyBranch, useUpdateCompany } from "@/hooks/useCompanies";
 import { useMyPendingInvitations, useAcceptInvitation, useDeclineInvitation } from "@/hooks/useCompanyInvitations";
 import CompanyInvitationsPanel from "@/components/CompanyInvitationsPanel";
