@@ -78,6 +78,8 @@ export function prepareCompanyPayload(input: Record<string, any>, existingNotes?
   }
 
   // Extract non-schema custom fields
+  // NOTE: parent_company_id IS a real column in the DB (migration 20260708130000)
+  //       so it must be written to the actual column AND optionally kept in notes for backward compat.
   const { parent_company_id, manager_user_id, address, e2e_encryption, brand_settings, notes: inputNotes, description: inputDesc, ...schemaFields } = input;
 
   const cleanDesc = typeof inputNotes === "string" && !inputNotes.startsWith("{")
@@ -86,9 +88,11 @@ export function prepareCompanyPayload(input: Record<string, any>, existingNotes?
     ? inputDesc
     : existingMeta.description || null;
 
+  // Remove parent_company_id from notes JSON (it now lives in the real column)
+  const { parent_company_id: _old, ...existingMetaClean } = existingMeta;
+
   const mergedMeta = {
-    ...existingMeta,
-    ...(parent_company_id !== undefined ? { parent_company_id } : {}),
+    ...existingMetaClean,
     ...(manager_user_id !== undefined ? { manager_user_id } : {}),
     ...(address !== undefined ? { address } : {}),
     ...(e2e_encryption !== undefined ? { e2e_encryption } : {}),
@@ -98,6 +102,8 @@ export function prepareCompanyPayload(input: Record<string, any>, existingNotes?
 
   return {
     ...schemaFields,
+    // Write parent_company_id to the REAL column so RLS branch policies work
+    ...(parent_company_id !== undefined ? { parent_company_id: parent_company_id || null } : {}),
     notes: Object.keys(mergedMeta).length > 0 ? JSON.stringify(mergedMeta) : null,
   };
 }
@@ -135,6 +141,8 @@ export function parseCompanyRow(c: Record<string, any>): Company {
 export function useAllCompanies() {
   return useQuery({
     queryKey: ["all-companies"],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("companies" as any)
@@ -149,6 +157,7 @@ export function useAllCompanies() {
 export function useCompany(id: string | undefined) {
   return useQuery({
     queryKey: ["company", id],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("companies" as any)
@@ -167,6 +176,8 @@ export function useMyCompanies() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["my-companies", user?.id],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("company_members" as any)
@@ -185,6 +196,7 @@ export function useMyCompanies() {
 export function useCompanyMembers(companyId: string | undefined) {
   return useQuery({
     queryKey: ["company-members", companyId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!companyId) return [];
       const { data, error } = await supabase
@@ -217,6 +229,7 @@ export function useMyCompanyRole(companyId: string | null | undefined) {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["my-company-role", companyId, user?.id],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data } = await supabase
         .from("company_members" as any)
@@ -360,15 +373,19 @@ export function useDeleteCompany() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
+      // 1) Delete members of this company/branch
+      await supabase.from("company_members" as any).delete().eq("company_id", id);
+      // 2) Delete company record
       const { error } = await supabase.from("companies" as any).delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["all-companies"] });
       qc.invalidateQueries({ queryKey: ["company-branches"] });
-      toast({ title: "تم الحذف ✅" });
+      qc.invalidateQueries({ queryKey: ["my-companies"] });
+      toast({ title: "تم حذف الفرع بنجاح ✅" });
     },
-    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ في الحذف", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -376,6 +393,8 @@ export function useDeleteCompany() {
 export function useCompanyStats(companyId: string | undefined) {
   return useQuery({
     queryKey: ["company-stats", companyId],
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     queryFn: async () => {
       const sb = supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> };
       const [jobs, candidates, interviews, offers] = await Promise.all([
@@ -398,21 +417,26 @@ export function useCompanyStats(companyId: string | undefined) {
 }
 
 // Fetch all branches of a parent company with assigned manager profiles
+// Uses server-side filtering on the real parent_company_id column for performance
 export function useCompanyBranches(parentId: string | undefined) {
   return useQuery({
     queryKey: ["company-branches", parentId],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       if (!parentId) return [];
+
+      // Server-side filter on the actual parent_company_id column (fast, indexed)
       const { data, error } = await supabase
         .from("companies" as any)
         .select("*")
+        .eq("parent_company_id", parentId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       if (!data || data.length === 0) return [];
 
-      const parsedCompanies = data.map(parseCompanyRow);
-      const branchCompanies = parsedCompanies.filter((c) => c.parent_company_id === parentId);
+      const branchCompanies = data.map(parseCompanyRow);
 
       const managerUserIds = Array.from(
         new Set(branchCompanies.map((c) => c.manager_user_id).filter(Boolean))

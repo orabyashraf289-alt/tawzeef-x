@@ -75,6 +75,7 @@ export function useOffers() {
 
   return useQuery({
     queryKey: ["offers", user?.id],
+    staleTime: 3 * 60 * 1000,
     queryFn: async () => {
       // 1. Fetch user's company memberships to enforce multi-tenant isolation
       let userCompanyIds: string[] = [];

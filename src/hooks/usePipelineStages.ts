@@ -49,6 +49,8 @@ export function usePipelineStages() {
 
   const query = useQuery({
     queryKey: ["pipeline_stages", user?.id],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -73,6 +75,7 @@ export function useSubStages(stageId?: string) {
 
   return useQuery({
     queryKey: ["pipeline_sub_stages", stageId],
+    staleTime: 5 * 60 * 1000,
     enabled: !!user && !!stageId,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -97,6 +100,7 @@ export function useAllSubStages() {
 
   return useQuery({
     queryKey: ["pipeline_sub_stages", "all", user?.id],
+    staleTime: 5 * 60 * 1000,
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase

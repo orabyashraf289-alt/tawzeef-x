@@ -31,6 +31,7 @@ export interface CompanyInvitation {
 export function useCompanyInvitations(companyId: string | undefined) {
   return useQuery({
     queryKey: ["company-invitations", companyId],
+    staleTime: 3 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("company_invitations" as any)
@@ -49,6 +50,7 @@ export function useMyPendingInvitations() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["my-pending-invitations", user?.email],
+    staleTime: 3 * 60 * 1000,
     queryFn: async () => {
       if (!user?.email) return [];
       const { data, error } = await supabase

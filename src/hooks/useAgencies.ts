@@ -33,6 +33,7 @@ export interface AgencyAssignment {
 export function useAllAgencies() {
   return useQuery({
     queryKey: ["all-agencies"],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agencies" as any)
@@ -51,6 +52,7 @@ export function useMyAgencies() {
 
   return useQuery({
     queryKey: ["my-agencies", user?.id, storedAgencyId, storedAgencyEmail],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       // 1) Direct Agency Session from LocalStorage
       if (storedAgencyId) {

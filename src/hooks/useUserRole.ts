@@ -38,6 +38,8 @@ export function useUserRole() {
 
   const query = useQuery({
     queryKey: ["user-role", user?.id],
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_user_role", { _user_id: user!.id });
       if (error) throw error;
@@ -65,6 +67,7 @@ export function useAllUserRoles() {
 
   return useQuery({
     queryKey: ["all-user-roles"],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_roles" as any)

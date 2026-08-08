@@ -108,6 +108,8 @@ export interface CompanyInvoice {
 export function useSubscriptionPlans() {
   return useQuery({
     queryKey: ["subscription-plans"],
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("subscription_plans" as any)
@@ -128,6 +130,8 @@ export function useMySubscription() {
 
   return useQuery({
     queryKey: ["my-subscription", user?.id],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       if (!user) return null;
 
