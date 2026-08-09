@@ -243,7 +243,7 @@ export default function TaskBoard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const [searchTerm, setSearchTerm] = useState<string>(" ");
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"dueDateAsc" | "dueDateDesc">("dueDateAsc");
@@ -270,6 +270,8 @@ export default function TaskBoard() {
   // Fetch tasks with candidate and job joins
   const { data: dbTasks, isLoading } = useQuery({
     queryKey: ["tasks", user?.id],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       if (!user) return [];
       
