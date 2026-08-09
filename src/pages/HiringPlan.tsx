@@ -31,6 +31,8 @@ function useHiringGoals(month: string) {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["hiring-goals", user?.id, month],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hiring_goals")

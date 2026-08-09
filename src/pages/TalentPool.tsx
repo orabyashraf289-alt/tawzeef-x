@@ -43,6 +43,8 @@ export default function TalentPool() {
 
   const { data: poolEntries, isLoading } = useQuery({
     queryKey: ["talent-pool", user?.id],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("talent_pool")
