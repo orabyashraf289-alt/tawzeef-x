@@ -6,7 +6,8 @@ import {
   Shield, Search, Filter, User, AlertTriangle, CheckCircle, XCircle,
   LogIn, UserCog, FileText, Download, ChevronLeft, ChevronRight, Clock,
   Globe, Monitor, Smartphone, Tablet, ChevronDown, ChevronUp, LayoutGrid, List,
-  FileSpreadsheet, Sparkles, Cpu, ShieldAlert, Laptop, Lock, MapPin
+  FileSpreadsheet, Sparkles, Cpu, ShieldAlert, Laptop, Lock, MapPin, RefreshCw,
+  Calendar, ShieldCheck, Activity, Eye, Zap
 } from "lucide-react";
 import { useCompactView } from "@/hooks/useCompactView";
 import { Input } from "@/components/ui/input";
@@ -14,46 +15,48 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { FlaticonAnimatedIcon, FlaticonCategoryIconCard } from "@/components/ui/animated-icons";
 import { PageHeader } from "@/components/ui/page-header";
 import { detectUserDevice } from "@/lib/deviceDetector";
 import { getCountryFlag } from "@/lib/locationService";
+import { formatExactArabicDuration } from "@/lib/sessionTracker";
 import * as XLSX from "xlsx";
 
 const PAGE_SIZE = 25;
 
-const EVENT_TYPES: Record<string, { label: string; icon: typeof Shield; color: string }> = {
-  "login_success": { label: "تسجيل دخول ناجح", icon: LogIn, color: "text-emerald-500" },
-  "login.success": { label: "تسجيل دخول ناجح", icon: LogIn, color: "text-emerald-500" },
-  "logout.user": { label: "تسجيل خروج (إنهاء الجلسة)", icon: LogIn, color: "text-amber-500" },
-  "session.duration": { label: "مدة الجلسة والتواجد ⏱️", icon: Clock, color: "text-indigo-500" },
-  "login_failed": { label: "محاولة دخول فاشلة", icon: XCircle, color: "text-rose-500" },
-  "login.failed": { label: "محاولة دخول فاشلة", icon: XCircle, color: "text-rose-500" },
-  "login.otp_failed": { label: "فشل رمز OTP", icon: XCircle, color: "text-rose-500" },
-  "role_changed": { label: "تغيير صلاحية", icon: UserCog, color: "text-amber-500" },
-  "role.changed": { label: "تغيير صلاحية", icon: UserCog, color: "text-amber-500" },
-  "role.deleted": { label: "حذف صلاحية", icon: AlertTriangle, color: "text-rose-500" },
-  "member_deleted": { label: "حذف عضو", icon: AlertTriangle, color: "text-rose-500" },
-  "member.deleted": { label: "حذف عضو", icon: AlertTriangle, color: "text-rose-500" },
-  "member.invited": { label: "دعوة عضو جديد", icon: User, color: "text-blue-500" },
-  "offer_accepted": { label: "قبول عرض وظيفي", icon: CheckCircle, color: "text-emerald-500" },
-  "offer.accepted": { label: "قبول عرض وظيفي", icon: CheckCircle, color: "text-emerald-500" },
-  "offer_rejected": { label: "رفض عرض وظيفي", icon: XCircle, color: "text-amber-500" },
-  "offer.rejected": { label: "رفض عرض وظيفي", icon: XCircle, color: "text-amber-500" },
-  "offer_sent": { label: "إرسال عرض وظيفي", icon: FileText, color: "text-blue-500" },
-  "offer.sent": { label: "إرسال عرض وظيفي", icon: FileText, color: "text-blue-500" },
-  "offer.withdrawn": { label: "سحب عرض وظيفي", icon: XCircle, color: "text-rose-500" },
-  "data_export": { label: "تصدير بيانات", icon: Download, color: "text-indigo-500" },
-  "data.exported": { label: "تصدير بيانات", icon: Download, color: "text-indigo-500" },
-  "settings.changed": { label: "تغيير إعدادات المنصة", icon: Shield, color: "text-amber-500" },
-  "password_reset": { label: "إعادة تعيين كلمة مرور", icon: Lock, color: "text-purple-500" },
-  "signup": { label: "تسجيل حساب جديد", icon: User, color: "text-blue-500" },
-  "security.suspicious_ip": { label: "🚨 محاولة مشبوهة / IP غير معروف", icon: AlertTriangle, color: "text-rose-600" },
+const EVENT_TYPES: Record<string, { label: string; icon: typeof Shield; color: string; category: "session" | "security" | "roles" | "data" }> = {
+  "login_success": { label: "تسجيل دخول ناجح", icon: LogIn, color: "text-emerald-500", category: "session" },
+  "login.success": { label: "تسجيل دخول ناجح", icon: LogIn, color: "text-emerald-500", category: "session" },
+  "logout.user": { label: "تسجيل خروج (إنهاء الجلسة)", icon: LogIn, color: "text-amber-500", category: "session" },
+  "session.duration": { label: "مدة الجلسة والتواجد ⏱️", icon: Clock, color: "text-indigo-500", category: "session" },
+  "login_failed": { label: "محاولة دخول فاشلة", icon: XCircle, color: "text-rose-500", category: "security" },
+  "login.failed": { label: "محاولة دخول فاشلة", icon: XCircle, color: "text-rose-500", category: "security" },
+  "login.otp_failed": { label: "فشل رمز OTP", icon: XCircle, color: "text-rose-500", category: "security" },
+  "role_changed": { label: "تغيير صلاحية", icon: UserCog, color: "text-amber-500", category: "roles" },
+  "role.changed": { label: "تغيير صلاحية", icon: UserCog, color: "text-amber-500", category: "roles" },
+  "role.deleted": { label: "حذف صلاحية", icon: AlertTriangle, color: "text-rose-500", category: "roles" },
+  "member_deleted": { label: "حذف عضو", icon: AlertTriangle, color: "text-rose-500", category: "roles" },
+  "member.deleted": { label: "حذف عضو", icon: AlertTriangle, color: "text-rose-500", category: "roles" },
+  "member.invited": { label: "دعوة عضو جديد", icon: User, color: "text-blue-500", category: "roles" },
+  "offer_accepted": { label: "قبول عرض وظيفي", icon: CheckCircle, color: "text-emerald-500", category: "data" },
+  "offer.accepted": { label: "قبول عرض وظيفي", icon: CheckCircle, color: "text-emerald-500", category: "data" },
+  "offer_rejected": { label: "رفض عرض وظيفي", icon: XCircle, color: "text-amber-500", category: "data" },
+  "offer.rejected": { label: "رفض عرض وظيفي", icon: XCircle, color: "text-amber-500", category: "data" },
+  "offer_sent": { label: "إرسال عرض وظيفي", icon: FileText, color: "text-blue-500", category: "data" },
+  "offer.sent": { label: "إرسال عرض وظيفي", icon: FileText, color: "text-blue-500", category: "data" },
+  "offer.withdrawn": { label: "سحب عرض وظيفي", icon: XCircle, color: "text-rose-500", category: "data" },
+  "data_export": { label: "تصدير بيانات", icon: Download, color: "text-indigo-500", category: "data" },
+  "data.exported": { label: "تصدير بيانات", icon: Download, color: "text-indigo-500", category: "data" },
+  "settings.changed": { label: "تغيير إعدادات المنصة", icon: Shield, color: "text-amber-500", category: "data" },
+  "password_reset": { label: "إعادة تعيين كلمة مرور", icon: Lock, color: "text-purple-500", category: "security" },
+  "signup": { label: "تسجيل حساب جديد", icon: User, color: "text-blue-500", category: "roles" },
+  "security.suspicious_ip": { label: "🚨 محاولة مشبوهة / IP غير معروف", icon: AlertTriangle, color: "text-rose-600", category: "security" },
 };
-
-import { formatExactArabicDuration } from "@/lib/sessionTracker";
 
 function parseSessionDuration(details: Record<string, any> | null, createdAt: string) {
   if (!details) return null;
@@ -129,7 +132,6 @@ function parseLocationDetails(details: Record<string, any> | null, ip?: string) 
     return `${details.city || "الرياض"}، ${details.country || "المملكة العربية السعودية"} ${flag}`;
   }
 
-  // Smart fallback location based on IP format or region
   if (ip && ip.startsWith("154.")) {
     return "القاهرة، مصر 🇪🇬";
   }
@@ -137,22 +139,53 @@ function parseLocationDetails(details: Record<string, any> | null, ip?: string) 
   return "الرياض، المملكة العربية السعودية 🇸🇦";
 }
 
-function useAuditLogQuery(page: number, eventFilter: string, deviceFilter: string, search: string) {
+function useAuditLogQuery(page: number, eventFilter: string, activeTab: string, search: string, timeRange: string, autoRefresh: boolean) {
   return useQuery({
-    queryKey: ["audit-log", page, eventFilter, deviceFilter, search],
+    queryKey: ["audit-log", page, eventFilter, activeTab, search, timeRange],
+    staleTime: autoRefresh ? 5000 : 60000,
+    refetchInterval: autoRefresh ? 10000 : false,
     queryFn: async () => {
       let query = supabase
         .from("audit_log")
         .select("*", { count: "exact" })
-        .order("created_at", { ascending: false })
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+        .order("created_at", { ascending: false });
 
+      // Apply tab category filter
+      if (activeTab === "sessions") {
+        query = query.in("event_type", ["login.success", "login_success", "logout.user", "session.duration"]);
+      } else if (activeTab === "security") {
+        query = query.in("event_type", ["login.failed", "login_failed", "login.otp_failed", "security.suspicious_ip", "role.deleted"]);
+      } else if (activeTab === "roles") {
+        query = query.in("event_type", ["role.changed", "role_changed", "member.invited", "member.deleted", "member_deleted", "signup"]);
+      } else if (activeTab === "data") {
+        query = query.in("event_type", ["data.exported", "data_export", "settings.changed", "offer.sent", "offer.accepted", "offer.rejected"]);
+      }
+
+      // Apply event dropdown filter if selected
       if (eventFilter && eventFilter !== "all") {
         query = query.eq("event_type", eventFilter);
       }
+
+      // Apply search text
       if (search.trim()) {
         query = query.or(`user_email.ilike.%${search}%,event_type.ilike.%${search}%`);
       }
+
+      // Apply date range filter
+      if (timeRange !== "all") {
+        const now = new Date();
+        let startDate = new Date();
+        if (timeRange === "today") {
+          startDate.setHours(0, 0, 0, 0);
+        } else if (timeRange === "7days") {
+          startDate.setDate(now.getDate() - 7);
+        } else if (timeRange === "30days") {
+          startDate.setDate(now.getDate() - 30);
+        }
+        query = query.gte("created_at", startDate.toISOString());
+      }
+
+      query = query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
       const { data, error, count } = await query;
       if (error) throw error;
@@ -163,7 +196,7 @@ function useAuditLogQuery(page: number, eventFilter: string, deviceFilter: strin
 
 function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCompact: boolean }) {
   const [expanded, setExpanded] = useState(false);
-  const info = EVENT_TYPES[log.event_type] || { label: log.event_type, icon: Shield, color: "text-muted-foreground" };
+  const info = EVENT_TYPES[log.event_type] || { label: log.event_type, icon: Shield, color: "text-muted-foreground", category: "session" };
   const Icon = info.icon;
   const details = log.details as Record<string, any> | null;
   const parsedDevice = parseDeviceDetails(details);
@@ -173,11 +206,11 @@ function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCom
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
-    return d.toLocaleDateString("ar-SA", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleDateString("ar-SA", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
   };
 
   const displayDetails = details
-    ? Object.entries(details).filter(([k]) => !["user_agent", "browser", "os", "device", "device_name", "deviceName", "osName", "browserName", "location", "city", "country", "login_time", "logout_time", "duration_minutes", "duration_seconds", "formatted_duration"].includes(k))
+    ? Object.entries(details).filter(([k]) => !["user_agent", "browser", "os", "device", "device_name", "deviceName", "osName", "browserName", "location", "city", "country", "login_time", "logout_time", "duration_minutes", "duration_seconds", "formatted_duration", "formatted_active", "formatted_idle"].includes(k))
     : [];
 
   const cellClass = cn("transition-all", isCompact ? "p-2 text-xs" : "p-3.5 text-sm");
@@ -291,6 +324,11 @@ function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCom
                       <Clock className="w-3.5 h-3.5" />
                       {durationText || "نشط حالياً / جلسة جديدة"}
                     </p>
+                    {details?.formatted_active && (
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        نشاط تفاعلي: <span className="font-bold text-emerald-600">{details.formatted_active}</span> ({details.active_percentage}%)
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -324,22 +362,34 @@ function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCom
 
 export default function AuditLog() {
   const [page, setPage] = useState(0);
+  const [activeTab, setActiveTab] = useState("all");
   const [eventFilter, setEventFilter] = useState("all");
-  const [deviceFilter, setDeviceFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [timeRange, setTimeRange] = useState("all");
+  const [autoRefresh, setAutoRefresh] = useState(false);
   const { isCompact, toggleCompact } = useCompactView();
 
-  const { data, isLoading } = useAuditLogQuery(page, eventFilter, deviceFilter, search);
+  const { data, isLoading, refetch, isFetching } = useAuditLogQuery(page, eventFilter, activeTab, search, timeRange, autoRefresh);
   const logs = data?.data || [];
   const totalCount = data?.count || 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
+  // High-Precision Analytics Dashboard
   const stats = useMemo(() => {
+    const failed = logs.filter((l: any) => l.event_type?.includes("failed") || l.event_type?.includes("suspicious")).length;
+    const roles = logs.filter((l: any) => l.event_type?.includes("role") || l.event_type?.includes("member")).length;
+    const sessionLogs = logs.filter((l: any) => l.event_type === "session.duration" || l.event_type === "logout.user");
+
+    const totalSessions = sessionLogs.length;
+    const healthScore = totalCount > 0 ? Math.max(70, Math.round(100 - (failed / totalCount) * 100)) : 100;
+
     return {
       total: totalCount,
-      failed: logs.filter((l: any) => l.event_type?.includes("failed")).length,
-      roleChanges: logs.filter((l: any) => l.event_type?.includes("role")).length,
+      failed,
+      roles,
+      totalSessions,
+      healthScore,
     };
   }, [logs, totalCount]);
 
@@ -352,14 +402,19 @@ export default function AuditLog() {
     const rows = logs.map((l: any) => {
       const dev = parseDeviceDetails(l.details);
       const loc = parseLocationDetails(l.details, l.ip_address);
+      const dur = parseSessionDuration(l.details, l.created_at);
       return {
-        "نوع الحدث": EVENT_TYPES[l.event_type]?.label || l.event_type,
+        "نوع الحدث الأمني": EVENT_TYPES[l.event_type]?.label || l.event_type,
         "البريد الإلكتروني": l.user_email || "—",
         "عنوان IP": l.ip_address || "—",
         "الموقع الجغرافي والبلد": loc,
         "اسم الجهاز": dev.deviceName,
         "نظام التشغيل": dev.osName,
         "المتصفح": dev.browserName,
+        "مدة الجلسة والتواجد": dur || "—",
+        "زمن النشاط الفعلي": l.details?.formatted_active || "—",
+        "زمن الخمول": l.details?.formatted_idle || "—",
+        "نسبة التفاعل": l.details?.active_percentage ? `${l.details.active_percentage}%` : "—",
         "التاريخ والوقت": new Date(l.created_at).toLocaleString("ar-SA"),
       };
     });
@@ -380,21 +435,46 @@ export default function AuditLog() {
       <div className="p-4 lg:p-8 space-y-6" dir="rtl">
         {/* Clean Theme-Adaptive Page Header */}
         <PageHeader
-          badgeText="سجل تتبع الحماية وتدقيق الأجهزة والمواقع الجغرافية"
-          title="سجل الأحداث الأمنية، الأجهزة، والمواقع الجغرافية 📍"
-          description="مراقبة دقيقة لكافة عمليات الدخول وتغيير الصلاحيات مع تحديد الموقع الجغرافي والبلد، اسم الجهاز، نظام التشغيل، والمتصفح."
-          icon={Shield}
+          badgeText="مركز قيادة الحماية والتدقيق والتحليل الجنائي للشبكة"
+          title="سجل الأحداث الأمنية ومراقبة التواجد الجغرافي 🛡️"
+          description="تتبع فوري لكافة التفاعلات، مدة التواجد بالثواني، الأجهزة الذكية، العناوين الجغرافية، والتصدي للتهديدات والمحاولات المشبوهة."
+          icon={ShieldCheck}
           accentColor="indigo"
           actions={
-            <Button onClick={exportAuditLogToExcel} variant="outline" className="rounded-xl h-11 px-4 text-xs font-bold gap-2 bg-card hover:bg-muted shadow-xs">
-              <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
-              تصدير سجل الأمان Excel 📊
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="rounded-xl h-11 px-3 text-xs font-bold gap-1.5 bg-card"
+              >
+                <RefreshCw className={cn("w-4 h-4 text-indigo-500", isFetching && "animate-spin")} />
+                تحديث
+              </Button>
+              <Button onClick={exportAuditLogToExcel} variant="outline" className="rounded-xl h-11 px-4 text-xs font-bold gap-2 bg-card hover:bg-muted shadow-xs">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+                تصدير سجل الأمان Excel 📊
+              </Button>
+            </div>
           }
         />
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Live Security Health Score & Stats Header */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="border-border/60 shadow-sm relative overflow-hidden">
+            <CardContent className="p-4 flex items-center gap-3.5">
+              <FlaticonCategoryIconCard icon={ShieldCheck} gradient="from-emerald-600/20 to-teal-600/10" iconColor="text-emerald-500" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{stats.healthScore}%</p>
+                  <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] font-bold">نظام آمن 🛡️</Badge>
+                </div>
+                <p className="text-xs font-semibold text-muted-foreground">مؤشر جودة وسعادة أمان النظام</p>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="border-border/60 shadow-sm">
             <CardContent className="p-4 flex items-center gap-3.5">
               <FlaticonCategoryIconCard icon={Shield} gradient="from-blue-600/20 to-indigo-600/10" iconColor="text-blue-500" />
@@ -409,21 +489,59 @@ export default function AuditLog() {
             <CardContent className="p-4 flex items-center gap-3.5">
               <FlaticonCategoryIconCard icon={XCircle} gradient="from-rose-600/20 to-red-600/10" iconColor="text-rose-500" />
               <div>
-                <p className="text-2xl font-black text-rose-600">{stats.failed}</p>
-                <p className="text-xs font-semibold text-muted-foreground">محاولات الدخول الفاشلة</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-2xl font-black text-rose-600">{stats.failed}</p>
+                  {stats.failed > 0 && <Badge variant="destructive" className="text-[10px] font-bold">تنبه 🚨</Badge>}
+                </div>
+                <p className="text-xs font-semibold text-muted-foreground">محاولات الدخول الفاشلة والمشبوهة</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="border-border/60 shadow-sm">
             <CardContent className="p-4 flex items-center gap-3.5">
-              <FlaticonCategoryIconCard icon={UserCog} gradient="from-amber-600/20 to-orange-600/10" iconColor="text-amber-500" />
+              <FlaticonCategoryIconCard icon={Clock} gradient="from-indigo-600/20 to-purple-600/10" iconColor="text-indigo-500" />
               <div>
-                <p className="text-2xl font-black text-amber-600">{stats.roleChanges}</p>
-                <p className="text-xs font-semibold text-muted-foreground">تغييرات الأدوار والصلاحيات</p>
+                <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{stats.totalSessions}</p>
+                <p className="text-xs font-semibold text-muted-foreground">جلسات التواجد المسجلة ⏱️</p>
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Security Tabs & Auto Refresh Toggle */}
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-card p-2 rounded-2xl border border-border/60 shadow-xs">
+          <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setPage(0); }} className="w-full md:w-auto">
+            <TabsList className="bg-muted/50 p-1 rounded-xl h-auto flex flex-wrap gap-1">
+              <TabsTrigger value="all" className="rounded-lg text-xs font-bold px-3 py-1.5 data-[state=active]:bg-background shadow-xs">
+                جميع الأحداث ({stats.total})
+              </TabsTrigger>
+              <TabsTrigger value="sessions" className="rounded-lg text-xs font-bold px-3 py-1.5 data-[state=active]:bg-background shadow-xs gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                مدد الجلسات والتواجد ⏱️
+              </TabsTrigger>
+              <TabsTrigger value="security" className="rounded-lg text-xs font-bold px-3 py-1.5 data-[state=active]:bg-background shadow-xs gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+                التهديدات والمخاطر 🚨
+              </TabsTrigger>
+              <TabsTrigger value="roles" className="rounded-lg text-xs font-bold px-3 py-1.5 data-[state=active]:bg-background shadow-xs gap-1.5">
+                <UserCog className="w-3.5 h-3.5 text-amber-500" />
+                الصلاحيات والأعضاء 🔑
+              </TabsTrigger>
+              <TabsTrigger value="data" className="rounded-lg text-xs font-bold px-3 py-1.5 data-[state=active]:bg-background shadow-xs gap-1.5">
+                <Download className="w-3.5 h-3.5 text-blue-500" />
+                البيانات والإعدادات 📊
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/30 rounded-xl border border-border/40 shrink-0">
+            <Switch id="auto-refresh" checked={autoRefresh} onCheckedChange={setAutoRefresh} />
+            <Label htmlFor="auto-refresh" className="text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+              <Zap className={cn("w-3.5 h-3.5", autoRefresh ? "text-amber-500 animate-pulse" : "text-slate-400")} />
+              بث مباشر تلقائي (Live Stream)
+            </Label>
+          </div>
         </div>
 
         {/* Filters Toolbar */}
@@ -438,12 +556,26 @@ export default function AuditLog() {
               className="pr-10 h-11 text-xs rounded-xl"
             />
           </div>
-          <Select value={eventFilter} onValueChange={v => { setEventFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-[200px] h-11 rounded-xl text-xs font-bold">
-              <SelectValue placeholder="نوع الحدث" />
+
+          <Select value={timeRange} onValueChange={v => { setTimeRange(v); setPage(0); }}>
+            <SelectTrigger className="w-[160px] h-11 rounded-xl text-xs font-bold">
+              <Calendar className="w-3.5 h-3.5 ml-1.5 text-indigo-500" />
+              <SelectValue placeholder="النطاق الزمني" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">جميع الأحداث</SelectItem>
+              <SelectItem value="all">جميع الأوقات</SelectItem>
+              <SelectItem value="today">اليوم فقط 📅</SelectItem>
+              <SelectItem value="7days">آخر 7 أيام</SelectItem>
+              <SelectItem value="30days">آخر 30 يوماً</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={eventFilter} onValueChange={v => { setEventFilter(v); setPage(0); }}>
+            <SelectTrigger className="w-[180px] h-11 rounded-xl text-xs font-bold">
+              <SelectValue placeholder="نوع الحدث المحدد" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">جميع أنواع الأحداث</SelectItem>
               {uniqueEventTypes.map(([key, val]) => (
                 <SelectItem key={key} value={key}>{val.label}</SelectItem>
               ))}
@@ -486,7 +618,7 @@ export default function AuditLog() {
                   <tr>
                     <td colSpan={7} className="p-12 text-center text-muted-foreground">
                       <Shield className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
-                      لا توجد أحداث مسجلة حتى الآن
+                      لا توجد أحداث مسجلة في هذا القسم حتى الآن
                     </td>
                   </tr>
                 ) : (
