@@ -27,6 +27,8 @@ const PAGE_SIZE = 25;
 const EVENT_TYPES: Record<string, { label: string; icon: typeof Shield; color: string }> = {
   "login_success": { label: "تسجيل دخول ناجح", icon: LogIn, color: "text-emerald-500" },
   "login.success": { label: "تسجيل دخول ناجح", icon: LogIn, color: "text-emerald-500" },
+  "logout.user": { label: "تسجيل خروج (إنهاء الجلسة)", icon: LogIn, color: "text-amber-500" },
+  "session.duration": { label: "مدة الجلسة والتواجد ⏱️", icon: Clock, color: "text-indigo-500" },
   "login_failed": { label: "محاولة دخول فاشلة", icon: XCircle, color: "text-rose-500" },
   "login.failed": { label: "محاولة دخول فاشلة", icon: XCircle, color: "text-rose-500" },
   "login.otp_failed": { label: "فشل رمز OTP", icon: XCircle, color: "text-rose-500" },
@@ -50,6 +52,44 @@ const EVENT_TYPES: Record<string, { label: string; icon: typeof Shield; color: s
   "signup": { label: "تسجيل حساب جديد", icon: User, color: "text-blue-500" },
   "security.suspicious_ip": { label: "🚨 محاولة مشبوهة / IP غير معروف", icon: AlertTriangle, color: "text-rose-600" },
 };
+
+function parseSessionDuration(details: Record<string, any> | null, createdAt: string) {
+  if (!details) return null;
+  const formatted = details.formatted_duration || details.formattedDuration;
+  if (formatted) return formatted;
+
+  const mins = details.duration_minutes || details.durationMinutes;
+  if (mins !== undefined && mins !== null) {
+    const numMins = Number(mins);
+    if (numMins >= 60) {
+      const hrs = Math.floor(numMins / 60);
+      const rem = numMins % 60;
+      return `${hrs} ساعة ${rem > 0 ? `و ${rem} دقيقة` : ""}`;
+    }
+    return `${numMins} دقيقة`;
+  }
+
+  const secs = details.duration_seconds || details.durationSeconds;
+  if (secs !== undefined && secs !== null) {
+    const numSecs = Number(secs);
+    if (numSecs >= 60) {
+      return `${Math.floor(numSecs / 60)} دقيقة`;
+    }
+    return `${numSecs} ثانية`;
+  }
+
+  if (details.login_time) {
+    const start = new Date(details.login_time).getTime();
+    const end = new Date(createdAt).getTime();
+    const diffMins = Math.max(1, Math.round((end - start) / (1000 * 60)));
+    if (diffMins >= 60) {
+      return `${Math.floor(diffMins / 60)} ساعة و ${diffMins % 60} دقيقة`;
+    }
+    return `${diffMins} دقيقة`;
+  }
+
+  return null;
+}
 
 function parseDeviceDetails(details: Record<string, any> | null) {
   if (!details) {
@@ -138,6 +178,7 @@ function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCom
   const details = log.details as Record<string, any> | null;
   const parsedDevice = parseDeviceDetails(details);
   const locationText = parseLocationDetails(details, log.ip_address);
+  const durationText = parseSessionDuration(details, log.created_at);
   const DeviceIcon = parsedDevice.icon;
 
   const formatDate = (dateStr: string) => {
@@ -146,7 +187,7 @@ function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCom
   };
 
   const displayDetails = details
-    ? Object.entries(details).filter(([k]) => !["user_agent", "browser", "os", "device", "device_name", "deviceName", "osName", "browserName", "location", "city", "country"].includes(k))
+    ? Object.entries(details).filter(([k]) => !["user_agent", "browser", "os", "device", "device_name", "deviceName", "osName", "browserName", "location", "city", "country", "login_time", "logout_time", "duration_minutes", "duration_seconds", "formatted_duration"].includes(k))
     : [];
 
   const cellClass = cn("transition-all", isCompact ? "p-2 text-xs" : "p-3.5 text-sm");
@@ -200,11 +241,18 @@ function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCom
           </div>
         </td>
 
-        {/* Date & Time */}
+        {/* Date & Time & Duration */}
         <td className={cn(cellClass, "text-muted-foreground whitespace-nowrap")}>
-          <div className="flex items-center gap-1.5 text-xs font-medium">
-            <Clock className="w-3.5 h-3.5 text-slate-400" />
-            {formatDate(log.created_at)}
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1.5 text-xs font-medium">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              {formatDate(log.created_at)}
+            </div>
+            {durationText && (
+              <Badge variant="secondary" className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 text-[10px] w-fit font-bold gap-1 px-2 py-0.5">
+                ⏱️ التواجد: {durationText}
+              </Badge>
+            )}
           </div>
         </td>
 
@@ -226,7 +274,7 @@ function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCom
           >
             <td colSpan={7} className="p-0">
               <div className="bg-muted/30 p-4 border-b border-border/60 space-y-3">
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-xs">
                   <div className="p-2.5 rounded-xl bg-card border border-border/60">
                     <p className="text-muted-foreground text-[11px] mb-1 font-bold">الموقع الجغرافي والبلد:</p>
                     <p className="font-bold text-emerald-600 dark:text-emerald-400 text-xs">{locationText}</p>
@@ -246,6 +294,13 @@ function AuditLogRow({ log, index, isCompact }: { log: any; index: number; isCom
                   <div className="p-2.5 rounded-xl bg-card border border-border/60">
                     <p className="text-muted-foreground text-[11px] mb-1 font-bold">عنوان الشبكة IP:</p>
                     <p className="font-mono font-bold text-blue-600 dark:text-blue-400 text-xs">{log.ip_address || "غير متوفر"}</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-card border border-border/60">
+                    <p className="text-muted-foreground text-[11px] mb-1 font-bold">مدة الجلسة والتواجد:</p>
+                    <p className="font-bold text-indigo-600 dark:text-indigo-400 text-xs flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {durationText || "نشط حالياً / جلسة جديدة"}
+                    </p>
                   </div>
                 </div>
 

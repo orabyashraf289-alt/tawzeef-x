@@ -17,6 +17,8 @@ export type AuditEventType =
   | "login.success"
   | "login.failed"
   | "login.otp_failed"
+  | "logout.user"
+  | "session.duration"
   | "role.changed"
   | "role.deleted"
   | "offer.accepted"
