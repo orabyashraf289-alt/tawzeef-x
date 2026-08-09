@@ -74,6 +74,8 @@ export function useAuditLog(limit = 100) {
 
   return useQuery({
     queryKey: ["audit-log", limit],
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("audit_log" as any)
