@@ -89,6 +89,8 @@ export function useAutomationRules() {
 
   const rulesQuery = useQuery({
     queryKey: ["automation-rules", user?.id],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       const localRules = getLocalRules();
       if (!user) return localRules;
