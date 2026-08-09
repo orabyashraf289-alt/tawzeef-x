@@ -36,31 +36,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     if (session?.user) {
       try {
-        const startTime = sessionStorage.getItem("tx_session_start_time");
-        if (startTime) {
-          const startMs = new Date(startTime).getTime();
-          const endMs = Date.now();
-          const durationSeconds = Math.max(1, Math.round((endMs - startMs) / 1000));
-          const durationMinutes = Math.max(1, Math.round(durationSeconds / 60));
-          const { logAuditEvent } = await import("@/hooks/useAuditLog");
-          
-          await logAuditEvent({
-            eventType: "logout.user",
-            userId: session.user.id,
-            userEmail: session.user.email,
-            details: {
-              login_time: startTime,
-              logout_time: new Date().toISOString(),
-              duration_minutes: durationMinutes,
-              duration_seconds: durationSeconds,
-              formatted_duration: durationMinutes >= 60
-                ? `${Math.floor(durationMinutes / 60)} ساعة و ${durationMinutes % 60} دقيقة`
-                : `${durationMinutes} دقيقة`,
-              reason: "manual_logout",
-            },
-          });
-        }
-        sessionStorage.removeItem("tx_session_start_time");
+        const { flushSessionAudit } = await import("@/lib/sessionTracker");
+        await flushSessionAudit(session.user.id, session.user.email, "manual");
       } catch (err) {
         console.error("Error logging logout audit event:", err);
       }

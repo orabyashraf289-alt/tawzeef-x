@@ -53,39 +53,29 @@ const EVENT_TYPES: Record<string, { label: string; icon: typeof Shield; color: s
   "security.suspicious_ip": { label: "🚨 محاولة مشبوهة / IP غير معروف", icon: AlertTriangle, color: "text-rose-600" },
 };
 
+import { formatExactArabicDuration } from "@/lib/sessionTracker";
+
 function parseSessionDuration(details: Record<string, any> | null, createdAt: string) {
   if (!details) return null;
+
+  const secs = details.duration_seconds || details.durationSeconds;
+  if (secs !== undefined && secs !== null) {
+    return formatExactArabicDuration(Number(secs));
+  }
+
   const formatted = details.formatted_duration || details.formattedDuration;
   if (formatted) return formatted;
 
   const mins = details.duration_minutes || details.durationMinutes;
   if (mins !== undefined && mins !== null) {
-    const numMins = Number(mins);
-    if (numMins >= 60) {
-      const hrs = Math.floor(numMins / 60);
-      const rem = numMins % 60;
-      return `${hrs} ساعة ${rem > 0 ? `و ${rem} دقيقة` : ""}`;
-    }
-    return `${numMins} دقيقة`;
-  }
-
-  const secs = details.duration_seconds || details.durationSeconds;
-  if (secs !== undefined && secs !== null) {
-    const numSecs = Number(secs);
-    if (numSecs >= 60) {
-      return `${Math.floor(numSecs / 60)} دقيقة`;
-    }
-    return `${numSecs} ثانية`;
+    return formatExactArabicDuration(Number(mins) * 60);
   }
 
   if (details.login_time) {
     const start = new Date(details.login_time).getTime();
     const end = new Date(createdAt).getTime();
-    const diffMins = Math.max(1, Math.round((end - start) / (1000 * 60)));
-    if (diffMins >= 60) {
-      return `${Math.floor(diffMins / 60)} ساعة و ${diffMins % 60} دقيقة`;
-    }
-    return `${diffMins} دقيقة`;
+    const diffSecs = Math.max(1, Math.round((end - start) / 1000));
+    return formatExactArabicDuration(diffSecs);
   }
 
   return null;
