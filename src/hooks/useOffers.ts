@@ -126,6 +126,8 @@ export function useOffer(id: string) {
 
   return useQuery({
     queryKey: ["offer", id],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("job_offers")

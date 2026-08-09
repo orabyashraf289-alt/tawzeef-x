@@ -149,6 +149,8 @@ export function useDeleteAgency() {
 export function useAgencyAssignments(agencyId?: string, companyId?: string) {
   return useQuery({
     queryKey: ["agency-assignments", agencyId, companyId],
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     queryFn: async () => {
       let q = supabase
         .from("agency_assignments" as any)
@@ -196,6 +198,8 @@ export function useCreateAssignment() {
 export function useAgencyCandidates(agencyId: string | undefined) {
   return useQuery({
     queryKey: ["agency-candidates", agencyId],
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     queryFn: async () => {
       const direct = await (supabase as any).from("candidates").select("*").eq("agency_id", agencyId!);
       const assignments = await supabase

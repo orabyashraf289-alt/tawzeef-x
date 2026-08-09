@@ -18,6 +18,8 @@ export function useSavedFilters(scope?: SearchScope) {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["saved-filters", user?.id, scope],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       let q = supabase
         .from("saved_filters" as any)
