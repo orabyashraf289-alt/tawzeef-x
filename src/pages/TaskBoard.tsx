@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, Search, Calendar, User, Clock, ArrowLeft, ArrowRight, X,
   CheckCircle2, AlertCircle, Trash2, Sliders, ChevronLeft, ChevronRight, ClipboardList, GripVertical,
-  AlertTriangle, Sparkles, FileSpreadsheet, LayoutGrid, List, Briefcase, UserCheck, FileText
+  AlertTriangle, Sparkles, FileSpreadsheet, LayoutGrid, List, Briefcase, UserCheck, FileText,
+  Loader2, CheckSquare, Square, Filter
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -250,6 +252,66 @@ export default function TaskBoard() {
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
   const [selectedTask, setSelectedTask] = useState<ExtendedTask | null>(null);
 
+  // AI Task Generator State
+  const [showAiModal, setShowAiModal] = useState<boolean>(false);
+  const [aiTargetCandidate, setAiTargetCandidate] = useState<string>("");
+  const [aiTargetJob, setAiTargetJob] = useState<string>("");
+  const [isGeneratingTasks, setIsGeneratingTasks] = useState<boolean>(false);
+
+  // Selected Task IDs for Bulk Operations
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+
+  const toggleSelectTask = (taskId: string) => {
+    setSelectedTaskIds(prev => 
+      prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedTaskIds.length === filteredTasks.length) {
+      setSelectedTaskIds([]);
+    } else {
+      setSelectedTaskIds(filteredTasks.map(t => t.id));
+    }
+  };
+
+  const bulkMoveMutation = useMutation({
+    mutationFn: async ({ taskIds, column }: { taskIds: string[]; column: string }) => {
+      const { error } = await supabase
+        .from("tasks" as any)
+        .update({ column_status: column })
+        .in("id", taskIds);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", user?.id] });
+      setSelectedTaskIds([]);
+      toast({
+        title: locale === "ar" ? "تم تحديث حالة المهام المحددة" : "Selected Tasks Moved",
+        description: locale === "ar" ? "تم بنجاح تغيير حالة المهام المحددة." : "Tasks updated successfully.",
+      });
+    }
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (taskIds: string[]) => {
+      const { error } = await supabase
+        .from("tasks" as any)
+        .delete()
+        .in("id", taskIds);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", user?.id] });
+      setSelectedTaskIds([]);
+      toast({
+        title: locale === "ar" ? "تم حذف المهام المحددة" : "Tasks Deleted",
+        description: locale === "ar" ? "تمت إزالة المهام المحددة من اللوحة." : "Tasks removed.",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Candidate and Job linking
   const { data: candidatesList } = useCandidates();
   const { data: jobsList } = useJobs();
@@ -476,6 +538,92 @@ export default function TaskBoard() {
     deleteTaskMutation.mutate(taskId);
   };
 
+  const handleGenerateAiTasks = async () => {
+    setIsGeneratingTasks(true);
+    try {
+      const candidateObj = candidatesList?.find(c => c.id === aiTargetCandidate);
+      const jobObj = jobsList?.find(j => j.id === aiTargetJob);
+
+      const candidateName = candidateObj?.name || (locale === "ar" ? "مرشح جديد" : "New Candidate");
+      const jobTitle = jobObj?.title || (locale === "ar" ? "الوظيفة المحددة" : "Target Job");
+
+      const generatedTasks = [
+        {
+          user_id: user?.id,
+          title: `مراجعة السيرة الذاتية لـ ${candidateName}`,
+          title_en: `Review Resume for ${candidateName}`,
+          description: `التحقق من المؤهلات والخبرات السابقة للمرشح ${candidateName} المطابقة لوظيفة ${jobTitle}.`,
+          description_en: `Verify qualifications and background for ${candidateName} for position ${jobTitle}.`,
+          assignee: locale === "ar" ? "أحمد الحربي" : "Ahmad Al-Harbi",
+          due_date: new Date(Date.now() + 86400000 * 2).toISOString().slice(0, 10),
+          priority: "high",
+          column_status: "todo",
+          candidate_id: aiTargetCandidate || null,
+          job_id: aiTargetJob || null,
+          tags: ["فحص مبدئي", "AI Auto"],
+          subtasks: [
+            { id: "st-1", title: "فحص الشهادات الأكاديمية", completed: false },
+            { id: "st-2", title: "مطابقة سنوات الخبرة", completed: false },
+          ]
+        },
+        {
+          user_id: user?.id,
+          title: `تنسيق مقابلة تقنية لـ ${candidateName}`,
+          title_en: `Schedule Technical Interview for ${candidateName}`,
+          description: `إرسال مواعيد التنسيق ودعوة التقييم الفني للمرشح الخاص بوظيفة ${jobTitle}.`,
+          description_en: `Send calendar invitation and technical evaluation guidelines for ${jobTitle}.`,
+          assignee: locale === "ar" ? "سارة السعيد" : "Sara Al-Said",
+          due_date: new Date(Date.now() + 86400000 * 4).toISOString().slice(0, 10),
+          priority: "medium",
+          column_status: "todo",
+          candidate_id: aiTargetCandidate || null,
+          job_id: aiTargetJob || null,
+          tags: ["مقابلات", "AI Auto"],
+          subtasks: [
+            { id: "st-3", title: "تحديد المقابل الفني من الفريق", completed: false },
+            { id: "st-4", title: "إرسال رابط Google Meet", completed: false },
+          ]
+        },
+        {
+          user_id: user?.id,
+          title: `إعداد تقييم 360 المبدئي لـ ${candidateName}`,
+          title_en: `Prepare 360 Evaluation form for ${candidateName}`,
+          description: `إنشاء نموذج التقييم الشامل لجمع ملاحظات فريق التوظيف على ${candidateName}.`,
+          description_en: `Create 360 feedback template for team interviewers on ${candidateName}.`,
+          assignee: locale === "ar" ? "محمد الفهد" : "Mohammed Al-Fahad",
+          due_date: new Date(Date.now() + 86400000 * 5).toISOString().slice(0, 10),
+          priority: "medium",
+          column_status: "backlog",
+          candidate_id: aiTargetCandidate || null,
+          job_id: aiTargetJob || null,
+          tags: ["تقييم 360", "AI Auto"],
+          subtasks: []
+        }
+      ];
+
+      const { error } = await supabase.from("tasks" as any).insert(generatedTasks);
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["tasks", user?.id] });
+      setShowAiModal(false);
+      setAiTargetCandidate("");
+      setAiTargetJob("");
+      toast({
+        title: locale === "ar" ? "تمت توليد المهام التوظيفية بنجاح ✨" : "AI Tasks Generated Successfully ✨",
+        description: locale === "ar" ? "تم إضافة 3 مهام توظيفية مؤتمتة ومدرجة باللوحة." : "Created 3 automated recruitment tasks.",
+      });
+    } catch (err: any) {
+      console.error("AI task generation error:", err);
+      toast({
+        title: locale === "ar" ? "خطأ في التوليد" : "Generation Error",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingTasks(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <AnimatedDashboardBackground />
@@ -498,6 +646,14 @@ export default function TaskBoard() {
             accentColor="emerald"
             actions={
               <div className="flex items-center gap-3 flex-wrap">
+                <Button
+                  onClick={() => setShowAiModal(true)}
+                  variant="outline"
+                  className="rounded-xl h-11 px-4 text-xs font-bold gap-2 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 shadow-xs"
+                >
+                  <Sparkles className="w-4 h-4 text-emerald-500 animate-pulse" />
+                  {locale === "ar" ? "إنشاء مهام ذكية (AI) ✨" : "Generate AI Tasks ✨"}
+                </Button>
                 <Button
                   onClick={() => {
                     const rows = tasks.map(t => ({
@@ -966,6 +1122,129 @@ export default function TaskBoard() {
             setSelectedTask(null);
           }}
         />
+
+        {/* AI Smart Task Generator Modal */}
+        <Dialog open={showAiModal} onOpenChange={setShowAiModal}>
+          <DialogContent className="glass-card-premium border border-emerald-500/30 max-w-lg rounded-2xl p-6 shadow-2xl dir-rtl" dir={dir}>
+            <DialogHeader className="text-right">
+              <DialogTitle className="text-lg font-black text-foreground flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-emerald-500 animate-pulse" />
+                <span>{locale === "ar" ? "توليد مهام توظيف ذكية بالذكاء الاصطناعي (AI)" : "Generate AI Recruitment Tasks"}</span>
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 py-3">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {locale === "ar" 
+                  ? "يقوم المحرك الذكي بتحليل المرشح والوظيفة المستهدفة وإنشاء خطة عمل مؤتمتة من 3 مهام محددة المواعيد والمسؤولين والأنشطة الفرعية."
+                  : "AI Engine generates an automated 3-step action plan with clear deadlines, assignees, and subtasks."}
+              </p>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold">{locale === "ar" ? "اختر المرشح المستهدف *" : "Select Target Candidate *"}</Label>
+                <select
+                  value={aiTargetCandidate}
+                  onChange={(e) => setAiTargetCandidate(e.target.value)}
+                  className="w-full bg-card/40 border border-border/80 rounded-xl px-3 py-2.5 text-xs focus:ring-1 focus:ring-emerald-500 outline-none"
+                >
+                  <option value="">{locale === "ar" ? "-- اختر مرشح من القائمة --" : "-- Select Candidate --"}</option>
+                  {candidatesList?.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.name} ({c.job_title || "مرشح"})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold">{locale === "ar" ? "اختر الوظيفة المستهدفة *" : "Select Target Job *"}</Label>
+                <select
+                  value={aiTargetJob}
+                  onChange={(e) => setAiTargetJob(e.target.value)}
+                  className="w-full bg-card/40 border border-border/80 rounded-xl px-3 py-2.5 text-xs focus:ring-1 focus:ring-emerald-500 outline-none"
+                >
+                  <option value="">{locale === "ar" ? "-- اختر وظيفة من القائمة --" : "-- Select Job --"}</option>
+                  {jobsList?.map((j: any) => (
+                    <option key={j.id} value={j.id}>{j.title}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <DialogFooter className="flex items-center justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowAiModal(false)}
+                className="rounded-xl text-xs font-bold h-10"
+              >
+                {locale === "ar" ? "إلغاء" : "Cancel"}
+              </Button>
+              <Button
+                onClick={handleGenerateAiTasks}
+                disabled={isGeneratingTasks}
+                className="rounded-xl text-xs font-bold h-10 px-5 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20 gap-2"
+              >
+                {isGeneratingTasks ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>{locale === "ar" ? "جاري التوليد..." : "Generating..."}</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>{locale === "ar" ? "توليد الخطة فوراً" : "Generate Now"}</span>
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Floating Bulk Action Bar */}
+        <AnimatePresence>
+          {selectedTaskIds.length > 0 && (
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 glass-card-premium border border-primary/40 shadow-2xl rounded-2xl px-6 py-3.5 flex items-center gap-4 dir-rtl"
+            >
+              <span className="text-xs font-extrabold text-foreground flex items-center gap-2">
+                <CheckSquare className="w-4 h-4 text-primary" />
+                <span>{locale === "ar" ? `تم تحديد ${selectedTaskIds.length} مهمة` : `${selectedTaskIds.length} tasks selected`}</span>
+              </span>
+
+              <div className="h-4 w-px bg-border/60" />
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => bulkMoveMutation.mutate({ taskIds: selectedTaskIds, column: "done" })}
+                  className="rounded-xl text-[11px] font-bold h-8 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 ml-1" />
+                  {locale === "ar" ? "تعليم كمكتمل" : "Mark Done"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => bulkDeleteMutation.mutate(selectedTaskIds)}
+                  className="rounded-xl text-[11px] font-bold h-8 border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10"
+                >
+                  <Trash2 className="w-3.5 h-3.5 ml-1" />
+                  {locale === "ar" ? "حذف التحديد" : "Delete Selected"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSelectedTaskIds([])}
+                  className="rounded-xl text-[11px] font-bold h-8 text-muted-foreground hover:bg-muted"
+                >
+                  {locale === "ar" ? "إلغاء التحديد" : "Clear"}
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       </motion.div>
     </DashboardLayout>
