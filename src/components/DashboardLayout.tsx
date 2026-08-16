@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Briefcase, Users, Bot, Settings, Menu, Calendar, BarChart3, Bell, LogOut, X, Kanban, Crown, UserCog, FileText, Sun, Moon, Monitor, Target, Globe, GraduationCap, Shield, Star, Download, BookOpen, GitBranch, Map, Search, Archive, Building2, Handshake, ClipboardList, ShieldCheck, ChevronDown, CheckSquare,
+  LayoutDashboard, Briefcase, Users, Bot, Settings, Menu, Calendar, BarChart3, Bell, LogOut, X, Kanban, Crown, UserCog, FileText, Sun, Moon, Monitor, Target, Globe, GraduationCap, Shield, Star, Download, BookOpen, GitBranch, Map, Search, Archive, Building2, Handshake, ClipboardList, ShieldCheck, ChevronDown, CheckSquare, Plus,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
