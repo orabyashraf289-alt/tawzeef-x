@@ -65,6 +65,7 @@ import { useI18n } from "@/contexts/I18nContext";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
+import { OffersSkeleton } from "@/components/Skeletons";
 
 export default function OffersPage() {
   const { t, locale } = useI18n();
@@ -500,6 +501,14 @@ export default function OffersPage() {
       onSuccess: () => setEditingOffer(null),
     });
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <OffersSkeleton />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

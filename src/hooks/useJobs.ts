@@ -431,6 +431,8 @@ export function useInterviews() {
       return data;
     },
     enabled: !!user,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 
@@ -627,6 +629,8 @@ export function useNotifications() {
       return data;
     },
     enabled: !!user,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 }
 
@@ -649,5 +653,7 @@ export function useDashboardStats() {
       return { activeJobs, totalCandidates, hired };
     },
     enabled: !!user,
+    staleTime: 3 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
 }

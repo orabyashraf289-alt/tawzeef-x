@@ -33,6 +33,7 @@ import { Progress } from "@/components/ui/progress";
 import CandidateChecklistPanel from "@/components/CandidateChecklistPanel";
 import { encryptField, decryptField } from "@/lib/security";
 import { useI18n } from "@/contexts/I18nContext";
+import { ProfileSkeleton } from "@/components/Skeletons";
 
 const statusConfig: Record<string, { label: string; bg: string; dot: string }> = {
   "مقبول": { label: "مقبول", bg: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400", dot: "bg-emerald-500" },
@@ -223,10 +224,7 @@ export default function CandidateProfile() {
   if (isPageLoading) {
     return (
       <DashboardLayout>
-        <div className="p-8 text-center py-20">
-          <Clock className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
-          <p className="text-sm font-semibold text-foreground">جاري تحميل ملف المعلم والشهادات...</p>
-        </div>
+        <ProfileSkeleton />
       </DashboardLayout>
     );
   }

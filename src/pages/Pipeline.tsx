@@ -26,6 +26,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
+import { PipelineSkeleton } from "@/components/Skeletons";
 import {
   DndContext,
   DragOverlay,
@@ -1172,29 +1173,7 @@ export default function Pipeline() {
 
         {/* Pipeline Board / Timeline */}
         {isLoading ? (
-          <div className="flex gap-3 overflow-x-auto pb-4">
-            {STAGES.map((s) => (
-              <div key={s.id} className="min-w-[240px] flex-1 rounded-xl border border-border/50 bg-muted/20 p-3">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} />
-                  <div className="h-3 bg-muted rounded w-20" />
-                </div>
-                <div className="space-y-2">
-                  {[1, 2].map(i => (
-                    <div key={i} className="bg-card rounded-lg border border-border/50 p-3 animate-pulse">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-muted" />
-                        <div className="flex-1 space-y-1">
-                          <div className="h-3 bg-muted rounded w-2/3" />
-                          <div className="h-2 bg-muted rounded w-1/3" />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <PipelineSkeleton />
         ) : (candidates || []).length === 0 ? (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
             className="text-center py-20 bg-card rounded-2xl border border-border/50">

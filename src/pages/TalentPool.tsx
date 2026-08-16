@@ -20,6 +20,7 @@ import { toast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/contexts/I18nContext";
+import { TalentPoolSkeleton } from "@/components/Skeletons";
 
 export default function TalentPool() {
   const { user } = useAuth();
@@ -230,16 +231,7 @@ export default function TalentPool() {
 
         {/* Content */}
         {isLoading ? (
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="bg-card rounded-xl p-5 border border-border/50 animate-pulse">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-11 h-11 rounded-full bg-muted" />
-                  <div className="space-y-2 flex-1"><div className="h-4 bg-muted rounded w-2/3" /><div className="h-3 bg-muted rounded w-1/2" /></div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <TalentPoolSkeleton />
         ) : entries.length === 0 && !hasFilters ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20 bg-card rounded-2xl border border-border/50">
             <div className="w-16 h-16 rounded-2xl bg-warning/10 flex items-center justify-center mx-auto mb-4">

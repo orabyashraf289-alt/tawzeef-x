@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import DateRangeFilter, { type DateRange } from "@/components/reports/DateRangeFilter";
 import HiringKPIReport from "@/components/reports/HiringKPIReport";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
+import { ReportsSkeleton } from "@/components/Skeletons";
 
 const SOURCE_COLORS: Record<string, string> = {
   "LinkedIn": "hsl(222, 65%, 46%)",
@@ -37,10 +38,10 @@ const tooltipStyle = {
 
 export default function Reports() {
   const { toast } = useToast();
-  const { data: candidates } = useCandidates();
-  const { data: jobs } = useJobs();
-  const { data: interviews } = useInterviews();
-  const { data: offers } = useOffers();
+  const { data: candidates, isLoading: isCandidatesLoading } = useCandidates();
+  const { data: jobs, isLoading: isJobsLoading } = useJobs();
+  const { data: interviews, isLoading: isInterviewsLoading } = useInterviews();
+  const { data: offers, isLoading: isOffersLoading } = useOffers();
   const dynamicStages = useActiveStages();
   const reportRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
@@ -589,6 +590,14 @@ export default function Reports() {
   const chartInterviewsLabel = t("reports.interviews");
   const chartHiredLabel = t("reports.hired");
   const chartCandidateCountLabel = t("reports.candidateCount");
+
+  if (isCandidatesLoading || isJobsLoading || isInterviewsLoading || isOffersLoading) {
+    return (
+      <DashboardLayout>
+        <ReportsSkeleton />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
