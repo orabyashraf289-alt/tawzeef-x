@@ -34,37 +34,55 @@ const tourIdMap: Record<string, string> = {
   "/settings": "nav-settings",
 };
 
-const allNavItems = [
-  { icon: LayoutDashboard, labelKey: "nav.dashboard", path: "/dashboard", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment", "enterprise"] },
-  { icon: CheckSquare, labelKey: "nav.tasks", path: "/tasks", roles: ["admin", "recruiter", "reviewer"], workspaces: ["enterprise"] },
-  { icon: Target, labelKey: "nav.evaluation", path: "/evaluation", roles: ["admin", "recruiter", "reviewer"], workspaces: ["enterprise"] },
-  { icon: Briefcase, labelKey: "nav.jobs", path: "/jobs", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
-  { icon: Users, labelKey: "nav.candidates", path: "/candidates", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
-  { icon: Kanban, labelKey: "nav.pipeline", path: "/pipeline", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
-  { icon: Calendar, labelKey: "nav.interviews", path: "/interviews", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
-  { icon: FileText, labelKey: "nav.offers", path: "/offers", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
-  { icon: BarChart3, labelKey: "nav.reports", path: "/reports", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
-  { icon: Target, labelKey: "nav.hiringPlan", path: "/hiring-plan", roles: ["admin", "recruiter"], workspaces: ["enterprise"] },
-  { icon: Bell, labelKey: "nav.notifications", path: "/notifications", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment", "enterprise"] },
-  { icon: Bot, labelKey: "nav.aiAssistant", path: "/ai-assistant", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
-  { icon: Star, labelKey: "nav.talentPool", path: "/talent-pool", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
-  { icon: Archive, labelKey: "nav.resumeArchive", path: "/resume-archive", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
-  { icon: BookOpen, labelKey: "nav.questionBank", path: "/question-bank", roles: ["admin", "recruiter"], workspaces: ["recruitment", "enterprise"] },
-  { icon: GitBranch, labelKey: "nav.workflow", path: "/workflow", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
-  { icon: ClipboardList, labelKey: "nav.checklistTracker", path: "/checklist-tracker", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
-
-  { icon: Building2, labelKey: "nav.company", path: "/company", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
-  { icon: Handshake, labelKey: "nav.companyAgencies", path: "/company/agencies", roles: ["admin", "recruiter"], workspaces: ["recruitment", "enterprise"] },
-  { icon: Handshake, labelKey: "nav.agency", path: "/agency", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
-  { icon: UserCog, labelKey: "nav.team", path: "/team", roles: ["admin"], workspaces: ["enterprise"] },
-  { icon: Building2, labelKey: "nav.adminCompanies", path: "/admin/companies", roles: ["admin"], workspaces: ["enterprise"], superAdminOnly: true },
-  { icon: Handshake, labelKey: "nav.adminAgencies", path: "/admin/agencies", roles: ["admin"], workspaces: ["enterprise"], superAdminOnly: true },
-  { icon: Shield, labelKey: "nav.auditLog", path: "/audit-log", roles: ["admin", "recruiter"], workspaces: ["enterprise"] },
-  { icon: ShieldCheck, labelKey: "nav.qualityReport", path: "/admin/quality", roles: ["admin"], workspaces: ["enterprise"], superAdminOnly: true },
-  { icon: Map, labelKey: "nav.roadmap", path: "/roadmap", roles: ["admin"], workspaces: ["enterprise"], superAdminOnly: true },
-  { icon: GraduationCap, labelKey: "nav.tutorial", path: "/tutorial", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
-  { icon: Download, labelKey: "nav.install", path: "/install", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
-  { icon: Settings, labelKey: "nav.settings", path: "/settings", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment", "enterprise"] },
+const navGroups = [
+  {
+    id: "core",
+    labelAr: "الاستقطاب والتوظيف",
+    labelEn: "Recruitment Core",
+    items: [
+      { icon: LayoutDashboard, labelKey: "nav.dashboard", path: "/dashboard", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment", "enterprise"] },
+      { icon: Briefcase, labelKey: "nav.jobs", path: "/jobs", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
+      { icon: Users, labelKey: "nav.candidates", path: "/candidates", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
+      { icon: Kanban, labelKey: "nav.pipeline", path: "/pipeline", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
+      { icon: Calendar, labelKey: "nav.interviews", path: "/interviews", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
+      { icon: FileText, labelKey: "nav.offers", path: "/offers", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
+      { icon: CheckSquare, labelKey: "nav.tasks", path: "/tasks", roles: ["admin", "recruiter", "reviewer"], workspaces: ["enterprise"] },
+      { icon: Target, labelKey: "nav.evaluation", path: "/evaluation", roles: ["admin", "recruiter", "reviewer"], workspaces: ["enterprise"] },
+    ]
+  },
+  {
+    id: "ai_tools",
+    labelAr: "الذكاء الاصطناعي والأدوات",
+    labelEn: "AI & Intelligence",
+    items: [
+      { icon: Bot, labelKey: "nav.aiAssistant", path: "/ai-assistant", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
+      { icon: Star, labelKey: "nav.talentPool", path: "/talent-pool", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
+      { icon: Archive, labelKey: "nav.resumeArchive", path: "/resume-archive", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
+      { icon: BookOpen, labelKey: "nav.questionBank", path: "/question-bank", roles: ["admin", "recruiter"], workspaces: ["recruitment", "enterprise"] },
+      { icon: GitBranch, labelKey: "nav.workflow", path: "/workflow", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
+      { icon: ClipboardList, labelKey: "nav.checklistTracker", path: "/checklist-tracker", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
+    ]
+  },
+  {
+    id: "analytics_admin",
+    labelAr: "التقارير وإدارة المنشأة",
+    labelEn: "Analytics & Organization",
+    items: [
+      { icon: BarChart3, labelKey: "nav.reports", path: "/reports", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
+      { icon: Target, labelKey: "nav.hiringPlan", path: "/hiring-plan", roles: ["admin", "recruiter"], workspaces: ["enterprise"] },
+      { icon: Bell, labelKey: "nav.notifications", path: "/notifications", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment", "enterprise"] },
+      { icon: Building2, labelKey: "nav.company", path: "/company", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
+      { icon: Handshake, labelKey: "nav.companyAgencies", path: "/company/agencies", roles: ["admin", "recruiter"], workspaces: ["recruitment", "enterprise"] },
+      { icon: Handshake, labelKey: "nav.agency", path: "/agency", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
+      { icon: UserCog, labelKey: "nav.team", path: "/team", roles: ["admin"], workspaces: ["enterprise"] },
+      { icon: Building2, labelKey: "nav.adminCompanies", path: "/admin/companies", roles: ["admin"], workspaces: ["enterprise"], superAdminOnly: true },
+      { icon: Handshake, labelKey: "nav.adminAgencies", path: "/admin/agencies", roles: ["admin"], workspaces: ["enterprise"], superAdminOnly: true },
+      { icon: Shield, labelKey: "nav.auditLog", path: "/audit-log", roles: ["admin", "recruiter"], workspaces: ["enterprise"] },
+      { icon: ShieldCheck, labelKey: "nav.qualityReport", path: "/admin/quality", roles: ["admin"], workspaces: ["enterprise"], superAdminOnly: true },
+      { icon: Map, labelKey: "nav.roadmap", path: "/roadmap", roles: ["admin"], workspaces: ["enterprise"], superAdminOnly: true },
+      { icon: Settings, labelKey: "nav.settings", path: "/settings", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment", "enterprise"] },
+    ]
+  }
 ];
 
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
@@ -83,19 +101,18 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { showTour, startTour, endTour } = useOnboardingTour();
   useKeyboardShortcuts();
   const { open: cmdOpen, setOpen: setCmdOpen } = useCommandPalette();
+
   const { data: headerData, isLoading: headerLoading } = useQuery({
     queryKey: ["layout-profile", user?.id],
     queryFn: async () => {
       if (!user) return null;
 
-      // 1) Fetch profile details
       const { data: profile } = await supabase
         .from("profiles")
         .select("full_name, avatar_url, job_title, company_name, company_logo")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      // 2) Fetch active company via company_members ordered by joined_at to be deterministic
       const { data: memberRows } = await supabase
         .from("company_members")
         .select("company_id")
@@ -118,7 +135,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         }
       }
 
-      // Fallback to profiles table if companies table query returns empty
       if (!companyName && profile?.company_name) {
         companyName = profile.company_name;
       }
@@ -133,8 +149,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         jobTitle: profile?.job_title || null,
         companyName,
         companyLogo,
-        company_name: companyName,
-        company_logo: companyLogo,
       };
     },
     enabled: !!user,
@@ -156,15 +170,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     localStorage.setItem("active-workspace", w);
   }, []);
 
-  const navItems = allNavItems.filter(item => {
-    const workspaces = (item as any).workspaces || ["recruitment"];
-    const allowedRoles = (item as any).roles || ["admin", "recruiter", "reviewer"];
-    const superAdminOnly = (item as any).superAdminOnly;
-    if (superAdminOnly && !isSuperAdmin) return false;
-    return workspaces.includes(workspace) && allowedRoles.includes(role) && hasScreenAccess(item.path);
-  });
-
-
   const queryClient = useQueryClient();
 
   const { data: unreadNotifs } = useQuery({
@@ -178,7 +183,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   });
   const unreadNotifCount = unreadNotifs || 0;
 
-  // Real-time subscription for live badge updates
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -200,125 +204,91 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     setMobileOpen(false);
     recordNavigation(location.pathname);
     setNavLoading(true);
-    const t = setTimeout(() => setNavLoading(false), 500);
-    return () => clearTimeout(t);
+    const tm = setTimeout(() => setNavLoading(false), 350);
+    return () => clearTimeout(tm);
   }, [location.pathname]);
 
   const SidebarContent = () => (
-    <>
-      {/* Logo / Company Branding */}
-      <div className="flex items-center justify-between gap-3 px-5 h-16 border-b border-border/60 shrink-0">
-        <Link to="/dashboard" className="flex items-center gap-3 group">
-          <div>
+    <div className="flex flex-col h-full bg-md-surface-container border-r border-md-outline-variant/60 text-md-on-surface">
+      {/* 1. Header & Organization Identity */}
+      <div className="flex items-center justify-between gap-3 px-4 h-16 border-b border-md-outline-variant/60 shrink-0 bg-md-surface/60 backdrop-blur-md">
+        <Link to="/dashboard" className="flex items-center gap-3 group flex-1 min-w-0">
+          <div className="w-10 h-10 rounded-md3-md bg-md-primary-container text-md-on-primary-container flex items-center justify-center shrink-0 shadow-sm border border-md-primary/10 group-hover:scale-105 transition-transform">
             {headerLoading ? (
-              <div className="w-9 h-9 rounded-xl bg-muted animate-pulse" />
+              <div className="w-6 h-6 rounded bg-md-surface-variant animate-pulse" />
             ) : companyLogo ? (
-              <img src={companyLogo} alt={companyName || "شعار الشركة"} className="w-9 h-9 object-contain rounded-xl border border-border/30" />
+              <img src={companyLogo} alt={companyName || "شعار المنشأة"} className="w-7 h-7 object-contain rounded-md" />
             ) : (
-              <img src={tawzeefLogo} alt="Tawzeef-X" className="w-9 h-9 object-contain" />
+              <img src={tawzeefLogo} alt="Tawzeef-X" className="w-7 h-7 object-contain" />
             )}
           </div>
-          <div className="flex flex-col">
-            {headerLoading ? (
-              <div className="space-y-1.5 py-0.5">
-                <div className="w-24 h-3.5 bg-muted rounded animate-pulse" />
-                <div className="w-16 h-2.5 bg-muted rounded animate-pulse" />
-              </div>
-            ) : (
-              <>
-                <span className="text-[15px] font-black text-foreground leading-tight tracking-wide">
-                  {companyName || "Tawzeef-X"}
-                </span>
-                <span className="text-[10px] font-semibold text-primary/50 tracking-[0.15em] uppercase">
-                  منصة التوظيف
-                </span>
-              </>
-            )}
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-black text-md-on-surface leading-tight truncate">
+              {companyName || "Tawzeef-X"}
+            </span>
+            <span className="text-[10px] font-bold text-md-primary tracking-wider">
+              {workspace === "recruitment" ? "منظومة الاستقطاب" : "إدارة المهام والأداء"}
+            </span>
           </div>
         </Link>
-        <button onClick={() => setMobileOpen(false)} className="lg:hidden text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted transition-colors">
+        <button onClick={() => setMobileOpen(false)} className="lg:hidden text-md-on-surface-variant hover:text-md-on-surface p-1.5 rounded-md3-md hover:bg-md-surface-variant">
           <X className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Workspace Switcher */}
-      <div className="p-3.5 border-b border-border/40 shrink-0 relative z-30">
-        <label className="text-[9px] uppercase font-bold tracking-wider text-muted-foreground/80 px-1.5 block mb-1.5">
-          {locale === "en" ? "Active Workspace" : "بيئة العمل النشطة"}
-        </label>
+      {/* 2. Workspace Switcher Pill */}
+      <div className="p-3 border-b border-md-outline-variant/40 shrink-0">
         <div className="relative">
           <button
             onClick={() => setIsWorkspaceDropdownOpen(!isWorkspaceDropdownOpen)}
-            className="w-full flex items-center justify-between bg-muted/65 hover:bg-muted/90 border border-border/80 text-xs rounded-xl py-2.5 px-3 text-foreground font-semibold transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary/40"
+            className="w-full flex items-center justify-between bg-md-surface hover:bg-md-surface-variant/80 border border-md-outline-variant text-xs rounded-md3-lg py-2 px-3 text-md-on-surface font-bold transition-all shadow-sm"
           >
             <span className="flex items-center gap-2">
               {workspace === "recruitment" ? (
                 <>
-                  <Target className="w-4 h-4 text-primary shrink-0" />
-                  <span>{locale === "en" ? "Recruitment System" : "نظام التوظيف والتعيين"}</span>
+                  <Target className="w-4 h-4 text-md-primary shrink-0" />
+                  <span className="text-[11px]">{locale === "en" ? "Recruitment System" : "نظام التوظيف والتعيين"}</span>
                 </>
               ) : (
                 <>
-                  <ClipboardList className="w-4 h-4 text-accent shrink-0" />
-                  <span>{locale === "en" ? "Tasks & Performance" : "إدارة المهام والأداء"}</span>
+                  <ClipboardList className="w-4 h-4 text-md-secondary shrink-0" />
+                  <span className="text-[11px]">{locale === "en" ? "Tasks & Performance" : "إدارة المهام والأداء"}</span>
                 </>
               )}
             </span>
-            <ChevronDown className={cn(
-              "w-4 h-4 text-muted-foreground transition-transform duration-200",
-              isWorkspaceDropdownOpen ? "rotate-180" : ""
-            )} />
+            <ChevronDown className={cn("w-3.5 h-3.5 text-md-on-surface-variant transition-transform duration-200", isWorkspaceDropdownOpen ? "rotate-180" : "")} />
           </button>
 
           <AnimatePresence>
             {isWorkspaceDropdownOpen && (
               <>
-                {/* Backdrop click helper */}
                 <div className="fixed inset-0 z-40" onClick={() => setIsWorkspaceDropdownOpen(false)} />
-                
-                {/* Dropdown Menu */}
                 <motion.div
-                  initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                  initial={{ opacity: 0, y: -6, scale: 0.96 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.95 }}
-                  transition={{ duration: 0.18, ease: "easeOut" }}
-                  className={cn(
-                    "absolute top-full mt-1.5 w-full bg-card/95 backdrop-blur-md border border-border/80 shadow-xl rounded-xl p-1.5 z-50 flex flex-col gap-1",
-                    dir === "rtl" ? "right-0" : "left-0"
-                  )}
+                  exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute top-full mt-1.5 w-full bg-md-surface border border-md-outline-variant shadow-md3-3 rounded-md3-xl p-1.5 z-50 flex flex-col gap-1"
                 >
                   <button
-                    onClick={() => {
-                      handleWorkspaceChange("recruitment");
-                      setIsWorkspaceDropdownOpen(false);
-                    }}
+                    onClick={() => { handleWorkspaceChange("recruitment"); setIsWorkspaceDropdownOpen(false); }}
                     className={cn(
-                      "w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg text-right font-medium transition-colors",
-                      workspace === "recruitment"
-                        ? "bg-primary/8 text-primary font-bold animate-pulse-subtle"
-                        : "text-foreground hover:bg-muted/80"
+                      "w-full flex items-center gap-2 px-3 py-2 text-xs rounded-md3-md text-right font-bold transition-colors",
+                      workspace === "recruitment" ? "bg-md-primary-container text-md-on-primary-container" : "text-md-on-surface hover:bg-md-surface-variant"
                     )}
                   >
-                    <Target className="w-4 h-4 text-primary shrink-0" />
-                    <span className="flex-1 text-right">{locale === "en" ? "Recruitment System" : "نظام التوظيف والتعيين"}</span>
-                    {workspace === "recruitment" && <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
+                    <Target className="w-4 h-4 text-md-primary shrink-0" />
+                    <span className="flex-1">{locale === "en" ? "Recruitment System" : "نظام التوظيف والتعيين"}</span>
                   </button>
-
                   <button
-                    onClick={() => {
-                      handleWorkspaceChange("enterprise");
-                      setIsWorkspaceDropdownOpen(false);
-                    }}
+                    onClick={() => { handleWorkspaceChange("enterprise"); setIsWorkspaceDropdownOpen(false); }}
                     className={cn(
-                      "w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg text-right font-medium transition-colors",
-                      workspace === "enterprise"
-                        ? "bg-accent/8 text-accent font-bold animate-pulse-subtle"
-                        : "text-foreground hover:bg-muted/80"
+                      "w-full flex items-center gap-2 px-3 py-2 text-xs rounded-md3-md text-right font-bold transition-colors",
+                      workspace === "enterprise" ? "bg-md-secondary-container text-md-on-secondary-container" : "text-md-on-surface hover:bg-md-surface-variant"
                     )}
                   >
-                    <ClipboardList className="w-4 h-4 text-accent shrink-0" />
-                    <span className="flex-1 text-right">{locale === "en" ? "Tasks & Performance" : "إدارة المهام والأداء"}</span>
-                    {workspace === "enterprise" && <div className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" />}
+                    <ClipboardList className="w-4 h-4 text-md-secondary shrink-0" />
+                    <span className="flex-1">{locale === "en" ? "Tasks & Performance" : "إدارة المهام والأداء"}</span>
                   </button>
                 </motion.div>
               </>
@@ -327,181 +297,133 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto" data-tour="sidebar">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
+      {/* 3. Navigation Groups (MD3 Drawer) */}
+      <nav className="flex-1 py-3 px-2 space-y-4 overflow-y-auto custom-scrollbar" data-tour="sidebar">
+        {navGroups.map((group) => {
+          const visibleItems = group.items.filter((item) => {
+            const itemWorkspaces = item.workspaces || ["recruitment"];
+            const allowedRoles = item.roles || ["admin", "recruiter", "reviewer"];
+            const isSuperAdminOnly = (item as any).superAdminOnly;
+            if (isSuperAdminOnly && !isSuperAdmin) return false;
+            return itemWorkspaces.includes(workspace) && allowedRoles.includes(role) && hasScreenAccess(item.path);
+          });
+
+          if (visibleItems.length === 0) return null;
+
           return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className="block relative"
-              data-tour={tourIdMap[item.path]}
-              onMouseEnter={() => prefetchRoute(item.path)}
-              onFocus={() => prefetchRoute(item.path)}
-              onTouchStart={() => prefetchRoute(item.path)}
-            >
-              <div
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 text-[13px] font-medium relative overflow-hidden",
-                  isActive
-                    ? "text-primary font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="activeSidebarNav"
-                    className="absolute inset-0 bg-primary/8 rounded-xl"
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  />
-                )}
-                {isActive && (
-                  <motion.div
-                    layoutId="activeSidebarBorder"
-                    className={cn(
-                      "absolute top-1/2 -translate-y-1/2 w-[3px] h-6 bg-primary rounded-full z-10",
-                      dir === "rtl" ? "right-0" : "left-0"
-                    )}
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  />
-                )}
-                <span className="relative z-10 flex items-center gap-3 w-full">
-                  <FlaticonAnimatedIcon
-                    icon={item.icon}
-                    animation={isActive ? "bounce" : "float"}
-                    className="w-[18px] h-[18px] flex-shrink-0 relative z-10"
-                    colorClass={isActive ? "text-primary font-bold" : "text-muted-foreground"}
-                  />
-                  <span className="flex-1 relative z-10">{t(item.labelKey)}</span>
-                  {item.path === "/notifications" && unreadNotifCount > 0 && (
-                    <span className="relative z-10 flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold shadow-sm">
-                      <span className="absolute inset-0 rounded-full bg-destructive animate-ping opacity-30" />
-                      <span className="relative">{unreadNotifCount > 99 ? "99+" : unreadNotifCount}</span>
-                    </span>
-                  )}
-                </span>
+            <div key={group.id} className="space-y-1">
+              <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-md-on-surface-variant/70">
+                {locale === "en" ? group.labelEn : group.labelAr}
               </div>
-            </Link>
+              <div className="space-y-0.5">
+                {visibleItems.map((item) => {
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className="block relative group"
+                      data-tour={tourIdMap[item.path]}
+                      onMouseEnter={() => prefetchRoute(item.path)}
+                      onFocus={() => prefetchRoute(item.path)}
+                      onTouchStart={() => prefetchRoute(item.path)}
+                    >
+                      <div
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2 rounded-md3-full transition-all duration-200 text-xs font-bold relative",
+                          isActive
+                            ? "bg-md-primary text-md-on-primary shadow-sm"
+                            : "text-md-on-surface-variant hover:text-md-on-surface hover:bg-md-surface-variant/70"
+                        )}
+                      >
+                        <item.icon
+                          className={cn(
+                            "w-4 h-4 shrink-0 transition-transform group-hover:scale-110",
+                            isActive ? "text-md-on-primary" : "text-md-on-surface-variant group-hover:text-md-primary"
+                          )}
+                        />
+                        <span className="flex-1 truncate">{t(item.labelKey)}</span>
+
+                        {item.path === "/notifications" && unreadNotifCount > 0 && (
+                          <span className={cn(
+                            "flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full text-[9px] font-black",
+                            isActive ? "bg-white text-md-primary" : "bg-destructive text-destructive-foreground shadow-sm"
+                          )}>
+                            {unreadNotifCount > 99 ? "99+" : unreadNotifCount}
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
       </nav>
 
-      {/* Bottom */}
-      <div className="p-3 border-t border-border/60 space-y-1.5 shrink-0">
-        {/* Language Toggle */}
-        <div className="flex items-center justify-center gap-1 p-1 bg-muted/40 rounded-xl mx-1 mb-2">
-          {([
-            { value: "ar" as const, label: "عربي" },
-            { value: "en" as const, label: "EN" },
-          ]).map(opt => (
-            <button key={opt.value} onClick={() => setLocale(opt.value)}
-              className="relative flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors flex-1 justify-center"
-            >
-              {locale === opt.value && (
-                <div className="absolute inset-0 bg-card shadow-sm rounded-lg" />
-              )}
-              <span className={cn("relative z-10 flex items-center gap-1", locale === opt.value ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
-                {opt.value === "ar" && <Globe className="w-3.5 h-3.5" />}
-                {opt.label}
-              </span>
-            </button>
-          ))}
+      {/* 4. Footer & Profile Bar */}
+      <div className="p-3 border-t border-md-outline-variant/60 space-y-2 shrink-0 bg-md-surface/40">
+        {/* Quick Language & Theme Buttons */}
+        <div className="flex items-center justify-between gap-1 bg-md-surface rounded-md3-lg p-1 border border-md-outline-variant/50 text-[11px]">
+          <button
+            onClick={() => setLocale(locale === "ar" ? "en" : "ar")}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-md-on-surface font-bold hover:bg-md-surface-variant transition-colors"
+          >
+            <Globe className="w-3.5 h-3.5 text-md-primary" />
+            <span>{locale === "ar" ? "English" : "العربية"}</span>
+          </button>
+
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-md-on-surface font-bold hover:bg-md-surface-variant transition-colors"
+          >
+            {theme === "dark" ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-slate-700" />}
+            <span>{theme === "dark" ? "فاتح" : "داكن"}</span>
+          </button>
         </div>
 
-        {/* Theme Toggle */}
-        <div className="flex items-center justify-center gap-1 p-1 bg-muted/40 rounded-xl mx-1 mb-2">
-          {([
-            { value: "light" as const, icon: Sun, labelKey: "theme.light" },
-            { value: "dark" as const, icon: Moon, labelKey: "theme.dark" },
-            { value: "system" as const, icon: Monitor, labelKey: "theme.system" },
-          ]).map(opt => (
-            <button key={opt.value} onClick={() => setTheme(opt.value)}
-              className="relative flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors flex-1 justify-center"
-              title={t(opt.labelKey)}
-            >
-              {theme === opt.value && (
-                <div className="absolute inset-0 bg-card shadow-sm rounded-lg" />
-              )}
-              <span className={cn("relative z-10 flex items-center gap-1", theme === opt.value ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
-                <opt.icon className="w-3.5 h-3.5" />
-                <span className="hidden xl:inline">{t(opt.labelKey)}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-
+        {/* User Card */}
         {user && (
-          <div className="px-3.5 py-3 flex items-center gap-3 rounded-2xl bg-gradient-to-br from-card to-muted/20 border border-border/60 shadow-sm relative overflow-hidden group hover:border-primary/20 hover:shadow-md transition-all duration-300">
-            <div className="absolute top-0 right-0 w-8 h-8 bg-primary/5 rounded-full blur-xl pointer-events-none" />
+          <div className="px-3 py-2.5 flex items-center gap-2.5 rounded-md3-xl bg-md-surface border border-md-outline-variant shadow-sm">
             <div className="relative shrink-0">
-              {headerLoading ? (
-                <div className="w-10 h-10 rounded-xl bg-muted animate-pulse border border-border/50" />
-              ) : avatarUrl ? (
-                <img src={avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover border border-border/70" />
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="w-8 h-8 rounded-md3-md object-cover border border-md-outline-variant" />
               ) : (
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 border border-border/70 flex items-center justify-center">
-                  <Users className="w-4.5 h-4.5 text-primary/80" />
+                <div className="w-8 h-8 rounded-md3-md bg-md-primary-container text-md-on-primary-container flex items-center justify-center font-bold text-xs">
+                  {displayName.charAt(0).toUpperCase()}
                 </div>
               )}
-              {!headerLoading && (
-                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-success ring-2 ring-background flex items-center justify-center">
-                  <span className="absolute inset-0 rounded-full bg-success animate-ping opacity-75" />
-                </span>
-              )}
+              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-md-surface" />
             </div>
             <div className="flex-1 min-w-0">
-              {headerLoading ? (
-                <div className="space-y-1.5 py-0.5">
-                  <div className="w-20 h-3 bg-muted rounded animate-pulse" />
-                  <div className="w-12 h-2.5 bg-muted rounded animate-pulse" />
-                </div>
-              ) : (
-                <>
-                  <p className="text-xs text-foreground font-bold truncate tracking-wide">{displayName}</p>
-                  <p className="text-[9px] text-muted-foreground truncate leading-tight mt-0.5">{jobTitle || t("role.recruiter")}</p>
-                  <div className="mt-1">
-                    <Badge variant="outline" className="text-[8px] px-1.5 py-0 bg-primary/5 border-primary/20 text-primary font-bold">
-                      {roleLabels[role] || role}
-                    </Badge>
-                  </div>
-                </>
-              )}
+              <p className="text-xs text-md-on-surface font-black truncate">{displayName}</p>
+              <p className="text-[10px] text-md-on-surface-variant truncate">{jobTitle || roleLabels[role] || "مسؤول التوظيف"}</p>
             </div>
+            <button
+              onClick={signOut}
+              title="تسجيل الخروج"
+              className="p-1.5 text-md-on-surface-variant hover:text-destructive rounded-md hover:bg-destructive/10 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         )}
-        <TourTriggerButton onClick={startTour} />
-        <button
-          onClick={signOut}
-          className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/8 w-full transition-all duration-200 text-[13px] font-medium group"
-        >
-          <LogOut className="w-[18px] h-[18px] transition-transform group-hover:translate-x-[-2px] rtl:group-hover:translate-x-[2px]" />
-          <span>{t("nav.signOut")}</span>
-        </button>
       </div>
-    </>
+    </div>
   );
 
   return (
-    <div className={cn("flex min-h-screen relative", brandSettings?.workspaceBgUrl ? "bg-transparent" : "bg-muted/30")} dir={dir}>
-      {brandSettings?.workspaceBgUrl && (
-        <div
-          className="fixed inset-0 z-0 pointer-events-none bg-cover bg-center transition-all duration-500"
-          style={{
-            backgroundImage: `url(${brandSettings.workspaceBgUrl})`,
-            opacity: brandSettings.workspaceBgOpacity ?? 0.15,
-          }}
-        />
-      )}
-      {/* Desktop Sidebar */}
+    <div className={cn("flex min-h-screen bg-md-surface text-md-on-surface font-sans antialiased selection:bg-md-primary selection:text-md-on-primary", dir === "rtl" ? "text-right" : "text-left")} dir={dir}>
+      {/* Desktop Navigation Drawer */}
       <aside className={cn(
-        "hidden lg:flex fixed top-0 z-40 h-screen w-60 flex-col glass-sidebar shadow-md",
-        dir === "rtl" ? "right-0 border-l border-border/55" : "left-0 border-r border-border/55"
+        "hidden lg:flex fixed top-0 z-40 h-screen w-64 flex-col",
+        dir === "rtl" ? "right-0" : "left-0"
       )}>
         <SidebarContent />
       </aside>
 
-      {/* Mobile Overlay */}
+      {/* Mobile Drawer */}
       <AnimatePresence>
         {mobileOpen && (
           <div className="fixed inset-0 z-50 lg:hidden">
@@ -509,8 +431,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="absolute inset-0 bg-foreground/30 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
               onClick={() => setMobileOpen(false)}
             />
             <motion.aside
@@ -519,7 +440,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               exit={{ x: dir === "rtl" ? "100%" : "-100%" }}
               transition={{ type: "spring", stiffness: 300, damping: 28 }}
               className={cn(
-                "absolute top-0 h-full w-72 glass-sidebar shadow-2xl flex flex-col",
+                "absolute top-0 h-full w-72 shadow-2xl z-50",
                 dir === "rtl" ? "right-0" : "left-0"
               )}
             >
@@ -529,56 +450,81 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         )}
       </AnimatePresence>
 
-      {/* Main Content */}
-      <main className={cn("flex-1 min-w-0 relative z-10", dir === "rtl" ? "lg:mr-60" : "lg:ml-60")}>
-        {/* Mobile Header */}
-        <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between h-14 px-3 bg-card/90 backdrop-blur-xl border-b border-border/50 safe-area-top">
-          <div className="flex items-center gap-2.5">
-            <img src={tawzeefLogo} alt="Tawzeef-X" className="w-7 h-7 object-contain" />
-            <span className="text-sm font-bold text-foreground">Tawzeef-X</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <button onClick={() => setCmdOpen(true)} className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-              <Search className="w-5 h-5" />
-            </button>
-            <Link to="/notifications" className="relative p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-              <Bell className="w-5 h-5" />
+      {/* Main Content Area */}
+      <main className={cn("flex-1 min-w-0 flex flex-col", dir === "rtl" ? "lg:mr-64" : "lg:ml-64")}>
+        {/* Desktop Top App Bar */}
+        <header className="sticky top-0 z-30 hidden lg:flex items-center justify-between h-16 px-6 bg-md-surface/85 backdrop-blur-xl border-b border-md-outline-variant/60">
+          {/* Quick Search Pill (Command Palette Trigger) */}
+          <button
+            onClick={() => setCmdOpen(true)}
+            className="flex items-center gap-3 bg-md-surface-container hover:bg-md-surface-container-high border border-md-outline-variant text-md-on-surface-variant px-4 py-2 rounded-md3-full text-xs font-medium w-80 transition-all shadow-sm group"
+          >
+            <Search className="w-4 h-4 text-md-primary group-hover:scale-110 transition-transform" />
+            <span className="flex-1 text-right">بحث سريع بالمرشحين والوظائف...</span>
+            <kbd className="bg-md-surface px-1.5 py-0.5 rounded text-[10px] font-mono border border-md-outline-variant">⌘K</kbd>
+          </button>
+
+          {/* Right Action Icons & Status */}
+          <div className="flex items-center gap-3">
+            <Link
+              to="/jobs?action=new"
+              className="bg-md-primary text-md-on-primary text-xs font-black px-4 py-2 rounded-md3-full shadow-sm hover:shadow-md3-2 hover:scale-105 transition-all flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>شاغر جديد</span>
+            </Link>
+
+            <Link
+              to="/notifications"
+              className="relative p-2 rounded-md3-full bg-md-surface-container hover:bg-md-surface-variant text-md-on-surface transition-colors"
+              title="الإشعارات"
+            >
+              <Bell className="w-4 h-4" />
               {unreadNotifCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full animate-pulse" />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full animate-pulse" />
               )}
             </Link>
+
             <button
-              onClick={() => setMobileOpen(true)}
-              className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              onClick={startTour}
+              className="px-3 py-1.5 rounded-md3-full bg-md-secondary-container text-md-on-secondary-container text-xs font-bold hover:bg-md-secondary-container/80 transition-colors"
             >
+              جولة المنصة
+            </button>
+          </div>
+        </header>
+
+        {/* Mobile Header */}
+        <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between h-14 px-4 bg-md-surface/90 backdrop-blur-xl border-b border-md-outline-variant">
+          <div className="flex items-center gap-2.5">
+            <img src={tawzeefLogo} alt="Tawzeef-X" className="w-7 h-7 object-contain" />
+            <span className="text-sm font-black text-md-on-surface">Tawzeef-X</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setCmdOpen(true)} className="p-2 rounded-md3-md text-md-on-surface hover:bg-md-surface-variant">
+              <Search className="w-4 h-4" />
+            </button>
+            <Link to="/notifications" className="relative p-2 rounded-md3-md text-md-on-surface hover:bg-md-surface-variant">
+              <Bell className="w-4 h-4" />
+              {unreadNotifCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full" />
+              )}
+            </Link>
+            <button onClick={() => setMobileOpen(true)} className="p-2 rounded-md3-md text-md-on-surface hover:bg-md-surface-variant">
               <Menu className="w-5 h-5" />
             </button>
           </div>
         </header>
-        
-        <AnimatePresence>
-          {navLoading && (
-            <motion.div
-              initial={{ width: "0%" }}
-              animate={{ width: "95%" }}
-              exit={{ width: "100%", opacity: 0 }}
-              transition={{ duration: 0.45, ease: "easeOut" }}
-              className="fixed top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-primary via-accent to-primary z-50 pointer-events-none"
-            />
-          )}
-        </AnimatePresence>
 
-        <div
-          data-tour="main-content"
-          className="pb-16 lg:pb-0"
-        >
+        {/* Page Content Container */}
+        <div data-tour="main-content" className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto pb-20 lg:pb-10">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.25, ease: "easeInOut" }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
             >
               {children}
             </motion.div>
@@ -586,13 +532,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
       </main>
 
-      {/* Bottom Navigation (Mobile) */}
+      {/* Mobile Bottom Nav & Palettes */}
       <BottomNav />
-
-      {/* Command Palette (Ctrl+K) */}
       <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
-
-      {/* Onboarding Tour */}
       <OnboardingTour active={showTour} onEnd={endTour} />
     </div>
   );
