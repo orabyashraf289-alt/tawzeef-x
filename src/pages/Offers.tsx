@@ -1,10 +1,12 @@
 import { useState, useMemo } from "react";
 import SARSymbol from "@/components/SARSymbol";
 import DashboardLayout from "@/components/DashboardLayout";
+import { useCandidates, useJobs } from "@/hooks/useJobs";
 import { useOffers, useSendOffer, useDeleteOffer, useCreateOffer, useUpdateOffer, useWithdrawOffer, type JobOffer } from "@/hooks/useOffers";
 import { getPublicBaseUrl } from "@/lib/getPublicUrl";
-import { useCandidates, useJobs } from "@/hooks/useJobs";
+import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
+
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,11 +69,14 @@ import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { OffersSkeleton } from "@/components/Skeletons";
 
+import { OffersSkeleton } from "@/components/Skeletons";
+
 export default function OffersPage() {
   const { t, locale } = useI18n();
   const { data: offers, isLoading } = useOffers();
   const { data: candidates } = useCandidates();
   const { data: jobs } = useJobs();
+
   const sendOffer = useSendOffer();
   const deleteOffer = useDeleteOffer();
   const createOffer = useCreateOffer();
@@ -1079,10 +1084,15 @@ export default function OffersPage() {
               </TableBody>
             </Table>
           ) : (
-            <div className="p-8 text-center text-muted-foreground">
-              {t("offers.noOffers")}
-            </div>
+            <EmptyState
+              icon={FileText}
+              title={t("offers.noOffers")}
+              description="لم يتم تقديم أي عرض وظيفي حتى الآن. ابدأ بإنشاء عرض وظيفي جديد وإرساله للمرشح."
+              actionLabel={t("offers.createOffer")}
+              onAction={() => setDialogOpen(true)}
+            />
           )}
+
         </motion.div>
 
         {/* Edit Offer Dialog */}

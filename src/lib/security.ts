@@ -137,7 +137,7 @@ export function logAuditEvent(params: {
   eventType: string;
   userId?: string;
   userEmail?: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }) {
   try {
     console.log(`[AUDIT LOG] ${params.eventType}`, {
@@ -175,7 +175,7 @@ async function getKey(companyId: string): Promise<CryptoKey> {
 export async function encryptField(text: string, companyId: string): Promise<string> {
   if (!text || !companyId) return text || "";
   try {
-    const cryptoObj = typeof window !== "undefined" ? window.crypto : (globalThis as any).crypto;
+    const cryptoObj = typeof window !== "undefined" ? window.crypto : (globalThis as { crypto?: Crypto }).crypto;
     if (!cryptoObj || !cryptoObj.subtle) return text;
 
     const key = await getKey(companyId);
@@ -208,7 +208,7 @@ export async function decryptField(encryptedText: string, companyId: string): Pr
   if (!encryptedText.startsWith("enc:")) return encryptedText;
   
   try {
-    const cryptoObj = typeof window !== "undefined" ? window.crypto : (globalThis as any).crypto;
+    const cryptoObj = typeof window !== "undefined" ? window.crypto : (globalThis as { crypto?: Crypto }).crypto;
     if (!cryptoObj || !cryptoObj.subtle) return encryptedText.replace(/^enc:/, "");
 
     const base64Text = encryptedText.substring(4);

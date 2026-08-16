@@ -18,10 +18,11 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { saveBrandSettings } from "@/lib/posterBrandSettings";
 import {
   Building2, Camera, Trash2, Check, Globe, MapPin, Shield, Lock, Palette,
   Users, Plus, Mail, RefreshCw, Sparkles, QrCode, Layers, FileSpreadsheet,
-  Link2, UserPlus, AlertCircle, UserCheck, Crown, Edit2
+  Link2, UserPlus, AlertCircle, UserCheck, Crown, Edit2, Phone, Monitor, X, Loader2, Download
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -30,7 +31,9 @@ import {
   useCompanyBranches,
   useCreateCompanyBranch,
   useUpdateCompany,
+  useDeleteCompany,
 } from "@/hooks/useCompanies";
+
 import { useCompanyInvitations, useCreateCompanyInvitation, useCancelInvitation } from "@/hooks/useCompanyInvitations";
 
 export default function CompanySettingsManager() {
@@ -57,11 +60,17 @@ export default function CompanySettingsManager() {
   const [companySize, setCompanySize] = useState("");
   const [e2eEnabled, setE2eEnabled] = useState(false);
 
-  // Brand Colors
+  // Brand Colors & Custom Backgrounds
   const [brandPrimary, setBrandPrimary] = useState("#0d9488");
   const [brandAccent, setBrandAccent] = useState("#14b8a6");
   const [brandFont, setBrandFont] = useState("Cairo, sans-serif");
   const [brandQrForeground, setBrandQrForeground] = useState("#0f172a");
+  const [loginBgUrl, setLoginBgUrl] = useState<string | null>(null);
+  const [workspaceBgUrl, setWorkspaceBgUrl] = useState<string | null>(null);
+  const [workspaceBgOpacity, setWorkspaceBgOpacity] = useState<number>(0.15);
+  const [loginBgOverlayOpacity, setLoginBgOverlayOpacity] = useState<number>(0.5);
+  const [uploadingLoginBg, setUploadingLoginBg] = useState(false);
+  const [uploadingWorkspaceBg, setUploadingWorkspaceBg] = useState(false);
 
   // Sub Tab Selection
   const [activeSubTab, setActiveSubTab] = useState("profile");
@@ -72,18 +81,57 @@ export default function CompanySettingsManager() {
   const { data: branches = [], isLoading: branchesLoading } = useCompanyBranches(companyId);
   const createBranch = useCreateCompanyBranch();
   const updateCompany = useUpdateCompany();
+  const deleteCompany = useDeleteCompany();
   const createInvite = useCreateCompanyInvitation();
   const cancelInvite = useCancelInvitation();
   const removeMember = useRemoveCompanyMember();
 
-  // Branch Form & Edit Manager Dialog
+  // Branch Form & Edit Branch Dialog
   const [branchName, setBranchName] = useState("");
   const [branchCity, setBranchCity] = useState("");
   const [branchAddress, setBranchAddress] = useState("");
   const [branchManagerUserId, setBranchManagerUserId] = useState<string>("none");
 
-  const [editManagerDialog, setEditManagerDialog] = useState<{ branchId: string; branchName: string; currentManagerUserId: string | null } | null>(null);
-  const [selectedNewManagerId, setSelectedNewManagerId] = useState<string>("none");
+  const [editingBranchData, setEditingBranchData] = useState<{
+    id: string;
+    name: string;
+    city: string;
+    address: string;
+    contact_phone: string;
+    contact_email: string;
+    manager_user_id: string;
+  } | null>(null);
+
+  const handleSaveBranchFullDetails = async () => {
+    if (!editingBranchData || !editingBranchData.name.trim()) return;
+    const managerId = editingBranchData.manager_user_id === "none" ? null : editingBranchData.manager_user_id;
+
+    await updateCompany.mutateAsync({
+      id: editingBranchData.id,
+      name: editingBranchData.name.trim(),
+      city: editingBranchData.city || null,
+      address: editingBranchData.address || null,
+      notes: editingBranchData.address || null,
+      contact_phone: editingBranchData.contact_phone || null,
+      contact_email: editingBranchData.contact_email || null,
+      manager_user_id: managerId,
+    });
+
+    queryClient.invalidateQueries({ queryKey: ["company-branches", companyId] });
+    queryClient.invalidateQueries({ queryKey: ["my-companies"] });
+
+    setEditingBranchData(null);
+    toast({ title: "تم تحديث كافة بيانات الفرع والمسؤول بنجاح ✅" });
+  };
+
+  const handleDeleteBranch = async (branchId: string) => {
+    if (!confirm("هل أنت تأكد من رغبتك في حذف هذا الفرع؟")) return;
+    await deleteCompany.mutateAsync(branchId);
+    queryClient.invalidateQueries({ queryKey: ["company-branches", companyId] });
+    queryClient.invalidateQueries({ queryKey: ["my-companies"] });
+    setEditingBranchData(null);
+  };
+
 
   // Invite Form
   const [inviteEmail, setInviteEmail] = useState("");
@@ -128,6 +176,10 @@ export default function CompanySettingsManager() {
                   setBrandAccent(bs.accentColor || "#14b8a6");
                   setBrandFont(bs.fontFamily || "Cairo, sans-serif");
                   setBrandQrForeground(bs.qrForeground || "#0f172a");
+                  setLoginBgUrl(bs.loginBgUrl || null);
+                  setWorkspaceBgUrl(bs.workspaceBgUrl || null);
+                  setWorkspaceBgOpacity(bs.workspaceBgOpacity ?? 0.15);
+                  setLoginBgOverlayOpacity(bs.loginBgOverlayOpacity ?? 0.5);
                 }
 
                 const rawNotes = compData.notes;
@@ -191,6 +243,66 @@ export default function CompanySettingsManager() {
     setUploading(false);
   };
 
+  const handleLoginBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "حجم الصورة كبير جداً (الحد الأقصى 5 ميجابايت)", variant: "destructive" });
+      return;
+    }
+    setUploadingLoginBg(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const nextBgUrl = event.target?.result as string;
+      setLoginBgUrl(nextBgUrl);
+      saveBrandSettings({
+        primaryColor: brandPrimary,
+        accentColor: brandAccent,
+        fontFamily: brandFont,
+        qrForeground: brandQrForeground,
+        companyName,
+        logoUrl: companyLogo,
+        loginBgUrl: nextBgUrl,
+        workspaceBgUrl,
+        workspaceBgOpacity,
+        loginBgOverlayOpacity,
+      });
+      setUploadingLoginBg(false);
+      toast({ title: "تم رفع صورة خلفية شاشة الدخول وتفعيلها بنجاح ✅" });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleWorkspaceBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "حجم الصورة كبير جداً (الحد الأقصى 5 ميجابايت)", variant: "destructive" });
+      return;
+    }
+    setUploadingWorkspaceBg(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const nextBgUrl = event.target?.result as string;
+      setWorkspaceBgUrl(nextBgUrl);
+      saveBrandSettings({
+        primaryColor: brandPrimary,
+        accentColor: brandAccent,
+        fontFamily: brandFont,
+        qrForeground: brandQrForeground,
+        companyName,
+        logoUrl: companyLogo,
+        loginBgUrl,
+        workspaceBgUrl: nextBgUrl,
+        workspaceBgOpacity,
+        loginBgOverlayOpacity,
+      });
+      setUploadingWorkspaceBg(false);
+      toast({ title: "تم رفع صورة خلفية مساحة العمل وتفعيلها بنجاح ✅" });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSaveCompanyInfo = async () => {
     if (!user) return;
     setLoading(true);
@@ -213,6 +325,20 @@ export default function CompanySettingsManager() {
     }
 
     const rawNotesString = JSON.stringify({ size: companySize, description: notes });
+    const brandPayload = {
+      primaryColor: brandPrimary,
+      accentColor: brandAccent,
+      fontFamily: brandFont,
+      qrForeground: brandQrForeground,
+      companyName,
+      logoUrl: companyLogo,
+      loginBgUrl,
+      workspaceBgUrl,
+      workspaceBgOpacity,
+      loginBgOverlayOpacity,
+    };
+
+    saveBrandSettings(brandPayload);
 
     if (activeCompanyId) {
       const { error: compErr } = await supabase.from("companies").update({
@@ -224,12 +350,7 @@ export default function CompanySettingsManager() {
         country,
         notes: rawNotesString,
         e2e_encryption: e2eEnabled,
-        brand_settings: {
-          primaryColor: brandPrimary,
-          accentColor: brandAccent,
-          fontFamily: brandFont,
-          qrForeground: brandQrForeground
-        }
+        brand_settings: brandPayload,
       } as any).eq("id", activeCompanyId);
 
       if (compErr) {
@@ -250,12 +371,7 @@ export default function CompanySettingsManager() {
         e2e_encryption: e2eEnabled,
         owner_user_id: user.id,
         status: "active",
-        brand_settings: {
-          primaryColor: brandPrimary,
-          accentColor: brandAccent,
-          fontFamily: brandFont,
-          qrForeground: brandQrForeground
-        }
+        brand_settings: brandPayload,
       } as any).select().single();
 
       if (compErr) {
@@ -298,16 +414,7 @@ export default function CompanySettingsManager() {
     setBranchManagerUserId("none");
   };
 
-  const handleUpdateBranchManager = async () => {
-    if (!editManagerDialog) return;
-    const newManager = selectedNewManagerId === "none" ? null : selectedNewManagerId;
-    await updateCompany.mutateAsync({
-      id: editManagerDialog.branchId,
-      manager_user_id: newManager,
-    });
-    setEditManagerDialog(null);
-    toast({ title: "تم تحديث مدير الفرع بنجاح ✅" });
-  };
+
 
   const handleSendInvite = async () => {
     if (!companyId || !inviteEmail.trim()) return;
@@ -523,6 +630,131 @@ export default function CompanySettingsManager() {
               })}
             </div>
 
+            {/* Custom Background Images Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border/60">
+              {/* 1. Login Screen Background Image */}
+              <div className="p-5 rounded-3xl bg-muted/30 border border-border/60 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-2xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                      <Monitor className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-foreground">خلفية شاشة تسجيل الدخول</h4>
+                      <p className="text-[11px] text-muted-foreground">صورة تظهر كخلفية لصفحة الدخول للموظفين والمرشحين</p>
+                    </div>
+                  </div>
+                  {loginBgUrl && (
+                    <Button variant="ghost" size="sm" onClick={() => setLoginBgUrl(null)} className="h-8 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 text-xs gap-1">
+                      <X className="w-3.5 h-3.5" /> إلغاء الخلفية
+                    </Button>
+                  )}
+                </div>
+
+                {loginBgUrl ? (
+                  <div className="relative h-36 rounded-2xl overflow-hidden border border-border group shadow-xs">
+                    <img src={loginBgUrl} alt="Login Background" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <label className="cursor-pointer bg-card/90 text-foreground text-xs px-3.5 py-2 rounded-xl font-bold border border-border shadow-sm hover:bg-card">
+                        تغيير الصورة
+                        <input type="file" accept="image/*" className="hidden" onChange={handleLoginBgUpload} />
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center h-36 border-2 border-dashed border-border/80 rounded-2xl cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all text-center p-4">
+                    {uploadingLoginBg ? (
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    ) : (
+                      <>
+                        <Download className="w-6 h-6 text-muted-foreground mb-2 rotate-180" />
+                        <span className="text-xs font-bold text-foreground">اضغط لرفع صورة خلفية تسجيل الدخول</span>
+                        <span className="text-[10px] text-muted-foreground mt-1">PNG, JPG (حجم أقصى 5 ميجابايت)</span>
+                      </>
+                    )}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleLoginBgUpload} />
+                  </label>
+                )}
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-muted-foreground flex justify-between">
+                    <span>درجة تعتيم الطبقة الحامية (Overlay)</span>
+                    <span>{Math.round(loginBgOverlayOpacity * 100)}%</span>
+                  </Label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="0.9"
+                    step="0.05"
+                    value={loginBgOverlayOpacity}
+                    onChange={e => setLoginBgOverlayOpacity(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                  />
+                </div>
+              </div>
+
+              {/* 2. Workspace System Background Image */}
+              <div className="p-5 rounded-3xl bg-muted/30 border border-border/60 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-2xl bg-accent/10 text-accent-foreground flex items-center justify-center border border-accent/20">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-foreground">خلفية مساحة العمل الداخلي</h4>
+                      <p className="text-[11px] text-muted-foreground">صورة خلفية هادئة تظهر خلف اللوحات والجداول بالنظام</p>
+                    </div>
+                  </div>
+                  {workspaceBgUrl && (
+                    <Button variant="ghost" size="sm" onClick={() => setWorkspaceBgUrl(null)} className="h-8 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 text-xs gap-1">
+                      <X className="w-3.5 h-3.5" /> إلغاء الخلفية
+                    </Button>
+                  )}
+                </div>
+
+                {workspaceBgUrl ? (
+                  <div className="relative h-36 rounded-2xl overflow-hidden border border-border group shadow-xs">
+                    <img src={workspaceBgUrl} alt="Workspace Background" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <label className="cursor-pointer bg-card/90 text-foreground text-xs px-3.5 py-2 rounded-xl font-bold border border-border shadow-sm hover:bg-card">
+                        تغيير الصورة
+                        <input type="file" accept="image/*" className="hidden" onChange={handleWorkspaceBgUpload} />
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center h-36 border-2 border-dashed border-border/80 rounded-2xl cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all text-center p-4">
+                    {uploadingWorkspaceBg ? (
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    ) : (
+                      <>
+                        <Download className="w-6 h-6 text-muted-foreground mb-2 rotate-180" />
+                        <span className="text-xs font-bold text-foreground">اضغط لرفع صورة خلفية للنظام ومساحة العمل</span>
+                        <span className="text-[10px] text-muted-foreground mt-1">PNG, JPG (حجم أقصى 5 ميجابايت)</span>
+                      </>
+                    )}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleWorkspaceBgUpload} />
+                  </label>
+                )}
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-muted-foreground flex justify-between">
+                    <span>درجة وضوح خلفية النظام (Opacity)</span>
+                    <span>{Math.round(workspaceBgOpacity * 100)}%</span>
+                  </Label>
+                  <input
+                    type="range"
+                    min="0.05"
+                    max="0.4"
+                    step="0.02"
+                    value={workspaceBgOpacity}
+                    onChange={e => setWorkspaceBgOpacity(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Public Career Page Card Preview */}
             <div className="p-5 rounded-2xl border border-border/70 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent space-y-3">
               <div className="flex items-center gap-2">
@@ -617,109 +849,111 @@ export default function CompanySettingsManager() {
             </div>
 
             {/* Branches List */}
-            <div className="space-y-3">
-              <h4 className="font-bold text-xs text-muted-foreground">قائمة الفروع التابعة للشركة الأم:</h4>
+            <div className="space-y-4">
+              <h4 className="font-bold text-xs text-muted-foreground uppercase tracking-wider">قائمة الفروع التابعة للشركة الأم:</h4>
               {branches.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground text-xs bg-muted/20 rounded-2xl border border-border/40 space-y-2">
-                  <MapPin className="w-8 h-8 text-muted-foreground/30 mx-auto" />
-                  <p>لا يوجد فروع مضافة حتى الآن تحت الشركة الأم.</p>
+                <div className="p-10 text-center text-muted-foreground text-xs bg-muted/20 rounded-3xl border border-border/40 space-y-2">
+                  <Building2 className="w-10 h-10 text-muted-foreground/30 mx-auto" />
+                  <p className="font-bold text-sm text-foreground">لا يوجد فروع مضافة حتى الآن</p>
+                  <p className="text-xs text-muted-foreground">استخدم النموذج أعلاه لإضافة فروع ومقرات الشركة الجديدة وتعيين مسؤول لكل فرع.</p>
                 </div>
               ) : (
                 branches.map((b: any) => (
-                  <div key={b.id} className="p-4 rounded-2xl bg-card border border-border/60 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs hover:border-primary/40 transition-colors">
-                    <div className="flex items-start md:items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
-                        <MapPin className="w-5 h-5" />
+                  <div
+                    key={b.id}
+                    className="group p-5 rounded-3xl bg-card border border-border/60 hover:border-primary/40 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative overflow-hidden"
+                  >
+                    {/* Top hover accent bar */}
+                    <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-primary/40 via-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+
+                    {/* Left Details Block */}
+                    <div className="flex items-start gap-4 min-w-0 flex-1">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20 shadow-2xs group-hover:scale-105 transition-transform duration-200">
+                        <Building2 className="w-6 h-6" />
                       </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <p className="font-bold text-sm text-foreground">{b.name}</p>
-                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                            {b.city || "مدينة غير محددة"}
-                          </Badge>
+
+                      <div className="space-y-1.5 min-w-0 flex-1 text-right">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <h4 className="font-black text-base text-foreground tracking-tight">{b.name}</h4>
+                          {b.city && (
+                            <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 font-bold text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              {b.city}
+                            </Badge>
+                          )}
                         </div>
-                        <p className="text-xs text-muted-foreground">{b.address || "العنوان التفصيلي غير محدد"}</p>
+
+                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 pr-0.5 font-normal">
+                          {b.address || (b as any).notes || "العنوان التفصيلي غير محدد"}
+                        </p>
+
+                        {(b.contact_phone || b.contact_email) && (
+                          <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                            {b.contact_phone && (
+                              <span className="inline-flex items-center gap-1.5 bg-muted/40 text-muted-foreground px-2.5 py-1 rounded-xl border border-border/40 font-mono text-[11px]">
+                                <Phone className="w-3 h-3 text-primary" />
+                                {b.contact_phone}
+                              </span>
+                            )}
+                            {b.contact_email && (
+                              <span className="inline-flex items-center gap-1.5 bg-muted/40 text-muted-foreground px-2.5 py-1 rounded-xl border border-border/40 text-[11px]">
+                                <Mail className="w-3 h-3 text-primary" />
+                                {b.contact_email}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Assigned Manager Card */}
-                    <div className="flex items-center gap-3 bg-muted/30 p-2.5 rounded-xl border border-border/40">
-                      <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">
-                        <UserCheck className="w-4 h-4" />
+                    {/* Right Block: Branch Manager & Edit Button */}
+                    <div className="flex items-center gap-3 shrink-0 self-end lg:self-center pt-2 lg:pt-0 border-t lg:border-t-0 border-border/40 w-full lg:w-auto justify-between lg:justify-end">
+                      <div className="flex items-center gap-3 bg-muted/30 px-3.5 py-2.5 rounded-2xl border border-border/50 shadow-2xs">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0 border border-emerald-500/20">
+                          <UserCheck className="w-4.5 h-4.5" />
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] text-muted-foreground font-semibold">المسؤول المباشر عن الفرع</p>
+                          <p className="text-xs font-bold text-foreground flex items-center gap-1">
+                            {b.manager_profile?.full_name ? (
+                              <>
+                                <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                <span>{b.manager_profile.full_name}</span>
+                                <span className="text-[10px] text-muted-foreground font-normal">({b.manager_profile.job_title || "مسؤول توظيف"})</span>
+                              </>
+                            ) : (
+                              <span className="text-amber-600 font-medium italic text-[11px]">غير معين (انقر للتعديل)</span>
+                            )}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-[10px] text-muted-foreground font-semibold">مدير / مسؤول الفرع:</p>
-                        <p className="text-xs font-bold text-foreground">
-                          {b.manager_profile?.full_name ? (
-                            <>👑 {b.manager_profile.full_name} <span className="text-[10px] text-muted-foreground font-normal">({b.manager_profile.job_title || "مسؤول توظيف"})</span></>
-                          ) : (
-                            <span className="text-amber-600 italic">غير معين</span>
-                          )}
-                        </p>
-                      </div>
+
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-primary hover:bg-primary/10"
+                        variant="outline"
+                        size="sm"
+                        className="h-10 px-4 rounded-2xl font-bold text-xs gap-2 border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground shadow-2xs transition-all hover:scale-[1.02] active:scale-[0.98]"
                         onClick={() => {
-                          setEditManagerDialog({
-                            branchId: b.id,
-                            branchName: b.name,
-                            currentManagerUserId: b.manager_user_id || null,
+                          setEditingBranchData({
+                            id: b.id,
+                            name: b.name || "",
+                            city: b.city || "",
+                            address: b.address || b.notes || "",
+                            contact_phone: b.contact_phone || "",
+                            contact_email: b.contact_email || "",
+                            manager_user_id: b.manager_user_id || "none",
                           });
-                          setSelectedNewManagerId(b.manager_user_id || "none");
                         }}
                       >
                         <Edit2 className="w-3.5 h-3.5" />
+                        تعديل الفرع
                       </Button>
                     </div>
                   </div>
                 ))
               )}
             </div>
+
           </Card>
-
-          {/* Edit Manager Modal */}
-          <Dialog open={!!editManagerDialog} onOpenChange={() => setEditManagerDialog(null)}>
-            <DialogContent className="sm:max-w-md" dir="rtl">
-              <DialogHeader className="text-right">
-                <DialogTitle className="text-base font-bold flex items-center gap-2">
-                  <Crown className="w-4 h-4 text-emerald-600" />
-                  تعيين مدير فرع {editManagerDialog?.branchName}
-                </DialogTitle>
-                <DialogDescription>
-                  اختر الموظف أو مسؤول التوظيف ليكون مسؤولاً عن هذا الفرع ومتابعة وظائفه ومرشحيه.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4 mt-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">الموظف المسؤول عن الفرع</Label>
-                  <Select value={selectedNewManagerId} onValueChange={setSelectedNewManagerId}>
-                    <SelectTrigger className="h-10 text-xs rounded-xl">
-                      <SelectValue placeholder="اختر مسؤول الفرع" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">بدون تعيين (إلغاء التعيين)</SelectItem>
-                      {members.map((m: any) => (
-                        <SelectItem key={m.user_id} value={m.user_id}>
-                          👤 {m.profiles?.full_name || "موظف"} ({m.profiles?.job_title || "مسؤول توظيف"})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button
-                  onClick={handleUpdateBranchManager}
-                  className="w-full font-bold h-10 text-xs gap-2 bg-primary text-primary-foreground"
-                >
-                  <Check className="w-4 h-4" />
-                  تأكيد تعيين مدير الفرع
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
         </TabsContent>
 
         {/* ── 4. Team Members & Branch Manager Invitations ── */}
@@ -806,6 +1040,134 @@ export default function CompanySettingsManager() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* ── Full Branch Edit Dialog ── */}
+      <Dialog open={!!editingBranchData} onOpenChange={() => setEditingBranchData(null)}>
+        <DialogContent className="max-w-lg rounded-3xl p-6" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right font-black text-lg text-foreground flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-primary" />
+              تعديل بيانات الفرع والمسؤول
+            </DialogTitle>
+            <DialogDescription className="text-right text-xs text-muted-foreground">
+              تعديل كافة بيانات الفرع والمدينة والعنوان التفصيلي وتخصيص مدير الفرع.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingBranchData && (
+            <div className="space-y-4 py-2 text-right">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold">اسم الفرع *</Label>
+                  <Input
+                    value={editingBranchData.name}
+                    onChange={(e) => setEditingBranchData({ ...editingBranchData, name: e.target.value })}
+                    placeholder="اسم الفرع..."
+                    className="rounded-xl h-10 text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold">المدينة</Label>
+                  <Input
+                    value={editingBranchData.city}
+                    onChange={(e) => setEditingBranchData({ ...editingBranchData, city: e.target.value })}
+                    placeholder="الرياض، جدة..."
+                    className="rounded-xl h-10 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold">العنوان التفصيلي للفرع</Label>
+                <Textarea
+                  value={editingBranchData.address}
+                  onChange={(e) => setEditingBranchData({ ...editingBranchData, address: e.target.value })}
+                  placeholder="أدخل الشارع، الحي، الرمز البريدي والتفاصيل..."
+                  rows={2}
+                  className="rounded-xl text-xs resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold">رقم هاتف التواصل للفرع</Label>
+                  <Input
+                    value={editingBranchData.contact_phone}
+                    onChange={(e) => setEditingBranchData({ ...editingBranchData, contact_phone: e.target.value })}
+                    placeholder="05XXXXXXXX"
+                    className="rounded-xl h-10 text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold">البريد الإلكتروني للفرع</Label>
+                  <Input
+                    type="email"
+                    value={editingBranchData.contact_email}
+                    onChange={(e) => setEditingBranchData({ ...editingBranchData, contact_email: e.target.value })}
+                    placeholder="branch@company.com"
+                    className="rounded-xl h-10 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5 border-t border-border/40 pt-3">
+                <Label className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                  <Crown className="w-4 h-4 text-amber-500" />
+                  المدير / المسؤول المباشر عن الفرع
+                </Label>
+                <Select
+                  value={editingBranchData.manager_user_id}
+                  onValueChange={(val) => setEditingBranchData({ ...editingBranchData, manager_user_id: val })}
+                >
+                  <SelectTrigger className="w-full rounded-xl h-10 text-xs">
+                    <SelectValue placeholder="اختر المسؤول..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">بدون تعيين حالياً (تخطي)</SelectItem>
+                    {members.map((m: any) => (
+                      <SelectItem key={m.user_id} value={m.user_id}>
+                        👤 {m.profiles?.full_name || "عضو بدون اسم"} ({m.profiles?.job_title || "مسؤول توظيف"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-border/40">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-destructive hover:bg-destructive/10 text-xs gap-1.5 font-bold rounded-xl"
+                  onClick={() => handleDeleteBranch(editingBranchData.id)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  حذف الفرع
+                </Button>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditingBranchData(null)}
+                    className="rounded-xl text-xs font-bold"
+                  >
+                    إلغاء
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleSaveBranchFullDetails}
+                    disabled={!editingBranchData.name.trim() || updateCompany.isPending}
+                    className="rounded-xl text-xs font-bold gap-1.5"
+                  >
+                    {updateCompany.isPending ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : "حفظ والتحديث ✅"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

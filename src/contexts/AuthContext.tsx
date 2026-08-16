@@ -34,6 +34,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    if (session?.user) {
+      try {
+        const { flushSessionAudit } = await import("@/lib/sessionTracker");
+        await flushSessionAudit(session.user.id, session.user.email, "manual");
+      } catch (err) {
+        console.error("Error logging logout audit event:", err);
+      }
+    }
+
     // Clear trusted device so next login requires OTP
     try {
       localStorage.removeItem("tawzeef-x_trusted_device");

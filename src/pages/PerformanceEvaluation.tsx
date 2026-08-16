@@ -174,6 +174,8 @@ export default function PerformanceEvaluation() {
   // Fetch evaluations
   const { data: dbEvals, isLoading } = useQuery({
     queryKey: ["performance-evaluations", user?.id],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       if (!user) return [];
       
@@ -199,6 +201,8 @@ export default function PerformanceEvaluation() {
   // Fetch profiles
   const { data: dbProfiles } = useQuery({
     queryKey: ["profiles-for-evaluation"],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")

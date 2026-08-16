@@ -6,11 +6,40 @@ import { logAuditEvent } from "@/hooks/useAuditLog";
 
 export type AppRole = "admin" | "recruiter" | "reviewer" | "job_seeker";
 
+export interface UserRoleRecord {
+  id: string;
+  user_id: string;
+  role: AppRole;
+  created_at: string;
+}
+
+export interface ActivityLogRecord {
+  id: string;
+  user_id: string;
+  user_name?: string;
+  action: string;
+  entity_type?: string;
+  entity_id?: string;
+  details?: string;
+  created_at: string;
+}
+
+export interface InvitationRecord {
+  id: string;
+  email: string;
+  role: AppRole;
+  status: string;
+  token?: string;
+  created_at: string;
+}
+
 export function useUserRole() {
   const { user } = useAuth();
 
   const query = useQuery({
     queryKey: ["user-role", user?.id],
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_user_role", { _user_id: user!.id });
       if (error) throw error;
@@ -38,12 +67,13 @@ export function useAllUserRoles() {
 
   return useQuery({
     queryKey: ["all-user-roles"],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_roles" as any)
         .select("*");
       if (error) throw error;
-      return data as any[];
+      return (data || []) as UserRoleRecord[];
     },
     enabled: !!user,
   });
@@ -71,7 +101,7 @@ export function useUpdateUserRole() {
       logAuditEvent({ eventType: "role.changed", userId: variables.userId, details: { newRole: variables.role } });
       toast({ title: "تم تحديث الصلاحية بنجاح ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -98,7 +128,7 @@ export function useDeleteTeamMember() {
       logAuditEvent({ eventType: "member.deleted", details: { deletedUserId: userId } });
       toast({ title: "تم حذف العضو بنجاح ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ في حذف العضو", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ في حذف العضو", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -113,7 +143,7 @@ export function useInvitations() {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as any[];
+      return (data || []) as InvitationRecord[];
     },
     enabled: !!user,
   });
@@ -131,12 +161,12 @@ export function useSendInvitation() {
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invitations"] });
       queryClient.invalidateQueries({ queryKey: ["activity-log"] });
       toast({ title: "تم إرسال الدعوة بنجاح ✅", description: "يمكنك نسخ رابط التسجيل ومشاركته" });
     },
-    onError: (e: any) => toast({ title: "خطأ في إرسال الدعوة", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ في إرسال الدعوة", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -152,7 +182,7 @@ export function useActivityLog() {
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
-      return data as any[];
+      return (data || []) as ActivityLogRecord[];
     },
     enabled: !!user,
   });
@@ -233,7 +263,7 @@ export function useCreateCustomRole() {
       qc.invalidateQueries({ queryKey: ["custom-roles"] });
       toast({ title: "تم إضافة الدور المخصص بنجاح! 🎉" });
     },
-    onError: (e: any) => toast({ title: "خطأ في إضافة الدور المخصص", description: e.message, variant: "destructive" })
+    onError: (e: Error) => toast({ title: "خطأ في إضافة الدور المخصص", description: e.message, variant: "destructive" })
   });
 }
 

@@ -43,6 +43,8 @@ export interface ChecklistItem {
 export function useChecklistTemplates() {
   return useQuery({
     queryKey: ["checklist-templates"],
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("checklist_templates" as any)
@@ -57,6 +59,8 @@ export function useChecklistTemplates() {
 export function useCandidateChecklists(candidateId: string | undefined) {
   return useQuery({
     queryKey: ["candidate-checklists", candidateId],
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("candidate_checklists" as any)
@@ -73,6 +77,8 @@ export function useCandidateChecklists(candidateId: string | undefined) {
 export function useChecklistItems(checklistId: string | undefined) {
   return useQuery({
     queryKey: ["checklist-items", checklistId],
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("candidate_checklist_items" as any)

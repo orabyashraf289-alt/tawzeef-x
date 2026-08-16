@@ -50,6 +50,7 @@ import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAddJob } from "@/hooks/useJobs";
+import AddJobDialog from "@/components/AddJobDialog";
 import QRCodeDialog from "@/components/QRCodeDialog";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,6 +59,10 @@ import { getApplyUrl } from "@/lib/getPublicUrl";
 import { useI18n } from "@/contexts/I18nContext";
 import { useAuth } from "@/contexts/AuthContext";
 import VoiceInputButton from "@/components/ai-assistant/VoiceInputButton";
+import AIChatHeader from "@/components/ai-assistant/AIChatHeader";
+import AIChatBubble from "@/components/ai-assistant/AIChatBubble";
+import AISuggestionChips from "@/components/ai-assistant/AISuggestionChips";
+
 import ProactiveInsightsCard, { type ProactiveInsights } from "@/components/ai-assistant/ProactiveInsightsCard";
 import EmailSentCard from "@/components/ai-assistant/EmailSentCard";
 import BulkMovedCard from "@/components/ai-assistant/BulkMovedCard";
@@ -74,6 +79,7 @@ import ModelCompareDialog from "@/components/ai-assistant/ModelCompareDialog";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
 import SpeakButton from "@/components/ai-assistant/SpeakButton";
 import { extractTextFromPDF, extractTextFromDocx } from "@/lib/fileParser";
+import { cleanAIMessageContent } from "@/lib/cleanAiMessage";
 
 const messageAnimation = {
   hidden: (role: "user" | "assistant") => ({
@@ -204,6 +210,51 @@ const suggestions = [
 ];
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+
+function extractJobFromMessage(content: string): JobData | null {
+  if (!content) return null;
+
+  const getField = (labels: string[]) => {
+    const pattern = new RegExp(
+      `(?:[*•#\\-\\s])*\\*?(?:${labels.join("|")})\\*?\\s*:\\s*\\*?([^\\n*]+)\\*?`,
+      "i"
+    );
+    const m = content.match(pattern);
+    return m ? m[1].replace(/[*_#•-]/g, "").trim() : null;
+  };
+
+  const title = getField(["المسمى الوظيفي", "عنوان الوظيفة", "الوظيفة", "المسمى", "Title"]);
+  if (!title) return null;
+
+  const department = getField(["القسم", "الإدارة", "Department"]) || "العامة";
+  const location = getField(["الموقع", "المدينة", "Location"]) || "الرياض";
+  const type = getField(["نوع التوظيف", "نوع الدوام", "النوع", "Type"]) || "دوام كامل";
+  const experience_level = getField(["الخبرة", "مستوى الخبرة", "Experience"]) || "3-5 سنوات";
+  const salaryStr = getField(["الراتب", "نطاق الراتب", "Salary"]);
+
+  let salary_min: number | undefined = undefined;
+  let salary_max: number | undefined = undefined;
+  if (salaryStr) {
+    const nums = salaryStr.match(/\d+/g);
+    if (nums && nums.length >= 2) {
+      salary_min = Number(nums[0]);
+      salary_max = Number(nums[1]);
+    } else if (nums && nums.length === 1) {
+      salary_min = Number(nums[0]);
+    }
+  }
+
+  return {
+    title,
+    department,
+    location,
+    type,
+    experience_level,
+    description: content.slice(0, 1000),
+    salary_min: salary_min ?? 6000,
+    salary_max: salary_max ?? 9500,
+  };
+}
 
 const WELCOME_MSG: Message = {
   role: "assistant",
@@ -1144,10 +1195,12 @@ export default function AIAssistant() {
   const { t } = useI18n();
   const { user } = useAuth();
   const addJobMutation = useAddJob();
-  const [messages, setMessages] = useState<Message[]>([WELCOME_MSG]);
+  const [messages, setMessages] = useState<Message[]>([]);
+
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [qrDialog, setQrDialog] = useState<{ open: boolean; jobId: string; jobTitle: string }>({ open: false, jobId: "", jobTitle: "" });
+  const [editJobModal, setEditJobModal] = useState<{ open: boolean; data: any | null; msgIndex: number | null }>({ open: false, data: null, msgIndex: null });
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1221,7 +1274,7 @@ export default function AIAssistant() {
       content: m.content,
       ...(m.metadata && typeof m.metadata === "object" ? m.metadata : {}),
     }));
-    setMessages(loaded.length > 0 ? loaded : [WELCOME_MSG]);
+    setMessages(loaded.length > 0 ? loaded : []);
     setActiveConversationId(convId);
     setSidebarOpen(false);
   };
@@ -1302,10 +1355,11 @@ export default function AIAssistant() {
   };
 
   const handleNewChat = () => {
-    setMessages([WELCOME_MSG]);
+    setMessages([]);
     setActiveConversationId(null);
     setSidebarOpen(false);
   };
+
 
   const handleDeleteConversation = async (convId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1406,12 +1460,13 @@ export default function AIAssistant() {
           const content = parsed.choices?.[0]?.delta?.content as string | undefined;
           if (content) {
             assistantSoFar += content;
+            const cleanedText = cleanAIMessageContent(assistantSoFar);
             setMessages(prev => {
               const last = prev[prev.length - 1];
               if (last?.role === "assistant" && last.isStreaming) {
-                return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
+                return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: cleanedText } : m);
               }
-              return [...prev, { role: "assistant", content: assistantSoFar, isStreaming: true }];
+              return [...prev, { role: "assistant", content: cleanedText, isStreaming: true }];
             });
           }
         } catch {
@@ -1421,8 +1476,8 @@ export default function AIAssistant() {
       }
     }
 
-    setMessages(prev => prev.map((m, i) => i === prev.length - 1 && m.isStreaming ? { ...m, isStreaming: false } : m));
-    return assistantSoFar;
+    setMessages(prev => prev.map((m, i) => i === prev.length - 1 && m.isStreaming ? { ...m, content: cleanAIMessageContent(m.content), isStreaming: false } : m));
+    return cleanAIMessageContent(assistantSoFar);
   }, []);
 
   const getFileText = async (file: File): Promise<string> => {
@@ -1507,10 +1562,11 @@ export default function AIAssistant() {
         }),
       });
 
-      // Automated retry on 429 rate limit
-      if (resp.status === 429) {
-        toast({ title: "جاري المحاولة مجدداً...", description: "الخادم خاضع لضغط مؤقت، جاري إعادة الطلب خلال ثانية..." });
-        await new Promise(r => setTimeout(r, 1500));
+      // Silent automated exponential retries on 429 rate limit (up to 3 attempts)
+      let attempts = 0;
+      while (resp.status === 429 && attempts < 3) {
+        attempts++;
+        await new Promise(r => setTimeout(r, attempts * 1000));
         resp = await fetch(CHAT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -1524,12 +1580,11 @@ export default function AIAssistant() {
       }
 
       if (resp.status === 429) {
-        toast({ title: "الخادم مشغول حالياً", description: "تم تجاوز حد الطلبات المؤقت. الرجاء المحاولة بعد ثوانٍ.", variant: "destructive" });
         setMessages(prev => [
           ...prev,
           {
             role: "assistant",
-            content: "⚠️ **عذراً يا صديقي!** خوادم الذكاء الاصطناعي تمر بضغط مؤقت أو تم الوصول للحد المسموح من الطلبات المتتابعة. يرجى الانتظار بضع ثوانٍ وإعادة إرسال طلبك وسأجيبك فوراً! 🚀",
+            content: "⚠️ **الخادم مشغول حالياً بكثرة الطلبات المتتابعة.** جاري تحسين الاستجابة، يرجى الانتظار بضع ثوانٍ وإعادة إرسال الطلب! 🚀",
           }
         ]);
         setIsLoading(false);
@@ -1588,7 +1643,7 @@ export default function AIAssistant() {
       } else {
         const data = await resp.json();
         if (data.error) { toast({ title: "خطأ", description: data.error, variant: "destructive" }); setIsLoading(false); return; }
-        const newMsg: Message = { role: "assistant", content: data.content || "" };
+        const newMsg: Message = { role: "assistant", content: cleanAIMessageContent(data.content || "") };
         if (data.type === "job_preview" && data.job_data) newMsg.jobPreview = { data: data.job_data, status: "pending" };
         else if (data.type === "job_created" && data.job) { newMsg.jobCreated = data.job; queryClient.invalidateQueries({ queryKey: ["jobs"] }); }
         else if (data.type === "job_updated" && data.job) { newMsg.jobUpdated = data.job; queryClient.invalidateQueries({ queryKey: ["jobs"] }); }
@@ -1621,13 +1676,27 @@ export default function AIAssistant() {
     }
   };
 
-  const handleConfirmJob = async (msgIndex: number) => {
+  const handleConfirmJob = async (msgIndex: number, overrideData?: any) => {
     const msg = messages[msgIndex];
-    if (!msg.jobPreview?.data) return;
+    const rawJob = overrideData || msg.jobPreview?.data || extractJobFromMessage(msg.content);
+    if (!rawJob || !rawJob.title) {
+      toast({ title: "لم يتم التعرف على مسمى الشاغر", description: "يرجى تحديد مسمى الوظيفة والمكان قبل النشر", variant: "destructive" });
+      return;
+    }
+    const jobData = {
+      title: rawJob.title,
+      department: rawJob.department || "العامة",
+      location: rawJob.location || "الرياض",
+      type: rawJob.type || "دوام كامل",
+      description: rawJob.description || undefined,
+      requirements: rawJob.requirements,
+      experience_level: rawJob.experience_level || rawJob.experience || undefined,
+      salary_min: rawJob.salary_min ?? (rawJob.salaryMin ? Number(rawJob.salaryMin) : undefined),
+      salary_max: rawJob.salary_max ?? (rawJob.salaryMax ? Number(rawJob.salaryMax) : undefined),
+    };
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) { toast({ title: "يجب تسجيل الدخول أولاً", variant: "destructive" }); return; }
-      const jobData = msg.jobPreview.data;
       
       const job = await addJobMutation.mutateAsync({
         title: jobData.title,
@@ -1835,36 +1904,73 @@ export default function AIAssistant() {
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Header */}
-          <div className="px-4 py-3 border-b border-border/20 bg-card/45 backdrop-blur-md shrink-0">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" className="lg:hidden shrink-0 w-9 h-9 rounded-xl hover:bg-muted/80" onClick={() => setSidebarOpen(!sidebarOpen)}>
-                <MessageSquare className="w-4.5 h-4.5" />
-              </Button>
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-indigo-600 to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20 border border-primary/20 relative">
-                <Bot className="w-5 h-5 text-primary-foreground" />
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-background live-breathing-indicator" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h1 className="text-sm font-black text-foreground">مساعد التوظيف الذكي</h1>
-                <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 flex-wrap font-medium">
-                  <Sparkles className="w-3 h-3 text-primary animate-pulse" />
-                  <span>الذكاء الاصطناعي التوليدي</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/10">متصل الآن</span>
-                </p>
-              </div>
-              <ExportConversation messages={messages.map(m => ({ role: m.role, content: m.content }))} />
-              <ModelSelector value={modelChoice} onChange={setModelChoice} />
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="text-xs h-8 gap-1 rounded-xl bg-card/45 border border-border/20 font-bold hover:bg-primary/5 hover:text-primary transition-all duration-300 shadow-sm" 
-                onClick={handleNewChat}
+          {/* Unified Clean Header */}
+          <AIChatHeader
+            onClearChat={handleNewChat}
+            messageCount={messages.length}
+            isStreaming={isLoading}
+            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          >
+            <ExportConversation messages={messages.map(m => ({ role: m.role, content: m.content }))} />
+            <ModelSelector value={modelChoice} onChange={setModelChoice} />
+          </AIChatHeader>
+
+          {/* AI Intelligence Ticker & Quick Playbook Toolbar */}
+          <div className="px-4 py-2 border-b border-border/20 bg-card/40 backdrop-blur-md flex items-center justify-between text-xs gap-3 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="font-bold text-foreground/90 text-[11px]">
+                محرك الذكاء الاصطناعي الفعّال:
+              </span>
+              <Badge variant="outline" className="text-[10px] font-extrabold bg-primary/10 text-primary border-primary/20">
+                {MODEL_OPTIONS.find(m => m.id === modelChoice)?.name || "Gemini 3.6 Flash"} ⚡
+              </Badge>
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-[11px] font-bold gap-1 rounded-xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20"
+                onClick={() => {
+                  setInput("أنشئ لي وصفاً وظيفياً متكاملاً لوظيفة معلم رياضيات بالرياض مع الإضافة المباشرة للنظام");
+                  setTimeout(() => handleSend(), 50);
+                }}
               >
-                <Plus className="w-3.5 h-3.5" />جديد
+                <Briefcase className="w-3 h-3" />
+                صياغة وظيفة معلم مع الإضافة الفورية 🚀
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-[11px] font-bold gap-1 rounded-xl bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 border border-indigo-500/20"
+                onClick={() => {
+                  setInput("قم بتحليل أداء التوظيف والوظائف الشاغرة اليوم واستخراج ملخص الإحصائيات");
+                  setTimeout(() => handleSend(), 50);
+                }}
+              >
+                <BarChart3 className="w-3 h-3" />
+                ملخص أداء التوظيف اليومي 📊
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-[11px] font-bold gap-1 rounded-xl bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/20"
+                onClick={() => {
+                  setInput("أنشئ دليل مقابلة وتقييم سلوكي مخصص لمرشح معلم لغة إنجليزية بخبرة 5 سنوات");
+                  setTimeout(() => handleSend(), 50);
+                }}
+              >
+                <CalendarCheck className="w-3 h-3" />
+                دليل وتقييم المقابلة السلوكية 🎯
               </Button>
             </div>
           </div>
+
+
 
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-5 bg-transparent">
@@ -1959,34 +2065,43 @@ export default function AIAssistant() {
                           <VoiceBriefingCard data={msg.voiceBriefing} />
                         )}
 
-                        {/* Job Preview Card */}
-                        {msg.jobPreview && (
+                        {/* Job Preview & Instant Publish Card */}
+                        {(msg.jobPreview || (msg.role === "assistant" && extractJobFromMessage(msg.content))) && !msg.jobCreated && (
                           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15, type: "spring" }}
-                            className={cn("mt-3 p-4 rounded-xl border space-y-3 glass-card-premium",
-                              msg.jobPreview.status === "confirmed" ? "bg-green-500/5 border-green-500/25 text-green-700 dark:text-green-300" :
-                              msg.jobPreview.status === "rejected" ? "bg-red-500/5 border-red-500/25 text-red-700 dark:text-red-300 opacity-60" :
-                              "bg-amber-500/5 border-amber-500/25 text-amber-700 dark:text-amber-300")}>
-                            <div className="flex items-center gap-2 text-xs font-bold">
-                              <Briefcase className="w-4 h-4 text-primary animate-pulse" />
-                              <span className={msg.jobPreview.status === "confirmed" ? "text-green-800 dark:text-green-300" : msg.jobPreview.status === "rejected" ? "text-red-800 dark:text-red-300" : "text-amber-800 dark:text-amber-300"}>
-                                {msg.jobPreview.status === "confirmed" ? "✅ تم إنشاء الوظيفة" : msg.jobPreview.status === "rejected" ? "❌ تم إلغاء الوظيفة" : "⏳ هل تريد إضافة هذه الوظيفة؟"}
-                              </span>
+                            className={cn("mt-3 p-4 rounded-2xl border space-y-3 shadow-md transition-all",
+                              msg.jobPreview?.status === "confirmed" ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-700 dark:text-emerald-300" :
+                              msg.jobPreview?.status === "rejected" ? "bg-red-500/5 border-red-500/25 text-red-700 dark:text-red-300 opacity-60" :
+                              "bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-card border-2 border-emerald-500/40 text-foreground")}>
+                            <div className="flex items-center justify-between text-xs font-bold">
+                              <div className="flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 text-emerald-600 animate-bounce" />
+                                <span className={msg.jobPreview?.status === "confirmed" ? "text-emerald-800 dark:text-emerald-300" : msg.jobPreview?.status === "rejected" ? "text-red-800 dark:text-red-300" : "text-emerald-800 dark:text-emerald-300 font-black"}>
+                                  {msg.jobPreview?.status === "confirmed" ? "✅ تم إضافة الوظيفة في النظام" : msg.jobPreview?.status === "rejected" ? "❌ تم إلغاء الإضافة" : "✨ تمت مراجعة وصياغة الشاغر - إضافة فوري للنظام:"}
+                                </span>
+                              </div>
+                              {(!msg.jobPreview || msg.jobPreview.status === "pending") && (
+                                <Badge className="bg-emerald-600 text-white font-extrabold text-[10px]">جاهز للنشر 🚀</Badge>
+                              )}
                             </div>
-                            <div className="grid grid-cols-2 gap-1.5 text-[11px] font-semibold">
-                              <div><span className="text-muted-foreground">المسمى:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.title}</span></div>
-                              <div><span className="text-muted-foreground">القسم:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.department}</span></div>
-                              <div><span className="text-muted-foreground">الموقع:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.location}</span></div>
-                              <div><span className="text-muted-foreground">النوع:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.type}</span></div>
-                              {msg.jobPreview.data.salary_min && <div><span className="text-muted-foreground">الراتب:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.salary_min} - {msg.jobPreview.data.salary_max}</span></div>}
-                              {msg.jobPreview.data.experience_level && <div><span className="text-muted-foreground">الخبرة:</span> <span className="font-bold text-foreground/90">{msg.jobPreview.data.experience_level}</span></div>}
+                            <div className="grid grid-cols-2 gap-1.5 text-[11px] font-semibold bg-card/60 p-2.5 rounded-xl border border-border/40">
+                              <div><span className="text-muted-foreground">المسمى:</span> <span className="font-bold text-foreground/90">{msg.jobPreview?.data.title || extractJobFromMessage(msg.content)?.title}</span></div>
+                              <div><span className="text-muted-foreground">القسم:</span> <span className="font-bold text-foreground/90">{msg.jobPreview?.data.department || extractJobFromMessage(msg.content)?.department}</span></div>
+                              <div><span className="text-muted-foreground">الموقع:</span> <span className="font-bold text-foreground/90">{msg.jobPreview?.data.location || extractJobFromMessage(msg.content)?.location}</span></div>
+                              <div><span className="text-muted-foreground">النوع:</span> <span className="font-bold text-foreground/90">{msg.jobPreview?.data.type || extractJobFromMessage(msg.content)?.type}</span></div>
                             </div>
-                            {msg.jobPreview.status === "pending" && (
-                              <div className="flex gap-2">
-                                <Button size="sm" className="flex-1 text-xs h-8 gap-1 bg-green-600 hover:bg-green-700 text-white font-bold" onClick={() => handleConfirmJob(i)}>
-                                  <Check className="w-3 h-3" />إضافة للنظام
+                            {(!msg.jobPreview || msg.jobPreview.status === "pending") && (
+                              <div className="flex flex-wrap sm:flex-nowrap gap-2">
+                                <Button size="sm" className="flex-1 text-xs h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md transition-transform hover:scale-[1.01]" onClick={() => handleConfirmJob(i)}>
+                                  <Check className="w-4 h-4" />إضافة ونشر الشاغر في النظام الآن 🚀
                                 </Button>
-                                <Button variant="outline" size="sm" className="flex-1 text-xs h-8 gap-1 text-red-600 border-red-200 hover:bg-red-50 font-bold" onClick={() => handleRejectJob(i)}>
-                                  <XCircle className="w-3 h-3" />إلغاء
+                                <Button variant="outline" size="sm" className="text-xs h-9 gap-1 text-indigo-600 border-indigo-200 hover:bg-indigo-50 font-bold rounded-xl px-3" onClick={() => {
+                                  const jobData = msg.jobPreview?.data || extractJobFromMessage(msg.content);
+                                  if (jobData) setEditJobModal({ open: true, data: jobData, msgIndex: i });
+                                }}>
+                                  <Pencil className="w-3.5 h-3.5" />تعديل قبل النشر
+                                </Button>
+                                <Button variant="outline" size="sm" className="text-xs h-9 gap-1 text-red-600 border-red-200 hover:bg-red-50 font-bold rounded-xl px-3" onClick={() => handleRejectJob(i)}>
+                                  <XCircle className="w-3.5 h-3.5" />إلغاء
                                 </Button>
                               </div>
                             )}
@@ -2128,20 +2243,41 @@ export default function AIAssistant() {
             )}
           </div>
 
-          {/* AI Strategic Roadmap Card & Smart Suggestions when new chat */}
-          {messages.length <= 1 && (
-            <div className="px-4 pb-3 w-full max-w-full mx-auto">
-              <AIStrategicRoadmapCard onPromptClick={(promptText) => { setInput(promptText); setTimeout(() => handleSend(), 50); }} />
-              <SmartSuggestions onSelect={(text) => setInput(text)} />
-            </div>
+          {/* Ultra-Clean Hero Welcome Screen when starting a new chat */}
+          {messages.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center justify-center text-center my-auto py-10 max-w-xl mx-auto px-4"
+            >
+              <div className="relative mb-3">
+                <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-primary via-primary/80 to-purple-600 flex items-center justify-center text-primary-foreground shadow-xl shadow-primary/20 border border-primary/20">
+                  <Bot className="w-8 h-8" />
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-background animate-pulse" />
+              </div>
+              
+              <Badge variant="outline" className="mb-2.5 bg-primary/10 text-primary border-primary/20 px-3 py-0.5 text-[11px] gap-1 font-bold">
+                <Sparkles className="w-3 h-3 text-primary animate-pulse" />
+                مساعد التوظيف الذكي v2.0
+              </Badge>
+
+              <h2 className="text-xl font-extrabold text-foreground mb-1">كيف تود تطوير عملية التوظيف اليوم؟</h2>
+              <p className="text-xs text-muted-foreground max-w-md leading-relaxed mb-6 font-medium">
+                أنا مستشارك الذكي المتقدم في منصة Tawzeef-X. اختر إحدى المهام أدناه أو اكتب سؤالك لتلقي تقارير وتحليلات فورية.
+              </p>
+
+              <AISuggestionChips
+                onSelectSuggestion={(prompt) => {
+                  setInput(prompt);
+                  setTimeout(() => handleSend(), 50);
+                }}
+                className="w-full"
+              />
+            </motion.div>
           )}
 
-          {/* Quick Actions Bar - active chat floating shortcuts */}
-          {messages.length > 1 && (
-            <div className="px-4 pt-2 pb-1 w-full max-w-full mx-auto">
-              <QuickActions onSelect={(text) => { setInput(text); setTimeout(() => handleSend(), 50); }} />
-            </div>
-          )}
+
 
           {/* Legacy resume indicator (kept for backward-compat) */}
           {resumeFile && (
@@ -2154,15 +2290,19 @@ export default function AIAssistant() {
             </div>
           )}
 
-          {/* Multi-file attachments preview */}
-          <div className="px-4 pb-1.5 w-full max-w-full mx-auto">
-            <FileAttachment
-              files={attachedFiles}
-              onAdd={(newOnes) => setAttachedFiles(prev => [...prev, ...newOnes])}
-              onRemove={(idx) => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
-              disabled={isLoading}
-            />
-          </div>
+          {/* Multi-file attachments preview (badges list only) */}
+          {attachedFiles.length > 0 && (
+            <div className="px-4 pb-1.5 w-full max-w-full mx-auto">
+              <FileAttachment
+                files={attachedFiles}
+                onAdd={(newOnes) => setAttachedFiles(prev => [...prev, ...newOnes])}
+                onRemove={(idx) => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
+                disabled={isLoading}
+                hideButton={true}
+              />
+            </div>
+          )}
+
 
           {/* Input Floating Capsule Card */}
           <div className="p-4 pt-1 pb-6 shrink-0 relative w-full max-w-full mx-auto z-20">
@@ -2214,6 +2354,18 @@ export default function AIAssistant() {
         baseMessages={compareDialog.baseMessages}
         originalReply={compareDialog.reply}
         originalModelLabel={compareDialog.modelLabel}
+      />
+
+      <AddJobDialog
+        open={editJobModal.open}
+        onClose={() => setEditJobModal({ open: false, data: null, msgIndex: null })}
+        initialData={editJobModal.data}
+        onAdd={async (job) => {
+          if (editJobModal.msgIndex !== null) {
+            await handleConfirmJob(editJobModal.msgIndex, job);
+          }
+          setEditJobModal({ open: false, data: null, msgIndex: null });
+        }}
       />
     </DashboardLayout>
   );

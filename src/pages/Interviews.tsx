@@ -6,8 +6,9 @@ import { InterviewsSkeleton } from "@/components/Skeletons";
 import InterviewCalendar from "@/components/InterviewCalendar";
 import InterviewEvaluationForm from "@/components/InterviewEvaluationForm";
 import { Calendar, Clock, Video, MapPin, User, Star, Plus, CheckCircle, XCircle, ExternalLink, Copy, Check, Link2, FileText, CircleDot, LayoutGrid, List, Sparkles, TrendingUp, TrendingDown } from "lucide-react";
-import AddToCalendarButton from "@/components/AddToCalendarButton";
+import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
+
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -345,17 +346,14 @@ export default function Interviews() {
         {viewMode === "list" && (isLoading ? (
           <InterviewsSkeleton />
         ) : (interviews || []).length === 0 ? (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-20 bg-card rounded-2xl border border-border/50">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Calendar className="w-8 h-8 text-primary/50" />
-            </div>
-            <p className="text-foreground font-semibold mb-1">{t("interviews.noInterviews")}</p>
-            <p className="text-sm text-muted-foreground mb-5">{t("interviews.noInterviewsDesc")}</p>
-            <Button onClick={() => setDialogOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
-              <Plus className="w-4 h-4 ml-2" />{t("interviews.schedule")}
-            </Button>
-          </motion.div>
+          <EmptyState
+            icon={Calendar}
+            title={t("interviews.noInterviews")}
+            description={t("interviews.noInterviewsDesc")}
+            actionLabel={t("interviews.schedule")}
+            onAction={() => setDialogOpen(true)}
+          />
+
         ) : (
           <div className="space-y-2">
               {(interviews || []).map((interview) => (

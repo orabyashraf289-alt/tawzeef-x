@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import OnboardingTour, { useOnboardingTour, TourTriggerButton } from "@/components/OnboardingTour";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useBrandSettings } from "@/hooks/useBrandSettings";
 import BottomNav from "@/components/BottomNav";
 import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
 import { prefetchRoute, recordNavigation } from "@/lib/routePrefetch";
@@ -70,6 +71,7 @@ import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   useRealtimeSync();
+  const { data: brandSettings } = useBrandSettings();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [navLoading, setNavLoading] = useState(false);
   const location = useLocation();
@@ -481,7 +483,16 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="flex min-h-screen bg-muted/30" dir={dir}>
+    <div className={cn("flex min-h-screen relative", brandSettings?.workspaceBgUrl ? "bg-transparent" : "bg-muted/30")} dir={dir}>
+      {brandSettings?.workspaceBgUrl && (
+        <div
+          className="fixed inset-0 z-0 pointer-events-none bg-cover bg-center transition-all duration-500"
+          style={{
+            backgroundImage: `url(${brandSettings.workspaceBgUrl})`,
+            opacity: brandSettings.workspaceBgOpacity ?? 0.15,
+          }}
+        />
+      )}
       {/* Desktop Sidebar */}
       <aside className={cn(
         "hidden lg:flex fixed top-0 z-40 h-screen w-60 flex-col glass-sidebar shadow-md",
@@ -519,7 +530,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className={cn("flex-1 min-w-0", dir === "rtl" ? "lg:mr-60" : "lg:ml-60")}>
+      <main className={cn("flex-1 min-w-0 relative z-10", dir === "rtl" ? "lg:mr-60" : "lg:ml-60")}>
         {/* Mobile Header */}
         <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between h-14 px-3 bg-card/90 backdrop-blur-xl border-b border-border/50 safe-area-top">
           <div className="flex items-center gap-2.5">

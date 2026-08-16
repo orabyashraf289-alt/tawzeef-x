@@ -18,6 +18,8 @@ export function useSearchHistory(scope?: SearchScope, limit = 20) {
 
   return useQuery({
     queryKey: ["search-history", user?.id, scope, limit],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     queryFn: async () => {
       let q = supabase
         .from("search_history" as any)

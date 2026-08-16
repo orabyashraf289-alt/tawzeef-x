@@ -33,6 +33,7 @@ export interface AgencyAssignment {
 export function useAllAgencies() {
   return useQuery({
     queryKey: ["all-agencies"],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agencies" as any)
@@ -51,6 +52,7 @@ export function useMyAgencies() {
 
   return useQuery({
     queryKey: ["my-agencies", user?.id, storedAgencyId, storedAgencyEmail],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       // 1) Direct Agency Session from LocalStorage
       if (storedAgencyId) {
@@ -147,6 +149,8 @@ export function useDeleteAgency() {
 export function useAgencyAssignments(agencyId?: string, companyId?: string) {
   return useQuery({
     queryKey: ["agency-assignments", agencyId, companyId],
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     queryFn: async () => {
       let q = supabase
         .from("agency_assignments" as any)
@@ -194,6 +198,8 @@ export function useCreateAssignment() {
 export function useAgencyCandidates(agencyId: string | undefined) {
   return useQuery({
     queryKey: ["agency-candidates", agencyId],
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     queryFn: async () => {
       const direct = await (supabase as any).from("candidates").select("*").eq("agency_id", agencyId!);
       const assignments = await supabase

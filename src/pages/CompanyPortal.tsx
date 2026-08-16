@@ -8,14 +8,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { Building2, Briefcase, Users, FileText, Mail, Loader2, GitFork, Plus, MapPin, Phone, Pencil, Camera, Info } from "lucide-react";
-import { useMyCompanies, useCompanyStats, useMyCompanyRole, useCompanyBranches, useCreateCompanyBranch, useUpdateCompany } from "@/hooks/useCompanies";
+import { Building2, Briefcase, Users, FileText, Mail, Loader2, GitFork, Plus, MapPin, Phone, Pencil, Camera, Info, Sparkles, Trash2, AlertTriangle } from "lucide-react";
+import { useMyCompanies, useCompanyStats, useMyCompanyRole, useCompanyBranches, useCreateCompanyBranch, useUpdateCompany, useDeleteCompany, prepareCompanyPayload } from "@/hooks/useCompanies";
+import { useQueryClient } from "@tanstack/react-query";
 import { useMyPendingInvitations, useAcceptInvitation, useDeclineInvitation } from "@/hooks/useCompanyInvitations";
 import CompanyInvitationsPanel from "@/components/CompanyInvitationsPanel";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { ALL_AL_ANDALUS_BRANCHES } from "@/data/alAndalusBranches";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function CompanyPortal() {
   const { data: companies = [], isLoading } = useMyCompanies();
@@ -123,8 +134,137 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
   const [branchPhone, setBranchPhone] = useState("");
   const [branchNotes, setBranchNotes] = useState("");
   
-  // Edit Branch state
+  // Edit & Delete Branch state
   const [editingBranch, setEditingBranch] = useState<any | null>(null);
+  const deleteBranchMutation = useDeleteCompany();
+  const [deletingBranchTarget, setDeletingBranchTarget] = useState<any | null>(null);
+  const [checkingBranchData, setCheckingBranchData] = useState(false);
+  const [branchLinkedInfo, setBranchLinkedInfo] = useState<{
+    hasData: boolean;
+    jobsCount: number;
+    candidatesCount: number;
+    offersCount: number;
+    interviewsCount: number;
+  } | null>(null);
+
+  const handleStartDeleteBranch = async (branch: any) => {
+    setDeletingBranchTarget(branch);
+    setCheckingBranchData(true);
+    setBranchLinkedInfo(null);
+    try {
+      const sb = supabase as any;
+      const [jobs, candidates, offers, interviews] = await Promise.all([
+        sb.from("jobs").select("id", { count: "exact", head: true }).eq("company_id", branch.id),
+        sb.from("candidates").select("id", { count: "exact", head: true }).eq("company_id", branch.id),
+        sb.from("job_offers").select("id", { count: "exact", head: true }).eq("company_id", branch.id),
+        sb.from("interviews").select("id", { count: "exact", head: true }).eq("company_id", branch.id),
+      ]);
+      const jobsCount = jobs.count || 0;
+      const candidatesCount = candidates.count || 0;
+      const offersCount = offers.count || 0;
+      const interviewsCount = interviews.count || 0;
+      const hasData = jobsCount > 0 || candidatesCount > 0 || offersCount > 0 || interviewsCount > 0;
+
+      setBranchLinkedInfo({
+        hasData,
+        jobsCount,
+        candidatesCount,
+        offersCount,
+        interviewsCount,
+      });
+    } catch (err: any) {
+      console.error("Error checking branch data:", err);
+      toast({ title: "خطأ في التحقق من بيانات الفرع", description: err.message, variant: "destructive" });
+    } finally {
+      setCheckingBranchData(false);
+    }
+  };
+
+  const handleConfirmDeleteBranch = async () => {
+    if (!deletingBranchTarget) return;
+    try {
+      await deleteBranchMutation.mutateAsync(deletingBranchTarget.id);
+      setDeletingBranchTarget(null);
+      setBranchLinkedInfo(null);
+    } catch (err: any) {
+      // Error toast handled inside mutation
+    }
+  };
+
+  const queryClient = useQueryClient();
+  const [importingAlAndalus, setImportingAlAndalus] = useState(false);
+
+  const handleImportAlAndalusCompanyBranches = async () => {
+    setImportingAlAndalus(true);
+    toast({
+      title: "جاري استيراد فروع مدارس الأندلس الـ 13...",
+      description: "يرجى الانتظار ثوانٍ بسيطة — يتم حفظ جميع الفروع بدفعة واحدة..."
+    });
+
+    try {
+      const existingBranchNames = new Set((branches || []).map(b => b.name));
+      const missingBranches = ALL_AL_ANDALUS_BRANCHES.filter(b => !existingBranchNames.has(b.name));
+
+      if (missingBranches.length === 0) {
+        toast({ title: "الفروع موجودة بالفعل 🏫", description: "جميع فروع الأندلس الـ 13 مضافة مسبقاً" });
+        return;
+      }
+
+      // Prepare batch payloads for companies
+      const companyPayloads = missingBranches.map(b =>
+        prepareCompanyPayload({
+          name: b.name,
+          name_en: b.name,
+          city: b.city,
+          country: "السعودية",
+          industry: "التعليم",
+          website: "https://as.edu.sa",
+          contact_email: b.email,
+          contact_phone: b.phone,
+          notes: `${b.district} — ${b.address} | المراحل: ${b.stages.join("، ")} | النوع: ${b.schoolTypes.join("، ")}`,
+          parent_company_id: companyId,
+          status: "active",
+          owner_user_id: user?.id || null,
+        })
+      );
+
+      // Single high-speed batch insert into companies table
+      const { data: insertedCompanies, error: compErr } = await supabase
+        .from("companies" as any)
+        .insert(companyPayloads as any)
+        .select();
+
+      if (compErr) throw compErr;
+
+      // Single high-speed batch insert into company_members table for owner role
+      if (user && insertedCompanies && insertedCompanies.length > 0) {
+        const memberPayloads = insertedCompanies.map((comp: any) => ({
+          company_id: comp.id,
+          user_id: user.id,
+          member_role: "owner",
+        }));
+        await supabase.from("company_members" as any).insert(memberPayloads as any);
+      }
+
+      // Invalidate queries ONCE at the end
+      queryClient.invalidateQueries({ queryKey: ["company-branches", companyId] });
+      queryClient.invalidateQueries({ queryKey: ["my-companies", user?.id] });
+
+      toast({
+        title: `✅ تمت إضافة ${insertedCompanies?.length || missingBranches.length} فرع لمدارس الأندلس بنجاح!`,
+        description: "جميع الفروع ظاهرة الآن ومفهرسة في القائمة أدناه"
+      });
+    } catch (err: any) {
+      console.error("[Batch Branch Import] Error:", err);
+      toast({
+        title: "خطأ في استيراد الفروع",
+        description: err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setImportingAlAndalus(false);
+    }
+  };
 
   const handleAddBranch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,13 +322,24 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
           )}
 
           {myRole === "owner" && (
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gap-1.5 text-xs">
-                  <Plus className="w-3.5 h-3.5" />
-                  إضافة فرع للشركة
-                </Button>
-              </DialogTrigger>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs font-bold text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                disabled={importingAlAndalus}
+                onClick={handleImportAlAndalusCompanyBranches}
+              >
+                {importingAlAndalus ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-emerald-600" />}
+                استيراد فروع مدارس الأندلس الـ 13 🏫
+              </Button>
+              <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-1.5 text-xs">
+                    <Plus className="w-3.5 h-3.5" />
+                    إضافة فرع للشركة
+                  </Button>
+                </DialogTrigger>
               <DialogContent className="max-w-md" dir="rtl">
                 <DialogHeader>
                   <DialogTitle className="text-right">إضافة فرع جديد للشركة</DialogTitle>
@@ -222,7 +373,8 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
                   </DialogFooter>
                 </form>
               </DialogContent>
-            </Dialog>
+              </Dialog>
+            </>
           )}
         </div>
       </div>
@@ -285,23 +437,36 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
                           {b.city && <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3 text-primary/75" />{b.city}</span>}
                           {b.contact_phone && <span className="flex items-center gap-0.5"><Phone className="w-3 h-3 text-primary/75" />{b.contact_phone}</span>}
                         </div>
-                        {b.notes && (
+                        {formatNotesText(b.notes) && (
                           <p className="text-[10px] text-muted-foreground bg-muted/30 p-1.5 rounded-lg border border-border/20 mt-1.5 line-clamp-2">
-                            {b.notes}
+                            {formatNotesText(b.notes)}
                           </p>
                         )}
+
                       </div>
                     </div>
 
-                    {/* Edit Branch trigger button */}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-2 left-2 w-7 h-7 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                      onClick={() => setEditingBranch(b)}
-                    >
-                      <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                    </Button>
+                    {/* Action buttons (Edit & Delete) */}
+                    <div className="absolute top-2 left-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="w-7 h-7 rounded-lg hover:bg-muted"
+                        onClick={() => setEditingBranch(b)}
+                        title="تعديل الفرع"
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="w-7 h-7 rounded-lg hover:bg-destructive/10 text-destructive/80 hover:text-destructive"
+                        onClick={() => handleStartDeleteBranch(b)}
+                        title="حذف الفرع"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -309,6 +474,109 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
           )}
         </Card>
       )}
+
+      {/* Delete Branch Confirmation & Safety Check Dialog */}
+      <AlertDialog
+        open={!!deletingBranchTarget}
+        onOpenChange={(op) => {
+          if (!op) {
+            setDeletingBranchTarget(null);
+            setBranchLinkedInfo(null);
+          }
+        }}
+      >
+        <AlertDialogContent className="max-w-md" dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-right flex items-center gap-2">
+              {checkingBranchData ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  جاري التحقق من بيانات الفرع...
+                </>
+              ) : branchLinkedInfo?.hasData ? (
+                <>
+                  <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+                  لا يمكن حذف الفرع!
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-5 h-5 text-destructive shrink-0" />
+                  تأكيد حذف الفرع
+                </>
+              )}
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+
+          <div className="py-2 text-sm text-muted-foreground space-y-3 text-right">
+            {checkingBranchData ? (
+              <p className="text-xs">يرجى الانتظار بينما نقوم بالتحقق مما إذا كان الفرع مرتبط بأي وظائف أو مرشحين أو عروض...</p>
+            ) : branchLinkedInfo?.hasData ? (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-foreground">
+                  الفرع <span className="font-bold text-primary">"{deletingBranchTarget?.name}"</span> مرتبط ببيانات داخل النظام ولا يمكن حذفه حتى يتم حذف أو نقل هذه البيانات أولاً:
+                </p>
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 space-y-1.5 text-xs text-amber-900 dark:text-amber-200">
+                  {branchLinkedInfo.jobsCount > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span>💼 عدد الوظائف المرتبطة:</span>
+                      <span className="font-bold">{branchLinkedInfo.jobsCount}</span>
+                    </div>
+                  )}
+                  {branchLinkedInfo.candidatesCount > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span>👥 عدد المرشحين المرتبطين:</span>
+                      <span className="font-bold">{branchLinkedInfo.candidatesCount}</span>
+                    </div>
+                  )}
+                  {branchLinkedInfo.offersCount > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span>📄 عدد عروض العمل:</span>
+                      <span className="font-bold">{branchLinkedInfo.offersCount}</span>
+                    </div>
+                  )}
+                  {branchLinkedInfo.interviewsCount > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span>📅 عدد المقابلات:</span>
+                      <span className="font-bold">{branchLinkedInfo.interviewsCount}</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  تنبيه لحماية البيانات: لا يُسمح بحذف أي فرع يحتوي على سجلات توظيف نشطة لتجنب فقدان البيانات.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p>
+                  هل أنت تأكد من رغبتك في حذف فرع <span className="font-bold text-foreground">"{deletingBranchTarget?.name}"</span> نهائياً؟
+                </p>
+                <p className="text-xs bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 p-2.5 rounded-lg border border-emerald-500/20">
+                  ✅ تم التأكد من عدم وجود أية وظائف، مرشحين، أو عروض مرتبطة بهذا الفرع.
+                </p>
+                <p className="text-[11px] text-destructive">
+                  ⚠️ هذا الإجراء سيقوم بحذف الفرع نهائياً ولا يمكن التراجع عنه.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <AlertDialogFooter className="flex justify-end gap-2">
+            <AlertDialogCancel onClick={() => { setDeletingBranchTarget(null); setBranchLinkedInfo(null); }}>
+              {branchLinkedInfo?.hasData ? "إغلاق" : "إلغاء"}
+            </AlertDialogCancel>
+            {!checkingBranchData && !branchLinkedInfo?.hasData && (
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5"
+                disabled={deleteBranchMutation.isPending}
+                onClick={handleConfirmDeleteBranch}
+              >
+                {deleteBranchMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                تأكيد الحذف النهائي
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit Branch Dialog */}
       {editingBranch && (
@@ -324,15 +592,41 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
   );
 }
 
-function EditBranchDialog({ branch, onClose }: { branch: any; onClose: () => void }) {
-  const updateBranch = useUpdateCompany();
+function formatNotesText(notesStr?: string | null): string {
+  if (!notesStr) return "";
+  if (notesStr.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(notesStr);
+      return parsed.description || parsed.address || "";
+    } catch {
+      return notesStr;
+    }
+  }
+  return notesStr;
+}
+
+const EditBranchDialog = ({
+  branch,
+  open = true,
+  onClose,
+  updateBranch: updateBranchProp
+}: {
+  branch: any;
+  open?: boolean;
+  onClose: () => void;
+  updateBranch?: ReturnType<typeof useUpdateCompany>;
+}) => {
   const { user } = useAuth();
+  const defaultUpdateBranch = useUpdateCompany();
+  const updateBranch = updateBranchProp || defaultUpdateBranch;
+
   
   const [name, setName] = useState(branch.name || "");
   const [city, setCity] = useState(branch.city || "");
   const [email, setEmail] = useState(branch.contact_email || "");
   const [phone, setPhone] = useState(branch.contact_phone || "");
-  const [notes, setNotes] = useState(branch.notes || "");
+  const [notes, setNotes] = useState(formatNotesText(branch.notes));
+
   const [logoUrl, setLogoUrl] = useState(branch.logo_url || "");
   const [uploading, setUploading] = useState(false);
 

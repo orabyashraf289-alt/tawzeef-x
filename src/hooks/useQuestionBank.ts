@@ -217,6 +217,8 @@ export function useQuestions(jobId?: string) {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["questions", user?.id, jobId],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       if (!user) return mockQuestions;
 
@@ -523,6 +525,8 @@ export function useAssessments() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["assessments", user?.id],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       if (!user) return mockAssessments;
 

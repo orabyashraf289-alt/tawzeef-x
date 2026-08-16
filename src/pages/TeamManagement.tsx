@@ -1,9 +1,9 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useAllUserRoles, useUpdateUserRole, useDeleteTeamMember, useInvitations, useSendInvitation, useActivityLog, type AppRole, useCustomRoles, useCreateCustomRole, useDeleteCustomRole } from "@/hooks/useUserRole";
+import { useAllUserRoles, useUpdateUserRole, useDeleteTeamMember, useInvitations, useSendInvitation, useActivityLog, type AppRole, useCustomRoles, useCreateCustomRole, useDeleteCustomRole, useUserRole } from "@/hooks/useUserRole";
 import { useAllPermissions, type PermissionRow } from "@/hooks/useScreenPermissions";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCandidates, useJobs, useInterviews } from "@/hooks/useJobs";
-import { useMyCompanies, useCompanyBranches } from "@/hooks/useCompanies";
+import { useMyCompanies, useCompanyBranches, useCompanyMembers } from "@/hooks/useCompanies";
 import { useCreateCompanyInvitation } from "@/hooks/useCompanyInvitations";
 import { motion } from "framer-motion";
 import {
@@ -13,6 +13,7 @@ import {
   RefreshCw, Ban, Monitor, Target, Star, GraduationCap, Zap, Loader2, MapPin
 } from "lucide-react";
 import AdminSubscriptionManager from "@/components/AdminSubscriptionManager";
+import BillingHistory from "@/components/BillingHistory";
 import PermissionsMatrixManager from "@/components/PermissionsMatrixManager";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,7 @@ const PERMISSION_LABELS_EN: Record<string, string> = {
 
 export default function TeamManagement() {
   const { user } = useAuth();
+  const { isSuperAdmin } = useUserRole();
   const { t, locale, dir } = useI18n();
   const { data: userRoles } = useAllUserRoles();
   const updateRole = useUpdateUserRole();
@@ -119,7 +121,35 @@ export default function TeamManagement() {
     return myCompanies.find(c => !c.parent_company_id) || myCompanies[0];
   }, [myCompanies]);
 
+  const { data: companyMembers = [] } = useCompanyMembers(activeCompany?.id);
   const { data: companyBranches = [] } = useCompanyBranches(activeCompany?.id);
+
+  // Strict Multi-Tenant User Isolation: Only include users who belong to the active company
+  const companyUserIds = useMemo(() => {
+    const memberIds = (companyMembers || []).map((m: any) => m.user_id).filter(Boolean);
+    if (user?.id) memberIds.push(user.id);
+    return Array.from(new Set(memberIds));
+  }, [companyMembers, user?.id]);
+
+  const roles = useMemo(() => {
+    if (!userRoles) return [];
+    if (companyUserIds.length === 0) {
+      return user?.id ? userRoles.filter((r: any) => r.user_id === user.id) : [];
+    }
+    return userRoles.filter((r: any) => companyUserIds.includes(r.user_id));
+  }, [userRoles, companyUserIds, user?.id]);
+
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      if (companyUserIds.length === 0) {
+        setProfiles([]);
+        return;
+      }
+      const { data } = await supabase.from("profiles").select("*").in("user_id", companyUserIds);
+      if (data) setProfiles(data);
+    };
+    fetchProfiles();
+  }, [companyUserIds]);
 
   const [profiles, setProfiles] = useState<any[]>([]);
   const [search, setSearch] = useState("");
@@ -205,20 +235,11 @@ export default function TeamManagement() {
   const roleLabels: Record<string, string> = { admin: t("team.roleAdmin"), recruiter: t("team.roleRecruiter"), reviewer: t("team.roleReviewer"), branch_manager: "مدير فرع" };
   const roleColors: Record<string, string> = { admin: "bg-destructive/10 text-destructive", recruiter: "bg-primary/10 text-primary", reviewer: "bg-warning/10 text-warning", branch_manager: "bg-emerald-500/10 text-emerald-600 font-bold" };
 
-  const roles = userRoles || [];
   const allInvitations = invitations || [];
   const allActivity = activityLog || [];
   const allCandidates = candidates || [];
   const allJobs = jobs || [];
   const allInterviews = interviews || [];
-
-  useEffect(() => {
-    const fetchProfiles = async () => {
-      const { data } = await supabase.from("profiles").select("*");
-      if (data) setProfiles(data);
-    };
-    if (roles.length > 0) fetchProfiles();
-  }, [roles]);
 
   const teamStats = useMemo(() => ({
     totalUsers: roles.length,
@@ -465,13 +486,16 @@ export default function TeamManagement() {
         <Tabs defaultValue="members" dir={dir}>
           <TabsList className="w-full sm:w-auto flex-wrap">
             <TabsTrigger value="members" className="gap-1.5"><UserCog className="w-3.5 h-3.5" />{t("team.membersTab")}</TabsTrigger>
-            <TabsTrigger value="subscriptions" className="gap-1.5"><Package className="w-3.5 h-3.5" />{t("team.subscriptionsTab")}</TabsTrigger>
+            <TabsTrigger value="subscriptions" className="gap-1.5">
+              <Package className="w-3.5 h-3.5" />
+              {isSuperAdmin ? "الباقات وإدارة الشركات" : "اشتراك الشركة والباقة"}
+            </TabsTrigger>
             <TabsTrigger value="permissions" className="gap-1.5"><Shield className="w-3.5 h-3.5" />{t("team.permissionsTab")}</TabsTrigger>
             <TabsTrigger value="invitations" className="gap-1.5"><Mail className="w-3.5 h-3.5" />{t("team.invitationsTab")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="subscriptions">
-            <AdminSubscriptionManager />
+            {isSuperAdmin ? <AdminSubscriptionManager /> : <BillingHistory />}
           </TabsContent>
 
           <TabsContent value="members" className="space-y-4">

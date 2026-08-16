@@ -10,8 +10,16 @@ export interface PosterBrandSettings {
   accentColor: string;
   /** Display name shown on poster header */
   companyName: string;
-  /** Optional logo URL (data: or https:) shown on the poster */
+  /** Optional logo URL (data: or https:) shown on the poster & headers */
   logoUrl: string | null;
+  /** Custom background image URL for login screen */
+  loginBgUrl: string | null;
+  /** Custom background image URL for workspace / system layout */
+  workspaceBgUrl: string | null;
+  /** Opacity for custom workspace background image (0.05 to 0.5) */
+  workspaceBgOpacity: number;
+  /** Overlay opacity for custom login background image (0.1 to 0.9) */
+  loginBgOverlayOpacity: number;
   /** Font family name (must already be available, e.g. Cairo, Inter, Tajawal) */
   fontFamily: string;
   /** Foreground (modules) color for the QR itself */
@@ -25,6 +33,10 @@ export const DEFAULT_BRAND: PosterBrandSettings = {
   accentColor: "#14b8a6",
   companyName: "Tawzeef-X",
   logoUrl: null,
+  loginBgUrl: null,
+  workspaceBgUrl: null,
+  workspaceBgOpacity: 0.15,
+  loginBgOverlayOpacity: 0.5,
   fontFamily: "Cairo, sans-serif",
   qrForeground: "#0f172a",
 };

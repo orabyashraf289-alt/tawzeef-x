@@ -57,7 +57,8 @@ export function useAllPermissions() {
       })) as PermissionRow[];
     },
     enabled: !!user,
-    staleTime: 60_000,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 

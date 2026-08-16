@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,8 +10,8 @@ const corsHeaders = {
 // ============================================================================
 // AI MODELS - Hybrid routing
 // ============================================================================
-const MODEL_FAST = "google/gemini-2.0-flash";   // chat / Q&A / detection
-const MODEL_PRO = "google/gemini-1.5-pro";             // tool execution / reasoning
+const MODEL_FAST = "google/gemini-3.6-flash";   // chat / Q&A / detection (Gemini 3.6 Flash)
+const MODEL_PRO = "google/gemini-2.5-pro";             // tool execution / reasoning (Gemini Pro)
 
 // ============================================================================
 // TOOL DEFINITIONS
@@ -340,15 +341,15 @@ async function getUser(authHeader: string) {
   return user;
 }
 
-// Build dynamic context about user's company state
+// Build dynamic context about user's company state with enhanced accuracy
 async function buildUserContext(userId: string): Promise<string> {
   const admin = getAdminClient();
   try {
     const [profileR, jobsR, candidatesR, interviewsR] = await Promise.all([
       admin.from("profiles").select("full_name, company_name, job_title").eq("user_id", userId).maybeSingle(),
-      admin.from("jobs").select("id, status").eq("user_id", userId),
-      admin.from("candidates").select("id, stage, status").eq("user_id", userId),
-      admin.from("interviews").select("id, date, status").eq("user_id", userId).gte("date", new Date().toISOString().split("T")[0]),
+      admin.from("jobs").select("id, title, status, department, location").eq("user_id", userId),
+      admin.from("candidates").select("id, name, stage, status, rating, ai_score, role").eq("user_id", userId),
+      admin.from("interviews").select("id, candidate_name, position, date, time, status").eq("user_id", userId).gte("date", new Date().toISOString().split("T")[0]),
     ]);
 
     const profile = profileR.data;
@@ -356,19 +357,35 @@ async function buildUserContext(userId: string): Promise<string> {
     const candidates = candidatesR.data || [];
     const interviews = interviewsR.data || [];
 
+    const activeJobs = jobs.filter(j => j.status === "نشطة");
+    const activeCandidates = candidates.filter(c => c.status !== "مرفوض" && c.status !== "مؤجل");
+    const upcomingInterviews = interviews.filter(i => i.status === "مجدولة");
+
+    // Stage breakdown for active candidates
+    const stageCounts: Record<string, number> = {};
+    activeCandidates.forEach(c => {
+      const s = c.stage || "جديد";
+      stageCounts[s] = (stageCounts[s] || 0) + 1;
+    });
+
+    const stageSummary = Object.entries(stageCounts)
+      .map(([stg, cnt]) => `${stg}: ${cnt}`)
+      .join(" | ");
+
     return `
-=== سياق المستخدم الحالي ===
-- المستخدم: ${profile?.full_name || "غير محدد"}${profile?.company_name ? ` (${profile.company_name})` : ""}
-- المسمى: ${profile?.job_title || "غير محدد"}
-- إجمالي الوظائف: ${jobs.length} (نشطة: ${jobs.filter(j => j.status === "نشطة").length})
-- إجمالي المرشحين: ${candidates.length}
-- مقابلات قادمة: ${interviews.filter(i => i.status === "مجدولة").length}
-- التاريخ الحالي: ${new Date().toISOString().split("T")[0]}
-============================`;
+=== سياق البيانات المباشر لمنصة Tawzeef-X ===
+- المستشار الحالي: ${profile?.full_name || "مدير التوظيف"}${profile?.company_name ? ` - شركة ${profile.company_name}` : ""}
+- المسمى الوظيفي: ${profile?.job_title || "مسؤول النظام"}
+- الوظائف النشطة (${activeJobs.length}): ${activeJobs.slice(0, 5).map(j => j.title).join("، ")}${activeJobs.length > 5 ? "..." : ""}
+- المرشحون النشطون (${activeCandidates.length}): [توزيع المراحل: ${stageSummary || "لا يوجد"}]
+- المقابلات القادمة (${upcomingInterviews.length}): ${upcomingInterviews.slice(0, 3).map(i => `${i.candidate_name} (${i.date})`).join("، ")}
+- تاريخ وموعد اليوم: ${new Date().toLocaleDateString("ar-SA", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+============================================`;
   } catch {
     return "";
   }
 }
+
 
 // ============================================================================
 // TOOL HANDLERS
@@ -918,6 +935,10 @@ async function handleToolCall(tc: any, userId: string): Promise<{ result: string
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+    // Rate limit: 20 requests per minute per IP (AI cost protection)
+    const { allowed } = checkRateLimit(req, 20, 60_000);
+    if (!allowed) return rateLimitResponse(corsHeaders);
+
   try {
     const { messages, resume_text, attached_files_text, model_override, disable_tools, stream } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("LOVABLE_API_KEY");
@@ -944,7 +965,7 @@ serve(async (req) => {
     if (isDirectGemini) {
       effectiveFastModel = effectiveFastModel.replace(/^(google|openai)\//i, "");
       effectiveProModel = effectiveProModel.replace(/^(google|openai)\//i, "");
-      if (effectiveFastModel === "gemini-3-flash-preview") effectiveFastModel = "gemini-2.0-flash";
+      if (effectiveFastModel === "gemini-3.6-flash" || effectiveFastModel === "gemini-3-flash-preview") effectiveFastModel = "gemini-2.0-flash";
       if (effectiveProModel === "gemini-2.5-pro") effectiveProModel = "gemini-1.5-pro";
     }
     const toolsDisabled = disable_tools === true;
@@ -966,38 +987,76 @@ serve(async (req) => {
     // Build dynamic context
     const userContext = user ? await buildUserContext(user.id) : "";
 
-    const systemPrompt = `أنت "ذكي" — المستشار والخبير الإستراتيجي الذكي لمنصة Tawzeef-X. تتميز بالإجابات الفائقة السرعة والتنفيذ والدقة المتناهية، وتصوغ الردود بأسلوب تنفيذي رفيع (Executive Level Presentation).
+    const systemPrompt = `أنت "ذكي" — المستشار والخبير الإستراتيجي الذكي المتقدم لمنصة Tawzeef-X. تتميز بالدقة المتناهية، والتنظيم المتقن، وصياغة الردود بأسلوب تنفيذي رفيع وشامل (Executive Level Presentation).
 
 ${userContext}
 
-## أدواتك (19 أداة تفاعلية):
-**إدارة الوظائف**: create_job, update_job, delete_job, list_jobs, generate_job_description
-**إدارة المرشحين**: search_candidates, compare_candidates, move_candidate_stage, bulk_move_candidates, evaluate_candidate_ai, analyze_resume_text
-**المقابلات والعروض**: schedule_interview, generate_interview_questions, create_offer
-**التواصل التفاعلي**: send_email_to_candidate, generate_whatsapp_sms_template
-**التحليلات والمؤشرات**: get_stats, get_proactive_insights, generate_voice_briefing
+## أدواتك المتاحة (19 أداة تفاعلية):
+- **إدارة الوظائف**: create_job, update_job, delete_job, list_jobs, generate_job_description
+- **إدارة المرشحين**: search_candidates, compare_candidates, move_candidate_stage, bulk_move_candidates, evaluate_candidate_ai, analyze_resume_text
+- **المقابلات والعروض**: schedule_interview, generate_interview_questions, create_offer
+- **التواصل التفاعلي**: send_email_to_candidate, generate_whatsapp_sms_template
+- **التحليلات والمؤشرات**: get_stats, get_proactive_insights, generate_voice_briefing
 
-## قواعد الجودة والتنسيق التنفيذي:
-1. 💎 **التنسيق الهيكلي الممتاز**: نسّق الإجابات دائماً باستخدام عناوين واضحة (Markdown Headers)، الجداول (Tables) عند المقارنة أو عرض البيانات، ونقاط بارزة (Bullet Points).
-2. ⚡ **السرعة والإنجاز المباشر**: قدّم الإجابة والتحليل فوراً بدون مقدمات طويلة أو حشو زائد.
-3. 🎯 **التفاعل الاستباقي**: عند السؤال عن "ما الذي يحتاج انتباهي؟" أو "ابدأ يومي" استخدم أداة get_proactive_insights فوراً.
-4. 🎙️ **الملخص الصوتي التفاعلي**: عند طلب ملخص صوتي استخدم generate_voice_briefing.
-5. 💬 **رسائل الواتساب والـ SMS**: عند طلب التواصل التفاعلي استخدم generate_whatsapp_sms_template.
-6. 📊 **مقارنة المرشحين**: عند المقارنة بين سيرتين أو أكثر استخدم compare_candidates لعرض بطاقات المقارنة المرئية.
-7. 📁 **معاينة الوظائف**: عند اقتراح أو إنشاء وظيفة استخدم create_job لإنتاج Job Preview Card تتيح التعيين بنقرة واحدة.
-8. 💡 **التوجيه الإستراتيجي**: اختم كل إجابة بخطوتين استباقيتين مقترحتين لمدير التوظيف.`;
+## قواعد الجودة الصارمة والتنسيق التنفيذي:
+1. 🎯 **الهيكل الثلاثي الموحد لكل رد**:
+   - **القسم الأول: 📌 الملخص التنفيذي**: جملة أو جملتان تلخص النتيجة المباشرة.
+   - **القسم الثاني: 📊 البيانات والنتائج**: يُعرض دائماً على شكل **جدول Markdown منظم** عند سرد أو مقارنة المرشحين، الوظائف، المهارات، أو التقييمات.
+   - **القسم الثالث: 💡 الخطوات والاستراتيجية القادمة**: توصيتان استباقيتان محددتان لمدير التوظيف.
+
+2. 📊 **اشتراط الجدول في القوائم والمقارنات**:
+   - لا تسرد المرشحين أو الوظائف في فقرات عشوائية؛ استخدم دائماً جدول Markdown يتضمن (الاسم/المسمى | المرحلة | التقييم/الخبرة | الحالة/الإجراء التوصيات).
+
+3. ⚡ **الدقة والابتعاد عن الحشو**:
+   - ادخل في صلب الموضوع فوراً بدون مقدمات مكررة أو اعتذارات طويلة.
+   - إذا تم طلب إجراء (مثل إنشاء وظيفة أو جدولة مقابلة)، قم باستدعاء الأداة المناسبة فوراً لإنتاج بطاقات المعاينة التفاعلية.
+
+4. 🚫 **حظر تسريب الوسوم البرمجية وسجل التفكير**:
+   - يُمنع منعاً باتاً طباعة وسوم النظام مثل `<thinking>`, `<tool_code>`, `<tool_call>` أو أكواد برمجية مثل `print(...)` داخل ردك النصي.
+   - كافّة الردود الموجهة للمستخدم يجب أن تقتصر على النص العربي المنظم بالتنسيق التنفيذي فقط دون أي حقول أو أكواد تقنية داخلية.
+
+5. 🚀 **التفاعل الفوري لإنشاء ونشر الوظائف**:
+   - عند طلب البحث عن وظيفة أو اقتراح/صياغة وظيفة جديدة، ادمج كافّة معلومات الأدوات المتاحة (نطاق الراتب بالريال السعودي، القسم، الخبرة، الجدارات) وقدم ردك متضمناً المفاتيح الصريحة التالية لتفعيل كارت الإضافة الفورية التفاعلي فوراً:
+     - المسمى الوظيفي: [اسم الوظيفة]
+     - القسم: [اسم القسم]
+     - الموقع: [المدينة/الرياض]
+     - نوع التوظيف: [دوام كامل/جزئي]
+     - مستوى الخبرة: [السنوات]
+     - الراتب المتوقع: [الحد الأدنى - الحد الأقصى ر.س]`;
+
+
+    async function fetchWithRetry(url: string, opts: any, retries = 3, delayMs = 800): Promise<Response> {
+      let r = await fetch(url, opts);
+      let attempt = 0;
+      while (r.status === 429 && attempt < retries) {
+        attempt++;
+        await new Promise((res) => setTimeout(res, delayMs * attempt));
+        r = await fetch(url, opts);
+      }
+      if (r.status === 429) {
+        // Fallback model retry if primary model hit rate limits
+        try {
+          const bodyObj = JSON.parse(opts.body || "{}");
+          bodyObj.model = "google/gemini-2.5-flash";
+          r = await fetch(url, { ...opts, body: JSON.stringify(bodyObj) });
+        } catch {
+          // ignore JSON parse error
+        }
+      }
+      return r;
+    }
 
     // ========== Compare-mode / disable_tools: pure streaming text ==========
     if (toolsDisabled) {
       const isStream = stream !== false;
-      const streamResponse = await fetch(API_URL, {
+      const streamResponse = await fetchWithRetry(API_URL, {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({ model: effectiveFastModel, messages: [{ role: "system", content: systemPrompt }, ...actualMessages], stream: isStream }),
       });
       if (!streamResponse.ok) {
         const s = streamResponse.status;
-        if (s === 429) return new Response(JSON.stringify({ error: "تم تجاوز حد الطلبات. حاول لاحقاً." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (s === 429) return new Response(JSON.stringify({ type: "text", content: "الخادم مشغول حالياً بكثرة الطلبات. يرجى إعادة إرسال طلبك بعد ثوانٍ بسيطة ⏳" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         if (s === 402) return new Response(JSON.stringify({ error: "يرجى إضافة رصيد للاستمرار." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         const err = await getResponseError(streamResponse);
         return new Response(JSON.stringify({ error: err }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -1013,15 +1072,6 @@ ${userContext}
       }
     }
 
-    async function fetchWithRetry(url: string, opts: any, retries = 1, delayMs = 1200): Promise<Response> {
-      let r = await fetch(url, opts);
-      if (r.status === 429 && retries > 0) {
-        await new Promise((res) => setTimeout(res, delayMs));
-        r = await fetch(url, opts);
-      }
-      return r;
-    }
-
     // ========== STEP 1: Detect intent ==========
     const detectResponse = await fetchWithRetry(API_URL, {
       method: "POST",
@@ -1031,7 +1081,7 @@ ${userContext}
 
     if (!detectResponse.ok) {
       const s = detectResponse.status;
-      if (s === 429) return new Response(JSON.stringify({ error: "تم تجاوز حد الطلبات. حاول لاحقاً." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (s === 429) return new Response(JSON.stringify({ type: "text", content: "الخادم مشغول حالياً بكثرة الطلبات. يرجى إعادة إرسال طلبك بعد ثوانٍ بسيطة ⏳" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       if (s === 402) return new Response(JSON.stringify({ error: "يرجى إضافة رصيد للاستمرار." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const err = await getResponseError(detectResponse);
       console.error("AI detect error:", s, err);
@@ -1063,7 +1113,7 @@ ${userContext}
         return new Response(readableStream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
       }
 
-      const streamResponse = await fetch(API_URL, {
+      const streamResponse = await fetchWithRetry(API_URL, {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({ model: effectiveFastModel, messages: [{ role: "system", content: systemPrompt }, ...actualMessages], stream: true }),
@@ -1093,7 +1143,7 @@ ${userContext}
     }
 
     // Use PRO (or override) model for tool result synthesis
-    const followUpStream = await fetch(API_URL, {
+    const followUpStream = await fetchWithRetry(API_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model: effectiveProModel, messages: [{ role: "system", content: systemPrompt }, ...actualMessages, choice.message, ...toolResults], stream: true }),

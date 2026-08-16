@@ -20,6 +20,7 @@ import { useCandidates } from "@/hooks/useJobs";
 import { useStageTransitions } from "@/hooks/useStageTransitions";
 import { useActiveStages } from "@/hooks/usePipelineStages";
 import AIEvaluationCard from "@/components/AIEvaluationCard";
+import AICandidateInsights from "@/components/AICandidateInsights";
 import CandidateScorecardSection from "@/components/CandidateScorecardSection";
 import StageActions from "@/components/StageActions";
 import { SingleResponseProctoringDialog } from "@/components/question-bank/AssessmentResponsesDialog";
@@ -436,6 +437,7 @@ export default function CandidateProfile() {
         {/* AI Assessment & Scorecards */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-8 space-y-5">
+            <AICandidateInsights data={{ candidateName: candidate.name, role: candidate.role, experienceYears: candidate.experience_years, skills: candidate.skills, location: candidate.location }} />
             <AIEvaluationCard candidate={candidate} />
             <CandidateScorecardSection candidateId={candidate.id} />
           </div>

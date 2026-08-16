@@ -13,8 +13,11 @@ import { cn } from "@/lib/utils";
 
 export type ModelChoice =
   | "auto"
+  | "google/gemini-3.6-flash"
   | "google/gemini-3-flash-preview"
   | "google/gemini-2.5-pro"
+  | "deepseek/deepseek-r1"
+  | "anthropic/claude-3.5-sonnet"
   | "openai/gpt-5-mini"
   | "openai/gpt-5";
 
@@ -25,14 +28,16 @@ export const MODEL_OPTIONS: {
   label: string;
   short: string;
   description: string;
-  provider: "Auto" | "Google" | "OpenAI";
+  provider: "Auto" | "Google" | "DeepSeek" | "Anthropic" | "OpenAI";
   icon: typeof Zap;
 }[] = [
-  { value: "auto", label: "توجيه تلقائي ذكي", short: "تلقائي", description: "يختار النظام الأنسب حسب نوع السؤال", provider: "Auto", icon: Sparkles },
-  { value: "google/gemini-3-flash-preview", label: "Gemini Flash", short: "Gemini Flash", description: "سريع واقتصادي للمحادثات اليومية", provider: "Google", icon: Zap },
-  { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro", short: "Gemini Pro", description: "تفكير معقد وتحليل عميق", provider: "Google", icon: Brain },
-  { value: "openai/gpt-5-mini", label: "GPT-5 Mini", short: "GPT-5 Mini", description: "متوازن: دقة OpenAI بتكلفة أقل", provider: "OpenAI", icon: Gauge },
-  { value: "openai/gpt-5", label: "GPT-5", short: "GPT-5", description: "أعلى دقة لمهام الاستنتاج المعقدة", provider: "OpenAI", icon: Cpu },
+  { value: "auto", label: "توجيه تلقائي ذكي (Gemini 3.6 Flash)", short: "تلقائي (3.6)", description: "أعلى دقة وسرعة تنفذية باستعمال أحدث نموذج ذكاء", provider: "Auto", icon: Sparkles },
+  { value: "google/gemini-3.6-flash", label: "Gemini 3.6 Flash ⚡", short: "Gemini 3.6", description: "أحدث وأسرع إصدار فائق السرعة والاستجابة الذكية", provider: "Google", icon: Zap },
+  { value: "deepseek/deepseek-r1", label: "DeepSeek R1 🧠", short: "DeepSeek R1", description: "استدلال منطقي متقدم وتحليل هندسي للمهارات", provider: "DeepSeek", icon: Brain },
+  { value: "anthropic/claude-3.5-sonnet", label: "Claude 3.5 Sonnet 📝", short: "Claude 3.5", description: "تحليل دقيق وصياغة احترافية جداً للتقارير", provider: "Anthropic", icon: Sparkles },
+  { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro", short: "Gemini Pro", description: "تفكير معقد وتحليل عميق للسير الذاتية", provider: "Google", icon: Brain },
+  { value: "openai/gpt-5-mini", label: "GPT-5 Mini", short: "GPT-5 Mini", description: "دقة عالية وتوازن استثنائي", provider: "OpenAI", icon: Gauge },
+  { value: "openai/gpt-5", label: "GPT-5", short: "GPT-5", description: "أعلى دقة لمهام الاستنتاج والتقارير المعقدة", provider: "OpenAI", icon: Cpu },
 ];
 
 export function getStoredModelChoice(): ModelChoice {

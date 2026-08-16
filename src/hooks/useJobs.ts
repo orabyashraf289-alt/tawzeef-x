@@ -6,6 +6,71 @@ import { toast } from "@/hooks/use-toast";
 import { generateAndStoreJobQR } from "@/lib/qrCodeService";
 import { loadBrandSettings } from "@/lib/posterBrandSettings";
 
+export interface JobPayload {
+  user_id?: string;
+  company_id?: string | null;
+  title: string;
+  department: string;
+  location: string;
+  type: string;
+  description: string | null;
+  requirements: string[] | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  experience_level: string | null;
+  approval_chain?: string;
+}
+
+export interface CandidateRow {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  job_id: string;
+  user_id: string | null;
+  company_id?: string | null;
+  role: string;
+  stage: string;
+  status: string;
+  experience: string | null;
+  resume_url: string | null;
+  skills: string[] | null;
+  summary: string | null;
+  source: string;
+  tracking_code: string | null;
+  created_at: string;
+  candidate_scorecards?: { rating: number }[];
+}
+
+export interface ApplicationRow {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  job_id: string;
+  specialty?: string;
+  status?: string;
+  experience?: string;
+  resume_url?: string;
+  skills?: string[];
+  cover_letter?: string;
+  tracking_code?: string;
+  created_at: string;
+  company_id?: string;
+  jobs?: {
+    title: string;
+  };
+}
+
+export interface RealtimePayload {
+  new?: {
+    id: string;
+    title?: string;
+    description?: string;
+    type?: string;
+  };
+}
+
 export function useJobs() {
   const { user } = useAuth();
 
@@ -86,7 +151,7 @@ export function useAddJob() {
         console.warn("Could not fetch company_id for job creation:", e);
       }
 
-      const payload: any = {
+      const payload: JobPayload = {
         user_id: user!.id,
         company_id: companyId,
         title: job.title,
@@ -94,7 +159,11 @@ export function useAddJob() {
         location: job.location,
         type: job.type,
         description: job.description || null,
-        requirements: job.requirements ? job.requirements.split("\n").filter(Boolean) : null,
+        requirements: Array.isArray(job.requirements)
+          ? job.requirements
+          : typeof job.requirements === "string"
+            ? job.requirements.split("\n").map((s) => s.trim()).filter(Boolean)
+            : null,
         salary_min: job.salaryMin ? parseInt(job.salaryMin) : null,
         salary_max: job.salaryMax ? parseInt(job.salaryMax) : null,
         experience_level: job.experience || null,
@@ -146,7 +215,7 @@ export function useAddJob() {
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       toast({ title: "تم إضافة الوظيفة بنجاح ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -167,13 +236,17 @@ export function useUpdateJob() {
       experience?: string;
       approvalChain?: string;
     }) => {
-      const payload: any = {
+      const payload: JobPayload = {
         title: job.title,
         department: job.department,
         location: job.location,
         type: job.type,
         description: job.description || null,
-        requirements: job.requirements ? job.requirements.split("\n").filter(Boolean) : null,
+        requirements: Array.isArray(job.requirements)
+          ? job.requirements
+          : typeof job.requirements === "string"
+            ? job.requirements.split("\n").map((s) => s.trim()).filter(Boolean)
+            : null,
         salary_min: job.salaryMin ? parseInt(job.salaryMin) : null,
         salary_max: job.salaryMax ? parseInt(job.salaryMax) : null,
         experience_level: job.experience || null,
@@ -200,7 +273,7 @@ export function useUpdateJob() {
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       toast({ title: "تم تحديث الوظيفة بنجاح ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -228,7 +301,7 @@ export function useCandidates() {
       }
 
       // 2. Fetch candidates table with fail-safe fallback
-      let candidatesData: any[] | null = null;
+      let candidatesData: CandidateRow[] | null = null;
       try {
         const { data, error: candError } = await supabase
           .from("candidates")
@@ -246,7 +319,7 @@ export function useCandidates() {
       }
 
       // 3. Fetch applications table to ensure no applied candidate is missed
-      let appsData: any[] | null = null;
+      let appsData: ApplicationRow[] | null = null;
       try {
         const { data } = await supabase
           .from("applications")
@@ -285,15 +358,15 @@ export function useCandidates() {
         phone: a.phone,
         job_id: a.job_id,
         user_id: user?.id || null,
-        role: (a as any).jobs?.title || a.specialty || "متقدم جديد",
+        role: a.jobs?.title || a.specialty || "متقدم جديد",
         stage: "تقديم الطلب",
         status: a.status || "جديد",
-        experience: a.experience,
-        resume_url: a.resume_url,
-        skills: a.skills,
-        summary: a.cover_letter,
+        experience: a.experience || null,
+        resume_url: a.resume_url || null,
+        skills: a.skills || null,
+        summary: a.cover_letter || null,
         source: "رابط التقديم المباشر",
-        tracking_code: (a as any).tracking_code || null,
+        tracking_code: a.tracking_code || null,
         created_at: a.created_at,
         candidate_scorecards: [],
       }));
@@ -309,31 +382,60 @@ export function useCandidates() {
               phone: a.phone,
               job_id: a.job_id,
               user_id: user.id,
-              company_id: (a as any).company_id || null,
-              role: (a as any).jobs?.title || a.specialty || "متقدم جديد",
+              company_id: a.company_id || null,
+              role: a.jobs?.title || a.specialty || "متقدم جديد",
               stage: "تقديم الطلب",
               status: a.status || "جديد",
-              experience: a.experience,
-              resume_url: a.resume_url,
-              skills: a.skills,
-              summary: a.cover_letter,
+              experience: a.experience || null,
+              resume_url: a.resume_url || null,
+              skills: a.skills || null,
+              summary: a.cover_letter || null,
               source: "رابط التقديم المباشر",
-              tracking_code: (a as any).tracking_code || null,
+              tracking_code: a.tracking_code || null,
             }));
-            await supabase.from("candidates").upsert(rowsToUpsert as any, { onConflict: "id" });
+            await supabase.from("candidates").upsert(rowsToUpsert as CandidateRow[], { onConflict: "id" });
           } catch (e) {
             console.warn("Background auto-upsert candidates warning:", e);
           }
         })();
       }
 
-      return [...(candidatesData || []), ...convertedApps];
+      const allMerged = [...(candidatesData || []), ...convertedApps];
+
+      // Strict Multi-Tenant Candidate & CV Isolation:
+      // A candidate belongs to the current user/company ONLY IF:
+      // - The candidate is owned by the user (user_id === user.id)
+      // - OR the candidate's company_id belongs to the user's company memberships
+      // - OR the candidate's job_id belongs to one of the user's created jobs
+      const ownJobs = user?.id ? await supabase.from("jobs").select("id").eq("user_id", user.id).then(r => r.data || []) : [];
+      const ownJobIds = ownJobs.map((j: any) => j.id);
+
+      let userCompanyIds: string[] = [];
+      if (user?.id) {
+        try {
+          const { data: members } = await supabase.from("company_members").select("company_id").eq("user_id", user.id);
+          if (members) userCompanyIds = members.map((m: any) => m.company_id).filter(Boolean);
+        } catch (e) {
+          console.warn("Could not fetch user company memberships for candidate isolation:", e);
+        }
+      }
+
+      if (userCompanyIds.length > 0) {
+        return allMerged.filter(c =>
+          c.user_id === user?.id ||
+          (c.company_id && userCompanyIds.includes(c.company_id)) ||
+          ownJobIds.includes(c.job_id)
+        );
+      }
+
+      return allMerged.filter(c => c.user_id === user?.id || ownJobIds.includes(c.job_id));
     },
     enabled: !!user,
     staleTime: 5 * 1000,
     gcTime: 5 * 60 * 1000,
   });
 }
+
 
 export function usePaginatedCandidates(page = 0, pageSize = 50) {
   const { user } = useAuth();
@@ -394,15 +496,15 @@ export function usePaginatedCandidates(page = 0, pageSize = 50) {
         phone: a.phone,
         job_id: a.job_id,
         user_id: user?.id || null,
-        role: (a as any).jobs?.title || a.specialty || "متقدم جديد",
+        role: (a as ApplicationRow).jobs?.title || a.specialty || "متقدم جديد",
         stage: "تقديم الطلب",
         status: a.status || "جديد",
-        experience: a.experience,
-        resume_url: a.resume_url,
-        skills: a.skills,
-        summary: a.cover_letter,
+        experience: a.experience || null,
+        resume_url: a.resume_url || null,
+        skills: a.skills || null,
+        summary: a.cover_letter || null,
         source: "رابط التقديم المباشر",
-        tracking_code: (a as any).tracking_code || null,
+        tracking_code: (a as ApplicationRow).tracking_code || null,
         created_at: a.created_at,
         candidate_scorecards: [],
       }));
@@ -469,7 +571,7 @@ export function useAddInterview() {
       queryClient.invalidateQueries({ queryKey: ["interviews"] });
       toast({ title: "تم جدولة المقابلة بنجاح ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -497,7 +599,7 @@ export function useUpdateInterview() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["interviews"] });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -516,7 +618,7 @@ export function useCancelInterview() {
       queryClient.invalidateQueries({ queryKey: ["interviews"] });
       toast({ title: "تم إلغاء المقابلة ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -534,7 +636,7 @@ export function useNotifications() {
 
     const playNotificationSound = () => {
       try {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
         const playTone = (freq: number, startTime: number, duration: number) => {
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
@@ -555,10 +657,10 @@ export function useNotifications() {
       }
     };
 
-    const sendBrowserNotification = (payload: any) => {
+    const sendBrowserNotification = (payload: RealtimePayload) => {
       if ("Notification" in window && Notification.permission === "granted") {
         try {
-          const record = payload.new as any;
+          const record = payload.new;
           const notif = new Notification(record?.title || "إشعار جديد", {
             body: record?.description || "",
             icon: "/favicon.ico",
@@ -592,7 +694,7 @@ export function useNotifications() {
           sendBrowserNotification(payload);
 
           // In-app toast notification
-          const record = payload.new as any;
+          const record = (payload as RealtimePayload).new;
           if (record) {
             const typeEmoji: Record<string, string> = {
               application: "📩",

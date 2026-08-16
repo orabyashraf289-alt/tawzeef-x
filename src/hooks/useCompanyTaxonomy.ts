@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { ALL_AL_ANDALUS_BRANCHES, AL_ANDALUS_BRANCHES_BY_CITY, AlAndalusBranch } from "@/data/alAndalusBranches";
 
 export interface DepartmentItem {
   id: string;
@@ -45,13 +46,18 @@ export const DEFAULT_DEPARTMENTS: DepartmentItem[] = [
 ];
 
 export const DEFAULT_LOCATIONS: LocationItem[] = [
+  ...ALL_AL_ANDALUS_BRANCHES.map((b) => ({
+    id: b.id,
+    name: `${b.city} - ${b.name}`,
+    city: b.city,
+    country: "السعودية",
+    type: b.schoolTypes.join(" / "),
+    address: b.address,
+  })),
   { id: "loc-1", name: "الرياض - المقر الرئيسي", city: "الرياض", country: "السعودية", type: "مكتبي" },
   { id: "loc-2", name: "جدة - الفرع الغربي", city: "جدة", country: "السعودية", type: "مكتبي" },
   { id: "loc-3", name: "المنطقة الشرقية - الخبر", city: "الخبر", country: "السعودية", type: "مكتبي" },
-  { id: "loc-4", name: "دبي - الإمارات", city: "دبي", country: "الإمارات", type: "مكتبي" },
-  { id: "loc-5", name: "القاهرة - مصر", city: "القاهرة", country: "مصر", type: "مكتبي" },
   { id: "loc-6", name: "عمل عن بُعد (Remote)", city: "عن بُعد", country: "عالمي", type: "عن_بعد" },
-  { id: "loc-7", name: "نظام هجين (Hybrid)", city: "الرياض", country: "السعودية", type: "هجين" },
 ];
 
 export const DEFAULT_EXPERIENCE_LEVELS: ExperienceLevelItem[] = [
@@ -114,7 +120,16 @@ export function useCompanyTaxonomy() {
   const [locations, setLocations] = useState<LocationItem[]>(() => {
     try {
       const saved = localStorage.getItem("company_locations");
-      return saved ? JSON.parse(saved) : DEFAULT_LOCATIONS;
+      if (!saved) return DEFAULT_LOCATIONS;
+      const parsed: LocationItem[] = JSON.parse(saved);
+      const existingIds = new Set(parsed.map(l => l.id));
+      const missingDefault = DEFAULT_LOCATIONS.filter(l => !existingIds.has(l.id));
+      if (missingDefault.length > 0) {
+        const merged = [...parsed, ...missingDefault];
+        try { localStorage.setItem("company_locations", JSON.stringify(merged)); } catch {}
+        return merged;
+      }
+      return parsed;
     } catch {
       return DEFAULT_LOCATIONS;
     }

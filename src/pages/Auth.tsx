@@ -42,6 +42,7 @@ function trustDevice(email: string) {
 }
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBrandSettings } from "@/hooks/useBrandSettings";
 import { motion, AnimatePresence, useMotionValue } from "framer-motion";
 import { lovable } from "@/integrations/lovable/index";
 import { translateAuthError } from "@/lib/authErrors";
@@ -1016,12 +1017,15 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
                     {/* Full Name */}
                     <div className="space-y-1.5 text-right">
-                      <label className="text-xs font-semibold text-slate-600 tracking-wide block">
+                      <label htmlFor="auth-fullname" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
                         الاسم الكامل
                       </label>
                       <div className="relative">
                         <User className={iconClass("name")} />
                         <Input
+                          id="auth-fullname"
+                          name="fullName"
+                          aria-label="الاسم الكامل"
                           value={form.fullName}
                           onChange={e => setForm({ ...form, fullName: e.target.value })}
                           onFocus={() => setFocusedField("name")}
@@ -1042,12 +1046,15 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                         transition={{ duration: 0.25 }}
                         className="space-y-1.5 text-right"
                       >
-                        <label className="text-xs font-semibold text-slate-600 tracking-wide block">
+                        <label htmlFor="auth-company" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
                           اسم الشركة / المؤسسة
                         </label>
                         <div className="relative">
                           <Building2 className={iconClass("companyName")} />
                           <Input
+                            id="auth-company"
+                            name="companyName"
+                            aria-label="اسم الشركة أو المؤسسة"
                             value={form.companyName}
                             onChange={e => setForm({ ...form, companyName: e.target.value })}
                             onFocus={() => setFocusedField("companyName")}
@@ -1064,12 +1071,15 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
                 {/* Email */}
                 <div className="space-y-1.5 text-right">
-                  <label className="text-xs font-semibold text-slate-600 tracking-wide block">
+                  <label htmlFor="auth-email" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
                     البريد الإلكتروني
                   </label>
                   <div className="relative">
                     <Mail className={iconClass("email")} />
                     <Input
+                      id="auth-email"
+                      name="email"
+                      aria-label="البريد الإلكتروني"
                       type="email"
                       value={form.email}
                       onChange={e => setForm({ ...form, email: e.target.value })}
@@ -1085,12 +1095,15 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
                 {/* Password */}
                 <div className="space-y-1.5 text-right">
-                  <label className="text-xs font-semibold text-slate-600 tracking-wide block">
+                  <label htmlFor="auth-password" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
                     كلمة المرور
                   </label>
                   <div className="relative">
                     <Lock className={iconClass("password")} />
                     <Input
+                      id="auth-password"
+                      name="password"
+                      aria-label="كلمة المرور"
                       type={showPassword ? "text" : "password"}
                       value={form.password}
                       onChange={e => setForm({ ...form, password: e.target.value })}
@@ -1226,6 +1239,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 /* ─── Page ─── */
 export default function Auth() {
   const { user } = useAuth();
+  const { data: brandSettings } = useBrandSettings();
   const [searchParams] = useSearchParams();
   const [isLogin, setIsLogin] = useState(searchParams.get("mode") !== "signup");
   const [pendingOtp, setPendingOtp] = useState(false);
@@ -1296,7 +1310,17 @@ export default function Auth() {
 
       {/* Background */}
       <div className="absolute inset-0 bg-background">
-        <AuroraBackground />
+        {brandSettings?.loginBgUrl ? (
+          <div className="absolute inset-0 z-0">
+            <img src={brandSettings.loginBgUrl} alt="Custom Login Background" className="w-full h-full object-cover" />
+            <div
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-[2px]"
+              style={{ opacity: brandSettings.loginBgOverlayOpacity ?? 0.5 }}
+            />
+          </div>
+        ) : (
+          <AuroraBackground />
+        )}
       </div>
       <div className="relative z-10 min-h-screen min-h-[100dvh] grid lg:grid-cols-[1fr_1.15fr]">
         <BrandingPanel />

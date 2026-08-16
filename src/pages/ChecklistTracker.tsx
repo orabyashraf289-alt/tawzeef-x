@@ -38,6 +38,8 @@ export default function ChecklistTracker() {
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["checklist-tracker"],
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     queryFn: async (): Promise<TrackerRow[]> => {
       const sb = supabase as any;
       const { data: checklists, error } = await sb

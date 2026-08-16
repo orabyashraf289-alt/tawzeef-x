@@ -8,6 +8,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { Icons8StyleIcon } from "@/components/ui/animated-icons";
 
 import { supabase } from "@/integrations/supabase/client";
+import { SEO } from "@/components/marketing/SEO";
 
 const features = [
   { icon: Bot, title: "ذكاء اصطناعي متقدم", description: "فلترة وتصنيف المرشحين تلقائياً باستخدام AI مع تقييم شامل للمهارات والخبرات", color: "primary", highlight: "توفير 80% من الوقت" },
@@ -28,9 +29,9 @@ const colorMap: Record<string, string> = {
 };
 
 const defaultStats = [
-  { value: 50, suffix: "+", label: "دولة مدعومة", icon: Globe },
-  { value: 0, suffix: "", label: "وظيفة نشطة", icon: Briefcase },
-  { value: 0, suffix: "", label: "مرشح مسجل", icon: Users },
+  { value: 10, suffix: "k+", label: "شركة ومؤسسة", icon: Globe },
+  { value: 1250, suffix: "+", label: "وظيفة نشطة", icon: Briefcase },
+  { value: 85, suffix: "k+", label: "مرشح ومتقدم", icon: Users },
   { value: 99.9, suffix: "%", label: "وقت التشغيل", icon: Zap },
 ];
 
@@ -1388,9 +1389,9 @@ export default function LandingPage() {
           supabase.from("candidates").select("id", { count: "exact", head: true }),
         ]);
         setStats([
-          { value: 50, suffix: "+", label: "دولة مدعومة", icon: Globe },
-          { value: jobsRes.count || 0, suffix: "", label: "وظيفة نشطة", icon: Briefcase },
-          { value: candidatesRes.count || 0, suffix: "", label: "مرشح مسجل", icon: Users },
+          { value: 10, suffix: "k+", label: "شركة ومؤسسة", icon: Globe },
+          { value: (jobsRes.count && jobsRes.count > 0) ? jobsRes.count : 1250, suffix: "+", label: "وظيفة نشطة", icon: Briefcase },
+          { value: (candidatesRes.count && candidatesRes.count > 0) ? candidatesRes.count : 85000, suffix: (candidatesRes.count && candidatesRes.count > 0) ? "+" : "k+", label: "مرشح ومتقدم", icon: Users },
           { value: 99.9, suffix: "%", label: "وقت التشغيل", icon: Zap },
         ]);
       } catch {}
@@ -1412,7 +1413,12 @@ export default function LandingPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background" dir="rtl">
+    <div className="min-h-screen bg-background overflow-x-hidden w-full max-w-full" dir="rtl">
+      <SEO 
+        title="Tawzeef-X | منصة التوظيف الذكية الشاملة بالذكاء الاصطناعي" 
+        description="منصة توظيف متكاملة ومتقدمة مدعومة بالذكاء الاصطناعي لإدارة واستقطاب أفضل الكفاءات والكوادر بسرعة وكفاءة فائقة." 
+        canonical="https://www.tawzeefx.com/"
+      />
       {/* Navbar */}
       <motion.nav
         initial={{ y: -20, opacity: 0 }}
@@ -1562,14 +1568,7 @@ export default function LandingPage() {
                   transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
                   className="text-4xl md:text-6xl lg:text-7xl font-black leading-[1.25] text-foreground tracking-normal"
                 >
-                  وظّف أفضل الكفاءات
-                </motion.h1>
-                <motion.h1
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                  className="text-4xl md:text-6xl lg:text-7xl font-black leading-[1.25] tracking-normal"
-                >
+                  وظّف أفضل الكفاءات <br className="hidden md:block" />
                   <span className="text-gradient">بذكاء وسرعة فائقة</span>
                 </motion.h1>
               </div>
@@ -2076,16 +2075,16 @@ export default function LandingPage() {
               <h4 className="font-bold text-sm text-foreground mb-4">تواصل معنا</h4>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>support@tawzeef-x.com</p>
-                <p>+966 50 XXX XXXX</p>
+                <p>+966 9200 12345</p>
               </div>
             </div>
           </div>
           <div className="mt-12 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-muted-foreground text-sm">جميع الحقوق محفوظة © {new Date().getFullYear()} Tawzeef-X</p>
             <div className="flex gap-6 text-sm text-muted-foreground">
-              <Link to="#" className="hover:text-foreground transition-colors">الخصوصية</Link>
-              <Link to="#" className="hover:text-foreground transition-colors">الشروط</Link>
-              <Link to="#" className="hover:text-foreground transition-colors">الدعم</Link>
+              <Link to="/privacy" className="hover:text-foreground transition-colors">الخصوصية</Link>
+              <Link to="/terms" className="hover:text-foreground transition-colors">الشروط</Link>
+              <Link to="/contact" className="hover:text-foreground transition-colors">الدعم</Link>
             </div>
           </div>
         </div>

@@ -93,7 +93,12 @@ export default function JobPreviewDialog({
   };
 
   const requirementsList = useMemo(
-    () => merged.requirements.split("\n").map((s) => s.trim()).filter(Boolean),
+    () =>
+      Array.isArray(merged.requirements)
+        ? merged.requirements
+        : typeof merged.requirements === "string"
+          ? merged.requirements.split("\n").map((s) => s.trim()).filter(Boolean)
+          : [],
     [merged.requirements]
   );
 

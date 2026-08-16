@@ -2,7 +2,9 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Bell, UserPlus, Briefcase, Calendar, CheckCircle, Trash2, BellOff, FileText, Send, ArrowLeftRight, XCircle, Eye, EyeOff, MailOpen, Search, SlidersHorizontal, RefreshCw } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
+
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -295,21 +297,14 @@ export default function Notifications() {
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-20 glass-card-premium border border-border/30 bg-card/40 backdrop-blur-md rounded-2xl shadow-sm">
-            <div className="w-20 h-20 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center mx-auto mb-4 animate-float">
-              <BellOff className="w-10 h-10 text-primary/40" />
-            </div>
-            <p className="text-foreground font-extrabold text-lg mb-1">لا توجد إشعارات</p>
-            <p className="text-sm text-muted-foreground max-w-sm mx-auto font-medium">
-              {showUnreadOnly ? "جميع الإشعارات مقروءة! يمكنك عرض الكل." : "ستظهر التنبيهات والتحديثات الجديدة هنا تلقائياً"}
-            </p>
-            {showUnreadOnly && (
-              <Button variant="outline" size="sm" className="mt-4 rounded-xl border-border/40 hover:bg-primary/5 hover:text-primary transition-all duration-300" onClick={() => setShowUnreadOnly(false)}>
-                عرض جميع الإشعارات
-              </Button>
-            )}
-          </motion.div>
+          <EmptyState
+            icon={BellOff}
+            title="لا توجد إشعارات"
+            description={showUnreadOnly ? "جميع الإشعارات مقروءة! يمكنك التبديل لعرض الكل." : "ستظهر التنبيهات والتحديثات الجديدة هنا تلقائياً عند قيام فريق العمل أو المرشحين بأي إجراء."}
+            actionLabel={showUnreadOnly ? "عرض جميع الإشعارات" : undefined}
+            onAction={showUnreadOnly ? () => setShowUnreadOnly(false) : undefined}
+          />
+
         ) : (
           <motion.div variants={container} initial="hidden" animate="show" className="space-y-5">
             {grouped.map(([dateLabel, items]) => (

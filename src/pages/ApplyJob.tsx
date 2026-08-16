@@ -17,14 +17,13 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import SARSymbol from "@/components/SARSymbol";
-import { validateFile } from "@/lib/fileValidation";
-import { motion, AnimatePresence } from "framer-motion";
+import { SEO } from "@/components/marketing/SEO";
 
 /* ───────── Form Field Wrapper ───────── */
-function FormField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function FormField({ label, required, htmlFor, children }: { label: string; required?: boolean; htmlFor?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5 text-right" dir="rtl">
-      <Label className="text-xs font-bold text-foreground/90 flex items-center justify-between">
+      <Label htmlFor={htmlFor} className="text-xs font-bold text-foreground/90 flex items-center justify-between cursor-pointer">
         <span>{label} {required && <span className="text-destructive font-black">*</span>}</span>
       </Label>
       {children}
@@ -194,12 +193,10 @@ export default function ApplyJob() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const val = validateFile(file, { maxSizeMB: 10, allowedTypes: ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"] });
-    if (!val.valid) {
-      toast({ title: "خطأ في الملف", description: val.error, variant: "destructive" });
-      return;
-    }
+    const isValid = validateFile(file, "resume");
+    if (!isValid) return;
     setResumeFile(file);
+    toast({ title: "تم إرفاق السيرة الذاتية بنجاح ✅", description: file.name });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -215,14 +212,28 @@ export default function ApplyJob() {
       setUploading(true);
       const ext = (resumeFile.name.split(".").pop() || "").toLowerCase();
       const filePath = `applications/${id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("resumes").upload(filePath, resumeFile);
-      setUploading(false);
-      if (uploadError) {
-        toast({ title: "خطأ في رفع السيرة الذاتية", description: uploadError.message, variant: "destructive" });
-        setSubmitting(false);
-        return;
+      try {
+        const { error: uploadError } = await supabase.storage.from("resumes").upload(filePath, resumeFile, { upsert: true });
+        if (uploadError) {
+          console.warn("Storage upload failed, reading data URL fallback:", uploadError);
+          const reader = new FileReader();
+          resumeUrl = await new Promise((resolve) => {
+            reader.onload = (evt) => resolve(evt.target?.result as string);
+            reader.readAsDataURL(resumeFile);
+          });
+        } else {
+          const { data: pubData } = supabase.storage.from("resumes").getPublicUrl(filePath);
+          resumeUrl = pubData?.publicUrl || filePath;
+        }
+      } catch (err) {
+        const reader = new FileReader();
+        resumeUrl = await new Promise((resolve) => {
+          reader.onload = (evt) => resolve(evt.target?.result as string);
+          reader.readAsDataURL(resumeFile);
+        });
+      } finally {
+        setUploading(false);
       }
-      resumeUrl = filePath;
     }
 
     const generatedTrackingCode = "TX-" + Math.floor(100000 + Math.random() * 900000);
@@ -312,6 +323,10 @@ export default function ApplyJob() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans text-right" dir="rtl">
+      <SEO 
+        title={`التقديم على شاغر ${job?.title || "معلم"} | Tawzeef-X`}
+        description={`قدم الآن على شاغر ${job?.title || "معلم"} في ${job?.school_name || "المدارس المعتمدة"} عبر منصة توظيف X.`}
+      />
       {/* Header */}
       <header className="border-b border-border/60 bg-card/80 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -354,17 +369,25 @@ export default function ApplyJob() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <FormField label="الاسم الكامل للمعلم" required>
+                  <FormField label="الاسم الكامل للمعلم" required htmlFor="applicant-name">
                     <Input
+                      id="applicant-name"
+                      name="name"
+                      required
+                      aria-label="الاسم الكامل للمعلم"
                       value={form.name}
                       onChange={e => setForm({ ...form, name: e.target.value })}
                       placeholder="أدخل اسمك الثلاثي"
                       className={inputClass}
                     />
                   </FormField>
-                  <FormField label="البريد الإلكتروني" required>
+                  <FormField label="البريد الإلكتروني" required htmlFor="applicant-email">
                     <Input
+                      id="applicant-email"
+                      name="email"
                       type="email"
+                      required
+                      aria-label="البريد الإلكتروني"
                       value={form.email}
                       onChange={e => setForm({ ...form, email: e.target.value })}
                       placeholder="name@example.com"
@@ -375,8 +398,12 @@ export default function ApplyJob() {
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <FormField label="رقم الجوال (السعودي/الخليجي)" required>
+                  <FormField label="رقم الجوال (السعودي/الخليجي)" required htmlFor="applicant-phone">
                     <Input
+                      id="applicant-phone"
+                      name="phone"
+                      required
+                      aria-label="رقم الجوال"
                       value={form.phone}
                       onChange={e => setForm({ ...form, phone: e.target.value })}
                       placeholder="05xxxxxxxx"
@@ -384,8 +411,11 @@ export default function ApplyJob() {
                       className={cn(inputClass, "text-left")}
                     />
                   </FormField>
-                  <FormField label="سنوات الخبرة في التدريس">
+                  <FormField label="سنوات الخبرة في التدريس" htmlFor="applicant-experience">
                     <Input
+                      id="applicant-experience"
+                      name="experience"
+                      aria-label="سنوات الخبرة"
                       value={form.experience}
                       onChange={e => setForm({ ...form, experience: e.target.value })}
                       placeholder="مثال: 5 سنوات بالمرحلة الثانوية"
@@ -401,8 +431,11 @@ export default function ApplyJob() {
                     بيانات الرخصة المهنية للمعلمين بالمملكة العربية السعودية (etec.gov.sa):
                   </span>
                   <div className="grid sm:grid-cols-2 gap-3">
-                    <FormField label="رقم الرخصة المهنية للمعلمين (ETEC)">
+                    <FormField label="رقم الرخصة المهنية للمعلمين (ETEC)" htmlFor="applicant-license">
                       <Input
+                        id="applicant-license"
+                        name="licenseNumber"
+                        aria-label="رقم الرخصة المهنية"
                         placeholder="ETEC-9842145-SA"
                         value={form.licenseNumber}
                         onChange={e => setForm({ ...form, licenseNumber: e.target.value })}
@@ -410,8 +443,11 @@ export default function ApplyJob() {
                         dir="ltr"
                       />
                     </FormField>
-                    <FormField label="المؤهل والجامعة وسنة التخرج">
+                    <FormField label="المؤهل والجامعة وسنة التخرج" htmlFor="applicant-degree">
                       <Input
+                        id="applicant-degree"
+                        name="universityDegree"
+                        aria-label="المؤهل والجامعة وسنة التخرج"
                         placeholder="بكالوريوس علوم - جامعة الملك سعود (2018)"
                         value={form.universityDegree}
                         onChange={e => setForm({ ...form, universityDegree: e.target.value })}
@@ -419,8 +455,11 @@ export default function ApplyJob() {
                       />
                     </FormField>
                   </div>
-                  <FormField label="رابط فيديو الحصة التجريبية (Demo Lesson Video URL)">
+                  <FormField label="رابط فيديو الحصة التجريبية (Demo Lesson Video URL)" htmlFor="applicant-video">
                     <Input
+                      id="applicant-video"
+                      name="demoVideoUrl"
+                      aria-label="رابط فيديو الحصة التجريبية"
                       placeholder="https://youtube.com/watch?v=..."
                       value={form.demoVideoUrl}
                       onChange={e => setForm({ ...form, demoVideoUrl: e.target.value })}
@@ -432,16 +471,41 @@ export default function ApplyJob() {
 
                 {/* Resume Upload */}
                 <FormField label="السيرة الذاتية (PDF / Word)" required>
-                  <div className="border-2 border-dashed border-border/80 hover:border-emerald-600/60 rounded-2xl p-6 text-center transition-all bg-card/50">
-                    <input type="file" id="resume" onChange={handleFileChange} accept=".pdf,.doc,.docx" className="hidden" />
-                    <label htmlFor="resume" className="cursor-pointer space-y-2 block">
-                      <Upload className="w-8 h-8 text-emerald-600 mx-auto" />
-                      <p className="text-xs font-bold text-foreground">
-                        {resumeFile ? resumeFile.name : "اضغط هنا لرفع ملف السيرة الذاتية للمعلم"}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">صيغ PDF أو Word حتى 10 ميجابايت</p>
-                    </label>
-                  </div>
+                  {resumeFile ? (
+                    <div className="p-4 rounded-2xl border-2 border-emerald-500/50 bg-emerald-500/10 flex items-center justify-between gap-3 shadow-xs">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                          <FileCheck className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-foreground truncate">{resumeFile.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" /> تم الإرفاق بنجاح
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              ({(resumeFile.size / (1024 * 1024)).toFixed(2)} ميجابايت)
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <label htmlFor="resume" className="cursor-pointer text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/30 transition-colors shrink-0">
+                        تغيير الملف
+                        <input type="file" id="resume" onChange={handleFileChange} accept=".pdf,.doc,.docx" className="hidden" />
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-border/80 hover:border-emerald-600/60 rounded-2xl p-6 text-center transition-all bg-card/50 group">
+                      <input type="file" id="resume" onChange={handleFileChange} accept=".pdf,.doc,.docx" className="hidden" />
+                      <label htmlFor="resume" className="cursor-pointer space-y-2 block">
+                        <Upload className="w-8 h-8 text-emerald-600 mx-auto group-hover:scale-110 transition-transform" />
+                        <p className="text-xs font-bold text-foreground">
+                          اضغط هنا لرفع ملف السيرة الذاتية للمعلم
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">صيغ PDF أو Word حتى 10 ميجابايت</p>
+                      </label>
+                    </div>
+                  )}
                 </FormField>
 
                 <Button type="submit" disabled={submitting} className="w-full h-12 text-sm font-bold rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-md">

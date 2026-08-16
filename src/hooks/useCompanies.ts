@@ -3,6 +3,29 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
+export interface CompanyRow {
+  id: string;
+  parent_company_id?: string | null;
+  manager_user_id?: string | null;
+  status: string;
+  [key: string]: unknown;
+}
+
+export interface ProfileRow {
+  user_id: string;
+  full_name: string | null;
+  job_title: string | null;
+  avatar_url: string | null;
+}
+
+export interface CompanyMemberRow {
+  id: string;
+  company_id: string;
+  user_id: string;
+  member_role: string;
+  company?: Company;
+}
+
 export interface Company {
   id: string;
   name: string;
@@ -41,17 +64,92 @@ export interface CompanyMember {
   } | null;
 }
 
+// Helper to encode custom company metadata into DB-safe notes JSON
+export function prepareCompanyPayload(input: Record<string, any>, existingNotes?: string | null) {
+  let existingMeta: Record<string, any> = {};
+  if (existingNotes) {
+    try {
+      existingMeta = typeof existingNotes === "string" && existingNotes.startsWith("{")
+        ? JSON.parse(existingNotes)
+        : { description: existingNotes };
+    } catch {
+      existingMeta = { description: existingNotes };
+    }
+  }
+
+  // Extract non-schema custom fields
+  // NOTE: parent_company_id IS a real column in the DB (migration 20260708130000)
+  //       so it must be written to the actual column AND optionally kept in notes for backward compat.
+  const { parent_company_id, manager_user_id, address, e2e_encryption, brand_settings, notes: inputNotes, description: inputDesc, ...schemaFields } = input;
+
+  const cleanDesc = typeof inputNotes === "string" && !inputNotes.startsWith("{")
+    ? inputNotes
+    : typeof inputDesc === "string"
+    ? inputDesc
+    : existingMeta.description || null;
+
+  // Remove parent_company_id from notes JSON (it now lives in the real column)
+  const { parent_company_id: _old, ...existingMetaClean } = existingMeta;
+
+  const mergedMeta = {
+    ...existingMetaClean,
+    ...(manager_user_id !== undefined ? { manager_user_id } : {}),
+    ...(address !== undefined ? { address } : {}),
+    ...(e2e_encryption !== undefined ? { e2e_encryption } : {}),
+    ...(brand_settings !== undefined ? { brand_settings } : {}),
+    ...(cleanDesc ? { description: cleanDesc } : {}),
+  };
+
+  return {
+    ...schemaFields,
+    // Write parent_company_id to the REAL column so RLS branch policies work
+    ...(parent_company_id !== undefined ? { parent_company_id: parent_company_id || null } : {}),
+    notes: Object.keys(mergedMeta).length > 0 ? JSON.stringify(mergedMeta) : null,
+  };
+}
+
+// Helper to decode DB row notes JSON back into full Company object
+export function parseCompanyRow(c: Record<string, any>): Company {
+  if (!c) return c as Company;
+  let meta: Record<string, any> = {};
+  let isJsonNotes = false;
+
+  if (c.notes && typeof c.notes === "string" && c.notes.startsWith("{")) {
+    try {
+      meta = JSON.parse(c.notes);
+      isJsonNotes = typeof meta === "object" && meta !== null;
+    } catch {}
+  }
+
+  const cleanNotes = isJsonNotes
+    ? (typeof meta.description === "string" ? meta.description : typeof meta.address === "string" ? meta.address : null)
+    : c.notes;
+
+  return {
+    ...c,
+    notes: cleanNotes,
+    parent_company_id: c.parent_company_id || meta.parent_company_id || null,
+    manager_user_id: c.manager_user_id || meta.manager_user_id || null,
+    address: c.address || meta.address || cleanNotes || null,
+    e2e_encryption: c.e2e_encryption || meta.e2e_encryption || false,
+    brand_settings: c.brand_settings || meta.brand_settings || null,
+  } as Company;
+}
+
+
 // Admin: list all companies
 export function useAllCompanies() {
   return useQuery({
     queryKey: ["all-companies"],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("companies" as any)
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as unknown as Company[];
+      return (data || []).map(parseCompanyRow);
     },
   });
 }
@@ -59,6 +157,7 @@ export function useAllCompanies() {
 export function useCompany(id: string | undefined) {
   return useQuery({
     queryKey: ["company", id],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("companies" as any)
@@ -66,7 +165,7 @@ export function useCompany(id: string | undefined) {
         .eq("id", id!)
         .maybeSingle();
       if (error) throw error;
-      return data as unknown as Company | null;
+      return data ? parseCompanyRow(data) : null;
     },
     enabled: !!id,
   });
@@ -77,13 +176,18 @@ export function useMyCompanies() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["my-companies", user?.id],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("company_members" as any)
         .select("member_role, company:company_id(*)")
         .eq("user_id", user!.id);
       if (error) throw error;
-      return (data as any[]).map((r) => ({ ...r.company, member_role: r.member_role })) as (Company & { member_role: string })[];
+      return (data as CompanyMemberRow[]).map((r) => ({
+        ...parseCompanyRow(r.company as any),
+        member_role: r.member_role,
+      })) as (Company & { member_role: string })[];
     },
     enabled: !!user,
   });
@@ -92,6 +196,7 @@ export function useMyCompanies() {
 export function useCompanyMembers(companyId: string | undefined) {
   return useQuery({
     queryKey: ["company-members", companyId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!companyId) return [];
       const { data, error } = await supabase
@@ -101,14 +206,14 @@ export function useCompanyMembers(companyId: string | undefined) {
       if (error) throw error;
       if (!data || data.length === 0) return [];
 
-      const userIds = Array.from(new Set(data.map((m: any) => m.user_id)));
+      const userIds = Array.from(new Set(data.map((m: CompanyMemberRow) => m.user_id)));
       const { data: profiles } = await supabase
         .from("profiles")
         .select("user_id, full_name, job_title, avatar_url")
         .in("user_id", userIds);
 
-      return data.map((m: any) => {
-        const pr = (profiles || []).find((p: any) => p.user_id === m.user_id);
+      return data.map((m: CompanyMemberRow) => {
+        const pr = (profiles || []).find((p: ProfileRow) => p.user_id === m.user_id);
         return {
           ...m,
           profiles: pr || null,
@@ -124,6 +229,7 @@ export function useMyCompanyRole(companyId: string | null | undefined) {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["my-company-role", companyId, user?.id],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data } = await supabase
         .from("company_members" as any)
@@ -131,7 +237,7 @@ export function useMyCompanyRole(companyId: string | null | undefined) {
         .eq("company_id", companyId!)
         .eq("user_id", user!.id)
         .maybeSingle();
-      return ((data as any)?.member_role as "owner" | "hr" | "viewer" | undefined) || null;
+      return ((data as CompanyMemberRow)?.member_role as "owner" | "hr" | "viewer" | undefined) || null;
     },
     enabled: !!companyId && !!user,
   });
@@ -152,7 +258,7 @@ export function useAddCompanyMember() {
       qc.invalidateQueries({ queryKey: ["company-members", v.companyId] });
       toast({ title: "تمت الإضافة ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -182,7 +288,7 @@ export function useToggleCompanyStatus() {
       qc.invalidateQueries({ queryKey: ["company"] });
       toast({ title: "تم تحديث الحالة ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -190,13 +296,14 @@ export function useCreateCompany() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: Partial<Company>) => {
+      const payload = prepareCompanyPayload(input);
       const { data, error } = await supabase
         .from("companies" as any)
-        .insert(input as any)
+        .insert(payload as any)
         .select()
         .single();
       if (error) throw error;
-      return data as unknown as Company;
+      return parseCompanyRow(data);
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["all-companies"] });
@@ -234,7 +341,7 @@ export function useCreateCompany() {
         });
       }
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -242,7 +349,14 @@ export function useUpdateCompany() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...input }: Partial<Company> & { id: string }) => {
-      const { error } = await supabase.from("companies" as any).update(input as any).eq("id", id);
+      const { data: existing } = await supabase
+        .from("companies" as any)
+        .select("notes")
+        .eq("id", id)
+        .maybeSingle();
+
+      const payload = prepareCompanyPayload(input, existing?.notes);
+      const { error } = await supabase.from("companies" as any).update(payload as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: (_, v) => {
@@ -251,7 +365,7 @@ export function useUpdateCompany() {
       qc.invalidateQueries({ queryKey: ["company-branches"] });
       toast({ title: "تم التحديث ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -259,15 +373,19 @@ export function useDeleteCompany() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
+      // 1) Delete members of this company/branch
+      await supabase.from("company_members" as any).delete().eq("company_id", id);
+      // 2) Delete company record
       const { error } = await supabase.from("companies" as any).delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["all-companies"] });
       qc.invalidateQueries({ queryKey: ["company-branches"] });
-      toast({ title: "تم الحذف ✅" });
+      qc.invalidateQueries({ queryKey: ["my-companies"] });
+      toast({ title: "تم حذف الفرع بنجاح ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ في الحذف", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -275,8 +393,10 @@ export function useDeleteCompany() {
 export function useCompanyStats(companyId: string | undefined) {
   return useQuery({
     queryKey: ["company-stats", companyId],
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     queryFn: async () => {
-      const sb = supabase as any;
+      const sb = supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> };
       const [jobs, candidates, interviews, offers] = await Promise.all([
         sb.from("jobs").select("id, status", { count: "exact" }).eq("company_id", companyId!),
         sb.from("candidates").select("id, status", { count: "exact" }).eq("company_id", companyId!),
@@ -285,11 +405,11 @@ export function useCompanyStats(companyId: string | undefined) {
       ]);
       return {
         jobsTotal: jobs.count || 0,
-        jobsActive: (jobs.data || []).filter((j: any) => j.status === "نشطة").length,
+        jobsActive: (jobs.data || []).filter((j: Record<string, unknown>) => j.status === "نشطة").length,
         candidatesTotal: candidates.count || 0,
         interviewsTotal: interviews.count || 0,
         offersTotal: offers.count || 0,
-        offersAccepted: (offers.data || []).filter((o: any) => o.status === "accepted").length,
+        offersAccepted: (offers.data || []).filter((o: Record<string, unknown>) => o.status === "accepted").length,
       };
     },
     enabled: !!companyId,
@@ -297,11 +417,16 @@ export function useCompanyStats(companyId: string | undefined) {
 }
 
 // Fetch all branches of a parent company with assigned manager profiles
+// Uses server-side filtering on the real parent_company_id column for performance
 export function useCompanyBranches(parentId: string | undefined) {
   return useQuery({
     queryKey: ["company-branches", parentId],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       if (!parentId) return [];
+
+      // Server-side filter on the actual parent_company_id column (fast, indexed)
       const { data, error } = await supabase
         .from("companies" as any)
         .select("*")
@@ -311,8 +436,12 @@ export function useCompanyBranches(parentId: string | undefined) {
       if (error) throw error;
       if (!data || data.length === 0) return [];
 
-      const managerUserIds = Array.from(new Set(data.map((c: any) => c.manager_user_id).filter(Boolean)));
-      let profilesMap: Record<string, any> = {};
+      const branchCompanies = data.map(parseCompanyRow);
+
+      const managerUserIds = Array.from(
+        new Set(branchCompanies.map((c) => c.manager_user_id).filter(Boolean))
+      ) as string[];
+      let profilesMap: Record<string, unknown> = {};
 
       if (managerUserIds.length > 0) {
         const { data: profs } = await supabase
@@ -320,12 +449,12 @@ export function useCompanyBranches(parentId: string | undefined) {
           .select("user_id, full_name, job_title, avatar_url")
           .in("user_id", managerUserIds);
 
-        (profs || []).forEach((p: any) => {
+        (profs || []).forEach((p: ProfileRow) => {
           profilesMap[p.user_id] = p;
         });
       }
 
-      return data.map((c: any) => ({
+      return branchCompanies.map((c) => ({
         ...c,
         manager_profile: c.manager_user_id ? profilesMap[c.manager_user_id] || null : null,
       })) as Company[];
@@ -340,21 +469,23 @@ export function useCreateCompanyBranch() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async (input: Partial<Company> & { parent_company_id: string; manager_user_id?: string | null }) => {
+      const payload = prepareCompanyPayload({
+        ...input,
+        status: "active",
+        owner_user_id: user?.id || null,
+      });
+
       // 1) Insert branch company
       const { data: comp, error: compErr } = await supabase
         .from("companies" as any)
-        .insert({
-          ...input,
-          status: "active",
-          owner_user_id: user?.id || null,
-          manager_user_id: input.manager_user_id || null,
-        } as any)
+        .insert(payload as any)
         .select()
         .single();
 
       if (compErr) throw compErr;
 
       // 2) Add owner to company_members
+
       if (user) {
         await supabase
           .from("company_members" as any)
@@ -383,6 +514,6 @@ export function useCreateCompanyBranch() {
       qc.invalidateQueries({ queryKey: ["my-companies", user?.id] });
       toast({ title: "تم إنشاء الفرع وتعيين المسؤول بنجاح ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }

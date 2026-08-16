@@ -17,7 +17,6 @@ import { useToast } from "@/hooks/use-toast";
 import DateRangeFilter, { type DateRange } from "@/components/reports/DateRangeFilter";
 import HiringKPIReport from "@/components/reports/HiringKPIReport";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
-import { ReportsSkeleton } from "@/components/Skeletons";
 
 const SOURCE_COLORS: Record<string, string> = {
   "LinkedIn": "hsl(222, 65%, 46%)",
@@ -36,13 +35,16 @@ const tooltipStyle = {
   boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.08)",
 };
 
+import { ReportsSkeleton } from "@/components/Skeletons";
+
 export default function Reports() {
   const { toast } = useToast();
-  const { data: candidates, isLoading: isCandidatesLoading } = useCandidates();
-  const { data: jobs, isLoading: isJobsLoading } = useJobs();
-  const { data: interviews, isLoading: isInterviewsLoading } = useInterviews();
-  const { data: offers, isLoading: isOffersLoading } = useOffers();
+  const { data: candidates, isLoading: loadingCand } = useCandidates();
+  const { data: jobs, isLoading: loadingJobs } = useJobs();
+  const { data: interviews } = useInterviews();
+  const { data: offers } = useOffers();
   const dynamicStages = useActiveStages();
+
   const reportRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
@@ -591,7 +593,7 @@ export default function Reports() {
   const chartHiredLabel = t("reports.hired");
   const chartCandidateCountLabel = t("reports.candidateCount");
 
-  if (isCandidatesLoading || isJobsLoading || isInterviewsLoading || isOffersLoading) {
+  if (loadingCand || loadingJobs) {
     return (
       <DashboardLayout>
         <ReportsSkeleton />
