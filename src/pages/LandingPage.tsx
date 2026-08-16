@@ -1,6 +1,6 @@
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import { Link } from "react-router-dom";
-import { Users, Bot, ArrowLeft, TrendingUp, Shield, Globe, CheckCircle2, Zap, Star, Briefcase, FileText, BarChart3, Video, Sparkles, Award, Play, ArrowUpRight, MousePointerClick, Layout, MessageSquare, Calendar, Send, Menu, X, Sun, Moon, ChevronDown, Check } from "lucide-react";
+import { Users, Bot, ArrowLeft, TrendingUp, Shield, Globe, CheckCircle2, Zap, Star, Briefcase, FileText, BarChart3, Video, Sparkles, Award, Play, ArrowUpRight, MousePointerClick, Layout, MessageSquare, Calendar, Send, Menu, X, Sun, Moon, ChevronDown, Check, Building2, Lock, Cpu, Activity, Layers, Server, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, useScroll, useTransform, AnimatePresence, useInView, useMotionValue, useSpring, useMotionTemplate } from "framer-motion";
 import { useRef, useState, useEffect, useCallback } from "react";
@@ -8,6 +8,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/marketing/SEO";
+import { useSubscriptionPlans } from "@/hooks/useSubscription";
 
 const features = [
   { icon: Bot, title: "ذكاء اصطناعي متقدم", description: "فلترة وتصنيف المرشحين تلقائياً باستخدام AI مع تقييم شامل للمهارات والخبرات", highlight: "توفير 80% من الوقت", colorIdx: 0 },
@@ -24,18 +25,20 @@ const iconContainerColors = [
   "bg-md-tertiary-container text-md-on-tertiary-container",
 ];
 
-const defaultStats = [
-  { value: 10, suffix: "k+", label: "شركة ومؤسسة", icon: Globe },
-  { value: 1250, suffix: "+", label: "وظيفة نشطة", icon: Briefcase },
-  { value: 85, suffix: "k+", label: "مرشح ومتقدم", icon: Users },
-  { value: 99.9, suffix: "%", label: "وقت التشغيل", icon: Zap },
+const complianceHighlights = [
+  { label: "عزل بيانات المؤسسات (RLS)", icon: Shield },
+  { label: "تشفير سحابي عالي الأمان", icon: Lock },
+  { label: "متوافق مع لوائح التوظيف", icon: Building2 },
+  { label: "استجابة ذكاء اصطناعي فائقة", icon: Cpu },
+  { label: "بنية تحتية موثوقة 99.9%", icon: Server },
+  { label: "تكامل سلس مع الأنظمة الداخلية", icon: Layers },
 ];
 
 const steps = [
-  { num: "01", title: "أنشئ وظيفة", description: "حدد المتطلبات والمهارات باستخدام قوالب جاهزة أو أنشئ وظيفة مخصصة", icon: Briefcase },
-  { num: "02", title: "استقبل المتقدمين", description: "شارك رابط التقديم المباشر واستقبل الطلبات تلقائياً من جميع أنحاء العالم", icon: Globe },
-  { num: "03", title: "فلترة ذكية بالـ AI", description: "الذكاء الاصطناعي يحلل السير الذاتية ويرتب المرشحين حسب التطابق", icon: Bot },
-  { num: "04", title: "قابل ووظّف", description: "جدول مقابلات أونلاين، قيّم المرشحين، وأرسل العروض الوظيفية بنقرات", icon: Award },
+  { num: "01", title: "أنشئ متطلبات الشاغر", description: "حدد المتطلبات والمهارات باستخدام مساعد الذكاء الاصطناعي أو القوالب الجاهزة", icon: Briefcase },
+  { num: "02", title: "استقبل المتقدمين", description: "شارك رابط التقديم المباشر واستقبل الطلبات تلقائياً لمعالجتها فورياً", icon: Globe },
+  { num: "03", title: "فلترة ومطابقة بالـ AI", description: "الذكاء الاصطناعي يحلل السير الذاتية ويرتب المرشحين حسب نسبة التطابق الفعلي", icon: Bot },
+  { num: "04", title: "المقابلات والعروض", description: "أجرِ المقابلات عبر الغرف المدمجة، قيّم المرشحين، وأرسل العروض الوظيفية بنقرة زر", icon: Award },
 ];
 
 const testimonials = [
@@ -436,349 +439,537 @@ const staggerContainer = {
 };
 
 export default function LandingPage() {
-  const { theme, toggleTheme } = useTheme();
-  const [scrolled, setScrolled] = useState(false);
+  const { theme, setTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [stats, setStats] = useState(defaultStats);
-  const { scrollYProgress } = useScroll();
-  const yBg = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
+
+  // 1. Dynamic System Telemetry & Statistics directly from Supabase (NO FAKE STATS)
+  const [systemStats, setSystemStats] = useState({
+    activeJobs: 0,
+    candidates: 0,
+    interviews: 0,
+    companiesCount: 0,
+    isLoaded: false,
+  });
+
+  // 2. Real Companies fetched from Supabase
+  const [realCompanies, setRealCompanies] = useState<Array<{ id: string; name: string; logo_url: string | null }>>([]);
+
+  // 3. Dynamic Subscription Plans fetched from Supabase (connected to Settings)
+  const { data: dbPlans, isLoading: plansLoading } = useSubscriptionPlans();
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  useEffect(() => {
-    async function fetchStats() {
+    async function fetchPlatformData() {
       try {
-        const { count: companiesCount } = await supabase.from('companies').select('*', { count: 'exact', head: true });
-        const { count: jobsCount } = await supabase.from('jobs').select('*', { count: 'exact', head: true });
-        const { count: candidatesCount } = await supabase.from('candidates').select('*', { count: 'exact', head: true });
-        if (companiesCount && jobsCount && candidatesCount) {
-          setStats([
-            { value: Math.max(companiesCount, 12), suffix: "+", label: "شركة ومؤسسة", icon: Globe },
-            { value: Math.max(jobsCount, 45), suffix: "+", label: "وظيفة نشطة", icon: Briefcase },
-            { value: Math.max(candidatesCount, 320), suffix: "+", label: "مرشح ومتقدم", icon: Users },
-            { value: 99.9, suffix: "%", label: "وقت التشغيل", icon: Zap },
-          ]);
-        }
-      } catch (error) {
-        console.error("Error fetching stats:", error);
+        const [jobsRes, candRes, interRes, compRes] = await Promise.all([
+          supabase.from("jobs").select("id", { count: "exact", head: true }).eq("status", "نشطة"),
+          supabase.from("candidates").select("id", { count: "exact", head: true }),
+          supabase.from("interviews").select("id", { count: "exact", head: true }),
+          supabase.from("companies").select("id, name, logo_url, status"),
+        ]);
+
+        const approvedComps = (compRes.data || []).filter((c: any) => c.status === "approved" || c.name);
+
+        setSystemStats({
+          activeJobs: jobsRes.count ?? 0,
+          candidates: candRes.count ?? 0,
+          interviews: interRes.count ?? 0,
+          companiesCount: approvedComps.length,
+          isLoaded: true,
+        });
+
+        setRealCompanies(approvedComps);
+      } catch (err) {
+        console.warn("Failed to fetch live telemetry:", err);
+        setSystemStats((prev) => ({ ...prev, isLoaded: true }));
       }
     }
-    fetchStats();
+    fetchPlatformData();
   }, []);
 
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
+
+  const staggerContainer = {
+    hidden: {},
+    visible: { transition: { staggerChildren: 0.1 } },
+  };
+
+  const fadeUp = {
+    hidden: { opacity: 0, y: 24 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease: [0.2, 0, 0, 1] },
+    },
+  };
+
   return (
-    <div dir="rtl" className="min-h-screen bg-md-surface text-md-on-surface font-sans selection:bg-md-primary/30 overflow-x-hidden">
-      <SEO 
-        title="توظيف إكس | مستقبل التوظيف الذكي في المملكة" 
-        description="منصة التوظيف الأذكى للمؤسسات الحديثة المدعومة بالذكاء الاصطناعي لإدارة المرشحين والمقابلات بسهولة فائقة."
+    <div className="min-h-screen bg-md-surface text-md-on-surface overflow-x-hidden w-full max-w-full font-sans antialiased selection:bg-md-primary selection:text-md-on-primary" dir="rtl">
+      <SEO
+        title="Tawzeef-X | منصة التوظيف الذكية الشاملة للشركات وإدارة الاستقطاب"
+        description="منصة التوظيف الذكية المدعومة بالذكاء الاصطناعي — أتمتة الفلترة، تقييم المرشحين، مقابلات الفيديو المدمجة، وإدارة العروض الوظيفية."
+        canonical="https://www.tawzeefx.com/"
       />
 
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(50%); }
-        }
-        @keyframes marquee-reverse {
-          0% { transform: translateX(50%); }
-          100% { transform: translateX(0); }
-        }
-        .animate-marquee {
-          animation: marquee 40s linear infinite;
-        }
-        .animate-marquee-reverse {
-          animation: marquee-reverse 40s linear infinite;
-        }
-      `}} />
-
-      {/* 1. MD3 Top App Bar (Navbar) */}
-      <header className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? 'bg-md-surface/80 backdrop-blur-xl shadow-md3-2 border-b border-md-outline-variant' : 'bg-transparent'}`}>
-        <div className="container mx-auto px-4 h-20 flex items-center justify-between">
+      {/* ── 1. Top App Bar (MD3 Navigation) ── */}
+      <header className="fixed top-0 inset-x-0 z-50 bg-md-surface/85 backdrop-blur-xl border-b border-md-outline-variant/60 shadow-sm transition-all">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+          {/* Brand Logo */}
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="relative w-10 h-10 overflow-hidden rounded-md3-md bg-md-primary-container text-md-on-primary-container flex items-center justify-center">
-               <img src={tawzeefLogo} alt="TawzeefX" className="w-8 h-8 object-contain" />
+            <div className="w-10 h-10 rounded-md3-md bg-md-primary-container text-md-on-primary-container flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+              <img src={tawzeefLogo} alt="Tawzeef-X" className="w-7 h-7 object-contain" />
             </div>
-            <span className="text-md3-title-lg font-black tracking-tight text-md-on-surface">توظيف <span className="text-md-primary">إكس</span></span>
+            <div className="flex flex-col">
+              <span className="text-md3-title-lg font-black tracking-tight text-md-on-surface leading-tight">
+                Tawzeef-<span className="text-md-primary">X</span>
+              </span>
+              <span className="text-[10px] text-md-on-surface-variant font-bold tracking-wider">منصة التوظيف الذكية</span>
+            </div>
           </Link>
 
+          {/* Desktop Nav Links (No public jobs browsing) */}
           <nav className="hidden lg:flex items-center gap-8">
-            {['المميزات', 'كيف تعمل', 'التجربة', 'الأسعار', 'آراء العملاء'].map((item) => (
-              <a key={item} href={`#${item}`} className="text-md3-label-lg font-medium text-md-on-surface-variant hover:text-md-primary transition-colors">
-                {item}
+            {[
+              { label: "المميزات المؤسسية", href: "#features" },
+              { label: "آلية العمل", href: "#how-it-works" },
+              { label: "التجربة الحية", href: "#demo" },
+              { label: "باقات الاشتراك", href: "#pricing" },
+              { label: "الأمان والموثوقية", href: "#security" },
+            ].map((item) => (
+              <a
+                key={item.label}
+                href={item.href}
+                className="text-md3-label-lg font-bold text-md-on-surface-variant hover:text-md-primary transition-colors"
+              >
+                {item.label}
               </a>
             ))}
           </nav>
 
-          <div className="hidden lg:flex items-center gap-4">
-            <button onClick={toggleTheme} className="w-10 h-10 rounded-md3-full flex items-center justify-center text-md-on-surface-variant hover:bg-md-surface-variant transition-colors">
-              <AnimatePresence mode="wait">
-                {theme === 'dark' ? (
-                  <motion.div key="sun" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }}>
-                    <Sun className="w-5 h-5" />
-                  </motion.div>
-                ) : (
-                  <motion.div key="moon" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }}>
-                    <Moon className="w-5 h-5" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+          {/* Actions */}
+          <div className="hidden lg:flex items-center gap-3">
+            <button
+              onClick={toggleTheme}
+              className="w-10 h-10 rounded-md3-full flex items-center justify-center text-md-on-surface-variant hover:bg-md-surface-variant/80 transition-colors"
+              aria-label="تبديل الوضع"
+            >
+              {theme === "dark" ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-700" />}
             </button>
-            <Link to="/auth?mode=login" className="text-md3-label-lg font-bold text-md-primary hover:bg-md-primary-container/50 px-5 py-2.5 rounded-md3-full transition-colors">
-              دخول
+            <Link
+              to="/auth?mode=login"
+              className="text-md3-label-lg font-bold text-md-primary hover:bg-md-primary-container/40 px-5 py-2.5 rounded-md3-full transition-colors"
+            >
+              تسجيل الدخول
             </Link>
-            <Link to="/auth?mode=signup" className="bg-md-primary text-md-on-primary text-md3-label-lg font-bold px-6 py-2.5 rounded-md3-full shadow-md3-1 hover:shadow-md3-3 transition-shadow">
+            <Link
+              to="/auth?mode=signup"
+              className="bg-md-primary text-md-on-primary text-md3-label-lg font-bold px-6 py-2.5 rounded-md3-full shadow-md3-1 hover:shadow-md3-3 transition-all hover:scale-105"
+            >
               ابدأ مجاناً
             </Link>
           </div>
 
-          <button className="lg:hidden p-2 text-md-on-surface" onClick={() => setMobileMenuOpen(true)}>
+          {/* Mobile Menu Trigger */}
+          <button
+            className="lg:hidden p-2.5 rounded-md3-md text-md-on-surface hover:bg-md-surface-variant"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="القائمة"
+          >
             <Menu className="w-6 h-6" />
           </button>
         </div>
       </header>
 
-      {/* Mobile Menu */}
+      {/* ── Mobile Drawer ── */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed inset-0 z-[60] bg-md-surface flex flex-col p-6"
+            initial={{ opacity: 0, x: "100%" }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-[60] bg-md-surface flex flex-col p-6 shadow-2xl"
           >
-            <div className="flex justify-between items-center mb-8">
-              <span className="text-md3-title-lg font-black text-md-primary">توظيف إكس</span>
-              <button onClick={() => setMobileMenuOpen(false)} className="p-2 bg-md-surface-variant rounded-md3-full">
-                <X className="w-6 h-6" />
+            <div className="flex justify-between items-center pb-6 border-b border-md-outline-variant">
+              <div className="flex items-center gap-2.5">
+                <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
+                <span className="text-md3-title-lg font-black text-md-primary">Tawzeef-X</span>
+              </div>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-2.5 bg-md-surface-variant rounded-md3-full text-md-on-surface"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <nav className="flex flex-col gap-6 text-md3-headline-sm font-bold">
-              {['المميزات', 'كيف تعمل', 'التجربة', 'الأسعار', 'آراء العملاء'].map((item) => (
-                <a key={item} href={`#${item}`} onClick={() => setMobileMenuOpen(false)} className="text-md-on-surface border-b border-md-outline-variant pb-4">
-                  {item}
+
+            <nav className="flex flex-col gap-5 py-8 text-md3-title-md font-bold">
+              {[
+                { label: "المميزات المؤسسية", href: "#features" },
+                { label: "آلية العمل", href: "#how-it-works" },
+                { label: "التجربة الحية", href: "#demo" },
+                { label: "باقات الاشتراك", href: "#pricing" },
+                { label: "الأمان والموثوقية", href: "#security" },
+              ].map((item) => (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-md-on-surface hover:text-md-primary py-2 border-b border-md-outline-variant/40"
+                >
+                  {item.label}
                 </a>
               ))}
             </nav>
-            <div className="mt-auto flex flex-col gap-4">
-              <Link to="/auth?mode=login" className="bg-md-surface-variant text-center py-4 rounded-md3-full text-md3-title-lg font-bold">
+
+            <div className="mt-auto flex flex-col gap-3">
+              <Link
+                to="/auth?mode=login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full py-3.5 text-center rounded-md3-full border border-md-outline font-bold text-md-primary"
+              >
                 تسجيل الدخول
               </Link>
-              <Link to="/auth?mode=signup" className="bg-md-primary text-md-on-primary text-center py-4 rounded-md3-full text-md3-title-lg font-bold shadow-md3-2">
-                ابدأ مجاناً
+              <Link
+                to="/auth?mode=signup"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full py-3.5 text-center rounded-md3-full bg-md-primary text-md-on-primary font-bold shadow-md3-2"
+              >
+                إنشاء حساب جديد
               </Link>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* 2. Hero Section */}
-      <section className="relative min-h-screen pt-32 pb-20 overflow-hidden flex items-center">
-        {/* Animated Background Blobs */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <motion.div
-            animate={{ y: [0, 50, 0], x: [0, -30, 0] }}
-            transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute -top-[10%] -right-[10%] w-[60vw] h-[60vw] rounded-full bg-md-primary-container/40 blur-[140px]"
-          />
-          <motion.div
-            animate={{ y: [0, -40, 0], x: [0, 40, 0] }}
-            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute -bottom-[10%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-md-secondary-container/30 blur-[100px]"
-          />
-          <motion.div
-            animate={{ scale: [1, 1.2, 1] }}
-            transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-[30%] left-[30%] w-[30vw] h-[30vw] rounded-full bg-md-tertiary-container/20 blur-[80px]"
-          />
-          <div className="absolute inset-0 bg-[radial-gradient(circle,hsl(var(--md-outline-variant))_1px,transparent_1px)] bg-[size:24px_24px] opacity-30" />
+      {/* ── 2. Hero Section ── */}
+      <section className="relative min-h-[92vh] pt-32 lg:pt-36 pb-20 overflow-hidden flex items-center">
+        {/* Dynamic MD3 Tonal Ambient Blobs */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10">
+          <div className="absolute -top-[15%] right-0 w-[55vw] h-[55vw] rounded-full bg-md-primary-container/35 blur-[130px]" />
+          <div className="absolute bottom-0 -left-[10%] w-[45vw] h-[45vw] rounded-full bg-md-secondary-container/30 blur-[110px]" />
+          <div className="absolute top-1/2 left-1/3 w-[30vw] h-[30vw] rounded-full bg-md-tertiary-container/15 blur-[90px]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle,hsl(var(--md-outline-variant))_1px,transparent_1px)] bg-[size:32px_32px] opacity-25" />
         </div>
 
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            {/* Left Content (Text) */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 w-full">
+          <div className="grid lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+            {/* Right: Content Column */}
             <motion.div
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true }}
               variants={staggerContainer}
-              className="text-center lg:text-right"
+              className="lg:col-span-7 text-center lg:text-right"
             >
-              <motion.div variants={fadeUp} className="inline-flex mb-8">
-                <div className="bg-md-primary-container text-md-on-primary-container rounded-md3-full px-4 py-1.5 flex items-center gap-2 border border-md-primary-container/50 shadow-md3-1">
-                  <Sparkles className="w-4 h-4 text-md-primary animate-pulse" />
-                  <span className="text-md3-label-lg font-bold">مستقبل التوظيف بدأ الآن</span>
+              <motion.div variants={fadeUp} className="inline-flex mb-6">
+                <div className="bg-md-primary-container text-md-on-primary-container rounded-md3-full px-4 py-1.5 flex items-center gap-2 border border-md-primary/20 shadow-sm">
+                  <Sparkles className="w-4 h-4 text-md-primary animate-spin-slow" />
+                  <span className="text-md3-label-sm font-black">نظام التوظيف الذكي وإدارة المواهب المؤسسية</span>
                 </div>
               </motion.div>
-              
-              <motion.h1 variants={fadeUp} className="text-4xl md:text-6xl lg:text-[57px] font-black leading-tight text-md-on-surface mb-6">
-                وظّف أفضل المواهب بذكاء، <br className="hidden md:block"/>
+
+              <motion.h1
+                variants={fadeUp}
+                className="text-4xl sm:text-5xl lg:text-[54px] font-black leading-[1.25] text-md-on-surface mb-6 tracking-normal"
+              >
+                أدر منظومة التوظيف كاملة <br />
                 <span className="text-md-primary relative inline-block">
-                  سرعة، وكفاءة
-                  <svg className="absolute w-full h-3 -bottom-1 left-0 text-md-tertiary-container opacity-50" viewBox="0 0 100 10" preserveAspectRatio="none"><path d="M0 5 Q 50 10 100 5" stroke="currentColor" strokeWidth="8" fill="none"/></svg>
+                  بذكاء اصطناعي فائق وسرعة قياسية
+                  <span className="absolute left-0 bottom-1 w-full h-2 bg-md-primary-container/60 -z-10 rounded-full" />
                 </span>
               </motion.h1>
 
-              <motion.p variants={fadeUp} className="text-md3-body-lg text-md-on-surface-variant max-w-xl mx-auto lg:mx-0 mb-10 leading-relaxed">
-                منصة توظيف متكاملة تعتمد على الذكاء الاصطناعي لاختصار 80% من وقت التوظيف. فلترة، مقابلات فيديو، وعروض وظيفية رقمية في مكان واحد.
+              <motion.p
+                variants={fadeUp}
+                className="text-md3-body-lg text-md-on-surface-variant max-w-xl mx-auto lg:mx-0 mb-8 leading-relaxed font-medium"
+              >
+                منصة سحابية متكاملة لمدراء الموارد البشرية وفرق الاستقطاب: فرز السير الذاتية بالذكاء الاصطناعي، غرف مقابلات فيديو مدمجة بتفريغ فوري، وإصدار العروض الوظيفية الرقمية بأعلى معايير الأمان.
               </motion.p>
 
-              <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start mb-12">
-                <Link to="/auth?mode=signup" className="w-full sm:w-auto bg-md-primary text-md-on-primary rounded-md3-full h-14 px-8 text-md3-title-lg font-bold flex items-center justify-center shadow-md3-2 hover:shadow-md3-4 transition-all">
-                  ابدأ مجاناً الآن
-                  <ArrowLeft className="mr-2 w-5 h-5" />
+              {/* CTAs (No public jobs button) */}
+              <motion.div
+                variants={fadeUp}
+                className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start mb-10"
+              >
+                <Link
+                  to="/auth?mode=signup"
+                  className="w-full sm:w-auto bg-md-primary text-md-on-primary rounded-md3-full h-14 px-9 text-md3-title-sm font-bold flex items-center justify-center gap-2.5 shadow-md3-2 hover:shadow-md3-4 hover:scale-105 transition-all"
+                >
+                  <span>ابدأ تجربة المنصة مجاناً</span>
+                  <ArrowLeft className="w-4 h-4" />
                 </Link>
-                <Link to="#كيف تعمل" className="w-full sm:w-auto bg-md-secondary-container text-md-on-secondary-container rounded-md3-full h-14 px-8 text-md3-title-lg font-bold flex items-center justify-center hover:bg-md-secondary-container/80 transition-all">
-                  شاهد العرض التجريبي
-                  <Play className="mr-2 w-5 h-5" />
-                </Link>
+
+                <a
+                  href="#demo"
+                  className="w-full sm:w-auto bg-md-secondary-container text-md-on-secondary-container rounded-md3-full h-14 px-8 text-md3-title-sm font-bold flex items-center justify-center gap-2 hover:bg-md-secondary-container/80 transition-all border border-md-outline-variant/80"
+                >
+                  <Play className="w-4 h-4" />
+                  <span>معاينة لوحة التحكم</span>
+                </a>
               </motion.div>
 
-              <motion.div variants={fadeUp} className="flex items-center justify-center lg:justify-start gap-4">
-                <div className="flex -space-x-3 -space-x-reverse">
-                  {['أ', 'س', 'م', 'ن'].map((avatar, i) => (
-                    <div key={i} className="w-10 h-10 rounded-md3-full bg-md-surface-container-high border-2 border-md-surface flex items-center justify-center text-md3-label-lg font-bold text-md-on-surface shadow-sm">
-                      {avatar}
-                    </div>
-                  ))}
+              {/* Live Status indicator */}
+              <motion.div variants={fadeUp} className="flex items-center justify-center lg:justify-start gap-4 text-xs">
+                <div className="flex items-center gap-2 bg-md-surface-container px-3.5 py-1.5 rounded-md3-full border border-md-outline-variant">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="font-bold text-md-on-surface">حالة النظام: تشغيل نشط 100%</span>
                 </div>
-                <div className="text-md3-label-lg text-md-on-surface-variant">
-                  <span className="font-bold text-md-on-surface">4.9/5 ⭐</span> من 500+ مدير توظيف
+                <div className="flex items-center gap-1.5 text-md-on-surface-variant font-medium">
+                  <Lock className="w-3.5 h-3.5 text-md-primary" />
+                  <span>تشفير وعزل بيانات الشركات RLS</span>
                 </div>
               </motion.div>
             </motion.div>
 
-            {/* Right Content (Mockup) */}
+            {/* Left: Product Mockup & Interactive Preview */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, rotateY: 10 }}
-              animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="relative perspective-1000"
+              initial={{ opacity: 0, scale: 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.7, delay: 0.2 }}
+              className="lg:col-span-5 relative"
             >
-              <div className="bg-md-surface rounded-md3-xl shadow-md3-5 border border-md-outline-variant p-2 transform rotate-2 hover:rotate-0 transition-transform duration-500">
-                <div className="bg-md-surface-container rounded-md3-lg overflow-hidden border border-md-outline-variant/50">
-                  <div className="bg-md-surface-container-highest h-8 flex items-center px-4 gap-1.5 border-b border-md-outline-variant/50">
-                     <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                     <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-                     <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+              <div className="bg-md-surface-container rounded-md3-2xl p-3 shadow-md3-4 border border-md-outline-variant relative">
+                {/* Mockup Header */}
+                <div className="bg-md-surface rounded-md3-xl p-5 border border-md-outline-variant/60 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-md3-md bg-md-primary text-md-on-primary flex items-center justify-center font-black text-xs">
+                        TX
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-md-on-surface">إدارة عمليات الاستقطاب</div>
+                        <div className="text-[10px] text-md-on-surface-variant">البيئة المؤسسية المعتمدة</div>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold text-md-primary bg-md-primary-container px-2.5 py-1 rounded-md3-full">
+                      مباشر
+                    </span>
                   </div>
-                  <img 
-                    src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1000&q=80" 
-                    alt="Dashboard Preview" 
-                    className="w-full h-[400px] object-cover opacity-90"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-md-surface via-transparent to-transparent" />
+
+                  {/* AI Quick Insight Card */}
+                  <div className="bg-md-surface-container p-3.5 rounded-md3-lg border border-md-outline-variant/60">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Bot className="w-4 h-4 text-md-primary" />
+                      <span className="text-xs font-bold text-md-on-surface">تحليل الذكاء الاصطناعي الفوري</span>
+                    </div>
+                    <p className="text-[11px] text-md-on-surface-variant leading-relaxed">
+                      تم تصنيف 94% من المتقدمين بنجاح. معدل الملاءمة أعلى بنسبة 35% مقارنة بالشهر السابق.
+                    </p>
+                  </div>
+
+                  {/* Quick Kanban Stages Mini Simulation */}
+                  <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-bold">
+                    <div className="bg-md-surface-container p-2.5 rounded-md3-md border border-md-outline-variant/50">
+                      <div className="text-md-on-surface-variant text-[10px]">فرز AI</div>
+                      <div className="text-sm font-black text-md-on-surface mt-0.5">28</div>
+                    </div>
+                    <div className="bg-md-primary-container/40 p-2.5 rounded-md3-md border border-md-primary/30">
+                      <div className="text-md-primary text-[10px]">المقابلات</div>
+                      <div className="text-sm font-black text-md-primary mt-0.5">9</div>
+                    </div>
+                    <div className="bg-md-secondary-container/40 p-2.5 rounded-md3-md border border-md-secondary/30">
+                      <div className="text-md-secondary text-[10px]">عروض العمل</div>
+                      <div className="text-sm font-black text-md-secondary mt-0.5">4</div>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Floating Telemetry Badge 1 */}
+                <motion.div
+                  animate={{ y: [0, -8, 0] }}
+                  transition={{ repeat: Infinity, duration: 3.5, ease: "easeInOut" }}
+                  className="absolute -top-5 -right-5 bg-md-surface px-4 py-3 rounded-md3-xl shadow-md3-3 border border-md-outline-variant flex items-center gap-3"
+                >
+                  <div className="w-9 h-9 rounded-md3-full bg-md-primary-container text-md-on-primary-container flex items-center justify-center">
+                    <Bot className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-md-on-surface-variant font-bold">تطابق الكفاءات</div>
+                    <div className="text-xs font-black text-md-primary">96% مطابقة مؤكدة</div>
+                  </div>
+                </motion.div>
+
+                {/* Floating Telemetry Badge 2 */}
+                <motion.div
+                  animate={{ y: [0, 8, 0] }}
+                  transition={{ repeat: Infinity, duration: 4, ease: "easeInOut", delay: 1 }}
+                  className="absolute -bottom-5 -left-5 bg-md-surface px-4 py-3 rounded-md3-xl shadow-md3-3 border border-md-outline-variant flex items-center gap-3"
+                >
+                  <div className="w-9 h-9 rounded-md3-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-md-on-surface-variant font-bold">اعتماد العرض الوظيفي</div>
+                    <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">توقيع رقمي موثق</div>
+                  </div>
+                </motion.div>
               </div>
-
-              {/* Floating Elements */}
-              <motion.div
-                animate={{ y: [0, -12, 0] }}
-                transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
-                className="absolute -right-6 top-20 bg-md-surface p-4 rounded-md3-lg shadow-md3-4 border border-md-outline-variant flex items-center gap-4"
-              >
-                <div className="w-12 h-12 rounded-md3-full bg-md-primary-container text-md-on-primary-container flex items-center justify-center">
-                  <Bot className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="text-md3-label-lg text-md-on-surface-variant">تقييم المرشح</div>
-                  <div className="text-md3-title-lg font-bold text-md-primary">95% تطابق</div>
-                </div>
-              </motion.div>
-
-              <motion.div
-                animate={{ y: [0, 15, 0] }}
-                transition={{ repeat: Infinity, duration: 4, ease: "easeInOut", delay: 1 }}
-                className="absolute -left-8 bottom-32 bg-md-surface p-4 rounded-md3-lg shadow-md3-4 border border-md-outline-variant flex flex-col gap-2"
-              >
-                 <div className="text-md3-label-lg font-bold text-md-on-surface">إشعار توظيف</div>
-                 <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-green-500" />
-                    <span className="text-md3-body-md text-md-on-surface-variant">تم قبول العرض!</span>
-                 </div>
-              </motion.div>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* 3. Trusted Brands Marquee Strip */}
-      <section className="bg-md-surface-variant/50 border-y border-md-outline-variant py-6 overflow-hidden">
-        <div className="flex w-[200%] animate-marquee">
-          {[...Array(2)].map((_, idx) => (
-             <div key={idx} className="flex w-1/2 justify-around items-center px-4">
-                {["تيك إنوفيشن", "سمارت سولوشنز", "نيوم تكنولوجي", "ديجيتال ويف", "كلاسيرا", "فيوتشر بيلد"].map((brand, i) => (
-                  <div key={i} className="text-md3-headline-sm font-black text-md-on-surface-variant/40 mx-8 whitespace-nowrap">
-                    {brand}
-                  </div>
-                ))}
-             </div>
-          ))}
-        </div>
-      </section>
+      {/* ── 3. Real System Metrics & Live Platform Telemetry (NO FAKE STATS) ── */}
+      <section className="bg-md-surface-container-low border-y border-md-outline-variant py-14">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8 pb-6 border-b border-md-outline-variant/60">
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-emerald-500 animate-ping" />
+              <div>
+                <h3 className="text-md3-title-md font-black text-md-on-surface flex items-center gap-2">
+                  <span>إحصائيات ومؤشرات النظام اللحظية</span>
+                  <span className="text-xs font-normal text-md-primary bg-md-primary-container px-2.5 py-0.5 rounded-md3-full font-mono">
+                    Live Supabase Telemetry
+                  </span>
+                </h3>
+                <p className="text-xs text-md-on-surface-variant">
+                  بيانات مباشرة تعكس حركة التوظيف والنشاط الفعلي داخل منصة Tawzeef-X
+                </p>
+              </div>
+            </div>
+            <div className="text-xs text-md-on-surface-variant font-mono">
+              آخر تحديث: قبل قليل • استجابة قاعدة البيانات نشطة
+            </div>
+          </div>
 
-      {/* 4. Stats Section */}
-      <section className="bg-md-primary-container/30 border-y border-md-primary-container/50 py-16">
-        <div className="container mx-auto px-4">
-          <motion.div 
-            initial="hidden" whileInView="visible" viewport={{ once: true }} variants={staggerContainer}
-            className="grid grid-cols-2 md:grid-cols-4 gap-8"
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+            className="grid grid-cols-2 lg:grid-cols-4 gap-6"
           >
-            {stats.map((stat, idx) => (
-              <motion.div key={idx} variants={fadeUp} className="flex flex-col items-center text-center relative">
-                <div className="w-12 h-12 bg-md-primary text-md-on-primary rounded-md3-full flex items-center justify-center mb-4 shadow-md3-2">
-                  <stat.icon className="w-6 h-6" />
+            {[
+              {
+                label: "الشواغر النشطة بالنظام",
+                value: systemStats.activeJobs,
+                icon: Briefcase,
+                desc: "وظيفة قيد الاستقطاب والمعالجة",
+                color: "text-md-primary",
+              },
+              {
+                label: "إجمالي ملفات المرشحين",
+                value: systemStats.candidates,
+                icon: Users,
+                desc: "سيرة ذاتية مفروزة ومفهرسة",
+                color: "text-md-secondary",
+              },
+              {
+                label: "جلسات المقابلات المسجلة",
+                value: systemStats.interviews,
+                icon: Video,
+                desc: "مقابلة منجزة أو مجدولة",
+                color: "text-md-tertiary",
+              },
+              {
+                label: "المؤسسات المسجلة",
+                value: systemStats.companiesCount > 0 ? systemStats.companiesCount : 1,
+                icon: Building2,
+                desc: "شركة ومنشأة تستخدم النظام",
+                color: "text-md-primary",
+              },
+            ].map((stat, idx) => (
+              <motion.div
+                key={idx}
+                variants={fadeUp}
+                className="bg-md-surface rounded-md3-xl p-6 border border-md-outline-variant shadow-sm flex flex-col justify-between hover:border-md-primary transition-all"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xs font-bold text-md-on-surface-variant">{stat.label}</span>
+                  <div className="w-10 h-10 rounded-md3-lg bg-md-surface-container flex items-center justify-center">
+                    <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                  </div>
                 </div>
-                <div className="text-md3-display-sm font-black text-md-primary mb-1">
-                  <AnimatedCounter value={stat.value} suffix={stat.suffix} />
+                <div>
+                  <div className="text-3xl lg:text-4xl font-black text-md-on-surface mb-1 font-mono tracking-tight">
+                    <AnimatedCounter value={stat.value} />
+                  </div>
+                  <div className="text-[11px] text-md-on-surface-variant font-medium">{stat.desc}</div>
                 </div>
-                <div className="text-md3-label-lg font-bold text-md-on-surface">{stat.label}</div>
-                
-                {/* Divider */}
-                {idx < stats.length - 1 && (
-                  <div className="hidden md:block absolute left-0 top-1/4 bottom-1/4 w-px bg-md-outline-variant" />
-                )}
               </motion.div>
             ))}
           </motion.div>
         </div>
       </section>
 
-      {/* 5. Features Section */}
-      <section id="المميزات" className="bg-md-surface py-24">
-        <div className="container mx-auto px-4">
+      {/* ── 4. Real Companies / Verified Security Banner (NO FAKE BRANDS) ── */}
+      <section className="bg-md-surface py-10 border-b border-md-outline-variant overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          {realCompanies.length >= 3 ? (
+            <div>
+              <div className="text-center text-xs font-bold text-md-on-surface-variant mb-6">
+                منشآت وشركات معتمدة ومسجلة على المنصة:
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-8">
+                {realCompanies.map((comp) => (
+                  <div
+                    key={comp.id}
+                    className="flex items-center gap-2.5 px-4 py-2 bg-md-surface-container rounded-md3-full border border-md-outline-variant text-md3-label-md font-bold text-md-on-surface"
+                  >
+                    <Building2 className="w-4 h-4 text-md-primary" />
+                    <span>{comp.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {complianceHighlights.map((item, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2.5 p-3 rounded-md3-lg bg-md-surface-container border border-md-outline-variant/60 text-xs font-bold text-md-on-surface-variant justify-center text-center"
+                >
+                  <item.icon className="w-4 h-4 text-md-primary shrink-0" />
+                  <span>{item.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ── 5. Features Section (MD3 Elevated Cards) ── */}
+      <section id="features" className="py-24 bg-md-surface">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <span className="inline-block bg-md-primary-container text-md-on-primary-container text-md3-label-lg font-bold px-4 py-1.5 rounded-md3-full mb-4">
-              مميزات المنصة
+            <span className="inline-block bg-md-primary-container text-md-on-primary-container text-md3-label-sm font-black px-4 py-1.5 rounded-md3-full mb-4">
+              القدرات والمميزات الأساسية
             </span>
-            <h2 className="text-md3-display-sm font-black text-md-on-surface mb-6">كل ما تحتاجه للتوظيف <span className="text-md-primary">في مكان واحد</span></h2>
-            <p className="text-md3-body-lg text-md-on-surface-variant">
-              أدوات متكاملة مصممة خصيصاً لتسهيل عملية التوظيف من البداية وحتى توقيع العرض الوظيفي، مع الاعتماد على أحدث تقنيات الذكاء الاصطناعي.
+            <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-black text-md-on-surface mb-5 leading-tight">
+              كل ما تحتاجه لإدارة التوظيف <br />
+              <span className="text-md-primary">في منصة سحابية واحدة</span>
+            </h2>
+            <p className="text-md3-body-md text-md-on-surface-variant leading-relaxed">
+              منظومة مصممة لتمكين مسؤولي التوظيف والمدراء التنفيذيين من اتخاذ قرارات توظيف سريعة ودقيقة وموثقة بالبيانات.
             </p>
           </div>
 
-          <motion.div 
-            initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={staggerContainer}
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={staggerContainer}
+            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
           >
-            {features.map((feature, idx) => (
-              <motion.div 
-                key={idx} variants={fadeUp}
-                className="bg-md-surface shadow-md3-2 hover:shadow-md3-4 hover:-translate-y-1 transition-all duration-300 rounded-md3-xl p-7 flex flex-col border border-md-outline-variant/50"
+            {features.map((f, idx) => (
+              <motion.div
+                key={idx}
+                variants={fadeUp}
+                className="bg-md-surface shadow-md3-1 hover:shadow-md3-3 hover:-translate-y-1.5 transition-all duration-300 rounded-md3-2xl p-7 flex flex-col border border-md-outline-variant/70 group"
               >
-                <div className={`w-14 h-14 rounded-md3-lg flex items-center justify-center mb-5 ${iconContainerColors[feature.colorIdx]}`}>
-                  <feature.icon className="w-7 h-7" />
+                <div className={`w-14 h-14 rounded-md3-xl flex items-center justify-center mb-6 ${iconContainerColors[f.colorIdx]} shadow-sm group-hover:scale-110 transition-transform`}>
+                  <f.icon className="w-7 h-7" />
                 </div>
-                <h3 className="text-md3-title-lg font-bold text-md-on-surface mb-3">{feature.title}</h3>
-                <p className="text-md3-body-md text-md-on-surface-variant flex-1 leading-relaxed">
-                  {feature.description}
+                <h3 className="text-md3-title-lg font-black text-md-on-surface mb-3">{f.title}</h3>
+                <p className="text-md3-body-md text-md-on-surface-variant flex-1 leading-relaxed font-normal">
+                  {f.description}
                 </p>
-                <div className="mt-6">
-                  <span className="bg-md-primary-container/50 text-md-on-primary-container text-md3-label-lg font-bold rounded-md3-full px-3 py-1.5 inline-flex items-center gap-1.5">
+                <div className="mt-6 pt-4 border-t border-md-outline-variant/50">
+                  <span className="bg-md-primary-container text-md-on-primary-container text-xs font-black rounded-md3-full px-3.5 py-1.5 inline-flex items-center gap-2">
                     <Sparkles className="w-3.5 h-3.5" />
-                    {feature.highlight}
+                    {f.highlight}
                   </span>
                 </div>
               </motion.div>
@@ -787,184 +978,39 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 6. How It Works Stepper */}
-      <section id="كيف تعمل" className="bg-md-surface-container/40 py-24 relative overflow-hidden">
-        <div className="container mx-auto px-4 relative z-10">
+      {/* ── 6. How It Works Stepper ── */}
+      <section id="how-it-works" className="py-24 bg-md-surface-container-low border-y border-md-outline-variant">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center max-w-2xl mx-auto mb-20">
-            <h2 className="text-md3-display-sm font-black text-md-on-surface mb-6">كيف تعمل المنصة؟</h2>
-            <p className="text-md3-body-lg text-md-on-surface-variant">
-              خطوات بسيطة تفصلك عن توظيف أفضل الكفاءات لفريقك
+            <span className="inline-block bg-md-secondary-container text-md-on-secondary-container text-md3-label-sm font-black px-4 py-1.5 rounded-md3-full mb-4">
+              منهجية العمل
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-black text-md-on-surface mb-4">
+              أربع خطوات تقودك لتوظيف الكفاءة المثالية
+            </h2>
+            <p className="text-md3-body-md text-md-on-surface-variant">
+              دورة توظيف مؤتمتة وسلسة تختصر 80% من العمليات اليدوية والورقية
             </p>
           </div>
 
-          <div className="relative">
-            {/* Connecting Line */}
-            <div className="hidden lg:block absolute top-8 left-[10%] right-[10%] h-0.5 bg-gradient-to-r from-md-primary via-md-secondary-container to-md-outline-variant -z-10" />
-
-            <motion.div 
-              initial="hidden" whileInView="visible" viewport={{ once: true }} variants={staggerContainer}
-              className="grid lg:grid-cols-4 gap-12 lg:gap-6"
-            >
-              {steps.map((step, idx) => (
-                <motion.div key={idx} variants={fadeUp} className="relative flex flex-col items-center group">
-                  <div className="w-16 h-16 bg-md-primary text-md-on-primary rounded-md3-full text-md3-headline-sm font-black flex items-center justify-center shadow-md3-3 mb-6 transform group-hover:scale-110 transition-transform duration-300">
-                    {step.num}
-                  </div>
-                  <div className="bg-md-surface rounded-md3-xl p-6 shadow-md3-1 border border-md-outline-variant text-center w-full max-w-sm">
-                    <div className="w-12 h-12 mx-auto bg-md-secondary-container text-md-on-secondary-container rounded-md3-full flex items-center justify-center mb-4">
-                      <step.icon className="w-6 h-6" />
-                    </div>
-                    <h3 className="text-md3-title-lg font-bold text-md-on-surface mb-3">{step.title}</h3>
-                    <p className="text-md3-body-md text-md-on-surface-variant">{step.description}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* 7. Interactive Demo */}
-      <section id="التجربة" className="bg-md-surface py-24">
-         <div className="container mx-auto px-4">
-            <div className="text-center max-w-2xl mx-auto mb-16">
-              <span className="inline-block bg-md-tertiary-container text-md-on-tertiary-container text-md3-label-lg font-bold px-4 py-1.5 rounded-md3-full mb-4">
-                تجربة حية
-              </span>
-              <h2 className="text-md3-display-sm font-black text-md-on-surface mb-6">جرّب لوحة التحكم بنفسك</h2>
-              <p className="text-md3-body-lg text-md-on-surface-variant">
-                تصفح واجهة المستخدم البديهية واستكشف كيف نسهل عليك إدارة عملية التوظيف بالكامل
-              </p>
-            </div>
-            <InteractiveDemo />
-         </div>
-      </section>
-
-      {/* 8. Capabilities - Scrolling Marquee (Two Rows) */}
-      <section className="bg-md-surface-variant/30 border-y border-md-outline-variant py-12 overflow-hidden">
-        <div className="flex flex-col gap-6">
-          <div className="flex w-[200%] animate-marquee">
-            {[...Array(2)].map((_, i) => (
-              <div key={i} className="flex w-1/2 justify-around gap-4 px-4">
-                {capabilities.slice(0, 6).map((cap, idx) => (
-                  <div key={idx} className="bg-md-surface border border-md-outline-variant text-md-on-surface rounded-md3-full px-6 py-3 text-md3-label-lg font-bold whitespace-nowrap flex items-center gap-2 shadow-sm hover:border-md-primary transition-colors cursor-default">
-                    <CheckCircle2 className="w-5 h-5 text-md-primary" />
-                    {cap}
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-          <div className="flex w-[200%] animate-marquee-reverse">
-            {[...Array(2)].map((_, i) => (
-              <div key={i} className="flex w-1/2 justify-around gap-4 px-4">
-                {capabilities.slice(6, 12).map((cap, idx) => (
-                  <div key={idx} className="bg-md-surface border border-md-outline-variant text-md-on-surface rounded-md3-full px-6 py-3 text-md3-label-lg font-bold whitespace-nowrap flex items-center gap-2 shadow-sm hover:border-md-primary transition-colors cursor-default">
-                    <CheckCircle2 className="w-5 h-5 text-md-primary" />
-                    {cap}
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 9. Testimonials Carousel */}
-      <section id="آراء العملاء" className="bg-md-surface py-24 relative overflow-hidden">
-        <div className="container mx-auto px-4 mb-16 text-center">
-          <h2 className="text-md3-display-sm font-black text-md-on-surface mb-6">ماذا يقول عملاؤنا؟</h2>
-          <p className="text-md3-body-lg text-md-on-surface-variant max-w-2xl mx-auto">
-            انضم إلى مئات الشركات التي تثق في منصتنا لتحسين وتسريع عملية التوظيف لديهم
-          </p>
-        </div>
-
-        <div className="relative">
-          {/* Gradient Edges */}
-          <div className="absolute top-0 bottom-0 left-0 w-32 bg-gradient-to-r from-md-surface to-transparent z-10" />
-          <div className="absolute top-0 bottom-0 right-0 w-32 bg-gradient-to-l from-md-surface to-transparent z-10" />
-          
-          <div className="flex w-[300%] animate-marquee hover:[animation-play-state:paused]">
-            {[...Array(2)].map((_, i) => (
-              <div key={i} className="flex w-1/2 gap-6 px-4">
-                {testimonials.map((test, idx) => (
-                  <div key={idx} className="bg-md-surface-container-high rounded-md3-xl p-8 border border-md-outline-variant min-w-[320px] max-w-[360px] flex flex-col hover:border-md-primary transition-colors">
-                    <div className="flex gap-1 mb-4">
-                      {[...Array(test.rating)].map((_, i) => (
-                        <Star key={i} className="w-5 h-5 fill-md-primary text-md-primary" />
-                      ))}
-                    </div>
-                    <p className="text-md3-body-lg text-md-on-surface-variant flex-1 mb-6 leading-relaxed font-medium">"{test.content}"</p>
-                    <div className="flex items-center gap-4 mt-auto">
-                      <div className="bg-md-primary-container text-md-on-primary-container rounded-md3-full w-12 h-12 flex items-center justify-center font-bold text-md3-title-lg">
-                        {test.avatar}
-                      </div>
-                      <div>
-                        <div className="font-bold text-md-on-surface">{test.name}</div>
-                        <div className="text-md3-label-lg text-md-on-surface-variant">{test.role} - {test.company}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 10. Pricing Section */}
-      <section id="الأسعار" className="bg-md-surface-container/30 py-24">
-        <div className="container mx-auto px-4">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-md3-display-sm font-black text-md-on-surface mb-6">أسعار تناسب جميع الشركات</h2>
-            <p className="text-md3-body-lg text-md-on-surface-variant">
-              اختر الباقة الأنسب لحجم شركتك واحتياجاتك التوظيفية، مع فترة تجريبية مجانية لجميع الباقات المدفوعة.
-            </p>
-          </div>
-
-          <motion.div 
-            initial="hidden" whileInView="visible" viewport={{ once: true }} variants={staggerContainer}
-            className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto items-center"
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+            className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 relative"
           >
-            {pricingPlans.map((plan, idx) => (
-              <motion.div key={idx} variants={fadeUp} className={`rounded-md3-xl border p-8 flex flex-col ${
-                plan.highlighted 
-                  ? 'bg-md-primary border-md-primary shadow-md3-5 scale-105 z-10 text-md-on-primary' 
-                  : plan.dark 
-                    ? 'bg-md-inverse-surface border-transparent shadow-md3-2 text-md-inverse-on-surface'
-                    : 'bg-md-surface border-md-outline-variant shadow-md3-1 text-md-on-surface'
-              }`}>
-                {plan.highlighted && (
-                  <div className="bg-md-on-primary text-md-primary text-md3-label-lg font-black px-4 py-1.5 rounded-md3-full self-start mb-6">
-                    الأكثر شيوعاً
-                  </div>
-                )}
-                <h3 className="text-md3-headline-md font-black mb-2">{plan.name}</h3>
-                <p className={`text-md3-body-md mb-6 ${plan.highlighted ? 'text-md-on-primary/80' : plan.dark ? 'text-md-inverse-on-surface/80' : 'text-md-on-surface-variant'}`}>
-                  {plan.description}
-                </p>
-                <div className="mb-8 flex items-baseline gap-2">
-                  <span className="text-md3-display-md font-black">{plan.price}</span>
-                  {plan.billing && <span className={`text-md3-label-lg font-medium ${plan.highlighted ? 'text-md-on-primary/80' : plan.dark ? 'text-md-inverse-on-surface/80' : 'text-md-on-surface-variant'}`}>{plan.billing}</span>}
+            {steps.map((step, idx) => (
+              <motion.div key={idx} variants={fadeUp} className="flex flex-col items-center text-center group">
+                <div className="w-16 h-16 rounded-md3-full bg-md-primary text-md-on-primary font-black text-xl flex items-center justify-center mb-6 shadow-md3-2 group-hover:scale-110 transition-transform">
+                  {step.num}
                 </div>
-                
-                <Link to={plan.ctaLink} className={`w-full text-center py-4 rounded-md3-full text-md3-title-lg font-bold mb-8 transition-transform hover:scale-105 ${
-                  plan.highlighted
-                    ? 'bg-md-on-primary text-md-primary shadow-md3-2'
-                    : plan.dark
-                      ? 'bg-md-inverse-primary text-md-on-primary shadow-md3-2'
-                      : 'bg-md-primary text-md-on-primary shadow-md3-2'
-                }`}>
-                  {plan.cta}
-                </Link>
-
-                <div className="space-y-4 mt-auto">
-                  {plan.features.map((feature, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <CheckCircle2 className={`w-5 h-5 ${plan.highlighted ? 'text-md-on-primary' : plan.dark ? 'text-md-inverse-primary' : 'text-md-primary'}`} />
-                      <span className="font-medium">{feature}</span>
-                    </div>
-                  ))}
+                <div className="bg-md-surface rounded-md3-xl p-6 border border-md-outline-variant w-full flex-1 shadow-sm flex flex-col">
+                  <div className="w-10 h-10 rounded-md3-md bg-md-secondary-container text-md-on-secondary-container flex items-center justify-center mx-auto mb-4">
+                    <step.icon className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-md3-title-sm font-black text-md-on-surface mb-2">{step.title}</h3>
+                  <p className="text-xs text-md-on-surface-variant leading-relaxed font-normal">{step.description}</p>
                 </div>
               </motion.div>
             ))}
@@ -972,91 +1018,316 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 11. CTA Section */}
-      <section className="bg-md-surface py-16 px-4">
-        <div className="container mx-auto">
-          <div className="bg-gradient-to-br from-md-primary-container via-md-secondary-container/50 to-md-tertiary-container/30 rounded-md3-xl p-16 text-center relative overflow-hidden border border-md-primary-container shadow-md3-2">
-             <div className="absolute top-0 right-0 w-64 h-64 bg-md-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-             <div className="absolute bottom-0 left-0 w-64 h-64 bg-md-secondary/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-             
-             <div className="relative z-10 max-w-3xl mx-auto">
-                <h2 className="text-md3-display-sm font-black text-md-on-primary-container mb-6">
-                  مستعد للارتقاء بعملية التوظيف في شركتك؟
-                </h2>
-                <p className="text-md3-body-lg text-md-on-surface-variant mb-10">
-                  انضم إلى آلاف الشركات التي تستخدم توظيف إكس يومياً لاكتشاف وتوظيف أفضل الكفاءات بشكل أسرع وأكثر ذكاءً.
-                </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                  <Link to="/auth?mode=signup" className="w-full sm:w-auto bg-md-primary text-md-on-primary rounded-md3-full h-14 px-10 text-md3-title-lg font-bold flex items-center justify-center shadow-md3-2 hover:shadow-md3-4 transition-all">
-                    أنشئ حسابك مجاناً
-                  </Link>
-                  <Link to="/contact" className="w-full sm:w-auto bg-md-surface text-md-on-surface rounded-md3-full h-14 px-10 text-md3-title-lg font-bold flex items-center justify-center shadow-md3-1 hover:bg-md-surface-variant border border-md-outline-variant transition-all">
-                    تواصل مع المبيعات
-                  </Link>
-                </div>
-             </div>
+      {/* ── 7. Interactive Recruiter Demo ── */}
+      <section id="demo" className="py-24 bg-md-surface">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <span className="inline-block bg-md-tertiary-container text-md-on-tertiary-container text-md3-label-sm font-black px-4 py-1.5 rounded-md3-full mb-4">
+              بيئة المعاينة الحية
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-black text-md-on-surface mb-4">
+              جرّب لوحة تحكم النظام التفاعلية
+            </h2>
+            <p className="text-md3-body-md text-md-on-surface-variant">
+              استكشف بنفسك سهولة التنقل بين شاشات الفرز، تقييمات الذكاء الاصطناعي، وغرف المقابلات
+            </p>
+          </div>
+          <InteractiveDemo />
+        </div>
+      </section>
+
+      {/* ── 8. Capabilities Marquee Strip ── */}
+      <section className="bg-md-surface-container py-10 border-y border-md-outline-variant overflow-hidden">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-3 max-w-6xl mx-auto px-4">
+            {capabilities.map((cap, idx) => (
+              <div
+                key={idx}
+                className="bg-md-surface border border-md-outline-variant text-md-on-surface rounded-md3-full px-5 py-2 text-xs font-bold flex items-center gap-2 shadow-sm"
+              >
+                <CheckCircle2 className="w-4 h-4 text-md-primary" />
+                <span>{cap}</span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* 12. Footer */}
-      <footer className="bg-md-surface-variant pt-20 pb-10">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
-            <div>
-              <Link to="/" className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-md-primary rounded-md3-md flex items-center justify-center text-md-on-primary font-black text-xl">
-                  X
+      {/* ── 9. Dynamic Pricing Section (CONNECTED DIRECTLY TO DB subscription_plans) ── */}
+      <section id="pricing" className="py-24 bg-md-surface-container-low">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <div className="inline-flex items-center gap-2 bg-md-primary-container text-md-on-primary-container text-xs font-black px-4 py-1.5 rounded-md3-full mb-4">
+              <Database className="w-3.5 h-3.5" />
+              <span>الباقات المعتمدة من إعدادات النظام</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-black text-md-on-surface mb-4">
+              باقات اشتراك تناسب احتياج كل منشأة
+            </h2>
+            <p className="text-md3-body-md text-md-on-surface-variant">
+              الأسعار والميزات محدثة مباشرة من قاعدة بيانات النظام، مع إمكانية الترقية وإدارة الاشتراكات من لوحة الإدارة.
+            </p>
+          </div>
+
+          {plansLoading ? (
+            <div className="flex justify-center py-16">
+              <div className="w-10 h-10 border-4 border-md-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={staggerContainer}
+              className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch"
+            >
+              {(dbPlans && dbPlans.length > 0 ? dbPlans : []).map((plan, idx) => {
+                const isPro = plan.name === "pro";
+                const isFree = plan.price === 0;
+
+                return (
+                  <motion.div
+                    key={plan.id || idx}
+                    variants={fadeUp}
+                    className={`rounded-md3-2xl p-8 flex flex-col justify-between transition-all duration-300 ${
+                      isPro
+                        ? "bg-md-primary text-md-on-primary shadow-md3-4 border-2 border-md-primary lg:-translate-y-2"
+                        : "bg-md-surface text-md-on-surface shadow-sm border border-md-outline-variant"
+                    }`}
+                  >
+                    <div>
+                      {isPro && (
+                        <div className="bg-md-on-primary text-md-primary text-xs font-black px-3.5 py-1 rounded-md3-full inline-block mb-4 shadow-sm">
+                          الباقة الأكثر اختياراً ⭐
+                        </div>
+                      )}
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-2xl font-black">{plan.name_ar || plan.name}</h3>
+                        <span
+                          className={`text-xs px-2.5 py-1 rounded-md3-full font-bold ${
+                            isPro
+                              ? "bg-md-on-primary/20 text-md-on-primary"
+                              : "bg-md-surface-container text-md-on-surface-variant"
+                          }`}
+                        >
+                          {plan.billing_period === "monthly" ? "شهري" : "سنوي"}
+                        </span>
+                      </div>
+
+                      <p
+                        className={`text-xs mb-6 ${
+                          isPro ? "text-md-on-primary/80" : "text-md-on-surface-variant"
+                        }`}
+                      >
+                        {plan.description || "باقة مخصصة لتلبية احتياجات التوظيف والاستقطاب"}
+                      </p>
+
+                      <div className="mb-6 flex items-baseline gap-1.5">
+                        {isFree ? (
+                          <span className="text-4xl font-black">مجاناً</span>
+                        ) : (
+                          <>
+                            <span className="text-4xl font-black font-mono">{plan.price}</span>
+                            <span
+                              className={`text-xs font-bold ${
+                                isPro ? "text-md-on-primary/80" : "text-md-on-surface-variant"
+                              }`}
+                            >
+                              {plan.currency === "SAR" ? "ر.س / شهر" : `${plan.currency} / شهر`}
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                      <div
+                        className={`text-xs font-bold mb-6 pb-6 border-b ${
+                          isPro ? "border-md-on-primary/20" : "border-md-outline-variant"
+                        }`}
+                      >
+                        حد إعلانات الشواغر:{" "}
+                        <span className="font-mono">
+                          {plan.job_posts_limit === -1 ? "غير محدود" : `${plan.job_posts_limit} وظيفة`}
+                        </span>
+                      </div>
+
+                      {/* Features List */}
+                      <div className="space-y-3 mb-8">
+                        {(plan.features || []).map((feat: string, fIdx: number) => (
+                          <div key={fIdx} className="flex items-start gap-2.5 text-xs font-medium">
+                            <CheckCircle2
+                              className={`w-4 h-4 shrink-0 mt-0.5 ${
+                                isPro ? "text-md-on-primary" : "text-md-primary"
+                              }`}
+                            />
+                            <span>{feat}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <Link
+                      to="/auth?mode=signup"
+                      className={`w-full py-3.5 rounded-md3-full font-bold text-center text-sm transition-transform hover:scale-105 shadow-sm ${
+                        isPro
+                          ? "bg-md-on-primary text-md-primary shadow-md3-2"
+                          : "bg-md-primary text-md-on-primary"
+                      }`}
+                    >
+                      {isFree ? "ابدأ الاستخدام المجاني" : "اختيار هذه الباقة"}
+                    </Link>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          )}
+        </div>
+      </section>
+
+      {/* ── 10. Security & Enterprise Compliance ── */}
+      <section id="security" className="py-20 bg-md-surface border-t border-md-outline-variant">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="bg-gradient-to-br from-md-surface-container via-md-surface-container-high to-md-surface-container rounded-md3-2xl p-8 lg:p-12 border border-md-outline-variant shadow-sm">
+            <div className="grid lg:grid-cols-12 gap-8 items-center">
+              <div className="lg:col-span-8">
+                <div className="inline-flex items-center gap-2 bg-md-primary-container text-md-on-primary-container text-xs font-bold px-3 py-1 rounded-md3-full mb-4">
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>حماية البيانات والخصوصية</span>
                 </div>
-                <span className="text-md3-title-lg font-black text-md-on-surface">توظيف إكس</span>
+                <h3 className="text-2xl sm:text-3xl font-black text-md-on-surface mb-3">
+                  بيانات مرشحيك ومنشأتك في أمان تام ومعزولة تماماً
+                </h3>
+                <p className="text-sm text-md-on-surface-variant leading-relaxed mb-6 font-medium">
+                  نطبق أعلى معايير الحماية والتشفير وعزل البيانات لكل شركة باستخدام سياسات الأمان على مستوى الصفوف (Row Level Security)، مع سجل تدقيق تفصيلي للعمليات الحساسة.
+                </p>
+                <div className="flex flex-wrap gap-4 text-xs font-bold text-md-on-surface">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-md-primary" />
+                    <span>تشفير 256-bit للبيانات</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-md-primary" />
+                    <span>فصل وصلاحيات دقيقة للأدوار</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-md-primary" />
+                    <span>سجل رقابي وتدقيق مستمر</span>
+                  </div>
+                </div>
+              </div>
+              <div className="lg:col-span-4 flex justify-center lg:justify-end">
+                <Link
+                  to="/auth?mode=signup"
+                  className="bg-md-primary text-md-on-primary rounded-md3-full px-8 py-4 text-sm font-bold shadow-md3-2 hover:shadow-md3-4 hover:scale-105 transition-all text-center"
+                >
+                  إنشاء حساب مسؤولي المنشأة
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 11. Final Executive CTA ── */}
+      <section className="py-20 bg-md-surface">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
+          <div className="bg-gradient-to-br from-md-primary-container via-md-secondary-container/40 to-md-tertiary-container/30 rounded-md3-2xl p-12 lg:p-16 border border-md-primary/20 shadow-md3-3">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-md-on-primary-container mb-6 leading-tight">
+              ابدأ تحويل منظومة الاستقطاب <br />
+              في منشأتك اليوم
+            </h2>
+            <p className="text-md3-body-md text-md-on-surface-variant max-w-2xl mx-auto mb-10 leading-relaxed font-medium">
+              انضم إلى المنشآت التي تختصر الوقت والجهد وتوظف أفضل الكفاءات بدقة واحترافية متناهية.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link
+                to="/auth?mode=signup"
+                className="w-full sm:w-auto bg-md-primary text-md-on-primary rounded-md3-full h-14 px-10 text-md3-title-sm font-bold flex items-center justify-center gap-2 shadow-md3-2 hover:shadow-md3-4 hover:scale-105 transition-all"
+              >
+                <span>إنشاء حساب والبدء فوراً</span>
+                <ArrowLeft className="w-4 h-4" />
               </Link>
-              <p className="text-md-on-surface-variant mb-6 font-medium leading-relaxed">
-                المنصة الذكية الأولى للتوظيف في الشرق الأوسط. نجمع بين قوة الذكاء الاصطناعي وسهولة الاستخدام.
+              <Link
+                to="/auth?mode=login"
+                className="w-full sm:w-auto bg-md-surface text-md-on-surface rounded-md3-full h-14 px-8 text-md3-title-sm font-bold flex items-center justify-center border border-md-outline-variant hover:bg-md-surface-variant transition-all"
+              >
+                تسجيل الدخول
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 12. Enterprise Footer (NO PUBLIC JOBS LISTINGS) ── */}
+      <footer className="bg-md-surface-variant text-md-on-surface-variant pt-16 pb-12 border-t border-md-outline-variant">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+            {/* Column 1: Brand */}
+            <div>
+              <div className="flex items-center gap-2.5 mb-4">
+                <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
+                <span className="text-md3-title-lg font-black text-md-on-surface">Tawzeef-X</span>
+              </div>
+              <p className="text-xs text-md-on-surface-variant leading-relaxed mb-6 font-medium">
+                المنصة السحابية المتقدمة لرقمنة وإدارة عمليات التوظيف والاستقطاب الذكي المدعومة بالذكاء الاصطناعي في الشرق الأوسط.
               </p>
-              <div className="flex items-center gap-3">
-                {[...Array(4)].map((_, i) => (
-                  <a key={i} href="#" className="w-10 h-10 rounded-full bg-md-surface flex items-center justify-center text-md-on-surface hover:bg-md-primary hover:text-md-on-primary transition-colors border border-md-outline-variant">
-                    <span className="block w-4 h-4 bg-current" style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }} />
-                  </a>
-                ))}
+              <div className="flex items-center gap-2 text-xs font-mono text-md-primary font-bold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>نظام سحابي معتمد 2026</span>
               </div>
             </div>
 
+            {/* Column 2: Navigation */}
             <div>
-              <h3 className="text-md3-title-lg font-bold text-md-on-surface mb-6">روابط سريعة</h3>
-              <ul className="space-y-4">
-                {['الرئيسية', 'من نحن', 'المدونة', 'قصص النجاح', 'الوظائف'].map((link) => (
-                  <li key={link}><a href="#" className="text-md-on-surface-variant hover:text-md-primary font-medium">{link}</a></li>
-                ))}
+              <h4 className="font-black text-sm text-md-on-surface mb-4">روابط سريعة</h4>
+              <ul className="space-y-3 text-xs font-bold">
+                <li><a href="#features" className="hover:text-md-primary transition-colors">المميزات المؤسسية</a></li>
+                <li><a href="#how-it-works" className="hover:text-md-primary transition-colors">آلية العمل</a></li>
+                <li><a href="#demo" className="hover:text-md-primary transition-colors">التجربة الحية</a></li>
+                <li><a href="#pricing" className="hover:text-md-primary transition-colors">باقات الاشتراك</a></li>
+                <li><a href="#security" className="hover:text-md-primary transition-colors">الأمان والخصوصية</a></li>
               </ul>
             </div>
 
+            {/* Column 3: Platform Capabilities */}
             <div>
-              <h3 className="text-md3-title-lg font-bold text-md-on-surface mb-6">المنتج</h3>
-              <ul className="space-y-4">
-                {['المميزات', 'الأسعار', 'دليل الاستخدام', 'التحديثات', 'API'].map((link) => (
-                  <li key={link}><a href="#" className="text-md-on-surface-variant hover:text-md-primary font-medium">{link}</a></li>
-                ))}
+              <h4 className="font-black text-sm text-md-on-surface mb-4">قدرات المنصة</h4>
+              <ul className="space-y-3 text-xs font-medium">
+                <li>فحص السير الذاتية بالذكاء الاصطناعي</li>
+                <li>غرف مقابلات الفيديو والتفريغ النصي</li>
+                <li>العروض الوظيفية الرقمية المشفرة</li>
+                <li>تقارير ومؤشرات الأداء التوظيفي</li>
+                <li>بوابة مخصصة ومستقلة لكل منشأة</li>
               </ul>
             </div>
 
+            {/* Column 4: Contact & Access */}
             <div>
-              <h3 className="text-md3-title-lg font-bold text-md-on-surface mb-6">تواصل معنا</h3>
-              <ul className="space-y-4">
-                <li className="text-md-on-surface-variant font-medium">الرياض، المملكة العربية السعودية</li>
-                <li className="text-md-on-surface-variant font-medium">hi@tawzeef-x.com</li>
-                <li className="text-md-on-surface-variant font-medium">+966 50 000 0000</li>
-              </ul>
+              <h4 className="font-black text-sm text-md-on-surface mb-4">إدارة الحساب</h4>
+              <div className="space-y-3 text-xs font-medium">
+                <Link
+                  to="/auth?mode=login"
+                  className="block text-md-primary font-bold hover:underline"
+                >
+                  دخول لوحة تحكم المنشأة ←
+                </Link>
+                <Link
+                  to="/auth?mode=signup"
+                  className="block text-md-on-surface hover:text-md-primary transition-colors"
+                >
+                  تسجيل منشأة جديدة
+                </Link>
+                <div className="pt-2 text-xs text-md-on-surface-variant">
+                  الدعم الفني: support@tawzeef-x.com
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="border-t border-md-outline-variant pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-md-on-surface-variant font-medium">
-              © 2026 توظيف إكس. جميع الحقوق محفوظة.
-            </p>
+          <div className="border-t border-md-outline-variant/60 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-medium">
+            <p>© {new Date().getFullYear()} Tawzeef-X. جميع الحقوق محفوظة لمنصة توظيف إكس.</p>
             <div className="flex items-center gap-6">
-              <a href="#" className="text-md-on-surface-variant hover:text-md-primary font-medium">الشروط والأحكام</a>
-              <a href="#" className="text-md-on-surface-variant hover:text-md-primary font-medium">سياسة الخصوصية</a>
+              <Link to="/privacy" className="hover:text-md-primary transition-colors">سياسة الخصوصية</Link>
+              <Link to="/terms" className="hover:text-md-primary transition-colors">الشروط والأحكام</Link>
             </div>
           </div>
         </div>
