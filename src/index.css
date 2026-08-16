@@ -92,6 +92,40 @@
     --glow-success: 0 0 0 1px hsl(150 60% 38% / 0.12);
     --glow-warning: 0 0 0 1px hsl(38 92% 45% / 0.12);
     --glow-info: 0 0 0 1px hsl(199 88% 46% / 0.12);
+
+    /* ── Material Design 3 — Light Tonal Palette (Teal/Emerald) ── */
+    --md-primary:                   178 84% 22%;
+    --md-on-primary:                0 0% 100%;
+    --md-primary-container:         166 70% 85%;
+    --md-on-primary-container:      178 84% 10%;
+    --md-secondary:                 175 20% 40%;
+    --md-on-secondary:              0 0% 100%;
+    --md-secondary-container:       172 40% 88%;
+    --md-on-secondary-container:    175 30% 15%;
+    --md-tertiary:                  85 50% 36%;
+    --md-on-tertiary:               0 0% 100%;
+    --md-tertiary-container:        88 60% 88%;
+    --md-on-tertiary-container:     85 55% 12%;
+    --md-error:                     0 72% 43%;
+    --md-on-error:                  0 0% 100%;
+    --md-error-container:           0 100% 93%;
+    --md-on-error-container:        0 72% 20%;
+    --md-surface:                   170 30% 98%;
+    --md-on-surface:                178 15% 10%;
+    --md-surface-variant:           168 22% 88%;
+    --md-on-surface-variant:        175 12% 32%;
+    --md-surface-container-lowest:  0 0% 100%;
+    --md-surface-container-low:     170 25% 96%;
+    --md-surface-container:         168 22% 94%;
+    --md-surface-container-high:    168 18% 91%;
+    --md-surface-container-highest: 165 15% 88%;
+    --md-inverse-surface:           178 20% 18%;
+    --md-inverse-on-surface:        168 22% 93%;
+    --md-inverse-primary:           166 65% 70%;
+    --md-outline:                   172 12% 55%;
+    --md-outline-variant:           168 18% 80%;
+    --md-shadow:                    0 0% 0%;
+    --md-scrim:                     0 0% 0%;
   }
 
   .dark {
@@ -159,6 +193,40 @@
     --glow-success: 0 0 0 1px hsl(150 55% 42% / 0.2);
     --glow-warning: 0 0 0 1px hsl(38 85% 48% / 0.2);
     --glow-info: 0 0 0 1px hsl(199 82% 51% / 0.2);
+
+    /* ── Material Design 3 — Dark Tonal Palette ── */
+    --md-primary:                   166 65% 70%;
+    --md-on-primary:                178 84% 10%;
+    --md-primary-container:         178 84% 18%;
+    --md-on-primary-container:      166 70% 85%;
+    --md-secondary:                 172 25% 72%;
+    --md-on-secondary:              175 30% 18%;
+    --md-secondary-container:       175 22% 28%;
+    --md-on-secondary-container:    172 35% 88%;
+    --md-tertiary:                  88 55% 72%;
+    --md-on-tertiary:               85 55% 15%;
+    --md-tertiary-container:        85 48% 24%;
+    --md-on-tertiary-container:     88 60% 88%;
+    --md-error:                     5 100% 76%;
+    --md-on-error:                  0 72% 20%;
+    --md-error-container:           0 72% 30%;
+    --md-on-error-container:        0 100% 93%;
+    --md-surface:                   178 20% 8%;
+    --md-on-surface:                168 20% 90%;
+    --md-surface-variant:           175 12% 28%;
+    --md-on-surface-variant:        168 18% 72%;
+    --md-surface-container-lowest:  178 25% 5%;
+    --md-surface-container-low:     178 20% 10%;
+    --md-surface-container:         175 18% 13%;
+    --md-surface-container-high:    172 15% 17%;
+    --md-surface-container-highest: 168 12% 21%;
+    --md-inverse-surface:           168 20% 88%;
+    --md-inverse-on-surface:        178 20% 18%;
+    --md-inverse-primary:           178 84% 22%;
+    --md-outline:                   172 15% 55%;
+    --md-outline-variant:           175 12% 30%;
+    --md-shadow:                    0 0% 0%;
+    --md-scrim:                     0 0% 0%;
   }
 
 }
@@ -539,4 +607,166 @@
   html[dir="rtl"] .list-hover-highlight:hover {
     transform: translateX(-4px);
   }
+
+  /* ════════════════════════════════════════════════════════════
+     MATERIAL DESIGN 3 — Utility Classes
+     ════════════════════════════════════════════════════════════ */
+
+  /* MD3 State Layer — adds hover/press ripple tint */
+  .md3-state-layer {
+    position: relative;
+    overflow: hidden;
+  }
+  .md3-state-layer::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity 200ms cubic-bezier(0.2, 0, 0, 1);
+    border-radius: inherit;
+  }
+  .md3-state-layer:hover::before  { opacity: 0.08; }
+  .md3-state-layer:focus::before  { opacity: 0.10; }
+  .md3-state-layer:active::before { opacity: 0.12; }
+
+  /* MD3 Filled Button */
+  .md3-btn-filled {
+    @apply bg-md-primary text-md-on-primary rounded-md3-xl px-6 py-2.5 
+           text-md3-label-lg font-medium shadow-md3-1
+           hover:shadow-md3-2 active:shadow-none
+           transition-all duration-200;
+  }
+
+  /* MD3 Tonal Button */
+  .md3-btn-tonal {
+    @apply bg-md-secondary-container text-md-on-secondary-container rounded-md3-xl px-6 py-2.5
+           text-md3-label-lg font-medium shadow-none
+           hover:shadow-md3-1 active:shadow-none
+           transition-all duration-200;
+  }
+
+  /* MD3 Outlined Button */
+  .md3-btn-outlined {
+    @apply border border-md-outline text-md-primary rounded-md3-xl px-6 py-2.5
+           text-md3-label-lg font-medium bg-transparent
+           hover:bg-md-primary/8
+           transition-all duration-200;
+  }
+
+  /* MD3 Text Button */
+  .md3-btn-text {
+    @apply text-md-primary rounded-md3-xl px-4 py-2.5
+           text-md3-label-lg font-medium bg-transparent
+           hover:bg-md-primary/8
+           transition-all duration-200;
+  }
+
+  /* MD3 FAB (Floating Action Button) */
+  .md3-fab {
+    @apply bg-md-primary-container text-md-on-primary-container 
+           rounded-md3-xl w-14 h-14 flex items-center justify-center
+           shadow-md3-3 hover:shadow-md3-4
+           transition-all duration-200;
+  }
+  .md3-fab-extended {
+    @apply bg-md-primary-container text-md-on-primary-container 
+           rounded-md3-xl px-6 h-14 flex items-center gap-3
+           text-md3-label-lg font-medium
+           shadow-md3-3 hover:shadow-md3-4
+           transition-all duration-200;
+  }
+
+  /* MD3 Cards */
+  .md3-card-elevated {
+    @apply bg-md-surface shadow-md3-1 rounded-md3-lg
+           hover:shadow-md3-3
+           transition-all duration-300 ease-in-out;
+    background-image: linear-gradient(
+      hsl(var(--md-primary) / 0.05),
+      hsl(var(--md-primary) / 0.05)
+    );
+  }
+  .md3-card-filled {
+    @apply bg-md-surface-container rounded-md3-lg shadow-none
+           hover:shadow-md3-1
+           transition-all duration-300;
+  }
+  .md3-card-outlined {
+    @apply border border-md-outline-variant rounded-md3-lg bg-md-surface shadow-none
+           hover:shadow-md3-1
+           transition-all duration-300;
+  }
+
+  /* MD3 Chip — Assist/Filter */
+  .md3-chip {
+    @apply inline-flex items-center gap-2
+           bg-md-surface-container-high border border-md-outline-variant
+           text-md-on-surface rounded-md3-full px-4 py-1.5
+           text-md3-label-lg cursor-default
+           hover:bg-md-surface-container-highest hover:shadow-md3-1
+           transition-all duration-200;
+  }
+  .md3-chip-assist {
+    @apply md3-chip bg-md-secondary-container text-md-on-secondary-container 
+           border-transparent;
+  }
+
+  /* MD3 List Item */
+  .md3-list-item {
+    @apply flex items-center gap-4 px-4 py-3 rounded-md3-sm
+           text-md-on-surface hover:bg-md-surface-container
+           transition-colors duration-200 cursor-pointer;
+  }
+
+  /* MD3 Navigation Tab indicator */
+  .md3-tab-indicator {
+    @apply absolute bottom-0 left-0 right-0 h-0.5 bg-md-primary rounded-full;
+  }
+
+  /* MD3 Top App Bar */
+  .md3-top-app-bar {
+    @apply fixed top-0 inset-x-0 z-50 bg-md-surface
+           transition-shadow duration-300;
+  }
+  .md3-top-app-bar--scrolled {
+    @apply shadow-md3-2;
+    background-image: linear-gradient(
+      hsl(var(--md-primary) / 0.08),
+      hsl(var(--md-primary) / 0.08)
+    );
+  }
+
+  /* MD3 Divider */
+  .md3-divider {
+    @apply border-t border-md-outline-variant;
+  }
+
+  /* MD3 Icon Container */
+  .md3-icon-container {
+    @apply w-12 h-12 rounded-md3-md flex items-center justify-center
+           bg-md-secondary-container text-md-on-secondary-container;
+  }
+  .md3-icon-container--primary {
+    @apply bg-md-primary-container text-md-on-primary-container;
+  }
+  .md3-icon-container--tertiary {
+    @apply bg-md-tertiary-container text-md-on-tertiary-container;
+  }
+
+  /* MD3 Motion — Standard easing */
+  .md3-motion-standard {
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+  .md3-motion-emphasized {
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+    transition-duration: 500ms;
+  }
+  .md3-motion-decelerate {
+    transition-timing-function: cubic-bezier(0, 0, 0, 1);
+  }
+  .md3-motion-accelerate {
+    transition-timing-function: cubic-bezier(0.3, 0, 1, 1);
+  }
 }
+
