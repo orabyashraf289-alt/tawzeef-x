@@ -233,18 +233,21 @@ export default function HiringPlan() {
           className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
         >
           <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <Target className="w-6 h-6 text-primary animate-pulse" />
-              خطة التوظيف
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md3-full bg-md-primary-container text-md-on-primary-container text-xs font-bold mb-1">
+              <Target className="w-3.5 h-3.5" />
+              <span>التخطيط الاستراتيجي ومستهدفات التوظيف</span>
+            </div>
+            <h1 className="text-2xl lg:text-3xl font-black text-foreground">
+              خطة التوظيف الشهرية
             </h1>
-            <p className="text-sm text-muted-foreground mt-1 font-medium">تتبع أهدافك الشهرية وحقق أقصى كفاءة في التوظيف</p>
+            <p className="text-xs text-muted-foreground mt-0.5 font-medium">تتبع أهدافك الشهرية وحقق أقصى كفاءة في التوظيف</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => setCurrentDate(d => subMonths(d, 1))} className="rounded-xl border-border/40 hover:bg-primary/5 hover:text-primary transition-all duration-300">
+          <div className="flex items-center gap-2 bg-md-surface-container border border-md-outline-variant p-1.5 rounded-md3-full shadow-xs">
+            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => subMonths(d, 1))} className="rounded-md3-full h-8 w-8 hover:bg-card text-foreground">
               <ChevronRight className="w-4 h-4" />
             </Button>
-            <span className="text-sm font-semibold min-w-[120px] text-center">{monthLabel}</span>
-            <Button variant="outline" size="icon" onClick={() => setCurrentDate(d => addMonths(d, 1))} className="rounded-xl border-border/40 hover:bg-primary/5 hover:text-primary transition-all duration-300">
+            <span className="text-xs font-black min-w-[110px] text-center text-foreground">{monthLabel}</span>
+            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => addMonths(d, 1))} className="rounded-md3-full h-8 w-8 hover:bg-card text-foreground">
               <ChevronLeft className="w-4 h-4" />
             </Button>
           </div>
@@ -256,9 +259,8 @@ export default function HiringPlan() {
           animate={{ opacity: 1, y: 0 }} 
           transition={{ duration: 0.4, delay: 0.1 }}
         >
-          <Card className="glass-card-premium relative overflow-hidden border border-border/30 bg-card/45 backdrop-blur-md rounded-2xl shadow-sm">
-            <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-primary/[0.03] blur-3xl opacity-60 translate-x-12 -translate-y-12" />
-            <CardContent className="p-6 flex flex-col sm:flex-row items-center gap-6 relative z-10">
+          <div className="relative overflow-hidden border border-md-outline-variant bg-md-surface-container rounded-md3-2xl p-6 shadow-xs">
+            <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
               <div className="relative w-28 h-28 shrink-0">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                   <defs>
@@ -287,12 +289,12 @@ export default function HiringPlan() {
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-2xl font-extrabold text-foreground">{overallPct}%</span>
+                  <span className="text-2xl font-black text-foreground">{overallPct}%</span>
                 </div>
               </div>
               <div className="flex-1 text-center sm:text-right">
                 <h3 className="text-lg font-bold text-foreground">الأداء العام لـ {monthLabel}</h3>
-                <p className="text-sm text-muted-foreground mt-1 font-medium">
+                <p className="text-xs text-muted-foreground mt-1 font-medium">
                   {overallPct >= 80 ? "أداء ممتاز! 🔥 أنت تسير فوق المستهدف" :
                    overallPct >= 50 ? "أداء جيد 👍 استمر لتحقيق الأهداف" :
                    "تحتاج لتسريع الوتيرة 💪 لتحقيق أهداف الشهر"}
@@ -301,12 +303,12 @@ export default function HiringPlan() {
               <Button 
                 variant={editing ? "default" : "outline"} 
                 onClick={() => editing ? handleSave() : setEditing(true)} 
-                className="gap-2 rounded-xl transition-all duration-300 shadow-sm border-border/40 hover:bg-primary/5 hover:text-primary"
+                className="gap-2 rounded-md3-xl transition-all duration-200 text-xs font-bold border-md-outline-variant"
               >
                 {editing ? <><Save className="w-4 h-4" />حفظ الأهداف</> : <><Sparkles className="w-4 h-4 text-primary animate-pulse" />تعديل الأهداف</>}
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </motion.div>
 
         {/* Edit Goals Panel */}

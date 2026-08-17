@@ -180,34 +180,37 @@ export default function TalentPool() {
     <DashboardLayout>
       <div className="p-4 lg:p-8 space-y-6" dir={dir}>
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
-                <Star className="w-5 h-5 text-warning" />
+              <div className="w-12 h-12 rounded-md3-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shadow-xs">
+                <Star className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">{locale === "en" ? "Talent Pool" : "قاعدة المواهب"}</h1>
-                <p className="text-sm text-muted-foreground">{locale === "en" ? "Outstanding candidates saved for future opportunities" : "المرشحون المميزون المحفوظون للوظائف المستقبلية"}</p>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md3-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-bold mb-1">
+                  <span>قاعدة الكفاءات والمواهب الاستراتيجية</span>
+                </div>
+                <h1 className="text-2xl lg:text-3xl font-black text-foreground">{locale === "en" ? "Talent Pool" : "قاعدة المواهب"}</h1>
+                <p className="text-xs text-muted-foreground mt-0.5">{locale === "en" ? "Outstanding candidates saved for future opportunities" : "المرشحون المميزون المحفوظون للوظائف المستقبلية"}</p>
               </div>
             </div>
-            <Badge variant="outline" className="text-sm">
-              {entries.length}{hasFilters ? ` / ${(poolEntries || []).length}` : ""} {locale === "en" ? "candidates" : "مرشح"}
+            <Badge variant="outline" className="text-xs font-bold rounded-md3-full px-3 py-1 border-md-outline-variant bg-md-surface-container w-fit">
+              {entries.length}{hasFilters ? ` / ${(poolEntries || []).length}` : ""} {locale === "en" ? "candidates" : "مرشح محفوظ"}
             </Badge>
           </div>
         </motion.div>
 
         {/* Filters */}
         <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="flex flex-col sm:flex-row gap-2">
+          className="flex flex-col sm:flex-row gap-2 bg-md-surface-container p-2.5 rounded-md3-2xl border border-md-outline-variant shadow-xs">
           <div className="relative flex-1 max-w-xs">
             <Search className={`absolute ${dir === "rtl" ? "right-3" : "left-3"} top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground`} />
             <Input value={search} onChange={e => setSearch(e.target.value)}
               placeholder={locale === "en" ? "Search by name, skill, email..." : "بحث بالاسم أو المهارة أو البريد..."}
-              className={cn("h-9 text-sm", dir === "rtl" ? "pr-9" : "pl-9")} />
+              className={cn("h-10 text-xs rounded-md3-full bg-background border-md-outline-variant", dir === "rtl" ? "pr-9" : "pl-9")} />
           </div>
           {allTags.length > 0 && (
             <Select value={tagFilter} onValueChange={setTagFilter}>
-              <SelectTrigger className="w-full sm:w-40 h-9 text-xs">
+              <SelectTrigger className="w-full sm:w-40 h-10 text-xs rounded-md3-full bg-background border-md-outline-variant">
                 <Tag className="w-3.5 h-3.5 text-muted-foreground shrink-0 me-1.5" />
                 <SelectValue placeholder={locale === "en" ? "All Tags" : "كل الوسوم"} />
               </SelectTrigger>
@@ -218,7 +221,7 @@ export default function TalentPool() {
             </Select>
           )}
           <Select value={scoreFilter} onValueChange={setScoreFilter}>
-            <SelectTrigger className="w-full sm:w-40 h-9 text-xs">
+            <SelectTrigger className="w-full sm:w-40 h-10 text-xs rounded-md3-full bg-background border-md-outline-variant">
               <Bot className="w-3.5 h-3.5 text-muted-foreground shrink-0 me-1.5" />
               <SelectValue placeholder={locale === "en" ? "AI Score" : "تقييم AI"} />
             </SelectTrigger>
@@ -230,7 +233,7 @@ export default function TalentPool() {
             </SelectContent>
           </Select>
           <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
-            <SelectTrigger className="w-full sm:w-40 h-9 text-xs">
+            <SelectTrigger className="w-full sm:w-40 h-10 text-xs rounded-md3-full bg-background border-md-outline-variant">
               <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0 me-1.5" />
               <SelectValue />
             </SelectTrigger>
@@ -254,7 +257,7 @@ export default function TalentPool() {
           />
 
         ) : entries.length === 0 && hasFilters ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16 bg-card rounded-2xl border border-border/50">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16 bg-card rounded-md3-2xl border border-md-outline-variant">
             <Search className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">{locale === "en" ? "No matching results" : "لا يوجد نتائج مطابقة"}</p>
           </motion.div>
@@ -267,7 +270,7 @@ export default function TalentPool() {
                 return (
                   <motion.div key={entry.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }} transition={{ delay: i * 0.03 }}>
-                    <Card className="border-border/50 hover:shadow-md hover:border-warning/20 transition-all group">
+                    <Card className="rounded-md3-2xl border-md-outline-variant hover:shadow-md3-2 hover:border-amber-500/30 transition-all group overflow-hidden bg-card">
                       <CardContent className="p-5">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3">
