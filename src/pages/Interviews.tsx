@@ -238,23 +238,27 @@ export default function Interviews() {
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
           className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">{t("interviews.title")}</h1>
-            <p className="text-muted-foreground text-sm mt-1">{t("interviews.subtitle")}</p>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md3-full bg-md-primary-container text-md-on-primary-container text-xs font-bold mb-2">
+              <Video className="w-3.5 h-3.5" />
+              <span>غرف ومواعيد المقابلات الذكية</span>
+            </div>
+            <h1 className="text-2xl lg:text-3xl font-black text-foreground">{t("interviews.title")}</h1>
+            <p className="text-muted-foreground text-xs mt-0.5">{t("interviews.subtitle")}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex bg-muted rounded-lg p-0.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex bg-md-surface-container rounded-md3-full p-1 border border-md-outline-variant shadow-xs">
               <button onClick={() => { setViewMode("list"); setSelectedCalDate(null); }}
-                className={cn("px-3 py-1.5 rounded-md text-xs font-medium transition-all", viewMode === "list" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground")}>
+                className={cn("px-3.5 py-1.5 rounded-md3-full text-xs font-bold transition-all", viewMode === "list" ? "bg-md-primary text-md-on-primary shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                 <List className="w-3.5 h-3.5 inline ml-1" />{t("interviews.listView")}
               </button>
               <button onClick={() => setViewMode("calendar")}
-                className={cn("px-3 py-1.5 rounded-md text-xs font-medium transition-all", viewMode === "calendar" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground")}>
+                className={cn("px-3.5 py-1.5 rounded-md3-full text-xs font-bold transition-all", viewMode === "calendar" ? "bg-md-primary text-md-on-primary shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                 <LayoutGrid className="w-3.5 h-3.5 inline ml-1" />{t("interviews.calendarView")}
               </button>
             </div>
             {hasActionPermission("action.create_interviews") && (
-              <Button onClick={() => setDialogOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm">
-                <Plus className="w-4 h-4 ml-2" />{t("interviews.schedule")}
+              <Button onClick={() => setDialogOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md3-1 rounded-md3-xl h-10 px-5 text-xs font-bold gap-2">
+                <Plus className="w-4 h-4" />{t("interviews.schedule")}
               </Button>
             )}
           </div>
@@ -264,15 +268,17 @@ export default function Interviews() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="grid grid-cols-3 gap-3">
           {[
-            { label: t("interviews.scheduled"), value: scheduled, icon: Calendar, color: "text-info", bg: "bg-info/10" },
-            { label: t("interviews.completed"), value: completed, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
-            { label: t("interviews.cancelled"), value: cancelled, icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
+            { label: t("interviews.scheduled"), value: scheduled, icon: Calendar, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
+            { label: t("interviews.completed"), value: completed, icon: CheckCircle, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+            { label: t("interviews.cancelled"), value: cancelled, icon: XCircle, color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10 border-rose-500/20" },
           ].map((stat) => (
-            <div key={stat.label} className={`${stat.bg} rounded-xl p-4 border border-border/50 flex items-center gap-3`}>
-              <stat.icon className={cn("w-8 h-8", stat.color)} />
+            <div key={stat.label} className={`${stat.bg} rounded-md3-2xl p-4 border transition-all duration-200 hover:scale-[1.02] flex items-center gap-3 shadow-xs`}>
+              <div className="w-10 h-10 rounded-md3-xl bg-card flex items-center justify-center shadow-xs">
+                <stat.icon className={cn("w-5 h-5", stat.color)} />
+              </div>
               <div>
-                <p className={cn("text-2xl font-bold", stat.color)}>{stat.value}</p>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
+                <p className={cn("text-2xl font-black", stat.color)}>{stat.value}</p>
+                <p className="text-xs text-muted-foreground font-semibold">{stat.label}</p>
               </div>
             </div>
           ))}

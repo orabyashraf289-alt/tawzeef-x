@@ -575,18 +575,22 @@ export default function Pipeline() {
       <div className="p-4 lg:p-8 space-y-4">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground">{t("pipeline.title")}</h1>
-            <p className="text-muted-foreground text-sm mt-1">{t("pipeline.subtitle")}</p>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md3-full bg-md-primary-container text-md-on-primary-container text-xs font-bold mb-2">
+              <Kanban className="w-3.5 h-3.5" />
+              <span>لوحة المراحل ومسار التوظيف التفاعلي</span>
+            </div>
+            <h1 className="text-2xl lg:text-3xl font-black text-foreground">{t("pipeline.title")}</h1>
+            <p className="text-muted-foreground text-xs mt-0.5">{t("pipeline.subtitle")}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             {/* View Toggle */}
-            <div className="flex items-center bg-muted/50 rounded-lg p-0.5 border border-border/50">
+            <div className="flex items-center bg-md-surface-container rounded-md3-full p-1 border border-md-outline-variant shadow-xs">
               <Button
                 variant="ghost"
                 size="sm"
-                className={cn("h-7 px-3 text-xs gap-1.5 rounded-md", viewMode === "kanban" && "bg-card shadow-sm text-foreground")}
+                className={cn("h-8 px-3.5 text-xs font-bold gap-1.5 rounded-md3-full transition-all", viewMode === "kanban" && "bg-md-primary text-md-on-primary shadow-sm hover:bg-md-primary hover:text-md-on-primary")}
                 onClick={() => setViewMode("kanban")}
               >
                 <Kanban className="w-3.5 h-3.5" />{t("pipeline.viewKanban")}
@@ -594,7 +598,7 @@ export default function Pipeline() {
               <Button
                 variant="ghost"
                 size="sm"
-                className={cn("h-7 px-3 text-xs gap-1.5 rounded-md", viewMode === "timeline" && "bg-card shadow-sm text-foreground")}
+                className={cn("h-8 px-3.5 text-xs font-bold gap-1.5 rounded-md3-full transition-all", viewMode === "timeline" && "bg-md-primary text-md-on-primary shadow-sm hover:bg-md-primary hover:text-md-on-primary")}
                 onClick={() => setViewMode("timeline")}
               >
                 <List className="w-3.5 h-3.5" />{t("pipeline.viewTimeline")}
@@ -602,15 +606,15 @@ export default function Pipeline() {
               <Button
                 variant="ghost"
                 size="sm"
-                className={cn("h-7 px-3 text-xs gap-1.5 rounded-md", viewMode === "analytics" && "bg-card shadow-sm text-foreground")}
+                className={cn("h-8 px-3.5 text-xs font-bold gap-1.5 rounded-md3-full transition-all", viewMode === "analytics" && "bg-md-primary text-md-on-primary shadow-sm hover:bg-md-primary hover:text-md-on-primary")}
                 onClick={() => setViewMode("analytics")}
               >
                 <BarChart3 className="w-3.5 h-3.5" />إحصائيات
               </Button>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Users className="w-4 h-4 text-muted-foreground" />
-              <span className="text-muted-foreground">
+            <div className="flex items-center gap-2 bg-md-surface-container px-3.5 py-1.5 rounded-md3-full border border-md-outline-variant text-xs font-bold">
+              <Users className="w-4 h-4 text-primary" />
+              <span className="text-foreground">
                 {filteredCandidates.length}
                 {hasFilters && ` / ${(candidates || []).length}`}
                 {" "}{t("common.candidate")}

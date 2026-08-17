@@ -518,46 +518,46 @@ export default function Candidates() {
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20">
+            <div className="w-12 h-12 rounded-md3-xl bg-md-primary flex items-center justify-center text-md-on-primary shadow-md3-2">
               <Users className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              <h1 className="text-2xl lg:text-3xl font-black text-foreground flex items-center gap-2">
                 {t("candidates.title")}
-                <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+                <Badge variant="secondary" className="rounded-md3-full px-3 py-0.5 text-xs font-bold bg-md-primary-container text-md-on-primary-container border-0">
                   {totalCount} مرشح
                 </Badge>
               </h1>
-              <p className="text-muted-foreground text-xs mt-0.5">إدارة وفرز وتقييم طلبات التوظيف بالذكاء الاصطناعي</p>
+              <p className="text-muted-foreground text-xs mt-0.5">إدارة وفرز وتقييم طلبات التوظيف بالذكاء الاصطناعي والمطابقة الذكية</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <Button size="sm" onClick={() => setIsAddModalOpen(true)} className="gap-1.5 shadow-md">
+            <Button size="sm" onClick={() => setIsAddModalOpen(true)} className="gap-1.5 rounded-md3-xl bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 text-xs font-bold shadow-md3-1">
               <Plus className="w-4 h-4" /> مرشح جديد
             </Button>
 
-            <Button size="sm" variant="outline" onClick={() => runAutoScreening()} disabled={autoScreeningRunning} className="gap-1.5 border-primary/20 text-primary hover:bg-primary/5">
-              <Sparkles className="w-4 h-4" />
+            <Button size="sm" variant="outline" onClick={() => runAutoScreening()} disabled={autoScreeningRunning} className="gap-1.5 rounded-md3-xl border-md-outline-variant text-primary hover:bg-primary/5 h-10 px-4 text-xs font-bold">
+              <Sparkles className="w-4 h-4 text-primary animate-pulse" />
               {autoScreeningRunning ? t("candidates.screening") : t("candidates.smartScreening")}
             </Button>
 
-            <Button size="sm" variant="outline" onClick={() => refetch()} className="gap-1.5" title="تحديث البيانات">
+            <Button size="sm" variant="outline" onClick={() => refetch()} className="gap-1.5 rounded-md3-xl border-md-outline-variant h-10 w-10 p-0" title="تحديث البيانات">
               <RefreshCw className="w-4 h-4" />
             </Button>
 
-            <Button size="sm" variant="outline" onClick={toggleCompact} className="gap-1.5" title={isCompact ? "عرض كروت" : "عرض مدمج"}>
+            <Button size="sm" variant="outline" onClick={toggleCompact} className="gap-1.5 rounded-md3-xl border-md-outline-variant h-10 w-10 p-0" title={isCompact ? "عرض كروت" : "عرض مدمج"}>
               {isCompact ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
             </Button>
 
             {filtered.length > 0 && (
-              <Button size="sm" variant="outline" onClick={handleExportExcel} className="gap-1.5">
+              <Button size="sm" variant="outline" onClick={handleExportExcel} className="gap-1.5 rounded-md3-xl border-md-outline-variant h-10 px-3 text-xs font-bold">
                 <Download className="w-4 h-4" /> تصدير Excel
               </Button>
             )}
 
             {selectedForCompare.length >= 2 && (
-              <Button size="sm" onClick={() => setShowCompare(true)} className="gap-1.5 bg-accent text-accent-foreground hover:bg-accent/90">
+              <Button size="sm" onClick={() => setShowCompare(true)} className="gap-1.5 rounded-md3-xl bg-accent text-accent-foreground hover:bg-accent/90 h-10 px-4 text-xs font-bold shadow-md3-1">
                 <GitCompareArrows className="w-4 h-4" /> مقارنة ({selectedForCompare.length})
               </Button>
             )}
@@ -567,11 +567,11 @@ export default function Candidates() {
         {/* Metric Cards */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
-            { label: "إجمالي المرشحين", value: totalCount, icon: Users, filterKey: "all", color: "text-foreground", bg: "bg-muted/40" },
-            { label: "قيد المراجعة", value: reviewing, icon: Users, filterKey: "reviewing", color: "text-warning", bg: "bg-warning/10" },
-            { label: "متميزون بالـ AI", value: aiTop, icon: Brain, filterKey: "ai_qualified", color: "text-primary", bg: "bg-primary/10" },
-            { label: "المقبولون", value: accepted, icon: UserCheck, filterKey: "accepted", color: "text-success", bg: "bg-success/10" },
-            { label: "تم التوظيف", value: hired, icon: CheckCircle2, filterKey: "hired", color: "text-violet-600 dark:text-violet-400", bg: "bg-violet-500/10" },
+            { label: "إجمالي المرشحين", value: totalCount, icon: Users, filterKey: "all", color: "text-foreground", bg: "bg-md-surface-container border-md-outline-variant" },
+            { label: "قيد المراجعة", value: reviewing, icon: Users, filterKey: "reviewing", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+            { label: "متميزون بالـ AI", value: aiTop, icon: Brain, filterKey: "ai_qualified", color: "text-primary", bg: "bg-md-primary-container/40 border-primary/20" },
+            { label: "المقبولون", value: accepted, icon: UserCheck, filterKey: "accepted", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+            { label: "تم التوظيف", value: hired, icon: CheckCircle2, filterKey: "hired", color: "text-violet-600 dark:text-violet-400", bg: "bg-violet-500/10 border-violet-500/20" },
           ].map((stat, i) => (
             <button
               key={i}
@@ -580,16 +580,16 @@ export default function Candidates() {
                 else setQuickFilter(stat.filterKey as any);
               }}
               className={cn(
-                "text-right rounded-2xl p-4 border border-border/50 transition-all hover:scale-[1.02] cursor-pointer group",
+                "text-right rounded-md3-2xl p-4 border transition-all duration-200 hover:scale-[1.02] cursor-pointer group shadow-xs",
                 stat.bg
               )}
             >
               <div className="flex items-center justify-between mb-2">
                 <stat.icon className={cn("w-5 h-5 transition-transform group-hover:scale-110", stat.color)} />
-                <span className="text-[10px] text-muted-foreground font-semibold">تصفية</span>
+                <span className="text-[10px] text-muted-foreground font-bold">تصفية</span>
               </div>
-              <p className={cn("text-2xl font-bold tracking-tight", stat.color)}>{stat.value}</p>
-              <p className="text-xs text-muted-foreground font-medium mt-0.5">{stat.label}</p>
+              <p className={cn("text-2xl font-black tracking-tight", stat.color)}>{stat.value}</p>
+              <p className="text-xs text-muted-foreground font-semibold mt-0.5">{stat.label}</p>
             </button>
           ))}
         </motion.div>
@@ -963,23 +963,23 @@ export default function Candidates() {
 
                 // GRID CARD VIEW
                 return (
-                  <motion.div key={c.id} variants={item} whileHover={{ y: -2, transition: { duration: 0.2 } }}>
+                  <motion.div key={c.id} variants={item} whileHover={{ y: -4, transition: { duration: 0.2 } }}>
                     <div className={cn(
-                      "bg-card rounded-2xl p-5 border transition-all group relative flex flex-col justify-between h-full shadow-sm",
-                      isBulkSelected ? "border-primary shadow-md ring-2 ring-primary/20" :
-                      isCompareSelected ? "border-accent shadow-md ring-2 ring-accent/20" : "border-border/60 hover:shadow-md hover:border-primary/30"
+                      "bg-card rounded-md3-2xl p-5 border border-md-outline-variant transition-all duration-300 group relative flex flex-col justify-between h-full shadow-xs hover:shadow-md3-2 hover:border-primary/40",
+                      isBulkSelected ? "border-primary shadow-md3-2 ring-2 ring-primary/20" :
+                      isCompareSelected ? "border-accent shadow-md3-2 ring-2 ring-accent/20" : ""
                     )}>
                       {/* Checkboxes */}
                       <div className="absolute top-3 left-3 flex items-center gap-1.5">
                         <Checkbox
                           checked={isBulkSelected}
                           onCheckedChange={() => toggleSelect(c.id)}
-                          className="data-[state=checked]:bg-primary"
+                          className="data-[state=checked]:bg-primary rounded-md3-xs"
                         />
                         <Checkbox
                           checked={isCompareSelected}
                           onCheckedChange={() => toggleCompare(c.id)}
-                          className="data-[state=checked]:bg-accent"
+                          className="data-[state=checked]:bg-accent rounded-md3-xs"
                           title="إضافة للمقارنة"
                         />
                       </div>
@@ -987,14 +987,14 @@ export default function Candidates() {
                       <div>
                         <div className="flex items-start justify-between mb-3 pl-12">
                           <div className="flex items-center gap-3">
-                            <Avatar className="w-11 h-11 border-2 border-primary/20 group-hover:border-primary/40 transition-colors">
-                              <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">{getInitials(c.name)}</AvatarFallback>
+                            <Avatar className="w-11 h-11 rounded-md3-xl border border-md-outline-variant group-hover:border-primary/40 transition-colors">
+                              <AvatarFallback className="bg-md-primary-container text-md-on-primary-container font-black text-xs rounded-md3-xl">{getInitials(c.name)}</AvatarFallback>
                             </Avatar>
                             <div>
                               <Link to={`/candidates/${c.id}`} className="font-bold text-sm text-foreground hover:text-primary transition-colors block line-clamp-1">
                                 {c.name || "مرشح بدون اسم"}
                               </Link>
-                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{c.role || "مرشح محتمل"}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 font-medium">{c.role || "مرشح محتمل"}</p>
                             </div>
                           </div>
                         </div>

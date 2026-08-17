@@ -518,34 +518,38 @@ export default function OffersPage() {
   return (
     <DashboardLayout>
       <div className="p-4 lg:p-8 space-y-6">
+        {/* Header */}
         <motion.div 
           initial={{ opacity: 0, y: -10 }} 
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
         >
           <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <FileText className="w-6 h-6 text-primary" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md3-full bg-md-primary-container text-md-on-primary-container text-xs font-bold mb-2">
+              <Gift className="w-3.5 h-3.5" />
+              <span>العروض الوظيفية الرقمية والتوقيع الإلكتروني</span>
+            </div>
+            <h1 className="text-2xl lg:text-3xl font-black text-foreground flex items-center gap-2">
               {t("offers.title")}
             </h1>
-            <p className="text-muted-foreground text-sm mt-1">{t("offers.subtitle")}</p>
+            <p className="text-muted-foreground text-xs mt-0.5">{t("offers.subtitle")}</p>
           </div>
           
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={exportToExcel} disabled={!offers || offers.length === 0}>
-              <Download className="w-4 h-4 ml-1" />
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={exportToExcel} disabled={!offers || offers.length === 0} className="gap-1.5 rounded-md3-xl border-md-outline-variant h-10 px-4 text-xs font-bold">
+              <Download className="w-4 h-4 text-primary" />
               {locale === "en" ? "Export Excel" : "تصدير Excel"}
             </Button>
             <Dialog open={showCreate} onOpenChange={setShowCreate}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 ml-1" />
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md3-1 rounded-md3-xl h-10 px-5 text-xs font-bold gap-2">
+                <Plus className="w-4 h-4" />
                 {t("offers.create")}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-md3-2xl">
               <DialogHeader>
-                <DialogTitle>{t("offers.createTitle")}</DialogTitle>
+                <DialogTitle className="text-lg font-black">{t("offers.createTitle")}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -606,23 +610,9 @@ export default function OffersPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>{t("offers.currency")}</Label>
-                    <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="SAR">{t("offers.sar")}</SelectItem>
-                        <SelectItem value="USD">{t("offers.usd")}</SelectItem>
-                        <SelectItem value="EUR">{t("offers.eur")}</SelectItem>
-                        <SelectItem value="AED">{t("offers.aed")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>{t("offers.contractType")}</Label>
+                    <Label>{t("offers.offerType")}</Label>
                     <Select value={form.offer_type} onValueChange={(v) => setForm({ ...form, offer_type: v })}>
                       <SelectTrigger className="mt-1">
                         <SelectValue />
@@ -631,158 +621,10 @@ export default function OffersPage() {
                         <SelectItem value="full-time">{t("offers.fullTime")}</SelectItem>
                         <SelectItem value="part-time">{t("offers.partTime")}</SelectItem>
                         <SelectItem value="contract">{t("offers.contract")}</SelectItem>
+                        <SelectItem value="remote">{t("offers.remote")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex items-end pb-1">
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        id="salary-breakdown"
-                        checked={salaryBreakdown}
-                        onCheckedChange={setSalaryBreakdown}
-                      />
-                      <Label htmlFor="salary-breakdown" className="text-xs cursor-pointer">
-                        {locale === "en" ? "Salary Breakdown" : "توزيع الراتب"}
-                      </Label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Salary Section */}
-                {!salaryBreakdown ? (
-                  <div>
-                    <Label>{t("offers.salaryLabel")}</Label>
-                    <Input
-                      type="number"
-                      value={form.salary}
-                      onChange={(e) => setForm({ ...form, salary: e.target.value })}
-                      className="mt-1"
-                      placeholder="15000"
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm font-semibold">
-                        {locale === "en" ? "Salary Breakdown" : "تفصيل الراتب"}
-                      </Label>
-                      <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-xs font-bold">
-                        {locale === "en" ? "Total" : "الإجمالي"}: {totalSalary.toLocaleString()} {form.currency}
-                      </Badge>
-                    </div>
-
-                    {/* Basic Salary */}
-                    <div>
-                      <Label className="text-xs text-muted-foreground">
-                        {locale === "en" ? "Basic Salary" : "الراتب الأساسي"}
-                      </Label>
-                      <Input
-                        type="number"
-                        value={baseSalary}
-                        onChange={(e) => setBaseSalary(e.target.value)}
-                        className="mt-1"
-                        placeholder="8000"
-                      />
-                    </div>
-
-                    {/* Allowances */}
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">
-                        {locale === "en" ? "Allowances" : "البدلات"}
-                      </Label>
-                      {allowances.map((allowance, index) => (
-                        <motion.div
-                          key={index}
-                          initial={{ opacity: 0, y: -5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="flex items-center gap-2"
-                        >
-                          <Input
-                            value={allowance.name}
-                            onChange={(e) => updateAllowance(index, "name", e.target.value)}
-                            placeholder={locale === "en" ? "Allowance name" : "اسم البدل"}
-                            className="flex-1"
-                          />
-                          <Input
-                            type="number"
-                            value={allowance.amount}
-                            onChange={(e) => updateAllowance(index, "amount", e.target.value)}
-                            placeholder="0"
-                            className="w-28"
-                          />
-                          {allowances.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeAllowance(index)}
-                              className="shrink-0 text-muted-foreground hover:text-destructive h-9 w-9"
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </motion.div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={addAllowance}
-                        className="gap-1.5 text-xs w-full border-dashed"
-                      >
-                        <PlusCircle className="w-3.5 h-3.5" />
-                        {locale === "en" ? "Add Allowance" : "إضافة بدل"}
-                      </Button>
-                    </div>
-
-                    {/* GOSI Deduction Calculator */}
-                    <div className="space-y-3.5 pt-3 border-t border-border/40">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs font-bold">
-                          {locale === "en" ? "GOSI Deduction Calculator" : "حساب استقطاع التأمينات الاجتماعية (GOSI)"}
-                        </Label>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-[10px] text-muted-foreground">
-                            {locale === "en" ? "Nationality" : "نوع الموظف"}
-                          </Label>
-                          <Select 
-                            value={employeeNationality} 
-                            onValueChange={(v: any) => setEmployeeNationality(v)}
-                          >
-                            <SelectTrigger className="h-8 text-xs mt-1">
-                              <SelectValue placeholder="اختر نوع الموظف" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">{locale === "en" ? "No GOSI" : "بدون خصم تأمينات"}</SelectItem>
-                              <SelectItem value="saudi">{locale === "en" ? "Saudi Employee (9.75%)" : "سعودي (التأمينات 9.75%)"}</SelectItem>
-                              <SelectItem value="non-saudi">{locale === "en" ? "Non-Saudi (2%)" : "مقيم/غير سعودي (التأمينات 2%)"}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        {employeeNationality !== "none" && (
-                          <div className="flex flex-col justify-end text-xs text-right space-y-1">
-                            <div className="flex justify-between text-muted-foreground gap-2">
-                              <span>{locale === "en" ? "GOSI Base" : "الخاضع للتأمينات"}:</span>
-                              <span className="font-semibold text-foreground">{gosiBase.toLocaleString()} {form.currency}</span>
-                            </div>
-                            <div className="flex justify-between text-destructive gap-2">
-                              <span>{locale === "en" ? "Deduction" : "خصم التأمينات"}:</span>
-                              <span className="font-bold">-{gosiDeduction.toLocaleString(undefined, { maximumFractionDigits: 2 })} {form.currency}</span>
-                            </div>
-                            <div className="flex justify-between text-success pt-1.5 border-t border-border/30 font-bold gap-2">
-                              <span>{locale === "en" ? "Net Take-Home" : "صافي الراتب المستلم"}:</span>
-                              <span>{netSalary.toLocaleString(undefined, { maximumFractionDigits: 2 })} {form.currency}</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>{t("offers.startDate")}</Label>
                     <Input
@@ -792,8 +634,180 @@ export default function OffersPage() {
                       className="mt-1"
                     />
                   </div>
-                  <div>
-                    <Label>{t("offers.offerValidity")}</Label>
+                </div>
+
+                {/* Salary with optional Breakdown */}
+                <div className="space-y-3 p-3 rounded-xl bg-muted/40 border border-border/60">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-semibold text-sm">{t("offers.salaryAndCompensation")}</Label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {locale === "en" ? "Detailed Salary Breakdown" : "تفصيل الراتب (أساسي وبدلات)"}
+                      </span>
+                      <Switch checked={salaryBreakdown} onCheckedChange={setSalaryBreakdown} />
+                    </div>
+                  </div>
+
+                  {!salaryBreakdown ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>{t("offers.salary")}</Label>
+                        <Input
+                          type="number"
+                          value={form.salary}
+                          onChange={(e) => setForm({ ...form, salary: e.target.value })}
+                          className="mt-1"
+                          placeholder="10000"
+                        />
+                      </div>
+                      <div>
+                        <Label>{t("offers.currency")}</Label>
+                        <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
+                          <SelectTrigger className="mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="SAR">SAR (ر.س)</SelectItem>
+                            <SelectItem value="AED">AED (د.إ)</SelectItem>
+                            <SelectItem value="USD">USD ($)</SelectItem>
+                            <SelectItem value="EUR">EUR (€)</SelectItem>
+                            <SelectItem value="EGP">EGP (ج.م)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">
+                          {locale === "en" ? "Basic Salary" : "الراتب الأساسي"}
+                        </Label>
+                        <Input
+                          type="number"
+                          value={baseSalary}
+                          onChange={(e) => setBaseSalary(e.target.value)}
+                          className="mt-1"
+                          placeholder="8000"
+                        />
+                      </div>
+
+                      {/* Allowances */}
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">
+                          {locale === "en" ? "Allowances" : "البدلات"}
+                        </Label>
+                        {allowances.map((allowance, index) => (
+                          <motion.div
+                            key={index}
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="flex items-center gap-2"
+                          >
+                            <Input
+                              value={allowance.name}
+                              onChange={(e) => updateAllowance(index, "name", e.target.value)}
+                              placeholder={locale === "en" ? "Allowance name" : "اسم البدل"}
+                              className="flex-1"
+                            />
+                            <Input
+                              type="number"
+                              value={allowance.amount}
+                              onChange={(e) => updateAllowance(index, "amount", e.target.value)}
+                              placeholder="0"
+                              className="w-28"
+                            />
+                            {allowances.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeAllowance(index)}
+                                className="shrink-0 text-muted-foreground hover:text-destructive h-9 w-9"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </motion.div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={addAllowance}
+                          className="gap-1.5 text-xs w-full border-dashed"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5" />
+                          {locale === "en" ? "Add Allowance" : "إضافة بدل"}
+                        </Button>
+                      </div>
+
+                      {/* GOSI Deduction Calculator */}
+                      <div className="space-y-3.5 pt-3 border-t border-border/40">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs font-bold">
+                            {locale === "en" ? "GOSI Deduction Calculator" : "حساب استقطاع التأمينات الاجتماعية (GOSI)"}
+                          </Label>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">
+                              {locale === "en" ? "Nationality" : "نوع الموظف"}
+                            </Label>
+                            <Select 
+                              value={employeeNationality} 
+                              onValueChange={(v: any) => setEmployeeNationality(v)}
+                            >
+                              <SelectTrigger className="h-8 text-xs mt-1">
+                                <SelectValue placeholder="اختر نوع الموظف" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">{locale === "en" ? "No GOSI" : "بدون خصم تأمينات"}</SelectItem>
+                                <SelectItem value="saudi">{locale === "en" ? "Saudi Employee (9.75%)" : "سعودي (التأمينات 9.75%)"}</SelectItem>
+                                <SelectItem value="non-saudi">{locale === "en" ? "Non-Saudi (2%)" : "مقيم/غير سعودي (التأمينات 2%)"}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">
+                              {locale === "en" ? "Currency" : "العملة"}
+                            </Label>
+                            <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
+                              <SelectTrigger className="h-8 text-xs mt-1">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="SAR">SAR (ر.س)</SelectItem>
+                                <SelectItem value="AED">AED (د.إ)</SelectItem>
+                                <SelectItem value="USD">USD ($)</SelectItem>
+                                <SelectItem value="EUR">EUR (€)</SelectItem>
+                                <SelectItem value="EGP">EGP (ج.م)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div className="p-2.5 rounded-lg bg-card/60 border border-border/40 space-y-1 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">{locale === "en" ? "Gross Total" : "إجمالي الراتب (شامل البدلات)"}:</span>
+                            <span className="font-bold">{totalSalary.toLocaleString()} {form.currency}</span>
+                          </div>
+                          {employeeNationality !== "none" && (
+                            <div className="flex justify-between text-rose-500">
+                              <span>{locale === "en" ? "GOSI Deduction" : "خصم التأمينات الاجتماعية (GOSI)"}:</span>
+                              <span className="font-bold">-{gosiDeduction.toLocaleString(undefined, { maximumFractionDigits: 2 })} {form.currency}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-emerald-600 font-bold border-t border-border/40 pt-1">
+                            <span>{locale === "en" ? "Net Take-Home" : "صافي الراتب المستلم شهرياً"}:</span>
+                            <span>{netSalary.toLocaleString(undefined, { maximumFractionDigits: 2 })} {form.currency}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-2">
+                    <Label>{t("offers.expiresIn")}</Label>
                     <Select value={form.expires_days} onValueChange={(v) => setForm({ ...form, expires_days: v })}>
                       <SelectTrigger className="mt-1">
                         <SelectValue />
@@ -853,26 +867,26 @@ export default function OffersPage() {
         </motion.div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
-            { label: t("offers.totalOffers"), value: offers?.length || 0, icon: FileText },
-            { label: t("offers.drafts"), value: offers?.filter(o => o.status === "draft").length || 0, icon: Clock },
-            { label: t("offers.sentOffers"), value: offers?.filter(o => o.status === "sent" || o.status === "viewed").length || 0, icon: Send },
-            { label: t("offers.acceptedOffers"), value: offers?.filter(o => o.status === "accepted").length || 0, icon: CheckCircle2 },
-            { label: t("offers.rejectedOffers"), value: offers?.filter(o => o.status === "rejected").length || 0, icon: XCircle },
+            { label: t("offers.totalOffers"), value: offers?.length || 0, icon: FileText, color: "text-foreground", bg: "bg-md-surface-container border-md-outline-variant" },
+            { label: t("offers.drafts"), value: offers?.filter(o => o.status === "draft").length || 0, icon: Clock, color: "text-muted-foreground", bg: "bg-md-surface-container-low border-md-outline-variant" },
+            { label: t("offers.sentOffers"), value: offers?.filter(o => o.status === "sent" || o.status === "viewed").length || 0, icon: Send, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
+            { label: t("offers.acceptedOffers"), value: offers?.filter(o => o.status === "accepted").length || 0, icon: CheckCircle2, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+            { label: t("offers.rejectedOffers"), value: offers?.filter(o => o.status === "rejected").length || 0, icon: XCircle, color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10 border-rose-500/20" },
           ].map((stat, i) => (
             <motion.div
               key={stat.label}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="bg-card rounded-xl p-4 border border-border/50"
+              className={cn("rounded-md3-2xl p-4 border transition-all duration-200 hover:scale-[1.02] shadow-xs", stat.bg)}
             >
               <div className="flex items-center gap-2">
-                <stat.icon className="w-4 h-4 text-primary" />
-                <span className="text-sm text-muted-foreground">{stat.label}</span>
+                <stat.icon className={cn("w-4 h-4", stat.color)} />
+                <span className="text-xs text-muted-foreground font-semibold">{stat.label}</span>
               </div>
-              <p className="text-2xl font-bold text-foreground mt-1">{stat.value}</p>
+              <p className={cn("text-2xl font-black mt-1", stat.color)}>{stat.value}</p>
             </motion.div>
           ))}
         </div>
