@@ -287,18 +287,22 @@ export default function CandidatePortal() {
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
         {/* Hero */}
         <div className="text-center space-y-3">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto font-bold">
-            <GraduationCap className="w-7 h-7" />
+          <div className="w-16 h-16 rounded-md3-2xl bg-md-primary-container text-md-on-primary-container flex items-center justify-center mx-auto font-bold shadow-xs">
+            <GraduationCap className="w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-black text-foreground">بوابة المعلمين والكوادر التعليمية</h1>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md3-full bg-md-primary-container text-md-on-primary-container text-xs font-bold">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>بوابة التتبع وتوثيق الكفاءات والشهادات</span>
+          </div>
+          <h1 className="text-3xl lg:text-4xl font-black text-foreground">بوابة المرشحين والكوادر التعليمية</h1>
           <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-            تابع حالة طلبك التعليمي، حدّث رخصتك المهنية بالسعودية (ETEC)، وارفع فيديو الحصة التجريبية لزيادة فرص توظيفك بالمدارس.
+            تابع حالة طلبك الوظيفي، حدّث رخصتك المهنية والاعتمادات، وارفع مقطع الحصة التجريبية لتعزيز ملفك بالمنظومة.
           </p>
         </div>
 
         {/* Search Box */}
-        <div className="bg-card rounded-3xl border border-border/60 p-6 shadow-xs space-y-4">
-          <div className="flex bg-muted/50 rounded-xl p-1 border border-border/50 w-fit mx-auto">
+        <div className="bg-md-surface-container rounded-md3-2xl border border-md-outline-variant p-6 shadow-xs space-y-4">
+          <div className="flex bg-card rounded-md3-full p-1 border border-md-outline-variant w-fit mx-auto shadow-xs gap-1">
             {[
               { key: "tracking" as const, label: "رمز التتبع الرقمي" },
               { key: "email" as const, label: "البريد الإلكتروني" },
@@ -307,8 +311,8 @@ export default function CandidatePortal() {
                 key={t.key}
                 onClick={() => { setSearchType(t.key); setInput(""); }}
                 className={cn(
-                  "px-4 py-2 text-xs font-bold rounded-lg transition-all",
-                  searchType === t.key ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                  "px-4 py-2 text-xs font-bold rounded-md3-full transition-all",
+                  searchType === t.key ? "bg-md-primary text-md-on-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {t.label}
@@ -322,10 +326,10 @@ export default function CandidatePortal() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSearch()}
-              className="text-center text-base tracking-wider rounded-xl h-11"
+              className="text-center text-sm font-bold tracking-wider rounded-md3-xl h-11 bg-background border-md-outline-variant"
               dir="ltr"
             />
-            <Button onClick={handleSearch} disabled={isLoading} className="gap-2 px-6 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold">
+            <Button onClick={handleSearch} disabled={isLoading} className="gap-2 px-6 h-11 rounded-md3-xl bg-primary text-primary-foreground font-bold shadow-md3-1">
               {isLoading ? (
                 <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
               ) : (

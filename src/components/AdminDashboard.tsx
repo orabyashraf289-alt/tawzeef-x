@@ -463,7 +463,7 @@ export default function AdminDashboard() {
                     </Button>
                   </Link>
                 )}
-                <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5 shadow-xs font-bold text-xs">
+                <div className="flex items-center gap-2 bg-md-surface-container border border-md-outline-variant rounded-md3-full px-4 py-2 shadow-xs font-bold text-xs">
                   <Clock className="w-4 h-4 text-purple-500" />
                   <LiveClock />
                   <span className="text-muted-foreground text-xs">•</span>
@@ -471,7 +471,7 @@ export default function AdminDashboard() {
                     {new Date().toLocaleDateString(locale === "en" ? "en-US" : "ar-SA", { weekday: "long", day: "numeric", month: "short" })}
                   </span>
                 </div>
-                <Button size="sm" variant="outline" className="rounded-xl h-11 px-4 text-xs font-bold gap-2 bg-card hover:bg-muted shadow-xs" onClick={togglePresentation}>
+                <Button size="sm" variant="outline" className="rounded-md3-xl h-10 px-4 text-xs font-bold gap-2 bg-card hover:bg-muted shadow-xs border-md-outline-variant" onClick={togglePresentation}>
                   <Maximize2 className="w-4 h-4 text-purple-500" />{locale === "en" ? "Present" : "وضع العرض 🖥️"}
                 </Button>
               </div>
@@ -481,43 +481,41 @@ export default function AdminDashboard() {
 
         {/* System Health Strip */}
         <motion.div variants={itemVariants}>
-          <Card className="border-0 glass-card-premium shadow-lg relative overflow-hidden">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-6 h-6 rounded-lg bg-destructive/10 flex items-center justify-center">
-                  <Server className="w-3.5 h-3.5 text-destructive" />
-                </div>
-                <span className="text-sm font-bold">{locale === "en" ? "System Overview" : "نظرة عامة على النظام"}</span>
-                <div className="flex-1" />
-                <div className="flex items-center gap-1.5">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-success live-breathing-indicator" />
-                  </span>
-                  <span className="text-[10px] text-success font-medium">{locale === "en" ? "Live" : "مباشر"}</span>
-                </div>
+          <div className="rounded-md3-2xl border border-md-outline-variant p-4 bg-md-surface-container shadow-xs">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-md3-sm bg-purple-500/10 text-purple-600 flex items-center justify-center">
+                <Server className="w-4 h-4" />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-                {[
-                  { label: locale === "en" ? "Active Jobs" : "وظائف نشطة", value: stats?.activeJobs ?? 0, icon: Briefcase, color: "text-primary", bg: "bg-primary/10" },
-                  { label: locale === "en" ? "Candidates" : "المرشحون", value: stats?.totalCandidates ?? 0, icon: Users, color: "text-accent", bg: "bg-accent/10" },
-                  { label: locale === "en" ? "Hired" : "تم التوظيف", value: accepted, icon: UserCheck, color: "text-success", bg: "bg-success/10" },
-                  { label: locale === "en" ? "Interviews" : "المقابلات", value: allInterviews.length, icon: Calendar, color: "text-warning", bg: "bg-warning/10" },
-                  { label: locale === "en" ? "Offers" : "العروض", value: allOffers.length, icon: FileText, color: "text-info", bg: "bg-info/10" },
-                  { label: locale === "en" ? "Team" : "الفريق", value: teamStats.totalUsers, icon: UserCog, color: "text-destructive", bg: "bg-destructive/10" },
-                  { label: locale === "en" ? "Subscribers" : "المشتركون", value: subStats.active, icon: Package, color: "text-primary", bg: "bg-primary/10" },
-                  { label: locale === "en" ? "Unread" : "غير مقروءة", value: unreadNotifications, icon: Bell, color: "text-warning", bg: "bg-warning/10" },
-                ].map((m, i) => (
-                  <motion.div key={i} whileHover={{ scale: 1.05, y: -3 }} transition={{ type: "spring", stiffness: 300, damping: 15 }}
-                    className={cn("rounded-xl p-2.5 text-center cursor-default glass-card-premium hover:shadow-lg", m.bg)}>
-                    <m.icon className={cn("w-4 h-4 mx-auto mb-1 transition-transform group-hover:scale-110", m.color)} />
-                    <p className={cn("text-lg font-bold", m.color)}><AnimatedValue value={m.value} delay={i * 0.05} /></p>
-                    <p className="text-[9px] text-muted-foreground leading-tight">{m.label}</p>
-                  </motion.div>
-                ))}
+              <span className="text-sm font-bold text-foreground">{locale === "en" ? "System Overview" : "نظرة عامة على النظام"}</span>
+              <div className="flex-1" />
+              <div className="flex items-center gap-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 live-breathing-indicator" />
+                </span>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">{locale === "en" ? "Live" : "مباشر"}</span>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+              {[
+                { label: locale === "en" ? "Active Jobs" : "وظائف نشطة", value: stats?.activeJobs ?? 0, icon: Briefcase, color: "text-primary", bg: "bg-md-primary-container/30 border-primary/20" },
+                { label: locale === "en" ? "Candidates" : "المرشحون", value: stats?.totalCandidates ?? 0, icon: Users, color: "text-violet-600 dark:text-violet-400", bg: "bg-violet-500/10 border-violet-500/20" },
+                { label: locale === "en" ? "Hired" : "تم التوظيف", value: accepted, icon: UserCheck, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+                { label: locale === "en" ? "Interviews" : "المقابلات", value: allInterviews.length, icon: Calendar, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+                { label: locale === "en" ? "Offers" : "العروض", value: allOffers.length, icon: FileText, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
+                { label: locale === "en" ? "Team" : "الفريق", value: teamStats.totalUsers, icon: UserCog, color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10 border-rose-500/20" },
+                { label: locale === "en" ? "Subscribers" : "المشتركون", value: subStats.active, icon: Package, color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" },
+                { label: locale === "en" ? "Unread" : "غير مقروءة", value: unreadNotifications, icon: Bell, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+              ].map((m, i) => (
+                <motion.div key={i} whileHover={{ scale: 1.04, y: -2 }} transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                  className={cn("rounded-md3-xl p-2.5 text-center cursor-default border transition-all duration-200 shadow-xs", m.bg)}>
+                  <m.icon className={cn("w-4 h-4 mx-auto mb-1", m.color)} />
+                  <p className={cn("text-lg font-black", m.color)}><AnimatedValue value={m.value} delay={i * 0.05} /></p>
+                  <p className="text-[9px] text-muted-foreground font-semibold leading-tight">{m.label}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
         </motion.div>
 
         {/* ══════════════════════════════════════════════════════════════

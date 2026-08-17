@@ -217,16 +217,19 @@ export default function NotificationTemplatesSection() {
   return (
     <div className="space-y-6 text-right" dir="rtl">
       <div>
-        <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-primary animate-pulse" />
-          مركز أتمتة الرسائل والقوالب
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md3-full bg-md-primary-container text-md-on-primary-container text-xs font-bold mb-2">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>أتمتة الرسائل والقوالب الذكية</span>
+        </div>
+        <h3 className="text-xl font-black text-foreground">
+          مركز قوالب المراسلات الآلية
         </h3>
         <p className="text-xs text-muted-foreground mt-0.5">
           قم بتخصيص وتنسيق رسائل البريد الإلكتروني التلقائية المرسلة للمرشحين خلال مراحل التوظيف.
         </p>
       </div>
 
-      <div className="flex bg-muted/40 rounded-xl p-1 border border-border/30 w-fit">
+      <div className="flex bg-md-surface-container rounded-md3-full p-1.5 border border-md-outline-variant w-fit shadow-xs gap-1">
         {[
           { type: "approval" as const, label: "رسالة القبول والترقية" },
           { type: "rejection" as const, label: "رسالة الاعتذار والرفض" },
@@ -236,8 +239,8 @@ export default function NotificationTemplatesSection() {
             key={t.type}
             onClick={() => setActiveType(t.type)}
             className={cn(
-              "px-4 py-2 text-xs font-semibold rounded-lg transition-all",
-              activeType === t.type ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              "px-4 py-2 text-xs font-bold rounded-md3-full transition-all",
+              activeType === t.type ? "bg-md-primary text-md-on-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
             )}
           >
             {t.label}
@@ -246,7 +249,6 @@ export default function NotificationTemplatesSection() {
       </div>
 
       <div className="grid md:grid-cols-5 gap-6">
-        {/* Editor (3 Cols) */}
         <div className="md:col-span-3 space-y-4">
           <div className="space-y-2">
             <Label className="text-xs font-bold">موضوع البريد الإلكتروني (Subject)</Label>
@@ -254,7 +256,7 @@ export default function NotificationTemplatesSection() {
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               onFocus={() => { activeInputRef.current = "subject"; }}
-              className="text-sm font-medium"
+              className="text-xs font-medium rounded-md3-xl border-md-outline-variant h-10"
               placeholder="اكتب موضوع الرسالة..."
             />
           </div>
@@ -262,17 +264,17 @@ export default function NotificationTemplatesSection() {
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <Label className="text-xs font-bold">محتوى البريد (HTML Template)</Label>
-              <div className="flex bg-muted/60 p-0.5 rounded-lg border border-border/30">
+              <div className="flex bg-md-surface-container p-1 rounded-md3-full border border-md-outline-variant gap-1">
                 <button
                   onClick={() => setPreviewMode("edit")}
-                  className={cn("p-1.5 rounded-md text-[11px] font-semibold flex items-center gap-1", previewMode === "edit" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground")}
+                  className={cn("px-3 py-1 rounded-md3-full text-[11px] font-bold flex items-center gap-1 transition-all", previewMode === "edit" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground")}
                 >
                   <Code className="w-3.5 h-3.5" />
                   محرر الكود
                 </button>
                 <button
                   onClick={() => setPreviewMode("preview")}
-                  className={cn("p-1.5 rounded-md text-[11px] font-semibold flex items-center gap-1", previewMode === "preview" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground")}
+                  className={cn("px-3 py-1 rounded-md3-full text-[11px] font-bold flex items-center gap-1 transition-all", previewMode === "preview" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground")}
                 >
                   <Eye className="w-3.5 h-3.5" />
                   معاينة حية

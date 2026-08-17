@@ -52,30 +52,43 @@ export default function ReviewerDashboard() {
         className="p-6 lg:p-8 space-y-6 relative"
       >
         <motion.div variants={item}>
-          <div className="flex items-center gap-2 mb-1">
-            <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-primary/20">{t("role.reviewer")}</Badge>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md3-full bg-md-primary-container text-md-on-primary-container text-xs font-bold mb-2">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{t("role.reviewer")} — لوحة تقييم المرشحين والمقابلات</span>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">{t("dashboard.reviewerPanel")}</h1>
-          <p className="text-muted-foreground text-sm mt-1">{t("dashboard.reviewerDesc")}</p>
+          <h1 className="text-2xl lg:text-3xl font-black text-foreground">{t("dashboard.reviewerPanel")}</h1>
+          <p className="text-muted-foreground text-xs mt-0.5">{t("dashboard.reviewerDesc")}</p>
         </motion.div>
 
-        <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={Users} title={t("dashboard.pendingReview")} value={pendingReview.length} index={0} />
-          <StatCard icon={Calendar} title={t("dashboard.myInterviews")} value={myInterviews.length} index={1} />
-          <StatCard icon={Brain} title={t("dashboard.evaluatedByAI")} value={aiStats.evaluated} index={2} />
-          <StatCard icon={Star} title={t("dashboard.avgMatch")} value={`${aiStats.avgScore}%`} index={3} />
+        <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { icon: Users, title: t("dashboard.pendingReview"), value: pendingReview.length, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+            { icon: Calendar, title: t("dashboard.myInterviews"), value: myInterviews.length, color: "text-primary", bg: "bg-md-primary-container/30 border-primary/20" },
+            { icon: Brain, title: t("dashboard.evaluatedByAI"), value: aiStats.evaluated, color: "text-violet-600 dark:text-violet-400", bg: "bg-violet-500/10 border-violet-500/20" },
+            { icon: Star, title: t("dashboard.avgMatch"), value: `${aiStats.avgScore}%`, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+          ].map((stat, i) => (
+            <motion.div key={i} whileHover={{ y: -3, scale: 1.02 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              className={cn("rounded-md3-2xl p-5 border shadow-xs transition-all", stat.bg)}>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-md3-md bg-card border border-md-outline-variant flex items-center justify-center shadow-xs">
+                  <stat.icon className={cn("w-4 h-4", stat.color)} />
+                </div>
+                <span className="text-xs text-muted-foreground font-semibold">{stat.title}</span>
+              </div>
+              <p className={cn("text-2xl font-black tracking-tight", stat.color)}>{stat.value}</p>
+            </motion.div>
+          ))}
         </motion.div>
 
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Pending Review */}
-          <motion.div variants={item} whileHover={{ y: -8, scale: 1.02 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
-            <div className="glass-card-premium border-none shadow-md rounded-2xl p-6 h-full relative overflow-hidden group">
-              <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
+          <motion.div variants={item} whileHover={{ y: -4, scale: 1.01 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
+            <div className="bg-card border border-md-outline-variant shadow-xs rounded-md3-2xl p-6 h-full relative overflow-hidden group">
               <div className="flex items-center justify-between mb-4 relative">
-                <h3 className="font-bold text-base flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />{t("dashboard.candidatesPendingReview")}
+                <h3 className="font-bold text-sm flex items-center gap-2 text-foreground">
+                  <Eye className="w-4 h-4 text-primary" />{t("dashboard.candidatesPendingReview")}
                 </h3>
-                <Link to="/candidates" className="text-xs text-primary hover:underline flex items-center gap-0.5">
+                <Link to="/candidates" className="text-xs text-primary hover:underline flex items-center gap-0.5 font-bold">
                   {t("common.viewAll")} <ChevronRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
