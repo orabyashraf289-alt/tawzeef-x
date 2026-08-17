@@ -384,16 +384,20 @@ export default function Jobs() {
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
           className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">{t("jobs.title")}</h1>
-            <p className="text-muted-foreground text-sm mt-1">{t("jobs.subtitle")}</p>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md3-full bg-md-primary-container text-md-on-primary-container text-xs font-bold mb-2">
+              <Briefcase className="w-3.5 h-3.5" />
+              <span>إدارة الشواغر والوظائف المفتوحة</span>
+            </div>
+            <h1 className="text-2xl lg:text-3xl font-black text-foreground">{t("jobs.title")}</h1>
+            <p className="text-muted-foreground text-xs mt-1">{t("jobs.subtitle")}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setTemplateDialogOpen(true)} className="gap-1.5">
-              <Copy className="w-4 h-4" />
+            <Button variant="outline" onClick={() => setTemplateDialogOpen(true)} className="gap-1.5 rounded-md3-xl border-md-outline-variant h-10 px-4 text-xs font-bold">
+              <Copy className="w-4 h-4 text-primary" />
               {t("jobs.templates")}
             </Button>
-            <Button data-tour="add-job-btn" onClick={() => { setTemplateForm(null); setDialogOpen(true); }} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm">
-              <Plus className="w-4 h-4 ml-2" />
+            <Button data-tour="add-job-btn" onClick={() => { setTemplateForm(null); setDialogOpen(true); }} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md3-1 rounded-md3-xl h-10 px-5 text-xs font-bold gap-2">
+              <Plus className="w-4 h-4" />
               {t("jobs.addJob")}
             </Button>
           </div>
@@ -403,14 +407,14 @@ export default function Jobs() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: t("jobs.totalJobs"), value: allJobs.filter(j => j.status !== "مؤرشفة").length, color: "text-foreground", bg: "bg-muted/50" },
-            { label: t("jobs.activeJobs"), value: activeCount, color: "text-success", bg: "bg-success/10" },
-            { label: t("jobs.closedJobs"), value: closedCount, color: "text-muted-foreground", bg: "bg-muted/30" },
-            { label: t("jobs.archived"), value: archivedCount, color: "text-warning", bg: "bg-warning/10" },
+            { label: t("jobs.totalJobs"), value: allJobs.filter(j => j.status !== "مؤرشفة").length, color: "text-foreground", bg: "bg-md-surface-container border-md-outline-variant" },
+            { label: t("jobs.activeJobs"), value: activeCount, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+            { label: t("jobs.closedJobs"), value: closedCount, color: "text-muted-foreground", bg: "bg-md-surface-container-low border-md-outline-variant" },
+            { label: t("jobs.archived"), value: archivedCount, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
           ].map((stat, i) => (
-            <div key={i} className={`${stat.bg} rounded-xl p-4 border border-border/50`}>
-              <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
+            <div key={i} className={`${stat.bg} rounded-md3-2xl p-4 border transition-transform duration-200 hover:scale-[1.02]`}>
+              <p className={`text-2xl font-black ${stat.color}`}>{stat.value}</p>
+              <p className="text-xs text-muted-foreground font-semibold mt-1">{stat.label}</p>
             </div>
           ))}
         </motion.div>
@@ -515,9 +519,9 @@ export default function Jobs() {
             className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
             <AnimatePresence>
               {visibleJobs.map((job) => (
-                <motion.div key={job.id} variants={item} layout whileHover={{ y: -3, transition: { duration: 0.2 } }}>
-                  <div className={`bg-card rounded-xl border border-border/50 p-5 hover:shadow-md hover:border-primary/20 transition-all duration-200 group relative ${job.status === "مؤرشفة" ? "opacity-70" : ""}`}>
-                    <div className="absolute inset-x-0 top-0 h-0.5 rounded-t-xl bg-gradient-to-l from-primary/60 to-primary/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <motion.div key={job.id} variants={item} layout whileHover={{ y: -4, transition: { duration: 0.2 } }}>
+                  <div className={`bg-card rounded-md3-xl border border-md-outline-variant p-5 shadow-sm hover:shadow-md3-2 hover:border-primary/40 transition-all duration-300 group relative ${job.status === "مؤرشفة" ? "opacity-70" : ""}`}>
+                    <div className="absolute inset-x-0 top-0 h-1 rounded-t-md3-xl bg-gradient-to-l from-primary via-primary/80 to-primary/40 opacity-0 group-hover:opacity-100 transition-opacity" />
 
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
@@ -526,18 +530,18 @@ export default function Jobs() {
                           checked={selectedJobs.includes(job.id)}
                           onChange={(e) => handleSelectJob(job.id, e.target.checked)}
                           onClick={(e) => e.stopPropagation()}
-                          className="w-4 h-4 text-primary border-border rounded focus:ring-primary cursor-pointer"
+                          className="w-4 h-4 text-primary border-md-outline rounded focus:ring-primary cursor-pointer accent-primary"
                         />
                         <Badge variant="outline"
-                          className={`text-xs ${
-                            job.status === "نشطة" ? "bg-success/10 text-success border-success/20" :
-                            job.status === "مؤرشفة" ? "bg-warning/10 text-warning border-warning/20" :
-                            "bg-muted text-muted-foreground border-border"
+                          className={`text-xs rounded-md3-full px-2.5 py-0.5 font-bold ${
+                            job.status === "نشطة" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" :
+                            job.status === "مؤرشفة" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" :
+                            "bg-muted text-muted-foreground border-md-outline-variant"
                           }`}>
                           {job.status}
                         </Badge>
                       </div>
-                      <span className="text-[11px] text-muted-foreground">{formatDate(job.created_at)}</span>
+                      <span className="text-[11px] font-medium text-muted-foreground">{formatDate(job.created_at)}</span>
                     </div>
 
                     <Link to={`/jobs/${job.id}`}

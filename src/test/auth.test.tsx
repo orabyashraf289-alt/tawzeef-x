@@ -123,7 +123,9 @@ describe("AuthContext", () => {
     });
 
     fireEvent.click(screen.getByTestId("signout"));
-    expect(mockSignOut).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(mockSignOut).toHaveBeenCalledOnce();
+    });
   });
 
   it("clears user on SIGNED_OUT event", async () => {
