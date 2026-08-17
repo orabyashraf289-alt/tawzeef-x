@@ -610,25 +610,29 @@ export default function Reports() {
           className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">{t("reports.title")}</h1>
-              <p className="text-muted-foreground text-sm mt-1">{t("reports.subtitle")}</p>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md3-full bg-md-primary-container text-md-on-primary-container text-xs font-bold mb-2">
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span>مركز التقارير ومؤشرات الأداء التنفيذية</span>
+              </div>
+              <h1 className="text-2xl lg:text-3xl font-black text-foreground">{t("reports.title")}</h1>
+              <p className="text-muted-foreground text-xs mt-0.5">{t("reports.subtitle")}</p>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={handleExportPDF} disabled={exporting} variant="outline" className="gap-2">
-                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+            <div className="flex gap-2 flex-wrap">
+              <Button onClick={handleExportPDF} disabled={exporting} variant="outline" className="gap-2 rounded-md3-xl border-md-outline-variant h-10 px-4 text-xs font-bold">
+                {exporting ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <FileDown className="w-4 h-4 text-primary" />}
                 {exporting ? t("reports.exporting") : t("reports.exportPDF")}
               </Button>
-              <Button onClick={handleExportExcel} variant="outline" className="gap-2">
-                <Download className="w-4 h-4" />
+              <Button onClick={handleExportExcel} variant="outline" className="gap-2 rounded-md3-xl border-md-outline-variant h-10 px-4 text-xs font-bold">
+                <Download className="w-4 h-4 text-primary" />
                 {t("reports.exportExcel")}
               </Button>
             </div>
           </div>
           {/* Date Range Filter */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Filter className="w-4 h-4" />
-              <span className="font-medium">{locale === "en" ? "Date Range:" : "الفترة الزمنية:"}</span>
+          <div className="flex items-center gap-3 flex-wrap bg-md-surface-container p-2.5 rounded-md3-2xl border border-md-outline-variant shadow-xs">
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <Filter className="w-4 h-4 text-primary" />
+              <span>{locale === "en" ? "Date Range:" : "الفترة الزمنية:"}</span>
             </div>
             <DateRangeFilter
               dateRange={dateRange}
@@ -637,7 +641,7 @@ export default function Reports() {
               dir={dir}
             />
             {(dateRange.from || dateRange.to) && (
-              <Button variant="ghost" size="sm" onClick={() => setDateRange({ from: undefined, to: undefined })} className="gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="sm" onClick={() => setDateRange({ from: undefined, to: undefined })} className="gap-1.5 text-xs text-rose-500 hover:text-rose-600 rounded-md3-full h-8">
                 <RotateCcw className="w-3.5 h-3.5" />
                 {locale === "en" ? "Reset" : "إعادة ضبط"}
               </Button>
@@ -649,44 +653,46 @@ export default function Reports() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { icon: Target, title: t("reports.conversionRate"), value: `${conversionRate}%`, colorClass: "text-primary hover:border-primary/30" },
-            { icon: Users, title: t("reports.totalCandidates"), value: totalCandidates.toString(), colorClass: "text-muted-foreground hover:border-muted-foreground/30" },
-            { icon: Award, title: t("reports.hired"), value: hired.toString(), colorClass: "text-success hover:border-success/30" },
-            { icon: Brain, title: t("reports.avgAiScore"), value: avgAiScore, colorClass: "text-warning hover:border-warning/30" },
-            { icon: CalendarClock, title: t("reports.avgTimeToHire"), value: avgTimeToHire, colorClass: "text-info hover:border-info/30" },
-            { icon: DollarSign, title: t("reports.hiringCost"), value: totalCostNum, colorClass: "text-primary hover:border-primary/30" },
-            { icon: CheckCircle2, title: t("reports.offerAcceptRate"), value: offerAcceptanceRate, colorClass: "text-success hover:border-success/30" },
-            { icon: Timer, title: t("reports.avgOfferResponse"), value: offerStats.avgResponseDays != null ? `${offerStats.avgResponseDays} ${t("reports.day")}` : "—", colorClass: "text-warning hover:border-warning/30" },
+            { icon: Target, title: t("reports.conversionRate"), value: `${conversionRate}%`, colorClass: "text-primary", bg: "bg-md-primary-container/40 border-primary/20" },
+            { icon: Users, title: t("reports.totalCandidates"), value: totalCandidates.toString(), colorClass: "text-foreground", bg: "bg-md-surface-container border-md-outline-variant" },
+            { icon: Award, title: t("reports.hired"), value: hired.toString(), colorClass: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+            { icon: Brain, title: t("reports.avgAiScore"), value: avgAiScore, colorClass: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+            { icon: CalendarClock, title: t("reports.avgTimeToHire"), value: avgTimeToHire, colorClass: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
+            { icon: DollarSign, title: t("reports.hiringCost"), value: totalCostNum, colorClass: "text-primary", bg: "bg-md-surface-container-low border-md-outline-variant" },
+            { icon: CheckCircle2, title: t("reports.offerAcceptRate"), value: offerAcceptanceRate, colorClass: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+            { icon: Timer, title: t("reports.avgOfferResponse"), value: offerStats.avgResponseDays != null ? `${offerStats.avgResponseDays} ${t("reports.day")}` : "—", colorClass: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
           ].map((kpi, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.05 }}
-              className="glass-card-premium relative overflow-hidden p-5 border border-border/30 bg-card/50 backdrop-blur-md rounded-2xl shadow-sm transition-all duration-300">
+              className={cn("relative overflow-hidden p-5 border rounded-md3-2xl transition-all duration-200 hover:scale-[1.02] shadow-xs", kpi.bg)}>
               <div className="flex items-center gap-2 mb-2">
-                <kpi.icon className={cn("w-5 h-5 shrink-0", kpi.colorClass.split(" ")[0])} />
-                <span className="text-xs text-muted-foreground font-medium">{kpi.title}</span>
+                <div className="w-8 h-8 rounded-md3-md bg-card flex items-center justify-center shadow-xs">
+                  <kpi.icon className={cn("w-4 h-4 shrink-0", kpi.colorClass)} />
+                </div>
+                <span className="text-xs text-muted-foreground font-semibold">{kpi.title}</span>
               </div>
-              <p className="text-2xl font-black text-foreground tracking-tight">{kpi.value}</p>
+              <p className={cn("text-2xl font-black tracking-tight", kpi.colorClass)}>{kpi.value}</p>
             </motion.div>
           ))}
         </motion.div>
 
         {/* Tabs */}
         <Tabs defaultValue="overview" dir={dir}>
-          <TabsList className="bg-muted/30 dark:bg-card/30 backdrop-blur-md border border-border/30 p-1.5 rounded-2xl flex-wrap gap-1.5 h-auto">
-            <TabsTrigger value="overview" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t("reports.overview")}</TabsTrigger>
-            <TabsTrigger value="comparison" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{locale === "en" ? "Monthly Comparison" : "مقارنة شهرية"}</TabsTrigger>
-            <TabsTrigger value="performance" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t("reports.performance")}</TabsTrigger>
-            <TabsTrigger value="pipeline" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t("reports.pipeline")}</TabsTrigger>
-            <TabsTrigger value="time" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t("reports.time")}</TabsTrigger>
-            <TabsTrigger value="sources" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t("reports.sourcesTab")}</TabsTrigger>
-            <TabsTrigger value="costs" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t("reports.costs")}</TabsTrigger>
-            <TabsTrigger value="departments" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t("reports.departments")}</TabsTrigger>
-            <TabsTrigger value="interviewers" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{locale === "en" ? "Interviewers" : "المحاورون"}</TabsTrigger>
-            <TabsTrigger value="sourceDetail" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{locale === "en" ? "Source Analysis" : "تحليل المصادر"}</TabsTrigger>
-            <TabsTrigger value="weekly" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{locale === "en" ? "Weekly Activity" : "النشاط الأسبوعي"}</TabsTrigger>
-            <TabsTrigger value="quality" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{locale === "en" ? "Quality Radar" : "رادار الجودة"}</TabsTrigger>
-            <TabsTrigger value="hiringKPI" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{locale === "en" ? "Hiring KPIs" : "مؤشرات التوظيف"}</TabsTrigger>
+          <TabsList className="bg-md-surface-container border border-md-outline-variant p-1.5 rounded-md3-2xl flex-wrap gap-1.5 h-auto shadow-xs">
+            <TabsTrigger value="overview" className="text-xs sm:text-sm rounded-md3-full px-4 py-2 font-bold data-[state=active]:bg-md-primary data-[state=active]:text-md-on-primary data-[state=active]:shadow-sm transition-all duration-200">{t("reports.overview")}</TabsTrigger>
+            <TabsTrigger value="comparison" className="text-xs sm:text-sm rounded-md3-full px-4 py-2 font-bold data-[state=active]:bg-md-primary data-[state=active]:text-md-on-primary data-[state=active]:shadow-sm transition-all duration-200">{locale === "en" ? "Monthly Comparison" : "مقارنة شهرية"}</TabsTrigger>
+            <TabsTrigger value="performance" className="text-xs sm:text-sm rounded-md3-full px-4 py-2 font-bold data-[state=active]:bg-md-primary data-[state=active]:text-md-on-primary data-[state=active]:shadow-sm transition-all duration-200">{t("reports.performance")}</TabsTrigger>
+            <TabsTrigger value="pipeline" className="text-xs sm:text-sm rounded-md3-full px-4 py-2 font-bold data-[state=active]:bg-md-primary data-[state=active]:text-md-on-primary data-[state=active]:shadow-sm transition-all duration-200">{t("reports.pipeline")}</TabsTrigger>
+            <TabsTrigger value="time" className="text-xs sm:text-sm rounded-md3-full px-4 py-2 font-bold data-[state=active]:bg-md-primary data-[state=active]:text-md-on-primary data-[state=active]:shadow-sm transition-all duration-200">{t("reports.time")}</TabsTrigger>
+            <TabsTrigger value="sources" className="text-xs sm:text-sm rounded-md3-full px-4 py-2 font-bold data-[state=active]:bg-md-primary data-[state=active]:text-md-on-primary data-[state=active]:shadow-sm transition-all duration-200">{t("reports.sourcesTab")}</TabsTrigger>
+            <TabsTrigger value="costs" className="text-xs sm:text-sm rounded-md3-full px-4 py-2 font-bold data-[state=active]:bg-md-primary data-[state=active]:text-md-on-primary data-[state=active]:shadow-sm transition-all duration-200">{t("reports.costs")}</TabsTrigger>
+            <TabsTrigger value="departments" className="text-xs sm:text-sm rounded-md3-full px-4 py-2 font-bold data-[state=active]:bg-md-primary data-[state=active]:text-md-on-primary data-[state=active]:shadow-sm transition-all duration-200">{t("reports.departments")}</TabsTrigger>
+            <TabsTrigger value="interviewers" className="text-xs sm:text-sm rounded-md3-full px-4 py-2 font-bold data-[state=active]:bg-md-primary data-[state=active]:text-md-on-primary data-[state=active]:shadow-sm transition-all duration-200">{locale === "en" ? "Interviewers" : "المحاورون"}</TabsTrigger>
+            <TabsTrigger value="sourceDetail" className="text-xs sm:text-sm rounded-md3-full px-4 py-2 font-bold data-[state=active]:bg-md-primary data-[state=active]:text-md-on-primary data-[state=active]:shadow-sm transition-all duration-200">{locale === "en" ? "Source Analysis" : "تحليل المصادر"}</TabsTrigger>
+            <TabsTrigger value="weekly" className="text-xs sm:text-sm rounded-md3-full px-4 py-2 font-bold data-[state=active]:bg-md-primary data-[state=active]:text-md-on-primary data-[state=active]:shadow-sm transition-all duration-200">{locale === "en" ? "Weekly Activity" : "النشاط الأسبوعي"}</TabsTrigger>
+            <TabsTrigger value="quality" className="text-xs sm:text-sm rounded-md3-full px-4 py-2 font-bold data-[state=active]:bg-md-primary data-[state=active]:text-md-on-primary data-[state=active]:shadow-sm transition-all duration-200">{locale === "en" ? "Quality Radar" : "رادار الجودة"}</TabsTrigger>
+            <TabsTrigger value="hiringKPI" className="text-xs sm:text-sm rounded-md3-full px-4 py-2 font-bold data-[state=active]:bg-md-primary data-[state=active]:text-md-on-primary data-[state=active]:shadow-sm transition-all duration-200">{locale === "en" ? "Hiring KPIs" : "مؤشرات التوظيف"}</TabsTrigger>
             {branchesComparisonData.length > 1 && (
-              <TabsTrigger value="branches" className="text-xs sm:text-sm rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{locale === "en" ? "Branch Comparison" : "مقارنة الفروع"}</TabsTrigger>
+              <TabsTrigger value="branches" className="text-xs sm:text-sm rounded-md3-full px-4 py-2 font-bold data-[state=active]:bg-md-primary data-[state=active]:text-md-on-primary data-[state=active]:shadow-sm transition-all duration-200">{locale === "en" ? "Branch Comparison" : "مقارنة الفروع"}</TabsTrigger>
             )}
           </TabsList>
 

@@ -2212,12 +2212,15 @@ export default function SettingsPage() {
       <div className="p-4 lg:p-8">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-primary/8">
-              <Settings2 className="w-5 h-5 text-primary" />
+            <div className="w-12 h-12 rounded-md3-xl bg-md-primary flex items-center justify-center text-md-on-primary shadow-md3-2">
+              <Settings2 className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">{t("settings.title")}</h1>
-              <p className="text-sm text-muted-foreground">{t("settings.subtitle")}</p>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md3-full bg-md-primary-container text-md-on-primary-container text-xs font-bold mb-1">
+                <span>تخصيص المنصة وصلاحيات النظام</span>
+              </div>
+              <h1 className="text-2xl lg:text-3xl font-black text-foreground">{t("settings.title")}</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("settings.subtitle")}</p>
             </div>
           </div>
         </motion.div>
@@ -2227,9 +2230,9 @@ export default function SettingsPage() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.05 }}
-            className="lg:w-56 shrink-0"
+            className="lg:w-64 shrink-0"
           >
-            <div className="lg:sticky lg:top-24 bg-card rounded-2xl border border-border/50 p-2 space-y-0.5">
+            <div className="lg:sticky lg:top-24 bg-md-surface-container rounded-md3-2xl border border-md-outline-variant p-2 space-y-1 shadow-xs">
               {settingsTabs.map(tab => {
                 const isActive = activeTab === tab.id;
                 return (
@@ -2237,21 +2240,14 @@ export default function SettingsPage() {
                     key={tab.id}
                     onClick={() => handleTabChange(tab.id)}
                     className={cn(
-                      "relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-colors text-right",
+                      "relative w-full flex items-center gap-3 px-3.5 py-2.5 rounded-md3-full text-xs font-bold transition-all text-right",
                       isActive
-                        ? "bg-primary/8 text-primary"
-                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        ? "bg-md-primary text-md-on-primary shadow-sm"
+                        : "text-muted-foreground hover:bg-md-surface-container-high hover:text-foreground"
                     )}
                   >
-                    {isActive && (
-                      <motion.div
-                        layoutId="settings-tab-indicator"
-                        className="absolute right-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-full"
-                        transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                      />
-                    )}
                     <tab.icon className="w-4 h-4 shrink-0" />
-                    <span>{tab.label}</span>
+                    <span className="truncate">{tab.label}</span>
                   </button>
                 );
               })}
@@ -2264,7 +2260,7 @@ export default function SettingsPage() {
             transition={{ delay: 0.1 }}
             className="flex-1 min-w-0"
           >
-            <div className="bg-card rounded-2xl border border-border/50 p-5 sm:p-7 w-full max-w-full">
+            <div className="bg-card rounded-md3-2xl border border-md-outline-variant p-5 sm:p-7 w-full max-w-full shadow-xs">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}
