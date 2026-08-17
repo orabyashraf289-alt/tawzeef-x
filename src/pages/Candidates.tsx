@@ -863,9 +863,9 @@ export default function Candidates() {
 
         {/* Candidate List Display */}
         {isLoading ? (
-          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="bg-card rounded-2xl p-5 border border-border/50 animate-pulse space-y-3">
+          <div className="grid sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+              <div key={i} className="bg-card rounded-md3-2xl p-5 border border-md-outline-variant animate-pulse space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-full bg-muted" />
                   <div className="space-y-2 flex-1">
@@ -878,7 +878,7 @@ export default function Candidates() {
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-16 bg-card rounded-2xl border border-border/50 space-y-3">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-16 bg-card rounded-md3-2xl border border-md-outline-variant space-y-3">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto text-primary">
               <UserPlus className="w-8 h-8" />
             </div>
@@ -887,11 +887,11 @@ export default function Candidates() {
               لم يتم العثور على أي مرشح يطابق معايير البحث الحالية. يمكنك مسح الفلاتر أو إضافة مرشح جديد.
             </p>
             <div className="pt-2 flex items-center justify-center gap-2">
-              <Button size="sm" onClick={() => setIsAddModalOpen(true)} className="gap-1.5">
+              <Button size="sm" onClick={() => setIsAddModalOpen(true)} className="gap-1.5 rounded-md3-xl">
                 <Plus className="w-4 h-4" /> إضافة مرشح جديد
               </Button>
               {hasActiveFilters && (
-                <Button variant="outline" size="sm" onClick={() => {
+                <Button variant="outline" size="sm" className="rounded-md3-xl" onClick={() => {
                   setJobFilter("all"); setStageFilter("all"); setSkillFilter(""); setAiScoreMin(""); setSearch(""); setAiPrompt(""); setQuickFilter("all"); setStatusFilter("all");
                 }}>
                   مسح الفلاتر
@@ -901,7 +901,7 @@ export default function Candidates() {
           </motion.div>
         ) : (
           <motion.div variants={container} initial="hidden" animate="show" className={cn(
-            isCompact ? "space-y-1.5" : "grid sm:grid-cols-2 xl:grid-cols-3 gap-4"
+            isCompact ? "space-y-1.5" : "grid sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4"
           )}>
             <AnimatePresence>
               {visibleFiltered.map((c) => {

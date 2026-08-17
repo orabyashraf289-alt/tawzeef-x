@@ -516,7 +516,7 @@ export default function Jobs() {
           </motion.div>
         ) : viewMode === "grid" ? (
           <motion.div variants={container} initial="hidden" animate="show"
-            className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+            className="grid md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
             <AnimatePresence>
               {visibleJobs.map((job) => (
                 <motion.div key={job.id} variants={item} layout whileHover={{ y: -4, transition: { duration: 0.2 } }}>

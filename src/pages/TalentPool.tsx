@@ -262,7 +262,7 @@ export default function TalentPool() {
             <p className="text-sm text-muted-foreground">{locale === "en" ? "No matching results" : "لا يوجد نتائج مطابقة"}</p>
           </motion.div>
         ) : (
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
             <AnimatePresence>
               {entries.map((entry, i) => {
                 const c = entry.candidates;
