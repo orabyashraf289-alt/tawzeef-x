@@ -1,11 +1,6 @@
 import nodemailer from "npm:nodemailer@6.9.16";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 const ALGO = "AES-GCM";
 
@@ -18,7 +13,7 @@ async function deriveKey(secret: string): Promise<CryptoKey> {
     ["deriveKey"]
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: new TextEncoder().encode("smtp-settings-salt"), iterations: 100000, hash: "SHA-256" },
+    { name: "PBKDF2", salt: new TextEncoder().encode(Deno.env.get("SMTP_ENCRYPTION_SALT") || "smtp-settings-tawzeefx-v2"), iterations: 100000, hash: "SHA-256" },
     keyMaterial,
     { name: ALGO, length: 256 },
     false,
@@ -51,6 +46,7 @@ interface EmailRequest {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

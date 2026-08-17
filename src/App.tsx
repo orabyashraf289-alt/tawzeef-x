@@ -111,7 +111,8 @@ function AnimatedRoutes() {
         <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
-        <Route path="/typography" element={<TypographyTest />} />
+        {/* Dev-only route — not accessible in production */}
+        {import.meta.env.DEV && <Route path="/typography" element={<TypographyTest />} />}
         <Route path="/invitation/:token" element={<AcceptInvitation />} />
 
         {/* Protected - any authenticated user */}

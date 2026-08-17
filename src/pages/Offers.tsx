@@ -60,15 +60,14 @@ import {
   ThumbsUp,
   AlertTriangle,
   Lightbulb,
-  Loader2
+  Loader2,
+  Gift,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useI18n } from "@/contexts/I18nContext";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
-import { OffersSkeleton } from "@/components/Skeletons";
-
 import { OffersSkeleton } from "@/components/Skeletons";
 
 export default function OffersPage() {
