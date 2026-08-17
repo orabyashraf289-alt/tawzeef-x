@@ -307,7 +307,7 @@ export default function RecruiterDashboard() {
                     </Button>
                   </Link>
                 )}
-                <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5 shadow-xs font-bold text-xs">
+                <div className="flex items-center gap-2 bg-md-surface-container border border-md-outline-variant rounded-md3-full px-4 py-2 shadow-xs font-bold text-xs">
                   <Clock className="w-4 h-4 text-emerald-500" />
                   <LiveClock />
                   <span className="text-muted-foreground text-xs">•</span>
@@ -316,8 +316,8 @@ export default function RecruiterDashboard() {
                   </span>
                 </div>
                 <Link to="/jobs">
-                  <Button className="rounded-xl h-11 px-5 text-xs font-bold gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20">
-                    <Zap className="w-4 h-4" />إضافة وظيفة جديدة
+                  <Button className="rounded-md3-xl h-10 px-5 text-xs font-bold gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md3-1">
+                    <Zap className="w-4 h-4" />إضافة شاغر جديد
                   </Button>
                 </Link>
               </div>
@@ -327,75 +327,65 @@ export default function RecruiterDashboard() {
 
         {/* Today's Productivity Strip */}
         <motion.div variants={item}>
-          <Card className="group relative border-0 sweeping-border-card shadow-lg overflow-hidden bg-card/30 backdrop-blur-md">
-            {/* Shimmer sweep */}
-            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
-            <CardContent className="p-4 relative">
-              <div className="flex items-center gap-2 mb-3">
-                <motion.div whileHover={{ rotate: 15, scale: 1.2 }} transition={{ type: "spring", stiffness: 300 }}>
-                  <Timer className="w-4.5 h-4.5 text-accent animate-bounce" />
+          <div className="rounded-md3-2xl border border-md-outline-variant p-4 bg-md-surface-container shadow-xs">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-md3-sm bg-md-primary-container text-md-on-primary-container flex items-center justify-center">
+                <Timer className="w-4 h-4" />
+              </div>
+              <span className="text-sm font-bold text-foreground">{locale === "en" ? "Today's Activity" : "نشاط اليوم"}</span>
+              <div className="flex items-center gap-1.5 ml-auto">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                <Badge variant="outline" className="text-[10px] font-bold rounded-md3-full border-md-outline-variant">{new Date().toLocaleDateString(locale === "en" ? "en-US" : "ar-SA", { day: "numeric", month: "short" })}</Badge>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {[
+                { label: locale === "en" ? "New Candidates" : "مرشحون جدد", value: productivity.todayCandidates, icon: Users, color: "text-primary", bg: "bg-md-primary-container/30 border-primary/20", type: "conversion" as const },
+                { label: locale === "en" ? "Interviews Today" : "مقابلات اليوم", value: productivity.todayInterviews, icon: Video, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10 border-amber-500/20", type: "timeToHire" as const },
+                { label: locale === "en" ? "This Week" : "هذا الأسبوع", value: productivity.weekCandidates, icon: TrendingUp, color: "text-violet-600 dark:text-violet-400", bg: "bg-violet-500/10 border-violet-500/20", type: "conversion" as const },
+                { label: locale === "en" ? "Week Interviews" : "مقابلات الأسبوع", value: productivity.weekInterviews, icon: Calendar, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10 border-blue-500/20", type: "timeToHire" as const },
+                { label: locale === "en" ? "Avg Time to Hire" : "متوسط وقت التوظيف", value: productivity.avgTimeToHire, icon: Clock, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20", suffix: locale === "en" ? " days" : " يوم", type: "timeToHire" as const },
+              ].map((m, i) => (
+                <motion.div key={i} whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }} onClick={() => setSelectedKpi(m.type)} className={cn("rounded-md3-xl p-3 text-center cursor-pointer border transition-all duration-200 shadow-xs", m.bg)}>
+                  <m.icon className={cn("w-5 h-5 mx-auto mb-1.5", m.color)} />
+                  <p className={cn("text-xl font-black", m.color)}>{m.value}{m.suffix || ""}</p>
+                  <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">{m.label}</p>
                 </motion.div>
-                <span className="text-sm font-bold text-foreground/90">{locale === "en" ? "Today's Activity" : "نشاط اليوم"}</span>
-                <div className="flex items-center gap-1.5 ml-auto">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-success live-breathing-indicator" />
-                  </span>
-                  <Badge variant="outline" className="text-[9px] bg-background/50">{new Date().toLocaleDateString(locale === "en" ? "en-US" : "ar-SA", { day: "numeric", month: "short" })}</Badge>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                {[
-                  { label: locale === "en" ? "New Candidates" : "مرشحون جدد", value: productivity.todayCandidates, icon: Users, color: "text-primary", bg: "bg-primary/5 hover:border-primary/30", type: "conversion" as const },
-                  { label: locale === "en" ? "Interviews Today" : "مقابلات اليوم", value: productivity.todayInterviews, icon: Video, color: "text-warning", bg: "bg-warning/5 hover:border-warning/30", type: "timeToHire" as const },
-                  { label: locale === "en" ? "This Week" : "هذا الأسبوع", value: productivity.weekCandidates, icon: TrendingUp, color: "text-accent", bg: "bg-accent/5 hover:border-accent/30", type: "conversion" as const },
-                  { label: locale === "en" ? "Week Interviews" : "مقابلات الأسبوع", value: productivity.weekInterviews, icon: Calendar, color: "text-info", bg: "bg-info/5 hover:border-info/30", type: "timeToHire" as const },
-                  { label: locale === "en" ? "Avg Time to Hire" : "متوسط وقت التوظيف", value: productivity.avgTimeToHire, icon: Clock, color: "text-success", bg: "bg-success/5 hover:border-success/30", suffix: locale === "en" ? " days" : " يوم", type: "timeToHire" as const },
-                ].map((m, i) => (
-                  <motion.div key={i} whileHover={{ scale: 1.05, y: -4 }} whileTap={{ scale: 0.97 }} onClick={() => setSelectedKpi(m.type)} className={cn("rounded-xl p-3 text-center cursor-pointer glass-card-premium border border-border/20 backdrop-blur-sm", m.bg)}>
-                    <motion.div whileHover={{ rotate: 10, scale: 1.15 }} transition={{ type: "spring", stiffness: 400 }}>
-                      <m.icon className={cn("w-5 h-5 mx-auto mb-1.5 transition-transform", m.color)} />
-                    </motion.div>
-                    <p className={cn("text-xl font-bold", m.color)}>{m.value}{m.suffix || ""}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{m.label}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+              ))}
+            </div>
+          </div>
         </motion.div>
 
         {/* Stat Cards */}
-        <motion.div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <motion.div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { icon: Briefcase, title: t("dashboard.activeJobs"), value: stats?.activeJobs ?? 0, subtitle: `${t("common.from")} ${allJobs.length} ${locale === "en" ? "jobs" : "وظيفة"}`, iconBg: "from-primary/20 to-primary/5 border border-primary/30", iconColor: "text-primary", glowColor: "bg-primary", type: "fillRate" as const },
-            { icon: Users, title: t("dashboard.totalCandidates"), value: stats?.totalCandidates ?? 0, subtitle: weeklyTrend.change >= 0 ? `+${weeklyTrend.change}% ${t("dashboard.thisWeek")}` : `${weeklyTrend.change}% ${t("dashboard.thisWeek")}`, trend: weeklyTrend.change, iconBg: "from-accent/20 to-accent/5 border border-accent/30", iconColor: "text-accent", glowColor: "bg-accent", type: "conversion" as const },
-            { icon: UserCheck, title: t("dashboard.hired"), value: stats?.hired ?? 0, subtitle: `${kpis.conversionRate}% ${t("dashboard.conversionRate")}`, iconBg: "from-success/20 to-success/5 border border-success/30", iconColor: "text-success", glowColor: "bg-success", type: "offers" as const },
-            { icon: Calendar, title: t("dashboard.scheduledInterviews"), value: allInterviews.filter(i => i.status === "مجدولة").length, subtitle: `${allInterviews.filter(i => i.status === "مكتملة").length} ${t("dashboard.completed")}`, iconBg: "from-warning/20 to-warning/5 border border-warning/30", iconColor: "text-warning", glowColor: "bg-warning", type: "timeToHire" as const },
+            { icon: Briefcase, title: t("dashboard.activeJobs"), value: stats?.activeJobs ?? 0, subtitle: `${t("common.from")} ${allJobs.length} ${locale === "en" ? "jobs" : "وظيفة"}`, iconColor: "text-primary", bg: "bg-md-surface-container border-md-outline-variant", type: "fillRate" as const },
+            { icon: Users, title: t("dashboard.totalCandidates"), value: stats?.totalCandidates ?? 0, subtitle: weeklyTrend.change >= 0 ? `+${weeklyTrend.change}% ${t("dashboard.thisWeek")}` : `${weeklyTrend.change}% ${t("dashboard.thisWeek")}`, trend: weeklyTrend.change, iconColor: "text-violet-600 dark:text-violet-400", bg: "bg-md-surface-container border-md-outline-variant", type: "conversion" as const },
+            { icon: UserCheck, title: t("dashboard.hired"), value: stats?.hired ?? 0, subtitle: `${kpis.conversionRate}% ${t("dashboard.conversionRate")}`, iconColor: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20", type: "offers" as const },
+            { icon: Calendar, title: t("dashboard.scheduledInterviews"), value: allInterviews.filter(i => i.status === "مجدولة").length, subtitle: `${allInterviews.filter(i => i.status === "مكتملة").length} ${t("dashboard.completed")}`, iconColor: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10 border-amber-500/20", type: "timeToHire" as const },
           ].map((stat, i) => (
-            <motion.div key={stat.title} whileHover={{ y: -6, scale: 1.015 }} transition={{ type: "spring", stiffness: 300, damping: 20 }} onClick={() => setSelectedKpi(stat.type)}>
-              <Card className="glass-card-premium border border-border/20 shadow-lg group relative overflow-hidden cursor-pointer bg-card/40 backdrop-blur-md">
-                {/* Glow effect */}
-                <div className={cn("premium-radial-glow -bottom-10 -right-10", stat.glowColor)} />
-                <CardContent className="p-5 relative">
-                  <div className="flex items-start justify-between">
-                    <motion.div className={cn("w-11 h-11 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-inner", stat.iconBg)} whileHover={{ rotate: 12, scale: 1.12 }}>
-                      <stat.icon className={cn("w-5 h-5", stat.iconColor)} />
-                    </motion.div>
-                    {stat.trend !== undefined && (
-                      <Badge variant="outline" className={cn("text-[10px] font-bold transition-all duration-300 group-hover:scale-105", stat.trend >= 0 ? "text-success border-success/30 bg-success/5" : "text-destructive border-destructive/30 bg-destructive/5")}>
-                        {stat.trend >= 0 ? <ArrowUp className="w-3 h-3 ml-0.5" /> : <ArrowDown className="w-3 h-3 ml-0.5" />}
-                        {Math.abs(stat.trend)}%
-                      </Badge>
-                    )}
+            <motion.div key={stat.title} whileHover={{ y: -4, scale: 1.015 }} transition={{ type: "spring", stiffness: 300, damping: 20 }} onClick={() => setSelectedKpi(stat.type)}>
+              <div className={cn("rounded-md3-2xl border p-5 cursor-pointer transition-all duration-200 shadow-xs", stat.bg)}>
+                <div className="flex items-start justify-between">
+                  <div className="w-11 h-11 rounded-md3-xl bg-card border border-md-outline-variant flex items-center justify-center shadow-xs">
+                    <stat.icon className={cn("w-5 h-5", stat.iconColor)} />
                   </div>
-                  <div className="mt-4">
-                    <AnimatedStatValue value={stat.value} delay={i * 0.1 + 0.2} />
-                    <p className="text-sm font-bold text-foreground/80 mt-1">{stat.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{stat.subtitle}</p>
-                  </div>
-                </CardContent>
-              </Card>
+                  {stat.trend !== undefined && (
+                    <Badge variant="outline" className={cn("text-[10px] font-bold rounded-md3-full", stat.trend >= 0 ? "text-emerald-600 border-emerald-500/30 bg-emerald-500/5" : "text-destructive border-destructive/30 bg-destructive/5")}>
+                      {stat.trend >= 0 ? <ArrowUp className="w-3 h-3 ml-0.5" /> : <ArrowDown className="w-3 h-3 ml-0.5" />}
+                      {Math.abs(stat.trend)}%
+                    </Badge>
+                  )}
+                </div>
+                <div className="mt-4">
+                  <AnimatedStatValue value={stat.value} delay={i * 0.1 + 0.2} />
+                  <p className="text-sm font-bold text-foreground mt-1">{stat.title}</p>
+                  <p className="text-xs text-muted-foreground font-medium mt-0.5">{stat.subtitle}</p>
+                </div>
+              </div>
             </motion.div>
           ))}
         </motion.div>
@@ -403,25 +393,25 @@ export default function RecruiterDashboard() {
         {/* Quick Actions */}
         <motion.div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-foreground/90 flex items-center gap-2">
-              <Zap className="w-4 h-4 text-warning animate-pulse" />{t("dashboard.quickActions")}
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-500" />{t("dashboard.quickActions")}
             </h3>
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
             {[
-              { label: t("dashboard.postJob"), icon: Briefcase, color: "hover:bg-primary/10 text-primary border border-primary/25", path: "/jobs" },
-              { label: t("dashboard.candidates"), icon: Users, color: "hover:bg-accent/10 text-accent border border-accent/25", path: "/candidates" },
-              { label: t("dashboard.pipeline"), icon: Kanban, color: "hover:bg-info/10 text-info border border-info/25", path: "/pipeline" },
-              { label: t("dashboard.scheduleInterview"), icon: Calendar, color: "hover:bg-warning/10 text-warning border border-warning/25", path: "/interviews" },
-              { label: t("dashboard.offers"), icon: FileText, color: "hover:bg-success/10 text-success border border-success/25", path: "/offers" },
-              { label: t("dashboard.reports"), icon: BarChart3, color: "hover:bg-foreground/10 text-foreground border border-border/40", path: "/reports" },
-            ].map((action, i) => (
+              { label: t("dashboard.postJob"), icon: Briefcase, color: "text-primary border-primary/25 hover:bg-primary/10", path: "/jobs" },
+              { label: t("dashboard.candidates"), icon: Users, color: "text-violet-600 dark:text-violet-400 border-violet-500/25 hover:bg-violet-500/10", path: "/candidates" },
+              { label: t("dashboard.pipeline"), icon: Kanban, color: "text-blue-600 dark:text-blue-400 border-blue-500/25 hover:bg-blue-500/10", path: "/pipeline" },
+              { label: t("dashboard.scheduleInterview"), icon: Calendar, color: "text-amber-600 dark:text-amber-400 border-amber-500/25 hover:bg-amber-500/10", path: "/interviews" },
+              { label: t("dashboard.offers"), icon: FileText, color: "text-emerald-600 dark:text-emerald-400 border-emerald-500/25 hover:bg-emerald-500/10", path: "/offers" },
+              { label: t("dashboard.reports"), icon: BarChart3, color: "text-foreground border-md-outline-variant hover:bg-md-surface-container", path: "/reports" },
+            ].map((action) => (
               <Link key={action.label} to={action.path}>
-                <motion.div whileHover={{ scale: 1.05, y: -4 }} whileTap={{ scale: 0.95 }} className={cn("group relative flex flex-col items-center gap-2.5 rounded-xl p-4 font-bold text-xs transition-all cursor-pointer text-center glass-card-premium shadow-sm overflow-hidden bg-card/45 backdrop-blur-md border border-border/20", action.color)}>
-                  <div className="p-2 rounded-lg bg-background/50 group-hover:bg-background/80 transition-colors shadow-sm">
-                    <action.icon className="w-4.5 h-4.5 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-200" />
+                <motion.div whileHover={{ scale: 1.04, y: -3 }} whileTap={{ scale: 0.95 }} className={cn("group flex flex-col items-center gap-2 rounded-md3-2xl p-4 font-bold text-xs transition-all cursor-pointer text-center bg-md-surface-container border shadow-xs", action.color)}>
+                  <div className="p-2.5 rounded-md3-xl bg-card border border-md-outline-variant shadow-xs">
+                    <action.icon className="w-4.5 h-4.5" />
                   </div>
-                  <span>{action.label}</span>
+                  <span className="truncate w-full">{action.label}</span>
                 </motion.div>
               </Link>
             ))}
