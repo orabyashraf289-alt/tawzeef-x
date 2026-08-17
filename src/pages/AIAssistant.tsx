@@ -1922,11 +1922,11 @@ export default function AIAssistant() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span className="font-bold text-foreground/90 text-[11px]">
-                محرك الذكاء الاصطناعي الفعّال:
+              <span className="font-bold text-foreground text-xs">
+                محرك الذكاء الاصطناعي:
               </span>
-              <Badge variant="outline" className="text-[10px] font-extrabold bg-primary/10 text-primary border-primary/20">
-                {MODEL_OPTIONS.find(m => m.id === modelChoice)?.name || "Gemini 3.6 Flash"} ⚡
+              <Badge variant="outline" className="text-[10px] font-black rounded-md3-full bg-md-primary-container text-md-on-primary-container border-0 px-2.5 py-0.5">
+                {MODEL_OPTIONS.find(m => m.id === modelChoice)?.name || "Gemini 3.7 Flash"} ⚡
               </Badge>
             </div>
 
@@ -1934,43 +1934,41 @@ export default function AIAssistant() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 text-[11px] font-bold gap-1 rounded-xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20"
+                className="h-8 text-xs font-bold gap-1.5 rounded-md3-full bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20 px-3"
                 onClick={() => {
                   setInput("أنشئ لي وصفاً وظيفياً متكاملاً لوظيفة معلم رياضيات بالرياض مع الإضافة المباشرة للنظام");
                   setTimeout(() => handleSend(), 50);
                 }}
               >
-                <Briefcase className="w-3 h-3" />
-                صياغة وظيفة معلم مع الإضافة الفورية 🚀
+                <Briefcase className="w-3.5 h-3.5" />
+                صياغة وظيفة وإضافتها للنظام 🚀
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 text-[11px] font-bold gap-1 rounded-xl bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 border border-indigo-500/20"
+                className="h-8 text-xs font-bold gap-1.5 rounded-md3-full bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 border border-indigo-500/20 px-3"
                 onClick={() => {
                   setInput("قم بتحليل أداء التوظيف والوظائف الشاغرة اليوم واستخراج ملخص الإحصائيات");
                   setTimeout(() => handleSend(), 50);
                 }}
               >
-                <BarChart3 className="w-3 h-3" />
+                <BarChart3 className="w-3.5 h-3.5" />
                 ملخص أداء التوظيف اليومي 📊
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 text-[11px] font-bold gap-1 rounded-xl bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/20"
+                className="h-8 text-xs font-bold gap-1.5 rounded-md3-full bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/20 px-3"
                 onClick={() => {
                   setInput("أنشئ دليل مقابلة وتقييم سلوكي مخصص لمرشح معلم لغة إنجليزية بخبرة 5 سنوات");
                   setTimeout(() => handleSend(), 50);
                 }}
               >
-                <CalendarCheck className="w-3 h-3" />
+                <CalendarCheck className="w-3.5 h-3.5" />
                 دليل وتقييم المقابلة السلوكية 🎯
               </Button>
             </div>
           </div>
-
-
 
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-5 bg-transparent">
@@ -1987,16 +1985,16 @@ export default function AIAssistant() {
                   
                   {/* Avatar for user */}
                   {msg.role === "user" && (
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 flex items-center justify-center shrink-0 mt-1 shadow-sm">
-                      <span className="text-[10px] font-black text-primary">أنت</span>
+                    <div className="w-9 h-9 rounded-md3-xl bg-md-primary-container text-md-on-primary-container border border-primary/30 flex items-center justify-center shrink-0 mt-1 shadow-xs">
+                      <span className="text-[10px] font-black">أنت</span>
                     </div>
                   )}
 
                   <div className={cn(
-                    "max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3.5 text-sm leading-relaxed shadow-md transition-all duration-200 relative overflow-hidden",
+                    "max-w-[85%] sm:max-w-[75%] rounded-md3-2xl px-5 py-4 text-sm leading-relaxed shadow-xs transition-all duration-200 relative overflow-hidden",
                     msg.role === "user"
-                      ? "bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--primary)/0.85)] border border-[hsl(var(--primary)/0.35)] text-white rounded-tr-sm shadow-primary/10 font-medium"
-                      : "glass-card-premium border border-border/25 rounded-tl-sm text-foreground bg-card/30 backdrop-blur-md"
+                      ? "bg-md-primary text-md-on-primary font-medium rounded-tr-md3-xs shadow-md3-1"
+                      : "bg-md-surface-container border border-md-outline-variant rounded-tl-md3-xs text-foreground shadow-xs"
                   )}>
                     {msg.role === "assistant" && (
                       <div className="premium-radial-glow -bottom-10 -left-10 bg-primary/10" />
@@ -2315,7 +2313,7 @@ export default function AIAssistant() {
                 }
               }}
             />
-            <div className="bg-card/50 border border-border/25 backdrop-blur-xl p-2 rounded-2xl shadow-xl flex gap-2 items-center relative">
+            <div className="bg-md-surface-container border border-md-outline-variant p-2 rounded-md3-full shadow-md3-2 flex gap-2 items-center relative">
               {/* Hidden legacy file input (resume only) */}
               <input type="file" ref={fileInputRef} accept=".txt,.pdf,.doc,.docx" className="hidden" onChange={handleFileSelect} />
 
@@ -2335,10 +2333,10 @@ export default function AIAssistant() {
 
               <Input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleSend()}
-                placeholder="اكتب أمرك أو / للأوامر السريعة..."
-                className="flex-1 rounded-xl bg-transparent border-0 ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-xs shadow-none" />
+                placeholder="اكتب أمرك للمساعد الذكي أو / للأوامر السريعة..."
+                className="flex-1 rounded-md3-full bg-transparent border-0 ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-xs shadow-none" />
               <Button onClick={handleSend} disabled={(!input.trim() && attachedFiles.length === 0) || isLoading}
-                size="icon" className="bg-primary text-primary-foreground hover:bg-primary/95 w-10 h-10 rounded-xl shrink-0 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform duration-200">
+                size="icon" className="bg-primary text-primary-foreground hover:bg-primary/90 w-10 h-10 rounded-md3-full shrink-0 shadow-md3-1 hover:scale-105 transition-transform duration-200">
                 <Send className="w-4 h-4" />
               </Button>
             </div>
