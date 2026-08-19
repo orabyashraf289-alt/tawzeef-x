@@ -29,6 +29,10 @@ const ROUTE_PERMISSION_MAP: Record<string, string> = {
   "/tutorial": "screen.tutorial",
   "/settings": "screen.settings",
   "/roadmap": "screen.roadmap",
+  "/tasks": "screen.tasks",
+  "/task-board": "screen.tasks",
+  "/evaluation": "screen.evaluation",
+  "/performance-evaluation": "screen.evaluation",
 };
 
 // Sub-routes map to parent screen permission

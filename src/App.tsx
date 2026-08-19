@@ -135,7 +135,9 @@ function AnimatedRoutes() {
         <Route path="/hiring-plan" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><HiringPlan /></RoleProtectedRoute>} />
         <Route path="/tutorial" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Tutorial /></RoleProtectedRoute>} />
         <Route path="/talent-pool" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><TalentPool /></RoleProtectedRoute>} />
+        <Route path="/tasks" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><TaskBoard /></RoleProtectedRoute>} />
         <Route path="/task-board" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><TaskBoard /></RoleProtectedRoute>} />
+        <Route path="/evaluation" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><PerformanceEvaluation /></RoleProtectedRoute>} />
         <Route path="/performance-evaluation" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><PerformanceEvaluation /></RoleProtectedRoute>} />
 
         <Route path="/question-bank" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><QuestionBank /></RoleProtectedRoute>} />
