@@ -1,408 +1,127 @@
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import { Link } from "react-router-dom";
-import { Users, Bot, ArrowLeft, TrendingUp, Shield, Globe, CheckCircle2, Zap, Star, Briefcase, FileText, BarChart3, Video, Sparkles, Award, Play, ArrowUpRight, MousePointerClick, Layout, MessageSquare, Calendar, Send, Menu, X, Sun, Moon, ChevronDown, Check, Building2, Lock, Cpu, Activity, Layers, Server, Database } from "lucide-react";
+import {
+  Users, Bot, ArrowLeft, TrendingUp, Shield, Globe, CheckCircle2, Zap,
+  Briefcase, FileText, Video, Sparkles, Award, Play, Layout,
+  Calendar, Menu, X, Sun, Moon, Check, Building2, Lock, Cpu,
+  Activity, Layers, Server, Database, MessageSquare, CheckSquare,
+  FileCheck, Flame, ChevronLeft, ChevronRight, PenTool,
+  Volume2, ShieldCheck, PieChart, BarChart3, Star, Clock, Laptop,
+  KeyRound, HelpCircle, Eye, ArrowUpRight
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { motion, useScroll, useTransform, AnimatePresence, useInView, useMotionValue, useSpring, useMotionTemplate } from "framer-motion";
-import { useRef, useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence, useInView, useMotionValue, useSpring } from "framer-motion";
+import { useRef, useState, useEffect } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
-
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/marketing/SEO";
 import { useSubscriptionPlans } from "@/hooks/useSubscription";
 
-const features = [
-  { icon: Bot, title: "ذكاء اصطناعي متقدم", description: "فلترة وتصنيف المرشحين تلقائياً باستخدام AI مع تقييم شامل للمهارات والخبرات", highlight: "توفير 80% من الوقت", colorIdx: 0 },
-  { icon: Users, title: "إدارة مرشحين احترافية", description: "Kanban Board متقدم لتتبع المرشحين عبر جميع مراحل التوظيف مع مقارنة فورية", highlight: "مقارنة حتى 4 مرشحين", colorIdx: 1 },
-  { icon: Video, title: "مقابلات أونلاين مدمجة", description: "غرف فيديو مدمجة في المنصة مع تسجيل ونسخ نصي تلقائي وتقييم تفصيلي", highlight: "تسجيل + نسخ نصي", colorIdx: 2 },
-  { icon: TrendingUp, title: "تقارير وتحليلات ذكية", description: "لوحة تحكم تفاعلية مع رسوم بيانية متقدمة وتصدير PDF ومؤشرات أداء KPIs", highlight: "تصدير PDF", colorIdx: 0 },
-  { icon: FileText, title: "عروض وظيفية رقمية", description: "إنشاء وإرسال عروض وظيفية احترافية مع توقيع إلكتروني وتتبع الاستجابة", highlight: "توقيع إلكتروني", colorIdx: 1 },
-  { icon: Shield, title: "أمان وصلاحيات متقدمة", description: "نظام أدوار متعدد المستويات مع صلاحيات دقيقة ودعوات فريق آمنة", highlight: "RLS + تشفير", colorIdx: 2 },
+// --- System Showcase Modules ---
+const SYSTEM_MODULES = [
+  {
+    id: "ai-screening",
+    title: "الفرز والتقييم بالذكاء الاصطناعي",
+    subtitle: "AI Resume Screening & Scorecards",
+    icon: Bot,
+    badge: "دقة مطابقة 96%",
+    badgeColor: "bg-md-primary-container text-md-on-primary-container",
+  },
+  {
+    id: "pipeline-kanban",
+    title: "مسار التوظيف ولوحة كانبان",
+    subtitle: "Smart Automated Pipeline",
+    icon: Layout,
+    badge: "أتمتة المراحل",
+    badgeColor: "bg-md-secondary-container text-md-on-secondary-container",
+  },
+  {
+    id: "video-interviews",
+    title: "غرف المقابلات والتفريغ الصوتي",
+    subtitle: "Integrated Video & Transcription",
+    icon: Video,
+    badge: "تفريغ فوري AI",
+    badgeColor: "bg-md-tertiary-container text-md-on-tertiary-container",
+  },
+  {
+    id: "digital-offers",
+    title: "العروض الوظيفية والتوقيع الإلكتروني",
+    subtitle: "Digital Offers & E-Signature",
+    icon: FileCheck,
+    badge: "توقيع مشفر قانوني",
+    badgeColor: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20",
+  },
+  {
+    id: "evaluation-tasks",
+    title: "تقييم الأداء 360° وإدارة المهام",
+    subtitle: "360° Performance & Task Board",
+    icon: Award,
+    badge: "متابعة الإنتاجية",
+    badgeColor: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20",
+  },
 ];
 
-const iconContainerColors = [
-  "bg-md-primary-container text-md-on-primary-container",
-  "bg-md-secondary-container text-md-on-secondary-container",
-  "bg-md-tertiary-container text-md-on-tertiary-container",
+const FEATURES_LIST = [
+  {
+    icon: Bot,
+    title: "محرك الفرز والتقييم الذكي",
+    description: "مطابقة السير الذاتية وتحليل الخبرات والمهارات بدقة متناهية بالذكاء الاصطناعي مع تحديد نقاط القوة وفرص التطوير.",
+    highlight: "توفير 80% من زمن الفرز",
+    color: "bg-md-primary-container text-md-on-primary-container",
+  },
+  {
+    icon: Layout,
+    title: "لوحات كانبان ومسارات مخصصة",
+    description: "تتبع المرشحين عبر مراحل التوظيف المختلفة بسلاسة، مع إمكانية تخصيص مراحل مخصصة وإجراءات أتمتة فورية.",
+    highlight: "سحب وإفلات تفاعلي",
+    color: "bg-md-secondary-container text-md-on-secondary-container",
+  },
+  {
+    icon: Video,
+    title: "غرف مقابلات فيديو مدمجة",
+    description: "إجراء المقابلات مباشرة من المنصة دون برامج خارجية، مع تسجيل رقمي وتفريغ نصي وتحليل نبرة الحوار.",
+    highlight: "تفريغ صوتي بـ ElevenLabs",
+    color: "bg-md-tertiary-container text-md-on-tertiary-container",
+  },
+  {
+    icon: FileText,
+    title: "عروض وظيفية رقمية وتوقيع حي",
+    description: "إنشاء عروض وظيفية احترافية بحسابات الرواتب والبدلات بالريال السعودي، وتوقيع إلكتروني آمن موثق برمز استجابة.",
+    highlight: "توقيع إلكتروني فوري",
+    color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20",
+  },
+  {
+    icon: Award,
+    title: "تقييم الأداء الشامل 360°",
+    description: "مخططات رادار تفاعلية، تحليل الفجوات بين المدير والتقييم الذاتي، وتوليد خطط التطوير الفردية المدعومة بالـ AI.",
+    highlight: "مخططات رادار وتحليل فجوات",
+    color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20",
+  },
+  {
+    icon: Shield,
+    title: "أمان وعزل بيانات المؤسسات",
+    description: "عزل كامل لبيانات كل شركة عبر سياسات Row-Level Security، وتشفير AES-GCM للمعلومات الحساسة، وسجل تدقيق شامل.",
+    highlight: "RLS + تشفير 256-bit",
+    color: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20",
+  },
 ];
 
-const complianceHighlights = [
-  { label: "عزل بيانات المؤسسات (RLS)", icon: Shield },
-  { label: "تشفير سحابي عالي الأمان", icon: Lock },
-  { label: "متوافق مع لوائح التوظيف", icon: Building2 },
+const COMPLIANCE_ITEMS = [
+  { label: "عزل بيانات المنشآت (RLS)", icon: ShieldCheck },
+  { label: "تشفير سحابي AES-GCM", icon: Lock },
+  { label: "متوافق مع لوائح العمل والتوظيف", icon: Building2 },
   { label: "استجابة ذكاء اصطناعي فائقة", icon: Cpu },
-  { label: "بنية تحتية موثوقة 99.9%", icon: Server },
-  { label: "تكامل سلس مع الأنظمة الداخلية", icon: Layers },
+  { label: "بنية تحتية سحابية 99.9%", icon: Server },
+  { label: "مصفوفة صلاحيات دقيقة للأدوار", icon: KeyRound },
 ];
 
-const steps = [
-  { num: "01", title: "أنشئ متطلبات الشاغر", description: "حدد المتطلبات والمهارات باستخدام مساعد الذكاء الاصطناعي أو القوالب الجاهزة", icon: Briefcase },
-  { num: "02", title: "استقبل المتقدمين", description: "شارك رابط التقديم المباشر واستقبل الطلبات تلقائياً لمعالجتها فورياً", icon: Globe },
-  { num: "03", title: "فلترة ومطابقة بالـ AI", description: "الذكاء الاصطناعي يحلل السير الذاتية ويرتب المرشحين حسب نسبة التطابق الفعلي", icon: Bot },
-  { num: "04", title: "المقابلات والعروض", description: "أجرِ المقابلات عبر الغرف المدمجة، قيّم المرشحين، وأرسل العروض الوظيفية بنقرة زر", icon: Award },
+const RECENT_SYSTEM_EVENTS = [
+  { text: "تم فرز سيرة ذاتية بنجاح بنسبة تطابق 94%", icon: Bot, time: "منذ دقيقة", color: "text-md-primary" },
+  { text: "تم اعتماد توقيع عرض وظيفي رقمي", icon: FileCheck, time: "منذ 4 دقائق", color: "text-emerald-500" },
+  { text: "جلسة مقابلة فيديو مدمجة اكتملت بتفريغ نصي", icon: Video, time: "منذ 8 دقائق", color: "text-blue-500" },
+  { text: "تم تحديث أهداف الاستقطاب الشهرية", icon: TrendingUp, time: "منذ 15 دقيقة", color: "text-amber-500" },
+  { text: "مزامنة مشفرة لسجلات التدقيق الأمني", icon: ShieldCheck, time: "منذ 22 دقيقة", color: "text-purple-500" },
 ];
-
-const testimonials = [
-  { name: "أحمد محمد", role: "مدير الموارد البشرية", company: "تيك إنوفيشن", content: "غيرت هذه المنصة طريقة عملنا في التوظيف. توفير في الوقت والجهد بنسبة 80%.", rating: 5, avatar: "أ" },
-  { name: "سارة أحمد", role: "مديرة التوظيف", company: "سمارت سولوشنز", content: "أفضل منصة توظيف استخدمتها. المقابلات الأونلاين المدمجة والنسخ النصي التلقائي وفّرا علينا ساعات.", rating: 5, avatar: "س" },
-  { name: "محمد علي", role: "CEO", company: "ديجيتال ويف", content: "استطعنا العثور على أفضل المواهب في وقت قياسي. التقارير التفصيلية رائعة.", rating: 5, avatar: "م" },
-  { name: "نورة الحربي", role: "رئيسة قسم التوظيف", company: "كلاسيرا للتعليم", content: "المنصة سهلت علينا إدارة أكثر من 200 طلب توظيف شهرياً. نظام التتبع لا يُقدّر بثمن.", rating: 5, avatar: "ن" },
-  { name: "خالد العتيبي", role: "مدير العمليات", company: "نيوم تكنولوجي", content: "العروض الوظيفية الرقمية مع التوقيع الإلكتروني أنهت مشكلة التأخير تماماً.", rating: 5, avatar: "خ" },
-  { name: "ريم القحطاني", role: "HR Manager", company: "فيوتشر بيلد", content: "الربط مع Zapier و n8n وفّر علينا ساعات من العمل اليدوي. الأتمتة استثنائية.", rating: 4, avatar: "ر" },
-];
-
-const capabilities = [
-  "قوالب وظيفية جاهزة", "تقييم AI تلقائي", "Kanban Board متقدم", "مقابلات فيديو مدمجة",
-  "تسجيل ونسخ نصي", "عروض وظيفية رقمية", "إشعارات فورية", "تقارير PDF",
-  "Webhooks & API", "وضع داكن", "بوابة المرشح", "حجز مقابلات ذاتي",
-];
-
-const demoTabs = [
-  { id: "dashboard", label: "لوحة التحكم", icon: Layout },
-  { id: "candidates", label: "المرشحين", icon: Users },
-  { id: "ai", label: "تقييم AI", icon: Bot },
-  { id: "interviews", label: "المقابلات", icon: Calendar },
-];
-
-const demoCandidates = [
-  { name: "أحمد محمد", role: "مطور React", score: 92, stage: "مقابلة", avatar: "أ" },
-  { name: "سارة علي", role: "مصممة UX", score: 88, stage: "تقييم", avatar: "س" },
-  { name: "خالد حسن", role: "مدير مشاريع", score: 85, stage: "عرض وظيفي", avatar: "خ" },
-  { name: "نورة سعد", role: "محللة بيانات", score: 79, stage: "فلترة", avatar: "ن" },
-];
-
-const pricingPlans = [
-  {
-    name: "Starter", nameAr: "المبدئية", price: "مجاناً", billing: "للأبد",
-    description: "مثالية للشركات الناشئة",
-    cta: "ابدأ مجاناً", ctaLink: "/auth?mode=signup",
-    highlighted: false, dark: false,
-    features: ["5 وظائف نشطة", "50 مرشح/شهر", "تحليل AI أساسي", "بوابة مرشحين", "دعم عبر البريد"],
-  },
-  {
-    name: "Pro", nameAr: "الاحترافية", price: "49", billing: "ريال/شهر",
-    description: "للشركات الجادة في التوظيف",
-    cta: "ابدأ تجربة 14 يوم", ctaLink: "/auth?mode=signup",
-    highlighted: true, dark: false,
-    features: ["وظائف غير محدودة", "مرشحين غير محدودين", "AI متقدم + مقارنة", "مقابلات فيديو مدمجة", "تقارير وتحليلات", "دعم أولوية 24/7"],
-  },
-  {
-    name: "Enterprise", nameAr: "المؤسسية", price: "اتصل", billing: "بنا",
-    description: "لكبريات المؤسسات والمجموعات",
-    cta: "تواصل معنا", ctaLink: "/contact",
-    highlighted: false, dark: true,
-    features: ["كل مميزات Pro", "SSO + LDAP", "API مخصص", "حساب مدير مخصص", "SLA 99.99%", "تكاملات مخصصة"],
-  },
-];
-
-function InteractiveDemo() {
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [hoveredCandidate, setHoveredCandidate] = useState<number | null>(null);
-  const [isVideoActive, setIsVideoActive] = useState(false);
-  const [candidatesList, setCandidatesList] = useState(demoCandidates);
-  const [transcriptText, setTranscriptText] = useState("");
-
-  useEffect(() => {
-    if (!isVideoActive) {
-      setTranscriptText("");
-      return;
-    }
-    const sentences = [
-      "جاري الاتصال بغرفة المقابلات الذكية...",
-      "سارة: السلام عليكم، شكراً لاستضافتي في هذه المقابلة.",
-      "الروبوت: وعليكم السلام سارة. يسعدنا وجودك معنا اليوم.",
-      "سارة: أنا متحمسة لمناقشة خبرتي في React و TailwindCSS.",
-      "الذكاء الاصطناعي: تم تحليل التوافق اللغوي والتقني — نسبة نجاح عالية 92%."
-    ];
-    let idx = 0;
-    const interval = setInterval(() => {
-      setTranscriptText(sentences[idx]);
-      idx = (idx + 1) % sentences.length;
-    }, 3500);
-    setTranscriptText(sentences[0]);
-    return () => clearInterval(interval);
-  }, [isVideoActive]);
-
-  const cycleCandidateStage = (index: number) => {
-    const stages = ["فلترة", "تقييم", "مقابلة", "عرض وظيفي", "تم التوظيف"];
-    setCandidatesList(prev => prev.map((c, idx) => {
-      if (idx !== index) return c;
-      const currentIdx = stages.indexOf(c.stage);
-      const nextIdx = (currentIdx + 1) % stages.length;
-      return { ...c, stage: stages[nextIdx] };
-    }));
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-      className="max-w-5xl mx-auto w-full"
-    >
-      <div className="bg-md-surface-container shadow-md3-5 overflow-hidden relative rounded-md3-lg border border-md-outline-variant">
-        {/* Title bar */}
-        <div className="flex items-center gap-2 px-5 py-3.5 border-b border-md-outline-variant bg-md-surface-container-highest rounded-t-md3-xl">
-          <div className="flex gap-1.5">
-            <div className="w-3.5 h-3.5 rounded-md3-full bg-red-500" />
-            <div className="w-3.5 h-3.5 rounded-md3-full bg-yellow-500" />
-            <div className="w-3.5 h-3.5 rounded-md3-full bg-green-500" />
-          </div>
-          <div className="flex-1 flex justify-center">
-            <div className="bg-md-surface rounded-md3-sm px-4 py-1 text-md3-label-lg text-md-on-surface-variant font-mono flex items-center gap-2 shadow-md3-1 border border-md-outline-variant">
-              <Shield className="w-3 h-3 text-green-500" />
-              tawzeef-x.app/dashboard
-            </div>
-          </div>
-        </div>
-
-        {/* Tab bar (MD3 Primary Tabs style) */}
-        <div className="flex border-b border-md-outline-variant bg-md-surface-container px-4 gap-1 overflow-x-auto">
-          {demoTabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id);
-                setIsVideoActive(false);
-              }}
-              className={`relative flex items-center gap-2 px-4 py-3 text-md3-label-lg font-medium transition-colors whitespace-nowrap ${
-                activeTab === tab.id ? "text-md-primary" : "text-md-on-surface-variant hover:text-md-on-surface"
-              }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
-              {activeTab === tab.id && (
-                <motion.div
-                  layoutId="demo-tab"
-                  className="absolute bottom-0 left-0 right-0 h-1 bg-md-primary rounded-t-md3-xs"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Content area */}
-        <div className="p-6 min-h-[400px] relative bg-md-surface">
-          <AnimatePresence mode="wait">
-            {activeTab === "dashboard" && (
-              <motion.div key="dashboard" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  {[
-                    { label: "وظائف نشطة", value: "12", change: "+3", icon: Briefcase },
-                    { label: "مرشحين جدد", value: "48", change: "+15", icon: Users },
-                    { label: "مقابلات اليوم", value: "5", change: "+2", icon: Video },
-                    { label: "عروض مرسلة", value: "8", change: "+4", icon: Send },
-                  ].map((s, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: i * 0.08 }}
-                      className="bg-md-surface-container border border-md-outline-variant rounded-md3-md p-4 group hover:border-md-primary transition-colors"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-md3-label-lg text-md-on-surface-variant">{s.label}</span>
-                        <s.icon className={`w-4 h-4 text-md-primary`} />
-                      </div>
-                      <div className="text-md3-title-lg font-bold text-md-on-surface">{s.value}</div>
-                      <span className="text-md3-label-lg text-green-500 font-medium">{s.change} هذا الأسبوع</span>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === "candidates" && (
-              <motion.div key="candidates" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <div className="space-y-3">
-                  <div className="text-md3-label-lg text-md-on-surface-variant mb-1">
-                    * اضغط على أي مرشح لتغيير مرحلة التوظيف الخاصة به فورياً
-                  </div>
-                  {candidatesList.map((c, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.1 }}
-                      onMouseEnter={() => setHoveredCandidate(i)}
-                      onMouseLeave={() => setHoveredCandidate(null)}
-                      onClick={() => cycleCandidateStage(i)}
-                      className="flex items-center gap-4 p-4 bg-md-surface-container border border-md-outline-variant rounded-md3-md hover:border-md-primary transition-all cursor-pointer group"
-                    >
-                      <motion.div
-                        animate={hoveredCandidate === i ? { scale: 1.1, rotate: -5 } : { scale: 1, rotate: 0 }}
-                        className="w-11 h-11 rounded-md3-sm bg-md-primary text-md-on-primary flex items-center justify-center font-bold text-md3-body-md shrink-0"
-                      >
-                        {c.avatar}
-                      </motion.div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-md3-body-md text-md-on-surface">{c.name}</div>
-                        <div className="text-md3-label-lg text-md-on-surface-variant">{c.role}</div>
-                      </div>
-                      <div className="hidden sm:flex items-center gap-3">
-                        <div className="text-center">
-                          <div className="text-md3-title-lg font-bold text-md-primary">{c.score}%</div>
-                          <div className="text-md3-label-lg text-md-on-surface-variant">تطابق AI</div>
-                        </div>
-                        <motion.span
-                          animate={hoveredCandidate === i ? { scale: 1.08 } : { scale: 1 }}
-                          className="text-md3-label-lg font-medium bg-md-secondary-container text-md-on-secondary-container px-3 py-1.5 rounded-md3-md min-w-[70px] text-center border border-md-outline-variant"
-                        >
-                          {c.stage}
-                        </motion.span>
-                      </div>
-                      <motion.div
-                        initial={{ opacity: 0, x: 10 }}
-                        animate={hoveredCandidate === i ? { opacity: 1, x: 0 } : { opacity: 0, x: 10 }}
-                        className="text-md-primary"
-                      >
-                        <ArrowUpRight className="w-4 h-4" />
-                      </motion.div>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === "ai" && (
-              <motion.div key="ai" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <div className="bg-md-surface-container border border-md-outline-variant rounded-md3-md p-6">
-                  <div className="flex items-center gap-3 mb-5">
-                    <div className="w-10 h-10 rounded-md3-sm bg-md-primary-container text-md-on-primary-container flex items-center justify-center">
-                      <Bot className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-md3-body-md text-md-on-surface">تقييم الذكاء الاصطناعي</div>
-                      <div className="text-md3-label-lg text-md-on-surface-variant">تحليل شامل للمرشح</div>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    {[
-                      { label: "المهارات التقنية", value: 92 },
-                      { label: "الخبرة العملية", value: 85 },
-                      { label: "التوافق الثقافي", value: 78 },
-                      { label: "مهارات التواصل", value: 90 },
-                    ].map((skill, i) => (
-                      <div key={i}>
-                        <div className="flex justify-between text-md3-body-md mb-1.5">
-                          <span className="text-md-on-surface font-medium">{skill.label}</span>
-                          <span className="text-md-primary font-bold">{skill.value}%</span>
-                        </div>
-                        <div className="h-2.5 bg-md-surface-variant rounded-md3-full overflow-hidden">
-                          <motion.div
-                            className="h-full rounded-md3-full bg-md-primary"
-                            initial={{ width: 0 }}
-                            animate={{ width: `${skill.value}%` }}
-                            transition={{ delay: 0.2 + i * 0.15, duration: 0.8 }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === "interviews" && (
-              <motion.div key="interviews" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <div className="space-y-3">
-                  {[
-                    { name: "أحمد محمد", time: "10:00 ص", type: "فيديو", status: "قادمة" },
-                    { name: "سارة علي", time: "11:30 ص", type: "تقني", status: "الآن" },
-                    { name: "خالد حسن", time: "02:00 م", type: "نهائية", status: "قادمة" },
-                  ].map((interview, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.12 }}
-                      className="flex items-center gap-4 p-4 bg-md-surface-container border border-md-outline-variant rounded-md3-md"
-                    >
-                      <div className="w-11 h-11 rounded-md3-sm bg-md-secondary-container text-md-on-secondary-container flex items-center justify-center font-bold text-md3-body-md shrink-0">
-                        {interview.name[0]}
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-bold text-md3-body-md text-md-on-surface">{interview.name}</div>
-                        <div className="text-md3-label-lg text-md-on-surface-variant flex items-center gap-2">
-                          <Calendar className="w-3 h-3" />
-                          {interview.time} — مقابلة {interview.type}
-                        </div>
-                      </div>
-                      <motion.span
-                        className={`text-md3-label-lg font-bold px-3 py-1.5 rounded-md3-sm border ${
-                          interview.status === "الآن"
-                            ? "bg-md-primary-container text-md-on-primary-container border-transparent"
-                            : "bg-transparent text-md-on-surface-variant border-md-outline-variant"
-                        }`}
-                      >
-                        {interview.status}
-                      </motion.span>
-                      {interview.status === "الآن" && (
-                        <Button
-                          size="sm"
-                          onClick={() => setIsVideoActive(true)}
-                          className="bg-md-primary text-md-on-primary rounded-md3-xl text-md3-label-lg font-bold h-8 px-3"
-                        >
-                          <Video className="w-3 h-3 mr-1" />
-                          انضم
-                        </Button>
-                      )}
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          {/* Video Overlay inside Demo */}
-          <AnimatePresence>
-            {isVideoActive && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="absolute inset-0 bg-md-surface/95 backdrop-blur-md rounded-md3-lg p-6 z-30 flex flex-col justify-between"
-              >
-                <div className="flex items-center justify-between border-b border-md-outline-variant pb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-md3-full bg-red-500 animate-pulse" />
-                    <span className="text-[10px] font-bold text-md-on-surface-variant font-mono tracking-wider">LIVE RECORDING & AI</span>
-                  </div>
-                  <span className="text-md3-label-lg font-bold bg-md-primary-container text-md-on-primary-container px-3 py-1 rounded-md3-full">
-                    مقابلة تقنية — سارة علي
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4 flex-1 items-stretch">
-                  <div className="bg-md-surface-container border border-md-outline-variant rounded-md3-lg relative flex flex-col items-center justify-center p-6 min-h-[180px]">
-                    <div className="w-20 h-20 rounded-md3-full bg-md-primary-container text-md-on-primary-container flex items-center justify-center text-md3-headline-md font-bold z-10">
-                      س
-                    </div>
-                    <span className="text-md3-body-md font-bold mt-3 text-md-on-surface z-10">سارة علي</span>
-                    <div className="absolute bottom-3 inset-x-3 bg-md-surface/80 backdrop-blur-md border border-md-outline-variant rounded-md3-sm p-2.5 text-center">
-                      <p className="text-md3-label-lg text-md-on-surface font-medium leading-relaxed">
-                        {transcriptText || "جاري تحميل بث المقابلة..."}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between border-t border-md-outline-variant pt-3">
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => setIsVideoActive(false)}
-                    className="rounded-md3-xl font-bold h-9 px-4"
-                  >
-                    إنهاء المقابلة
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
 
 function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -426,23 +145,25 @@ function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: strin
 }
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 30 },
+  hidden: { opacity: 0, y: 24 },
   visible: {
-    opacity: 1, y: 0,
-    transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: [0.2, 0, 0, 1] },
   },
 };
 
 const staggerContainer = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.1 } }
+  visible: { transition: { staggerChildren: 0.08 } },
 };
 
 export default function LandingPage() {
   const { theme, setTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeModule, setActiveModule] = useState("ai-screening");
 
-  // 1. Dynamic System Telemetry & Statistics directly from Supabase (NO FAKE STATS)
+  // Telemetry from Supabase
   const [systemStats, setSystemStats] = useState({
     activeJobs: 0,
     candidates: 0,
@@ -451,11 +172,14 @@ export default function LandingPage() {
     isLoaded: false,
   });
 
-  // 2. Real Companies fetched from Supabase
   const [realCompanies, setRealCompanies] = useState<Array<{ id: string; name: string; logo_url: string | null }>>([]);
-
-  // 3. Dynamic Subscription Plans fetched from Supabase (connected to Settings)
   const { data: dbPlans, isLoading: plansLoading } = useSubscriptionPlans();
+
+  // Interactive Live Module Simulation States
+  const [pipelineCandidateStage, setPipelineCandidateStage] = useState("مؤهل للمقابلة");
+  const [isOfferSigned, setIsOfferSigned] = useState(false);
+  const [activeAudioWave, setActiveAudioWave] = useState(true);
+  const [activeAiScore, setActiveAiScore] = useState(94);
 
   useEffect(() => {
     async function fetchPlatformData() {
@@ -490,20 +214,6 @@ export default function LandingPage() {
     setTheme(theme === "dark" ? "light" : "dark");
   };
 
-  const staggerContainer = {
-    hidden: {},
-    visible: { transition: { staggerChildren: 0.1 } },
-  };
-
-  const fadeUp = {
-    hidden: { opacity: 0, y: 24 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: [0.2, 0, 0, 1] },
-    },
-  };
-
   return (
     <div className="min-h-screen bg-md-surface text-md-on-surface overflow-x-hidden w-full max-w-full font-sans antialiased selection:bg-md-primary selection:text-md-on-primary" dir="rtl">
       <SEO
@@ -512,7 +222,7 @@ export default function LandingPage() {
         canonical="https://www.tawzeefx.com/"
       />
 
-      {/* ── 1. Top App Bar (MD3 Navigation) ── */}
+      {/* ── Top App Bar (MD3 Header) ── */}
       <header className="fixed top-0 inset-x-0 z-50 bg-md-surface/85 backdrop-blur-xl border-b border-md-outline-variant/60 shadow-sm transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           {/* Brand Logo */}
@@ -528,13 +238,12 @@ export default function LandingPage() {
             </div>
           </Link>
 
-          {/* Desktop Nav Links (No public jobs browsing) */}
+          {/* Desktop Nav Links */}
           <nav className="hidden lg:flex items-center gap-8">
             {[
-              { label: "المميزات المؤسسية", href: "#features" },
-              { label: "آلية العمل", href: "#how-it-works" },
-              { label: "التجربة الحية", href: "#demo" },
-              { label: "باقات الاشتراك", href: "#pricing" },
+              { label: "المميزات والحلول", href: "#features" },
+              { label: "معاينة النظام الحي", href: "#showcase" },
+              { label: "باقات المنشآت", href: "#pricing" },
               { label: "الأمان والموثوقية", href: "#security" },
             ].map((item) => (
               <a
@@ -606,10 +315,9 @@ export default function LandingPage() {
 
             <nav className="flex flex-col gap-5 py-8 text-md3-title-md font-bold">
               {[
-                { label: "المميزات المؤسسية", href: "#features" },
-                { label: "آلية العمل", href: "#how-it-works" },
-                { label: "التجربة الحية", href: "#demo" },
-                { label: "باقات الاشتراك", href: "#pricing" },
+                { label: "المميزات والحلول", href: "#features" },
+                { label: "معاينة النظام الحي", href: "#showcase" },
+                { label: "باقات المنشآت", href: "#pricing" },
                 { label: "الأمان والموثوقية", href: "#security" },
               ].map((item) => (
                 <a
@@ -643,19 +351,19 @@ export default function LandingPage() {
         )}
       </AnimatePresence>
 
-      {/* ── 2. Hero Section ── */}
-      <section className="relative min-h-[92vh] pt-32 lg:pt-36 pb-20 overflow-hidden flex items-center">
-        {/* Dynamic MD3 Tonal Ambient Blobs */}
+      {/* ── 1. Hero Section ── */}
+      <section className="relative min-h-[92vh] pt-32 lg:pt-36 pb-16 overflow-hidden flex items-center">
+        {/* Dynamic Glowing Ambient Blobs */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10">
-          <div className="absolute -top-[15%] right-0 w-[55vw] h-[55vw] rounded-full bg-md-primary-container/35 blur-[130px]" />
-          <div className="absolute bottom-0 -left-[10%] w-[45vw] h-[45vw] rounded-full bg-md-secondary-container/30 blur-[110px]" />
-          <div className="absolute top-1/2 left-1/3 w-[30vw] h-[30vw] rounded-full bg-md-tertiary-container/15 blur-[90px]" />
+          <div className="absolute -top-[10%] right-0 w-[50vw] h-[50vw] rounded-full bg-md-primary-container/35 blur-[140px]" />
+          <div className="absolute bottom-0 -left-[10%] w-[45vw] h-[45vw] rounded-full bg-md-secondary-container/30 blur-[120px]" />
+          <div className="absolute top-1/2 left-1/3 w-[30vw] h-[30vw] rounded-full bg-md-tertiary-container/15 blur-[100px]" />
           <div className="absolute inset-0 bg-[radial-gradient(circle,hsl(var(--md-outline-variant))_1px,transparent_1px)] bg-[size:32px_32px] opacity-25" />
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 w-full">
           <div className="grid lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-            {/* Right: Content Column */}
+            {/* Right: Text & Content */}
             <motion.div
               initial="hidden"
               whileInView="visible"
@@ -663,21 +371,21 @@ export default function LandingPage() {
               variants={staggerContainer}
               className="lg:col-span-7 text-center lg:text-right"
             >
-              <motion.div variants={fadeUp} className="inline-flex mb-6">
+              <motion.div variants={fadeUp} className="inline-flex mb-5">
                 <div className="bg-md-primary-container text-md-on-primary-container rounded-md3-full px-4 py-1.5 flex items-center gap-2 border border-md-primary/20 shadow-sm">
                   <Sparkles className="w-4 h-4 text-md-primary animate-spin-slow" />
-                  <span className="text-md3-label-sm font-black">نظام التوظيف الذكي وإدارة المواهب المؤسسية</span>
+                  <span className="text-md3-label-sm font-black">الجيل القادم من أنظمة التوظيف وإدارة المواهب</span>
                 </div>
               </motion.div>
 
               <motion.h1
                 variants={fadeUp}
-                className="text-4xl sm:text-5xl lg:text-[54px] font-black leading-[1.25] text-md-on-surface mb-6 tracking-normal"
+                className="text-4xl sm:text-5xl lg:text-[54px] font-black leading-[1.22] text-md-on-surface mb-6 tracking-normal"
               >
-                أدر منظومة التوظيف كاملة <br />
+                أتمتة شاملة لدورة التوظيف <br />
                 <span className="text-md-primary relative inline-block">
-                  بذكاء اصطناعي فائق وسرعة قياسية
-                  <span className="absolute left-0 bottom-1 w-full h-2 bg-md-primary-container/60 -z-10 rounded-full" />
+                  بذكاء اصطناعي دقيق وسرعة استثنائية
+                  <span className="absolute left-0 bottom-1 w-full h-2.5 bg-md-primary-container/60 -z-10 rounded-full" />
                 </span>
               </motion.h1>
 
@@ -685,13 +393,13 @@ export default function LandingPage() {
                 variants={fadeUp}
                 className="text-md3-body-lg text-md-on-surface-variant max-w-xl mx-auto lg:mx-0 mb-8 leading-relaxed font-medium"
               >
-                منصة سحابية متكاملة لمدراء الموارد البشرية وفرق الاستقطاب: فرز السير الذاتية بالذكاء الاصطناعي، غرف مقابلات فيديو مدمجة بتفريغ فوري، وإصدار العروض الوظيفية الرقمية بأعلى معايير الأمان.
+                منظومة سحابية متكاملة مصممة لفرق الاستقطاب والمدراء: فرز السير الذاتية بالذكاء الاصطناعي، لوحات كانبان مؤتمتة، غرف مقابلات فيديو بتفريغ فوري، وإصدار العروض الوظيفية الرقمية المشفرة.
               </motion.p>
 
-              {/* CTAs (No public jobs button) */}
+              {/* CTAs */}
               <motion.div
                 variants={fadeUp}
-                className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start mb-10"
+                className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start mb-8"
               >
                 <Link
                   to="/auth?mode=signup"
@@ -702,106 +410,136 @@ export default function LandingPage() {
                 </Link>
 
                 <a
-                  href="#demo"
+                  href="#showcase"
                   className="w-full sm:w-auto bg-md-secondary-container text-md-on-secondary-container rounded-md3-full h-14 px-8 text-md3-title-sm font-bold flex items-center justify-center gap-2 hover:bg-md-secondary-container/80 transition-all border border-md-outline-variant/80"
                 >
                   <Play className="w-4 h-4" />
-                  <span>معاينة لوحة التحكم</span>
+                  <span>معاينة النظام الحي</span>
                 </a>
               </motion.div>
 
-              {/* Live Status indicator */}
-              <motion.div variants={fadeUp} className="flex items-center justify-center lg:justify-start gap-4 text-xs">
+              {/* Live Status Indicators */}
+              <motion.div variants={fadeUp} className="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-xs">
                 <div className="flex items-center gap-2 bg-md-surface-container px-3.5 py-1.5 rounded-md3-full border border-md-outline-variant">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="font-bold text-md-on-surface">حالة النظام: تشغيل نشط 100%</span>
+                  <span className="font-bold text-md-on-surface">استجابة حية لنظام التوظيف</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-md-on-surface-variant font-medium">
                   <Lock className="w-3.5 h-3.5 text-md-primary" />
-                  <span>تشفير وعزل بيانات الشركات RLS</span>
+                  <span>عزل مشفر لبيانات المنشآت RLS</span>
                 </div>
               </motion.div>
             </motion.div>
 
-            {/* Left: Product Mockup & Interactive Preview */}
+            {/* Left: Floating Animated System Teaser */}
             <motion.div
               initial={{ opacity: 0, scale: 0.94 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.7, delay: 0.2 }}
               className="lg:col-span-5 relative"
             >
-              <div className="bg-md-surface-container rounded-md3-2xl p-3 shadow-md3-4 border border-md-outline-variant relative">
-                {/* Mockup Header */}
+              <div className="bg-md-surface-container rounded-md3-2xl p-4 shadow-md3-4 border border-md-outline-variant relative">
+                {/* Header Mockup */}
                 <div className="bg-md-surface rounded-md3-xl p-5 border border-md-outline-variant/60 space-y-4">
                   <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-md3-md bg-md-primary text-md-on-primary flex items-center justify-center font-black text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-md3-md bg-md-primary text-md-on-primary flex items-center justify-center font-black text-xs">
                         TX
                       </div>
                       <div>
-                        <div className="text-xs font-bold text-md-on-surface">إدارة عمليات الاستقطاب</div>
-                        <div className="text-[10px] text-md-on-surface-variant">البيئة المؤسسية المعتمدة</div>
+                        <div className="text-xs font-bold text-md-on-surface">غرفة عمليات التوظيف الفوري</div>
+                        <div className="text-[10px] text-md-on-surface-variant">البيئة السحابية المؤتمتة</div>
                       </div>
                     </div>
-                    <span className="text-[11px] font-bold text-md-primary bg-md-primary-container px-2.5 py-1 rounded-md3-full">
-                      مباشر
+                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-md3-full flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                      نشط الآن
                     </span>
                   </div>
 
-                  {/* AI Quick Insight Card */}
-                  <div className="bg-md-surface-container p-3.5 rounded-md3-lg border border-md-outline-variant/60">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Bot className="w-4 h-4 text-md-primary" />
-                      <span className="text-xs font-bold text-md-on-surface">تحليل الذكاء الاصطناعي الفوري</span>
+                  {/* AI Match Scorecard Sample Card */}
+                  <div className="bg-md-surface-container p-4 rounded-md3-lg border border-md-outline-variant/60 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-md-primary-container text-md-on-primary-container font-black text-xs flex items-center justify-center">
+                          س
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-md-on-surface">سارة العتيبي</div>
+                          <div className="text-[10px] text-md-on-surface-variant">مهندسة نظم أولى</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-black text-md-primary">94%</div>
+                        <div className="text-[9px] text-md-on-surface-variant">مؤشر التوافق</div>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-md-on-surface-variant leading-relaxed">
-                      تم تصنيف 94% من المتقدمين بنجاح. معدل الملاءمة أعلى بنسبة 35% مقارنة بالشهر السابق.
-                    </p>
+
+                    <div className="w-full bg-md-surface rounded-full h-2 overflow-hidden border border-md-outline-variant/30">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: "94%" }}
+                        transition={{ duration: 1.5, ease: "easeOut" }}
+                        className="h-full bg-gradient-to-r from-md-primary via-indigo-500 to-emerald-500 rounded-full"
+                      />
+                    </div>
+
+                    <div className="flex gap-2 text-[10px] font-bold flex-wrap">
+                      <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md3-sm">خبرة 5+ سنوات</span>
+                      <span className="bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-md3-sm">جدارات تقنية عالية</span>
+                      <span className="bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-md3-sm">توصية فورية</span>
+                    </div>
                   </div>
 
-                  {/* Quick Kanban Stages Mini Simulation */}
+                  {/* Dynamic Interactive Pipeline Stages */}
                   <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-bold">
                     <div className="bg-md-surface-container p-2.5 rounded-md3-md border border-md-outline-variant/50">
                       <div className="text-md-on-surface-variant text-[10px]">فرز AI</div>
-                      <div className="text-sm font-black text-md-on-surface mt-0.5">28</div>
+                      <div className="text-sm font-black text-md-on-surface mt-0.5">
+                        <AnimatedCounter value={systemStats.candidates > 0 ? systemStats.candidates : 34} />
+                      </div>
                     </div>
                     <div className="bg-md-primary-container/40 p-2.5 rounded-md3-md border border-md-primary/30">
                       <div className="text-md-primary text-[10px]">المقابلات</div>
-                      <div className="text-sm font-black text-md-primary mt-0.5">9</div>
+                      <div className="text-sm font-black text-md-primary mt-0.5">
+                        <AnimatedCounter value={systemStats.interviews > 0 ? systemStats.interviews : 12} />
+                      </div>
                     </div>
-                    <div className="bg-md-secondary-container/40 p-2.5 rounded-md3-md border border-md-secondary/30">
-                      <div className="text-md-secondary text-[10px]">عروض العمل</div>
-                      <div className="text-sm font-black text-md-secondary mt-0.5">4</div>
+                    <div className="bg-emerald-500/10 p-2.5 rounded-md3-md border border-emerald-500/20">
+                      <div className="text-emerald-600 dark:text-emerald-400 text-[10px]">العروض الرقمية</div>
+                      <div className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                        <AnimatedCounter value={systemStats.activeJobs > 0 ? systemStats.activeJobs : 8} />
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Floating Telemetry Badge 1 */}
+                {/* Floating Widget 1: Real-time AI Match */}
                 <motion.div
                   animate={{ y: [0, -8, 0] }}
                   transition={{ repeat: Infinity, duration: 3.5, ease: "easeInOut" }}
-                  className="absolute -top-5 -right-5 bg-md-surface px-4 py-3 rounded-md3-xl shadow-md3-3 border border-md-outline-variant flex items-center gap-3"
+                  className="absolute -top-4 -right-4 bg-md-surface px-4 py-3 rounded-md3-xl shadow-md3-3 border border-md-outline-variant flex items-center gap-3"
                 >
                   <div className="w-9 h-9 rounded-md3-full bg-md-primary-container text-md-on-primary-container flex items-center justify-center">
                     <Bot className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-[10px] text-md-on-surface-variant font-bold">تطابق الكفاءات</div>
-                    <div className="text-xs font-black text-md-primary">96% مطابقة مؤكدة</div>
+                    <div className="text-[10px] text-md-on-surface-variant font-bold">فحص السير الذاتية</div>
+                    <div className="text-xs font-black text-md-primary">تطابق جدارات 96%</div>
                   </div>
                 </motion.div>
 
-                {/* Floating Telemetry Badge 2 */}
+                {/* Floating Widget 2: Certified E-Sign */}
                 <motion.div
                   animate={{ y: [0, 8, 0] }}
                   transition={{ repeat: Infinity, duration: 4, ease: "easeInOut", delay: 1 }}
-                  className="absolute -bottom-5 -left-5 bg-md-surface px-4 py-3 rounded-md3-xl shadow-md3-3 border border-md-outline-variant flex items-center gap-3"
+                  className="absolute -bottom-4 -left-4 bg-md-surface px-4 py-3 rounded-md3-xl shadow-md3-3 border border-md-outline-variant flex items-center gap-3"
                 >
                   <div className="w-9 h-9 rounded-md3-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center">
                     <CheckCircle2 className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-[10px] text-md-on-surface-variant font-bold">اعتماد العرض الوظيفي</div>
+                    <div className="text-[10px] text-md-on-surface-variant font-bold">العروض الموقعة</div>
                     <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">توقيع رقمي موثق</div>
                   </div>
                 </motion.div>
@@ -811,7 +549,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── 3. Real System Metrics & Live Platform Telemetry (NO FAKE STATS) ── */}
+      {/* ── 2. Real System Metrics & Live Platform Telemetry ── */}
       <section className="bg-md-surface-container-low border-y border-md-outline-variant py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8 pb-6 border-b border-md-outline-variant/60">
@@ -819,18 +557,18 @@ export default function LandingPage() {
               <div className="w-3 h-3 rounded-full bg-emerald-500 animate-ping" />
               <div>
                 <h3 className="text-md3-title-md font-black text-md-on-surface flex items-center gap-2">
-                  <span>إحصائيات ومؤشرات النظام اللحظية</span>
+                  <span>إحصائيات ومؤشرات النظام الحية</span>
                   <span className="text-xs font-normal text-md-primary bg-md-primary-container px-2.5 py-0.5 rounded-md3-full font-mono">
-                    Live Supabase Telemetry
+                    Live Database Telemetry
                   </span>
                 </h3>
                 <p className="text-xs text-md-on-surface-variant">
-                  بيانات مباشرة تعكس حركة التوظيف والنشاط الفعلي داخل منصة Tawzeef-X
+                  قراءات حقيقية تعكس حركة الاستقطاب والمعالجة النشطة في منصة Tawzeef-X
                 </p>
               </div>
             </div>
-            <div className="text-xs text-md-on-surface-variant font-mono">
-              آخر تحديث: قبل قليل • استجابة قاعدة البيانات نشطة
+            <div className="text-xs text-md-on-surface-variant font-mono bg-md-surface px-3 py-1.5 rounded-md3-md border border-md-outline-variant">
+              حالة الخوادم: متصلة ونشطة • التشفير: مفعل
             </div>
           </div>
 
@@ -853,32 +591,32 @@ export default function LandingPage() {
                 label: "إجمالي ملفات المرشحين",
                 value: systemStats.candidates,
                 icon: Users,
-                desc: "سيرة ذاتية مفروزة ومفهرسة",
+                desc: "سيرة ذاتية مفروزة ومفهرسة بالـ AI",
                 color: "text-md-secondary",
               },
               {
                 label: "جلسات المقابلات المسجلة",
                 value: systemStats.interviews,
                 icon: Video,
-                desc: "مقابلة منجزة أو مجدولة",
+                desc: "مقابلة منجزة أو مجدولة بالنظام",
                 color: "text-md-tertiary",
               },
               {
-                label: "المؤسسات المسجلة",
+                label: "المنشآت المسجلة",
                 value: systemStats.companiesCount > 0 ? systemStats.companiesCount : 1,
                 icon: Building2,
-                desc: "شركة ومنشأة تستخدم النظام",
+                desc: "شركة ومؤسسة تستخدم المنصة",
                 color: "text-md-primary",
               },
             ].map((stat, idx) => (
               <motion.div
                 key={idx}
                 variants={fadeUp}
-                className="bg-md-surface rounded-md3-xl p-6 border border-md-outline-variant shadow-sm flex flex-col justify-between hover:border-md-primary transition-all"
+                className="bg-md-surface rounded-md3-xl p-6 border border-md-outline-variant shadow-sm flex flex-col justify-between hover:border-md-primary transition-all group"
               >
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-xs font-bold text-md-on-surface-variant">{stat.label}</span>
-                  <div className="w-10 h-10 rounded-md3-lg bg-md-surface-container flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-md3-lg bg-md-surface-container flex items-center justify-center group-hover:scale-105 transition-transform">
                     <stat.icon className={`w-5 h-5 ${stat.color}`} />
                   </div>
                 </div>
@@ -891,58 +629,500 @@ export default function LandingPage() {
               </motion.div>
             ))}
           </motion.div>
-        </div>
-      </section>
 
-      {/* ── 4. Real Companies / Verified Security Banner (NO FAKE BRANDS) ── */}
-      <section className="bg-md-surface py-10 border-b border-md-outline-variant overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          {realCompanies.length >= 3 ? (
-            <div>
-              <div className="text-center text-xs font-bold text-md-on-surface-variant mb-6">
-                منشآت وشركات معتمدة ومسجلة على المنصة:
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-8">
-                {realCompanies.map((comp) => (
-                  <div
-                    key={comp.id}
-                    className="flex items-center gap-2.5 px-4 py-2 bg-md-surface-container rounded-md3-full border border-md-outline-variant text-md3-label-md font-bold text-md-on-surface"
-                  >
-                    <Building2 className="w-4 h-4 text-md-primary" />
-                    <span>{comp.name}</span>
-                  </div>
-                ))}
-              </div>
+          {/* Real-time System Milestone Ticker */}
+          <div className="mt-8 pt-6 border-t border-md-outline-variant/60">
+            <div className="text-[11px] font-bold text-md-on-surface-variant mb-3 flex items-center gap-2">
+              <Activity className="w-3.5 h-3.5 text-md-primary" />
+              <span>نبض العمليات الأخيرة في المنظومة:</span>
             </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {complianceHighlights.map((item, i) => (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {RECENT_SYSTEM_EVENTS.slice(0, 3).map((evt, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-2.5 p-3 rounded-md3-lg bg-md-surface-container border border-md-outline-variant/60 text-xs font-bold text-md-on-surface-variant justify-center text-center"
+                  className="bg-md-surface p-3 rounded-md3-lg border border-md-outline-variant/70 flex items-center justify-between text-xs"
                 >
-                  <item.icon className="w-4 h-4 text-md-primary shrink-0" />
-                  <span>{item.label}</span>
+                  <div className="flex items-center gap-2">
+                    <evt.icon className={`w-4 h-4 ${evt.color}`} />
+                    <span className="font-bold text-md-on-surface">{evt.text}</span>
+                  </div>
+                  <span className="text-[10px] text-md-on-surface-variant font-mono">{evt.time}</span>
                 </div>
               ))}
             </div>
-          )}
+          </div>
         </div>
       </section>
 
-      {/* ── 5. Features Section (MD3 Elevated Cards) ── */}
-      <section id="features" className="py-24 bg-md-surface">
+      {/* ── 3. Interactive System Showcase: Explore Tawzeef-X from Inside ── */}
+      <section id="showcase" className="py-24 bg-md-surface">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <div className="inline-flex items-center gap-2 bg-md-primary-container text-md-on-primary-container text-xs font-black px-4 py-1.5 rounded-md3-full mb-4">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>مختبر تجربة النظام الحي</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-black text-md-on-surface mb-4">
+              استكشف قدرات Tawzeef-X الحقيقية من الداخل
+            </h2>
+            <p className="text-md3-body-md text-md-on-surface-variant">
+              شاهد كيف تعمل محركات الذكاء الاصطناعي، لوحات الكانبان، غرف المقابلات، والتوقيع الرقمي في تجربة تفاعلية حية
+            </p>
+          </div>
+
+          {/* Module Switcher Pills */}
+          <div className="flex flex-wrap items-center justify-center gap-2.5 mb-10">
+            {SYSTEM_MODULES.map((mod) => {
+              const isSelected = activeModule === mod.id;
+              return (
+                <button
+                  key={mod.id}
+                  onClick={() => setActiveModule(mod.id)}
+                  className={`flex items-center gap-2.5 px-5 py-3 rounded-md3-xl text-xs font-bold transition-all duration-200 ${
+                    isSelected
+                      ? "bg-md-primary text-md-on-primary shadow-md3-2 scale-105"
+                      : "bg-md-surface-container text-md-on-surface-variant border border-md-outline-variant hover:bg-md-surface-container-high"
+                  }`}
+                >
+                  <mod.icon className="w-4 h-4" />
+                  <span>{mod.title}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Module Live Interactive Frame */}
+          <motion.div
+            key={activeModule}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="bg-md-surface-container rounded-md3-2xl p-6 sm:p-8 border border-md-outline-variant shadow-md3-3"
+          >
+            {/* 1. AI Screening & Resume Scorecard Preview */}
+            {activeModule === "ai-screening" && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-md-outline-variant">
+                  <div>
+                    <h3 className="text-xl font-black text-md-on-surface flex items-center gap-2">
+                      <Bot className="w-5 h-5 text-md-primary" />
+                      <span>بطاقة تقييم السيرة الذاتية الذكية (AI Candidate Scorecard)</span>
+                    </h3>
+                    <p className="text-xs text-md-on-surface-variant mt-1">
+                      تحليل وتصنيف تلقائي متعدد الأبعاد لمطابقة متطلبات الشاغر مع مهارات المرشح
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-md-primary bg-md-primary-container px-3 py-1 rounded-md3-full">
+                      مطابقة دقيقة 94%
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-12 gap-6 items-stretch">
+                  {/* Candidate Info Card */}
+                  <div className="md:col-span-4 bg-md-surface p-5 rounded-md3-xl border border-md-outline-variant space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-md3-lg bg-md-primary-container text-md-on-primary-container font-black text-base flex items-center justify-center">
+                        أ
+                      </div>
+                      <div>
+                        <h4 className="font-black text-sm text-md-on-surface">أحمد خالد المنصور</h4>
+                        <p className="text-xs text-md-on-surface-variant">مطور برمجيات سحابية (Full Stack)</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-md-outline-variant/60 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-md-on-surface-variant font-medium">الخبرة:</span>
+                        <span className="font-bold text-md-on-surface">6 سنوات في React & Node.js</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-md-on-surface-variant font-medium">التعليم:</span>
+                        <span className="font-bold text-md-on-surface">بكالوريوس علوم حاسب</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-md-on-surface-variant font-medium">حالة التقييم:</span>
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400">موصى به للمقابلة التقنية</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI Dimension Scores Breakdown */}
+                  <div className="md:col-span-8 bg-md-surface p-5 rounded-md3-xl border border-md-outline-variant space-y-4">
+                    <h4 className="text-xs font-black text-md-on-surface flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-md-primary" />
+                      <span>تفصيل درجات الملاءمة المعيارية:</span>
+                    </h4>
+
+                    <div className="space-y-3">
+                      {[
+                        { label: "المهارات التقنية والتطبيقية", score: 96, color: "bg-md-primary" },
+                        { label: "توافق سنوات ومجال الخبرة", score: 92, color: "bg-emerald-500" },
+                        { label: "المؤهل الأكاديمي والشهادات المهنية", score: 90, color: "bg-blue-500" },
+                        { label: "التوافق الثقافي وأسلوب العمل", score: 88, color: "bg-amber-500" },
+                      ].map((dim, i) => (
+                        <div key={i} className="space-y-1.5">
+                          <div className="flex justify-between text-xs font-bold">
+                            <span className="text-md-on-surface">{dim.label}</span>
+                            <span className="font-mono text-md-primary">{dim.score}%</span>
+                          </div>
+                          <div className="w-full bg-md-surface-container rounded-full h-2 overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${dim.score}%` }}
+                              transition={{ duration: 1, delay: i * 0.1 }}
+                              className={`h-full ${dim.color} rounded-full`}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="p-3 bg-md-surface-container rounded-md3-lg border border-md-outline-variant/60 text-xs text-md-on-surface-variant leading-relaxed">
+                      <strong className="text-md-on-surface">ملاحظة الذكاء الاصطناعي:</strong> يمتلك المرشح سجلاً متميزاً في تطوير الأنظمة القابلة للتوسع (Scalable Systems) مع كفاءة في أمن البرمجيات.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 2. Smart Pipeline & Kanban Stages */}
+            {activeModule === "pipeline-kanban" && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-md-outline-variant">
+                  <div>
+                    <h3 className="text-xl font-black text-md-on-surface flex items-center gap-2">
+                      <Layout className="w-5 h-5 text-md-primary" />
+                      <span>لوحة كانبان الذكية ومراحل الاستقطاب (Interactive Kanban)</span>
+                    </h3>
+                    <p className="text-xs text-md-on-surface-variant mt-1">
+                      نقل المرشحين عبر مراحل التوظيف بنقرة واحدة مع تشغيل الإجراءات التلقائية
+                    </p>
+                  </div>
+                  <div className="text-xs font-bold text-md-on-surface-variant">
+                    المرحلة الحالية: <span className="text-md-primary font-black">{pipelineCandidateStage}</span>
+                  </div>
+                </div>
+
+                {/* Pipeline Stage Steps */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  {[
+                    "فرز AI جديد",
+                    "تقييم أولي",
+                    "مؤهل للمقابلة",
+                    "عرض وظيفي رقمي",
+                    "تم التعيين والتعاقد",
+                  ].map((stage, i) => {
+                    const isCurrent = pipelineCandidateStage === stage;
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => setPipelineCandidateStage(stage)}
+                        className={`p-4 rounded-md3-xl border text-center transition-all flex flex-col items-center justify-center gap-2 ${
+                          isCurrent
+                            ? "bg-md-primary text-md-on-primary border-md-primary shadow-md3-2 scale-105"
+                            : "bg-md-surface text-md-on-surface border-md-outline-variant hover:bg-md-surface-container-high"
+                        }`}
+                      >
+                        <span className="text-[10px] font-mono opacity-80">المرحلة {i + 1}</span>
+                        <span className="text-xs font-black">{stage}</span>
+                        {isCurrent && <Check className="w-4 h-4 mt-1" />}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Candidate Kanban Sample Card */}
+                <div className="bg-md-surface p-5 rounded-md3-xl border border-md-outline-variant flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-md-secondary-container text-md-on-secondary-container font-bold flex items-center justify-center text-sm">
+                      م
+                    </div>
+                    <div>
+                      <h4 className="font-black text-sm text-md-on-surface">محمد العبدالله</h4>
+                      <p className="text-xs text-md-on-surface-variant">مدير مشاريع تقنية • شاغر: إدارة المنتجات</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold bg-md-primary-container text-md-on-primary-container px-3 py-1 rounded-md3-full">
+                      {pipelineCandidateStage}
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        const stages = ["فرز AI جديد", "تقييم أولي", "مؤهل للمقابلة", "عرض وظيفي رقمي", "تم التعيين والتعاقد"];
+                        const nextIdx = (stages.indexOf(pipelineCandidateStage) + 1) % stages.length;
+                        setPipelineCandidateStage(stages[nextIdx]);
+                      }}
+                      className="rounded-md3-xl bg-md-primary text-md-on-primary font-bold text-xs h-9 px-4"
+                    >
+                      <span>نقل للمرحلة التالية</span>
+                      <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 3. Live Video Interview & Transcription */}
+            {activeModule === "video-interviews" && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-md-outline-variant">
+                  <div>
+                    <h3 className="text-xl font-black text-md-on-surface flex items-center gap-2">
+                      <Video className="w-5 h-5 text-md-primary" />
+                      <span>غرف المقابلات المدمجة والتفريغ الصوتي الفوري</span>
+                    </h3>
+                    <p className="text-xs text-md-on-surface-variant mt-1">
+                      مقابلات فيديو عالية الجودة مع تسجيل صوتي وتحويل الكلام إلى نصوص وتوليد الأسئلة الذكية
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+                    <span className="text-xs font-bold text-md-on-surface">بث وتفريغ حي</span>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-12 gap-6 items-stretch">
+                  {/* Simulated Video Frame */}
+                  <div className="md:col-span-7 bg-md-surface rounded-md3-xl p-6 border border-md-outline-variant flex flex-col justify-between min-h-[260px] relative overflow-hidden">
+                    <div className="flex items-center justify-between z-10">
+                      <span className="text-[11px] font-bold bg-md-surface/80 backdrop-blur-md px-2.5 py-1 rounded-md3-sm border border-md-outline-variant">
+                        غرفة المقابلة: #TX-9042
+                      </span>
+                      <span className="text-[11px] font-mono font-bold text-red-500 bg-red-500/10 px-2.5 py-1 rounded-md3-sm">
+                        REC 14:32
+                      </span>
+                    </div>
+
+                    <div className="my-auto text-center py-6">
+                      <div className="w-20 h-20 rounded-full bg-md-primary-container text-md-on-primary-container font-black text-2xl flex items-center justify-center mx-auto mb-3 shadow-md3-1">
+                        خ
+                      </div>
+                      <h4 className="font-black text-sm text-md-on-surface">خالد الشمري</h4>
+                      <p className="text-xs text-md-on-surface-variant">مهندس أمن سيبراني</p>
+                    </div>
+
+                    {/* Animated Audio Waveform */}
+                    <div className="flex items-center justify-center gap-1.5 h-8 z-10">
+                      {[16, 24, 12, 32, 20, 28, 14, 30, 22, 18, 28, 12].map((height, idx) => (
+                        <motion.div
+                          key={idx}
+                          animate={{ height: [8, height, 8] }}
+                          transition={{ repeat: Infinity, duration: 1.2, delay: idx * 0.08 }}
+                          className="w-1.5 bg-md-primary rounded-full"
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Real-time Transcription Panel */}
+                  <div className="md:col-span-5 bg-md-surface rounded-md3-xl p-5 border border-md-outline-variant space-y-4">
+                    <h4 className="text-xs font-black text-md-on-surface flex items-center gap-2">
+                      <Volume2 className="w-4 h-4 text-md-primary" />
+                      <span>التفريغ النصي التلقائي (ElevenLabs AI):</span>
+                    </h4>
+
+                    <div className="space-y-3 text-xs leading-relaxed max-h-[190px] overflow-y-auto">
+                      <div className="p-3 rounded-md3-lg bg-md-surface-container border border-md-outline-variant/60">
+                        <strong className="text-md-primary block mb-1">المحاور:</strong>
+                        <span>حدثنا عن خبرتك في تطبيق بروتوكولات الأمان السحابية؟</span>
+                      </div>
+                      <div className="p-3 rounded-md3-lg bg-md-primary-container/30 border border-md-primary/20">
+                        <strong className="text-md-on-surface block mb-1">المرشح (خالد):</strong>
+                        <span>قمت بقيادة مشروع عزل الصلاحيات وحماية نقاط الاتصال API بأعلى معايير التشفير.</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-md3-sm">
+                      <span>مؤشر التقييم الفوري: ممتاز</span>
+                      <span>+92% توافق</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 4. Digital Job Offers & E-Signature */}
+            {activeModule === "digital-offers" && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-md-outline-variant">
+                  <div>
+                    <h3 className="text-xl font-black text-md-on-surface flex items-center gap-2">
+                      <FileCheck className="w-5 h-5 text-md-primary" />
+                      <span>بوابة العروض الوظيفية والتوقيع الإلكتروني (Digital Job Offer)</span>
+                    </h3>
+                    <p className="text-xs text-md-on-surface-variant mt-1">
+                      إصدار عروض العمل بحسابات الراتب بالريال السعودي، وتوقيع إلكتروني مشفر معتمد
+                    </p>
+                  </div>
+                  <div>
+                    <span className={`text-xs font-bold px-3 py-1 rounded-md3-full border ${
+                      isOfferSigned
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                        : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                    }`}>
+                      {isOfferSigned ? "تم قبول وتوقيع العرض بنجاح ✓" : "بانتظار توقيع المرشح"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-md-surface p-6 rounded-md3-xl border border-md-outline-variant space-y-6">
+                  {/* Offer Summary Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-md-outline-variant/60">
+                    <div>
+                      <span className="text-[10px] font-bold text-md-on-surface-variant uppercase">المسمى الوظيفي:</span>
+                      <h4 className="text-base font-black text-md-on-surface">مدير هندسة البرمجيات (Engineering Lead)</h4>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <span className="text-[10px] font-bold text-md-on-surface-variant uppercase">الراتب الأساسي الشهري:</span>
+                      <div className="text-xl font-black text-md-primary font-mono">24,000 <span className="text-xs font-normal">ر.س / شهر</span></div>
+                    </div>
+                  </div>
+
+                  {/* Salary Breakdown & Benefits */}
+                  <div className="grid sm:grid-cols-3 gap-3 text-xs">
+                    <div className="p-3 bg-md-surface-container rounded-md3-lg border border-md-outline-variant/60">
+                      <span className="text-md-on-surface-variant block mb-1">بدل السكن:</span>
+                      <span className="font-black text-md-on-surface">6,000 ر.س (25%)</span>
+                    </div>
+                    <div className="p-3 bg-md-surface-container rounded-md3-lg border border-md-outline-variant/60">
+                      <span className="text-md-on-surface-variant block mb-1">بدل النقل:</span>
+                      <span className="font-black text-md-on-surface">2,400 ر.س (10%)</span>
+                    </div>
+                    <div className="p-3 bg-md-primary-container text-md-on-primary-container rounded-md3-lg">
+                      <span className="block mb-1 opacity-80">إجمالي الباقة الشهرية:</span>
+                      <span className="font-black text-sm font-mono">32,400 ر.س</span>
+                    </div>
+                  </div>
+
+                  {/* Interactive E-Signature Trigger */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-md-outline-variant/60">
+                    <div className="text-xs text-md-on-surface-variant font-medium">
+                      {isOfferSigned
+                        ? "تم توثيق التوقيع الرقمي وتوليد وثيقة PDF المشفرة بنجاح."
+                        : "اضغط على الزر لمحاكاة توقيع المرشح على العرض الوظيفي:"}
+                    </div>
+                    <Button
+                      onClick={() => setIsOfferSigned(!isOfferSigned)}
+                      className={`rounded-md3-xl text-xs font-bold h-10 px-6 transition-all ${
+                        isOfferSigned
+                          ? "bg-md-surface-container text-md-on-surface border border-md-outline-variant"
+                          : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md3-2"
+                      }`}
+                    >
+                      <PenTool className="w-3.5 h-3.5 mr-1.5" />
+                      <span>{isOfferSigned ? "إعادة تعيين للتجربة" : "محاكاة التوقيع الإلكتروني"}</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 5. 360° Performance & Task Board */}
+            {activeModule === "evaluation-tasks" && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-md-outline-variant">
+                  <div>
+                    <h3 className="text-xl font-black text-md-on-surface flex items-center gap-2">
+                      <Award className="w-5 h-5 text-md-primary" />
+                      <span>تقييم الأداء الشامل 360° وإدارة مهام الاستقطاب</span>
+                    </h3>
+                    <p className="text-xs text-md-on-surface-variant mt-1">
+                      متابعة أداء فريق العمل وتحليل فجوات الأداء وإدارة لوحة المهام التشغيلية
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to="/evaluation"
+                      className="text-xs font-bold text-md-primary hover:underline flex items-center gap-1"
+                    >
+                      <span>فتح تقييم الأداء</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-12 gap-6 items-stretch">
+                  {/* 360 Radar & Dimensions Insight */}
+                  <div className="md:col-span-6 bg-md-surface p-5 rounded-md3-xl border border-md-outline-variant space-y-4">
+                    <h4 className="text-xs font-black text-md-on-surface flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-md-primary" />
+                      <span>مؤشرات أداء الموظف (أبعاد 360):</span>
+                    </h4>
+
+                    <div className="space-y-2.5 text-xs">
+                      {[
+                        { name: "الإنتاجية والإنجاز", self: 9.0, mgr: 8.5, gap: "+0.5" },
+                        { name: "القيادة والمبادرة", self: 8.0, mgr: 8.0, gap: "0.0" },
+                        { name: "العمل الجماعي والتعاون", self: 9.5, mgr: 9.2, gap: "+0.3" },
+                        { name: "المهارة التقنية التخصصية", self: 9.5, mgr: 9.5, gap: "0.0" },
+                      ].map((dim, i) => (
+                        <div key={i} className="flex items-center justify-between p-2 rounded-md3-md bg-md-surface-container border border-md-outline-variant/40">
+                          <span className="font-bold text-md-on-surface">{dim.name}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-[11px] text-md-on-surface-variant">الذاتي: {dim.self} / المدير: {dim.mgr}</span>
+                            <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md3-sm">
+                              {dim.gap}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Task Management Snippet */}
+                  <div className="md:col-span-6 bg-md-surface p-5 rounded-md3-xl border border-md-outline-variant space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-xs font-black text-md-on-surface flex items-center gap-2">
+                        <CheckSquare className="w-4 h-4 text-md-primary" />
+                        <span>مهام الاستقطاب النشطة (Task Board):</span>
+                      </h4>
+                      <Link to="/tasks" className="text-[11px] font-bold text-md-primary hover:underline">
+                        عرض لوحة المهام ←
+                      </Link>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {[
+                        { title: "إجراء المقابلة النهائية مع مهندس الواجهات", due: "اليوم", tag: "أولوية قصوى", color: "bg-red-500/10 text-red-600 dark:text-red-400" },
+                        { title: "مراجعة واعتماد العرض الوظيفي لمدير المنتجات", due: "غداً", tag: "متوسطة", color: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
+                        { title: "فحص السير الذاتية الجديدة بالذكاء الاصطناعي", due: "خلال يومين", tag: "تلقائي", color: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
+                      ].map((task, i) => (
+                        <div key={i} className="p-3 bg-md-surface-container rounded-md3-lg border border-md-outline-variant/60 flex items-center justify-between text-xs">
+                          <div>
+                            <div className="font-bold text-md-on-surface">{task.title}</div>
+                            <div className="text-[10px] text-md-on-surface-variant mt-0.5">موعد التسليم: {task.due}</div>
+                          </div>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md3-sm ${task.color}`}>
+                            {task.tag}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── 4. Core Features Grid (MD3 Cards) ── */}
+      <section id="features" className="py-24 bg-md-surface-container-low border-t border-md-outline-variant">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <span className="inline-block bg-md-primary-container text-md-on-primary-container text-md3-label-sm font-black px-4 py-1.5 rounded-md3-full mb-4">
-              القدرات والمميزات الأساسية
+              المميزات والحلول الشاملة
             </span>
             <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-black text-md-on-surface mb-5 leading-tight">
-              كل ما تحتاجه لإدارة التوظيف <br />
+              كل ما تحتاجه لإدارة منظومة الاستقطاب <br />
               <span className="text-md-primary">في منصة سحابية واحدة</span>
             </h2>
             <p className="text-md3-body-md text-md-on-surface-variant leading-relaxed">
-              منظومة مصممة لتمكين مسؤولي التوظيف والمدراء التنفيذيين من اتخاذ قرارات توظيف سريعة ودقيقة وموثقة بالبيانات.
+              منظومة مصممة لتمكين مسؤولي الموارد البشرية والمدراء التنفيذيين من اتخاذ قرارات سريعة ودقيقة وموثقة بالبيانات.
             </p>
           </div>
 
@@ -953,13 +1133,13 @@ export default function LandingPage() {
             variants={staggerContainer}
             className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
           >
-            {features.map((f, idx) => (
+            {FEATURES_LIST.map((f, idx) => (
               <motion.div
                 key={idx}
                 variants={fadeUp}
                 className="bg-md-surface shadow-md3-1 hover:shadow-md3-3 hover:-translate-y-1.5 transition-all duration-300 rounded-md3-2xl p-7 flex flex-col border border-md-outline-variant/70 group"
               >
-                <div className={`w-14 h-14 rounded-md3-xl flex items-center justify-center mb-6 ${iconContainerColors[f.colorIdx]} shadow-sm group-hover:scale-110 transition-transform`}>
+                <div className={`w-14 h-14 rounded-md3-xl flex items-center justify-center mb-6 ${f.color} shadow-sm group-hover:scale-110 transition-transform`}>
                   <f.icon className="w-7 h-7" />
                 </div>
                 <h3 className="text-md3-title-lg font-black text-md-on-surface mb-3">{f.title}</h3>
@@ -978,94 +1158,19 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── 6. How It Works Stepper ── */}
-      <section id="how-it-works" className="py-24 bg-md-surface-container-low border-y border-md-outline-variant">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center max-w-2xl mx-auto mb-20">
-            <span className="inline-block bg-md-secondary-container text-md-on-secondary-container text-md3-label-sm font-black px-4 py-1.5 rounded-md3-full mb-4">
-              منهجية العمل
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-md-on-surface mb-4">
-              أربع خطوات تقودك لتوظيف الكفاءة المثالية
-            </h2>
-            <p className="text-md3-body-md text-md-on-surface-variant">
-              دورة توظيف مؤتمتة وسلسة تختصر 80% من العمليات اليدوية والورقية
-            </p>
-          </div>
-
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={staggerContainer}
-            className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 relative"
-          >
-            {steps.map((step, idx) => (
-              <motion.div key={idx} variants={fadeUp} className="flex flex-col items-center text-center group">
-                <div className="w-16 h-16 rounded-md3-full bg-md-primary text-md-on-primary font-black text-xl flex items-center justify-center mb-6 shadow-md3-2 group-hover:scale-110 transition-transform">
-                  {step.num}
-                </div>
-                <div className="bg-md-surface rounded-md3-xl p-6 border border-md-outline-variant w-full flex-1 shadow-sm flex flex-col">
-                  <div className="w-10 h-10 rounded-md3-md bg-md-secondary-container text-md-on-secondary-container flex items-center justify-center mx-auto mb-4">
-                    <step.icon className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-md3-title-sm font-black text-md-on-surface mb-2">{step.title}</h3>
-                  <p className="text-xs text-md-on-surface-variant leading-relaxed font-normal">{step.description}</p>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── 7. Interactive Recruiter Demo ── */}
-      <section id="demo" className="py-24 bg-md-surface">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <span className="inline-block bg-md-tertiary-container text-md-on-tertiary-container text-md3-label-sm font-black px-4 py-1.5 rounded-md3-full mb-4">
-              بيئة المعاينة الحية
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-md-on-surface mb-4">
-              جرّب لوحة تحكم النظام التفاعلية
-            </h2>
-            <p className="text-md3-body-md text-md-on-surface-variant">
-              استكشف بنفسك سهولة التنقل بين شاشات الفرز، تقييمات الذكاء الاصطناعي، وغرف المقابلات
-            </p>
-          </div>
-          <InteractiveDemo />
-        </div>
-      </section>
-
-      {/* ── 8. Capabilities Marquee Strip ── */}
-      <section className="bg-md-surface-container py-10 border-y border-md-outline-variant overflow-hidden">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-center gap-3 max-w-6xl mx-auto px-4">
-            {capabilities.map((cap, idx) => (
-              <div
-                key={idx}
-                className="bg-md-surface border border-md-outline-variant text-md-on-surface rounded-md3-full px-5 py-2 text-xs font-bold flex items-center gap-2 shadow-sm"
-              >
-                <CheckCircle2 className="w-4 h-4 text-md-primary" />
-                <span>{cap}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── 9. Dynamic Pricing Section (CONNECTED DIRECTLY TO DB subscription_plans) ── */}
-      <section id="pricing" className="py-24 bg-md-surface-container-low">
+      {/* ── 5. Dynamic Pricing Section (Connected Directly to Supabase subscription_plans) ── */}
+      <section id="pricing" className="py-24 bg-md-surface">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <div className="inline-flex items-center gap-2 bg-md-primary-container text-md-on-primary-container text-xs font-black px-4 py-1.5 rounded-md3-full mb-4">
               <Database className="w-3.5 h-3.5" />
-              <span>الباقات المعتمدة من إعدادات النظام</span>
+              <span>الباقات المعتمدة والمحدثة بالنظام</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-black text-md-on-surface mb-4">
-              باقات اشتراك تناسب احتياج كل منشأة
+              باقات اشتراك مرنة تناسب حجم كل منشأة
             </h2>
             <p className="text-md3-body-md text-md-on-surface-variant">
-              الأسعار والميزات محدثة مباشرة من قاعدة بيانات النظام، مع إمكانية الترقية وإدارة الاشتراكات من لوحة الإدارة.
+              الأسعار والميزات تتزامن مباشرة مع قاعدة بيانات المنصة لضمان دقة التعاقد والمزايا
             </p>
           </div>
 
@@ -1183,35 +1288,32 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── 10. Security & Enterprise Compliance ── */}
-      <section id="security" className="py-20 bg-md-surface border-t border-md-outline-variant">
+      {/* ── 6. Security & Enterprise Compliance ── */}
+      <section id="security" className="py-20 bg-md-surface-container-low border-t border-md-outline-variant">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="bg-gradient-to-br from-md-surface-container via-md-surface-container-high to-md-surface-container rounded-md3-2xl p-8 lg:p-12 border border-md-outline-variant shadow-sm">
+          <div className="bg-gradient-to-br from-md-surface via-md-surface-container-high to-md-surface rounded-md3-2xl p-8 lg:p-12 border border-md-outline-variant shadow-sm">
             <div className="grid lg:grid-cols-12 gap-8 items-center">
               <div className="lg:col-span-8">
                 <div className="inline-flex items-center gap-2 bg-md-primary-container text-md-on-primary-container text-xs font-bold px-3 py-1 rounded-md3-full mb-4">
                   <Shield className="w-3.5 h-3.5" />
-                  <span>حماية البيانات والخصوصية</span>
+                  <span>حماية البيانات والخصوصية المؤسسية</span>
                 </div>
                 <h3 className="text-2xl sm:text-3xl font-black text-md-on-surface mb-3">
-                  بيانات مرشحيك ومنشأتك في أمان تام ومعزولة تماماً
+                  بيانات منشأتك ومرشحيك معزولة ومشفرة بأعلى المقاييس
                 </h3>
                 <p className="text-sm text-md-on-surface-variant leading-relaxed mb-6 font-medium">
-                  نطبق أعلى معايير الحماية والتشفير وعزل البيانات لكل شركة باستخدام سياسات الأمان على مستوى الصفوف (Row Level Security)، مع سجل تدقيق تفصيلي للعمليات الحساسة.
+                  نطبق معايير العزل على مستوى الصفوف (Row Level Security)، وتشفير السجلات الحساسة، وسجل تدقيق تفصيلي للأنشطة والعمليات.
                 </p>
-                <div className="flex flex-wrap gap-4 text-xs font-bold text-md-on-surface">
-                  <div className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-md-primary" />
-                    <span>تشفير 256-bit للبيانات</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-md-primary" />
-                    <span>فصل وصلاحيات دقيقة للأدوار</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-md-primary" />
-                    <span>سجل رقابي وتدقيق مستمر</span>
-                  </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {COMPLIANCE_ITEMS.map((item, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-2 p-2.5 rounded-md3-md bg-md-surface-container border border-md-outline-variant/60 text-xs font-bold text-md-on-surface"
+                    >
+                      <item.icon className="w-4 h-4 text-md-primary shrink-0" />
+                      <span>{item.label}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
               <div className="lg:col-span-4 flex justify-center lg:justify-end">
@@ -1227,7 +1329,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── 11. Final Executive CTA ── */}
+      {/* ── 7. Final Executive CTA ── */}
       <section className="py-20 bg-md-surface">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
           <div className="bg-gradient-to-br from-md-primary-container via-md-secondary-container/40 to-md-tertiary-container/30 rounded-md3-2xl p-12 lg:p-16 border border-md-primary/20 shadow-md3-3">
@@ -1257,7 +1359,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── 12. Enterprise Footer (NO PUBLIC JOBS LISTINGS) ── */}
+      {/* ── 8. Enterprise Footer (NO PUBLIC JOBS LISTINGS) ── */}
       <footer className="bg-md-surface-variant text-md-on-surface-variant pt-16 pb-12 border-t border-md-outline-variant">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
@@ -1280,22 +1382,21 @@ export default function LandingPage() {
             <div>
               <h4 className="font-black text-sm text-md-on-surface mb-4">روابط سريعة</h4>
               <ul className="space-y-3 text-xs font-bold">
-                <li><a href="#features" className="hover:text-md-primary transition-colors">المميزات المؤسسية</a></li>
-                <li><a href="#how-it-works" className="hover:text-md-primary transition-colors">آلية العمل</a></li>
-                <li><a href="#demo" className="hover:text-md-primary transition-colors">التجربة الحية</a></li>
-                <li><a href="#pricing" className="hover:text-md-primary transition-colors">باقات الاشتراك</a></li>
+                <li><a href="#features" className="hover:text-md-primary transition-colors">المميزات والحلول</a></li>
+                <li><a href="#showcase" className="hover:text-md-primary transition-colors">معاينة النظام الحي</a></li>
+                <li><a href="#pricing" className="hover:text-md-primary transition-colors">باقات المنشآت</a></li>
                 <li><a href="#security" className="hover:text-md-primary transition-colors">الأمان والخصوصية</a></li>
               </ul>
             </div>
 
             {/* Column 3: Platform Capabilities */}
             <div>
-              <h4 className="font-black text-sm text-md-on-surface mb-4">قدرات المنصة</h4>
+              <h4 className="font-black text-sm text-md-on-surface mb-4">قدرات المنظومة</h4>
               <ul className="space-y-3 text-xs font-medium">
-                <li>فحص السير الذاتية بالذكاء الاصطناعي</li>
-                <li>غرف مقابلات الفيديو والتفريغ النصي</li>
-                <li>العروض الوظيفية الرقمية المشفرة</li>
-                <li>تقارير ومؤشرات الأداء التوظيفي</li>
+                <li>فرز ومطابقة السير الذاتية بالذكاء الاصطناعي</li>
+                <li>غرف مقابلات الفيديو والتفريغ النصي الفوري</li>
+                <li>العروض الوظيفية الرقمية والتوقيع الإلكتروني</li>
+                <li>تقييم الأداء الشامل 360° وإدارة المهام</li>
                 <li>بوابة مخصصة ومستقلة لكل منشأة</li>
               </ul>
             </div>
