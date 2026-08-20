@@ -153,12 +153,14 @@ export default function ConversationsArchiveSidebar({
   return (
     <div
       className={cn(
-        "absolute lg:relative z-30 h-full w-80 border-l border-border/30 bg-card/60 backdrop-blur-2xl transition-all duration-300 flex flex-col shadow-2xl overflow-hidden",
-        sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
+        "fixed lg:relative inset-y-0 right-0 z-30 h-full border-l border-border/30 bg-card/90 backdrop-blur-2xl transition-all duration-300 flex flex-col shadow-2xl lg:shadow-none overflow-hidden shrink-0",
+        sidebarOpen
+          ? "w-80 translate-x-0 opacity-100"
+          : "w-0 lg:w-0 translate-x-full lg:translate-x-0 border-0 opacity-0 pointer-events-none"
       )}
     >
       {/* Top Header Card */}
-      <div className="p-4 border-b border-border/30 shrink-0 bg-gradient-to-b from-primary/5 via-card/80 to-transparent space-y-3">
+      <div className="p-4 border-b border-border/30 shrink-0 bg-gradient-to-b from-primary/5 via-card/80 to-transparent space-y-3 min-w-[320px]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-sm">

@@ -1827,10 +1827,24 @@ export default function AIAssistant() {
     <DashboardLayout>
       <AnimatedDashboardBackground />
       <style>{`
-        .chat-prose p {
+        .chat-prose {
+          font-size: 0.875rem;
+          line-height: 1.65;
+          color: hsl(var(--foreground));
+        }
+        .chat-prose h1, .chat-prose h2, .chat-prose h3, .chat-prose h4 {
+          font-weight: 800;
+          color: hsl(var(--foreground));
+          margin-top: 1rem;
           margin-bottom: 0.5rem;
+        }
+        .chat-prose h1 { font-size: 1.2rem; }
+        .chat-prose h2 { font-size: 1.05rem; }
+        .chat-prose h3 { font-size: 0.95rem; }
+        .chat-prose p {
+          margin-bottom: 0.65rem;
           font-weight: 500;
-          color: inherit;
+          line-height: 1.7;
         }
         .chat-prose p:last-child {
           margin-bottom: 0;
@@ -1840,37 +1854,67 @@ export default function AIAssistant() {
           color: hsl(var(--primary));
         }
         .dark .chat-prose strong {
-          color: hsl(var(--primary-foreground));
+          color: hsl(var(--primary));
         }
-        .chat-prose ul {
-          margin-bottom: 0.5rem;
+        .chat-prose ul, .chat-prose ol {
+          margin-bottom: 0.65rem;
           padding-right: 1.25rem;
-          list-style-type: disc;
         }
+        .chat-prose ul { list-style-type: disc; }
+        .chat-prose ol { list-style-type: decimal; }
         .chat-prose li {
           margin-bottom: 0.25rem;
           font-weight: 500;
+          line-height: 1.6;
         }
         .chat-prose table {
           width: 100%;
           margin: 0.75rem 0;
-          border-collapse: collapse;
-          font-size: 11px;
-          border-radius: 8px;
+          border-collapse: separate;
+          border-spacing: 0;
+          font-size: 11.5px;
+          border-radius: 10px;
           overflow: hidden;
-          border: 1px solid hsl(var(--border) / 0.3);
-        }
-        .chat-prose th, .chat-prose td {
-          border: 1px solid hsl(var(--border) / 0.3);
-          padding: 0.5rem 0.75rem;
-          text-align: right;
+          border: 1px solid hsl(var(--border) / 0.5);
+          display: table;
         }
         .chat-prose th {
-          background-color: hsl(var(--muted) / 0.6);
-          font-weight: 700;
+          background-color: hsl(var(--muted) / 0.8);
+          color: hsl(var(--foreground));
+          font-weight: 800;
+          padding: 0.5rem 0.75rem;
+          text-align: right;
+          border-bottom: 1px solid hsl(var(--border) / 0.5);
         }
         .chat-prose td {
-          background-color: hsl(var(--card) / 0.3);
+          padding: 0.5rem 0.75rem;
+          text-align: right;
+          border-bottom: 1px solid hsl(var(--border) / 0.3);
+          background-color: hsl(var(--card) / 0.4);
+        }
+        .chat-prose tr:last-child td {
+          border-bottom: none;
+        }
+        .chat-prose code {
+          background-color: hsl(var(--muted) / 0.6);
+          padding: 0.15rem 0.35rem;
+          border-radius: 4px;
+          font-size: 0.85em;
+          font-family: monospace;
+        }
+        .chat-prose pre {
+          background-color: hsl(var(--muted) / 0.5);
+          border: 1px solid hsl(var(--border) / 0.4);
+          padding: 0.75rem;
+          border-radius: 8px;
+          overflow-x: auto;
+          margin: 0.65rem 0;
+        }
+        .chat-prose blockquote {
+          border-right: 3px solid hsl(var(--primary));
+          padding-right: 0.75rem;
+          margin: 0.65rem 0;
+          color: hsl(var(--muted-foreground));
         }
         .premium-radial-glow {
           position: absolute;
@@ -1882,7 +1926,7 @@ export default function AIAssistant() {
           pointer-events: none;
         }
       `}</style>
-      <div className="flex h-[calc(100vh-56px)] lg:h-screen overflow-hidden relative z-10" dir="rtl">
+      <div className="-m-4 sm:-m-6 lg:-m-8 h-[calc(100dvh-4rem)] lg:h-[calc(100vh-4rem)] flex overflow-hidden relative z-10 bg-background/50" dir="rtl">
         {/* Sidebar - Conversations Archive */}
         <ConversationsArchiveSidebar
           conversations={conversationsWithPin}
@@ -1903,13 +1947,14 @@ export default function AIAssistant() {
         )}
 
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 h-full relative overflow-hidden">
           {/* Unified Clean Header */}
           <AIChatHeader
             onClearChat={handleNewChat}
             messageCount={messages.length}
             isStreaming={isLoading}
             onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+            sidebarOpen={sidebarOpen}
           >
             <ExportConversation messages={messages.map(m => ({ role: m.role, content: m.content }))} />
             <ModelSelector value={modelChoice} onChange={setModelChoice} />
@@ -1971,31 +2016,62 @@ export default function AIAssistant() {
           </div>
 
           {/* Messages */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-5 bg-transparent">
-            <AnimatePresence>
-              {messages.map((msg, i) => (
-                <motion.div 
-                  key={i} 
-                  custom={msg.role}
-                  initial="hidden" 
-                  animate="show" 
-                  variants={messageAnimation}
-                  className={cn("flex gap-3", msg.role === "user" ? "justify-start" : "justify-end")}
-                >
-                  
-                  {/* Avatar for user */}
-                  {msg.role === "user" && (
-                    <div className="w-9 h-9 rounded-md3-xl bg-md-primary-container text-md-on-primary-container border border-primary/30 flex items-center justify-center shrink-0 mt-1 shadow-xs">
-                      <span className="text-[10px] font-black">أنت</span>
-                    </div>
-                  )}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 bg-transparent min-h-0">
+            {messages.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col items-center justify-center text-center my-auto min-h-full py-8 max-w-xl mx-auto px-4"
+              >
+                <div className="relative mb-3">
+                  <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-primary via-primary/80 to-purple-600 flex items-center justify-center text-primary-foreground shadow-xl shadow-primary/20 border border-primary/20">
+                    <Bot className="w-8 h-8" />
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-background animate-pulse" />
+                </div>
+                
+                <Badge variant="outline" className="mb-2.5 bg-primary/10 text-primary border-primary/20 px-3 py-0.5 text-[11px] gap-1 font-bold">
+                  <Sparkles className="w-3 h-3 text-primary animate-pulse" />
+                  مساعد التوظيف الذكي v2.0
+                </Badge>
 
-                  <div className={cn(
-                    "max-w-[85%] sm:max-w-[75%] rounded-md3-2xl px-5 py-4 text-sm leading-relaxed shadow-xs transition-all duration-200 relative overflow-hidden",
-                    msg.role === "user"
-                      ? "bg-md-primary text-md-on-primary font-medium rounded-tr-md3-xs shadow-md3-1"
-                      : "bg-md-surface-container border border-md-outline-variant rounded-tl-md3-xs text-foreground shadow-xs"
-                  )}>
+                <h2 className="text-xl font-extrabold text-foreground mb-1">كيف تود تطوير عملية التوظيف اليوم؟</h2>
+                <p className="text-xs text-muted-foreground max-w-md leading-relaxed mb-6 font-medium">
+                  أنا مستشارك الذكي المتقدم في منصة Tawzeef-X. اختر إحدى المهام أدناه أو اكتب سؤالك لتلقي تقارير وتحليلات فورية.
+                </p>
+
+                <AISuggestionChips
+                  onSelectSuggestion={(prompt) => {
+                    setInput(prompt);
+                    setTimeout(() => handleSend(), 50);
+                  }}
+                  className="w-full"
+                />
+              </motion.div>
+            ) : (
+              <AnimatePresence>
+                {messages.map((msg, i) => (
+                  <motion.div 
+                    key={i} 
+                    custom={msg.role}
+                    initial="hidden" 
+                    animate="show" 
+                    variants={messageAnimation}
+                    className={cn("flex gap-3 items-start", msg.role === "user" ? "justify-end" : "justify-start")}
+                  >
+                    {/* Assistant Bot Avatar (Right side) */}
+                    {msg.role === "assistant" && (
+                      <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-br from-primary via-indigo-600 to-primary/80 flex items-center justify-center shrink-0 mt-1 shadow-md border border-primary/10">
+                        <Bot className="w-4.5 h-4.5 text-primary-foreground" />
+                      </div>
+                    )}
+
+                    <div className={cn(
+                      "max-w-[88%] sm:max-w-[80%] lg:max-w-[75%] rounded-2xl px-5 py-4 text-sm leading-relaxed shadow-xs transition-all duration-200 relative overflow-hidden",
+                      msg.role === "user"
+                        ? "bg-md-primary text-md-on-primary font-medium rounded-tr-xs shadow-md3-1"
+                        : "bg-card/90 border border-border/60 rounded-tl-xs text-foreground shadow-xs backdrop-blur-md dark:bg-card/70"
+                    )}>
                     {msg.role === "assistant" && (
                       <div className="premium-radial-glow -bottom-10 -left-10 bg-primary/10" />
                     )}
@@ -2216,70 +2292,35 @@ export default function AIAssistant() {
                     ) : msg.content}
                   </div>
 
-                  {/* Avatar for assistant */}
-                  {msg.role === "assistant" && (
-                    <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-br from-primary via-indigo-600 to-primary/80 flex items-center justify-center shrink-0 mt-1 shadow-md border border-primary/10">
-                      <Bot className="w-4.5 h-4.5 text-primary-foreground" />
-                    </div>
-                  )}
-                </motion.div>
-              ))}
-            </AnimatePresence>
+                    {/* User Avatar (Left side) */}
+                    {msg.role === "user" && (
+                      <div className="w-8.5 h-8.5 rounded-xl bg-md-primary-container text-md-on-primary-container border border-primary/30 flex items-center justify-center shrink-0 mt-1 shadow-xs">
+                        <span className="text-[10px] font-black">أنت</span>
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            )}
             {isLoading && !messages[messages.length - 1]?.isStreaming && (
-              <div className="flex justify-end gap-3">
-                <div className="glass-card-premium border border-border/40 rounded-2xl rounded-tl-md px-5 py-3.5 shadow-md">
-                  <div className="flex gap-1.5">
+              <div className="flex justify-start items-start gap-3">
+                <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-br from-primary via-indigo-600 to-primary/80 flex items-center justify-center shrink-0 mt-1 shadow-md border border-primary/10">
+                  <Bot className="w-4.5 h-4.5 text-primary-foreground" />
+                </div>
+                <div className="bg-card/90 border border-border/40 rounded-2xl rounded-tl-xs px-5 py-3.5 shadow-md">
+                  <div className="flex gap-1.5 items-center">
                     <span className="w-2 h-2 bg-primary/70 rounded-full animate-bounce" />
                     <span className="w-2 h-2 bg-primary/70 rounded-full animate-bounce [animation-delay:0.15s]" />
                     <span className="w-2 h-2 bg-primary/70 rounded-full animate-bounce [animation-delay:0.3s]" />
                   </div>
                 </div>
-                <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-br from-primary via-indigo-600 to-primary/80 flex items-center justify-center shrink-0 mt-1 shadow-md border border-primary/10">
-                  <Bot className="w-4.5 h-4.5 text-primary-foreground" />
-                </div>
               </div>
             )}
           </div>
 
-          {/* Ultra-Clean Hero Welcome Screen when starting a new chat */}
-          {messages.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="flex flex-col items-center justify-center text-center my-auto py-10 max-w-xl mx-auto px-4"
-            >
-              <div className="relative mb-3">
-                <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-primary via-primary/80 to-purple-600 flex items-center justify-center text-primary-foreground shadow-xl shadow-primary/20 border border-primary/20">
-                  <Bot className="w-8 h-8" />
-                </div>
-                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-background animate-pulse" />
-              </div>
-              
-              <Badge variant="outline" className="mb-2.5 bg-primary/10 text-primary border-primary/20 px-3 py-0.5 text-[11px] gap-1 font-bold">
-                <Sparkles className="w-3 h-3 text-primary animate-pulse" />
-                مساعد التوظيف الذكي v2.0
-              </Badge>
-
-              <h2 className="text-xl font-extrabold text-foreground mb-1">كيف تود تطوير عملية التوظيف اليوم؟</h2>
-              <p className="text-xs text-muted-foreground max-w-md leading-relaxed mb-6 font-medium">
-                أنا مستشارك الذكي المتقدم في منصة Tawzeef-X. اختر إحدى المهام أدناه أو اكتب سؤالك لتلقي تقارير وتحليلات فورية.
-              </p>
-
-              <AISuggestionChips
-                onSelectSuggestion={(prompt) => {
-                  setInput(prompt);
-                  setTimeout(() => handleSend(), 50);
-                }}
-                className="w-full"
-              />
-            </motion.div>
-          )}
-
-
-
           {/* Legacy resume indicator (kept for backward-compat) */}
           {resumeFile && (
-            <div className="px-4 pb-1.5 w-full max-w-full mx-auto">
+            <div className="px-4 pb-1.5 w-full max-w-full mx-auto shrink-0">
               <div className="flex items-center gap-2 text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-lg w-fit shadow-sm border border-primary/20 backdrop-blur-sm">
                 <FileText className="w-3 h-3" />
                 <span>{resumeFile.name}</span>
@@ -2290,7 +2331,7 @@ export default function AIAssistant() {
 
           {/* Multi-file attachments preview (badges list only) */}
           {attachedFiles.length > 0 && (
-            <div className="px-4 pb-1.5 w-full max-w-full mx-auto">
+            <div className="px-4 pb-1.5 w-full max-w-full mx-auto shrink-0">
               <FileAttachment
                 files={attachedFiles}
                 onAdd={(newOnes) => setAttachedFiles(prev => [...prev, ...newOnes])}
@@ -2301,9 +2342,8 @@ export default function AIAssistant() {
             </div>
           )}
 
-
           {/* Input Floating Capsule Card */}
-          <div className="p-4 pt-1 pb-6 shrink-0 relative w-full max-w-full mx-auto z-20">
+          <div className="p-3 sm:p-4 pt-1 pb-4 shrink-0 relative w-full max-w-full mx-auto z-20 bg-background/70 backdrop-blur-md border-t border-border/20">
             <SlashCommandMenu
               query={input}
               onSelect={(cmd: SlashCommand) => {
@@ -2313,7 +2353,7 @@ export default function AIAssistant() {
                 }
               }}
             />
-            <div className="bg-md-surface-container border border-md-outline-variant p-2 rounded-md3-full shadow-md3-2 flex gap-2 items-center relative">
+            <div className="bg-card/90 border border-border/60 p-2 rounded-full shadow-md flex gap-2 items-center relative max-w-4xl mx-auto backdrop-blur-md">
               {/* Hidden legacy file input (resume only) */}
               <input type="file" ref={fileInputRef} accept=".txt,.pdf,.doc,.docx" className="hidden" onChange={handleFileSelect} />
 
@@ -2334,9 +2374,9 @@ export default function AIAssistant() {
               <Input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleSend()}
                 placeholder="اكتب أمرك للمساعد الذكي أو / للأوامر السريعة..."
-                className="flex-1 rounded-md3-full bg-transparent border-0 ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-xs shadow-none" />
+                className="flex-1 rounded-full bg-transparent border-0 ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-xs sm:text-sm shadow-none" />
               <Button onClick={handleSend} disabled={(!input.trim() && attachedFiles.length === 0) || isLoading}
-                size="icon" className="bg-primary text-primary-foreground hover:bg-primary/90 w-10 h-10 rounded-md3-full shrink-0 shadow-md3-1 hover:scale-105 transition-transform duration-200">
+                size="icon" className="bg-primary text-primary-foreground hover:bg-primary/90 w-10 h-10 rounded-full shrink-0 shadow-sm hover:scale-105 transition-transform duration-200">
                 <Send className="w-4 h-4" />
               </Button>
             </div>
