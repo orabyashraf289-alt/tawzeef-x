@@ -592,6 +592,7 @@ export default function Reports() {
   const chartAppliedLabel = t("reports.applied");
   const chartInterviewsLabel = t("reports.interviews");
   const chartHiredLabel = t("reports.hired");
+  const chartCandidateCountLabel = t("reports.candidateCount");
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
 
   const reportDocumentData = useMemo(() => {
