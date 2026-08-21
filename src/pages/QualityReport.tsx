@@ -12,6 +12,8 @@ import {
   ShieldCheck,
   RefreshCw,
   Clock,
+  Printer,
+  FileDown,
 } from "lucide-react";
 import { QUALITY_REPORT, reportStatus, type QualityCheck } from "@/data/qualityReport";
 
@@ -68,18 +70,29 @@ export default function QualityReport() {
                 : "Automated snapshot of TypeScript, tests, Supabase Linter, and security checks."}
             </p>
           </div>
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${STATUS_META[overall].tone}`}
-          >
-            <OverallIcon className="w-5 h-5" />
-            <div className="text-sm">
-              <div className="font-semibold">
-                {isAR ? "الحالة الإجمالية" : "Overall"}: {isAR ? STATUS_META[overall].ar : STATUS_META[overall].en}
-              </div>
-              <div className="text-xs flex items-center gap-1 opacity-80">
-                <Clock className="w-3 h-3" /> {generatedStr}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${STATUS_META[overall].tone}`}
+            >
+              <OverallIcon className="w-5 h-5" />
+              <div className="text-sm">
+                <div className="font-semibold">
+                  {isAR ? "الحالة الإجمالية" : "Overall"}: {isAR ? STATUS_META[overall].ar : STATUS_META[overall].en}
+                </div>
+                <div className="text-xs flex items-center gap-1 opacity-80">
+                  <Clock className="w-3 h-3" /> {generatedStr}
+                </div>
               </div>
             </div>
+            <Button
+              onClick={() => window.print()}
+              variant="outline"
+              size="sm"
+              className="gap-2 h-10 px-3.5 text-xs font-bold rounded-xl"
+            >
+              <Printer className="w-4 h-4 text-primary" />
+              <span>{isAR ? "طباعة التقرير" : "Print Report"}</span>
+            </Button>
           </div>
         </div>
 

@@ -770,3 +770,71 @@
   }
 }
 
+/* ==========================================================================
+   PRINT STYLES — Executive Document Printing & PDF Export
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm;
+  }
+
+  /* Reset body and background for crisp printing */
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide all web UI chrome */
+  nav,
+  aside,
+  header:not(#printable-report-root header),
+  footer:not(#printable-report-root footer),
+  button,
+  .no-print,
+  [data-radix-popper-content-wrapper],
+  .fixed:not(#printable-report-root),
+  .dashboard-sidebar,
+  .dashboard-header,
+  .toast-viewport {
+    display: none !important;
+  }
+
+  /* Target the printable document when inside modal or page */
+  #printable-report-root {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  /* Prevent awkward page breaks */
+  .break-inside-avoid,
+  #printable-report-root section,
+  #printable-report-root table,
+  #printable-report-root tr,
+  #printable-report-root footer {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Force borders and subtle backgrounds to print */
+  #printable-report-root * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+

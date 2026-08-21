@@ -3,7 +3,7 @@ import SARSymbol from "@/components/SARSymbol";
 import { Badge } from "@/components/ui/badge";
 import DashboardLayout from "@/components/DashboardLayout";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend } from "recharts";
-import { TrendingUp, Users, Clock, Target, Award, BarChart3, Download, DollarSign, Briefcase, Brain, FileDown, Loader2, CalendarClock, CheckCircle2, Timer, Activity, UserCheck, Zap, Filter, RotateCcw } from "lucide-react";
+import { TrendingUp, Users, Clock, Target, Award, BarChart3, Download, DollarSign, Briefcase, Brain, FileDown, Loader2, CalendarClock, CheckCircle2, Timer, Activity, UserCheck, Zap, Filter, RotateCcw, Printer, FileText, Sparkles } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import DateRangeFilter, { type DateRange } from "@/components/reports/DateRangeFilter";
 import HiringKPIReport from "@/components/reports/HiringKPIReport";
+import ReportReviewModal from "@/components/reports/ReportReviewModal";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
 
 const SOURCE_COLORS: Record<string, string> = {
@@ -591,7 +592,79 @@ export default function Reports() {
   const chartAppliedLabel = t("reports.applied");
   const chartInterviewsLabel = t("reports.interviews");
   const chartHiredLabel = t("reports.hired");
-  const chartCandidateCountLabel = t("reports.candidateCount");
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+
+  const reportDocumentData = useMemo(() => {
+    const totalJobs = (jobs || []).length;
+    const activeJobs = (jobs || []).filter(j => j.status === "نشطة").length;
+    const totalCandidates = allCandidates.length;
+    const shortlistedCandidates = allCandidates.filter(c => c.stage && c.stage !== "تقديم الطلب").length;
+    const totalInterviews = allInterviews.length;
+    const completedInterviews = allInterviews.filter(i => i.status === "مكتملة").length;
+    const totalOffers = allOffers.length;
+    const acceptedOffers = allOffers.filter(o => o.status === "accepted").length;
+    const rejectedOffers = allOffers.filter(o => o.status === "rejected").length;
+    const respondedOffers = acceptedOffers + rejectedOffers;
+    const acceptanceRate = respondedOffers > 0 ? Math.round((acceptedOffers / respondedOffers) * 100) : 0;
+
+    const hiredCandidates = allCandidates.filter(c => c.status === "مقبول");
+    const avgDaysToHire = hiredCandidates.length > 0
+      ? Math.round(hiredCandidates.reduce((sum, c) => sum + Math.max(Math.floor((new Date(c.updated_at).getTime() - new Date(c.created_at).getTime()) / 86400000), 1), 0) / hiredCandidates.length)
+      : 14;
+
+    const estimatedCostPerHire = 2500;
+    const totalHiringCost = hiredCandidates.length * estimatedCostPerHire;
+
+    let dateRangeText = "";
+    if (dateRange.from && dateRange.to) {
+      dateRangeText = `${new Date(dateRange.from).toLocaleDateString(locale === "en" ? "en-US" : "ar-SA")} - ${new Date(dateRange.to).toLocaleDateString(locale === "en" ? "en-US" : "ar-SA")}`;
+    } else if (dateRange.from) {
+      dateRangeText = `من ${new Date(dateRange.from).toLocaleDateString(locale === "en" ? "en-US" : "ar-SA")}`;
+    }
+
+    return {
+      companyName: activeCompany?.name || (locale === "en" ? "TawzeefX Platform" : "منصة توظيف إكس"),
+      dateRangeText,
+      activeCompany,
+      branchesData: branchesComparisonData,
+      allCandidates,
+      allJobs,
+      allInterviews,
+      allOffers,
+      funnelData,
+      departmentData,
+      sourceData,
+      qualityRadarData,
+      kpis: {
+        totalJobs,
+        activeJobs,
+        totalCandidates,
+        shortlistedCandidates,
+        totalInterviews,
+        completedInterviews,
+        totalOffers,
+        acceptedOffers,
+        rejectedOffers,
+        acceptanceRate,
+        avgDaysToHire,
+        estimatedCostPerHire,
+        totalHiringCost,
+      },
+    };
+  }, [
+    jobs,
+    allCandidates,
+    allInterviews,
+    allOffers,
+    activeCompany,
+    branchesComparisonData,
+    funnelData,
+    departmentData,
+    sourceData,
+    qualityRadarData,
+    dateRange,
+    locale,
+  ]);
 
   if (loadingCand || loadingJobs) {
     return (
@@ -617,14 +690,29 @@ export default function Reports() {
               <h1 className="text-2xl lg:text-3xl font-black text-foreground">{t("reports.title")}</h1>
               <p className="text-muted-foreground text-xs mt-0.5">{t("reports.subtitle")}</p>
             </div>
-            <div className="flex gap-2 flex-wrap">
-              <Button onClick={handleExportPDF} disabled={exporting} variant="outline" className="gap-2 rounded-md3-xl border-md-outline-variant h-10 px-4 text-xs font-bold">
-                {exporting ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <FileDown className="w-4 h-4 text-primary" />}
-                {exporting ? t("reports.exporting") : t("reports.exportPDF")}
+            <div className="flex gap-2 flex-wrap items-center">
+              <Button
+                onClick={() => setReviewModalOpen(true)}
+                className="gap-2 rounded-md3-xl bg-md-primary text-md-on-primary hover:bg-md-primary/90 h-10 px-4 text-xs font-bold shadow-md hover:shadow-lg transition-all"
+              >
+                <Printer className="w-4 h-4 text-emerald-300" />
+                <span>{locale === "en" ? "Review & Print Reports" : "مراجعة وطباعة التقارير 🖨️"}</span>
               </Button>
-              <Button onClick={handleExportExcel} variant="outline" className="gap-2 rounded-md3-xl border-md-outline-variant h-10 px-4 text-xs font-bold">
+              <Button
+                onClick={() => setReviewModalOpen(true)}
+                variant="outline"
+                className="gap-2 rounded-md3-xl border-md-outline-variant h-10 px-4 text-xs font-bold"
+              >
+                <FileDown className="w-4 h-4 text-primary" />
+                <span>{locale === "en" ? "Export PDF" : "تصدير PDF 📄"}</span>
+              </Button>
+              <Button
+                onClick={handleExportExcel}
+                variant="outline"
+                className="gap-2 rounded-md3-xl border-md-outline-variant h-10 px-4 text-xs font-bold"
+              >
                 <Download className="w-4 h-4 text-primary" />
-                {t("reports.exportExcel")}
+                <span>{t("reports.exportExcel")}</span>
               </Button>
             </div>
           </div>
@@ -1504,7 +1592,19 @@ export default function Reports() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* ==================================================================== */}
+        {/* REPORT REVIEW & PRINT MODAL */}
+        {/* ==================================================================== */}
+        <ReportReviewModal
+          open={reviewModalOpen}
+          onOpenChange={setReviewModalOpen}
+          reportData={reportDocumentData}
+          locale={locale}
+          onExportExcel={handleExportExcel}
+        />
       </div>
     </DashboardLayout>
   );
 }
+
