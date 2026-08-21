@@ -71,47 +71,68 @@ export interface RealtimePayload {
   };
 }
 
-export function useJobs() {
+export function getActiveCompanyId(): string | null {
+  try {
+    return localStorage.getItem("tx_active_company_id");
+  } catch {
+    return null;
+  }
+}
+
+export async function resolveTenantCompanyScope(userId: string | undefined, specificCompanyId?: string | null): Promise<string[]> {
+  const activeId = specificCompanyId !== undefined ? specificCompanyId : getActiveCompanyId();
+  if (activeId) {
+    try {
+      const { data: branches } = await supabase
+        .from("companies" as any)
+        .select("id")
+        .eq("parent_company_id", activeId);
+      const branchIds = (branches || []).map((b: any) => b.id);
+      return [activeId, ...branchIds];
+    } catch {
+      return [activeId];
+    }
+  }
+
+  if (userId) {
+    try {
+      const { data: members } = await supabase
+        .from("company_members")
+        .select("company_id")
+        .eq("user_id", userId);
+      if (members && members.length > 0) {
+        return [members[0].company_id].filter(Boolean);
+      }
+    } catch {}
+  }
+
+  return [];
+}
+
+export function useJobs(specificCompanyId?: string | null) {
   const { user } = useAuth();
+  const activeCompanyId = specificCompanyId !== undefined ? specificCompanyId : getActiveCompanyId();
 
   return useQuery({
-    queryKey: ["jobs", user?.id],
+    queryKey: ["jobs", user?.id, activeCompanyId],
     queryFn: async () => {
-      // 1. Fetch user's companies to enforce multi-tenant isolation
-      let userCompanyIds: string[] = [];
-      if (user?.id) {
-        try {
-          const { data: members } = await supabase
-            .from("company_members")
-            .select("company_id")
-            .eq("user_id", user.id);
-          if (members && members.length > 0) {
-            userCompanyIds = members.map(m => m.company_id).filter(Boolean);
-          }
-        } catch (e) {
-          console.warn("Could not fetch user company memberships:", e);
-        }
-      }
+      const scopedCompanyIds = await resolveTenantCompanyScope(user?.id, activeCompanyId);
 
-      // 2. Query jobs table
-      const { data, error } = await supabase
+      const query = supabase
         .from("jobs")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-
-      // 3. Strict Multi-Tenant Isolation Filter:
-      // A job belongs to the current user/company ONLY IF:
-      // - The job was created by the user (user_id === user.id)
-      // - OR the job's company_id matches one of the user's company IDs
-      if (userCompanyIds.length > 0) {
-        return (data || []).filter(j =>
-          j.user_id === user?.id || (j.company_id && userCompanyIds.includes(j.company_id))
-        );
+      if (scopedCompanyIds.length > 0) {
+        query.in("company_id", scopedCompanyIds);
+      } else if (user?.id) {
+        query.eq("user_id", user.id);
       }
 
-      return (data || []).filter(j => j.user_id === user?.id || j.company_id === null);
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return (data || []) as JobRow[];
     },
     enabled: !!user,
     staleTime: 2 * 60 * 1000,
@@ -136,19 +157,21 @@ export function useAddJob() {
       experience?: string;
       approvalChain?: string;
     }) => {
-      // Fetch user's primary company_id to attach to job
-      let companyId: string | null = null;
-      try {
-        const { data: memberData } = await supabase
-          .from("company_members")
-          .select("company_id")
-          .eq("user_id", user!.id)
-          .maybeSingle();
-        if (memberData?.company_id) {
-          companyId = memberData.company_id;
+      // Fetch active company_id to attach to job
+      let companyId: string | null = (job as any).company_id || getActiveCompanyId();
+      if (!companyId && user?.id) {
+        try {
+          const { data: memberData } = await supabase
+            .from("company_members")
+            .select("company_id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (memberData?.company_id) {
+            companyId = memberData.company_id;
+          }
+        } catch (e) {
+          console.warn("Could not fetch company_id for job creation:", e);
         }
-      } catch (e) {
-        console.warn("Could not fetch company_id for job creation:", e);
       }
 
       const payload: JobPayload = {
@@ -277,65 +300,77 @@ export function useUpdateJob() {
   });
 }
 
-export function useCandidates() {
+export function useCandidates(specificCompanyId?: string | null) {
   const { user } = useAuth();
+  const activeCompanyId = specificCompanyId !== undefined ? specificCompanyId : getActiveCompanyId();
 
   return useQuery({
-    queryKey: ["candidates", user?.id],
+    queryKey: ["candidates", user?.id, activeCompanyId],
     queryFn: async () => {
-      // 1. Repair candidate ownership for user's jobs where user_id = null
-      if (user?.id) {
-        try {
-          const { data: ownJobs } = await supabase.from("jobs").select("id").eq("user_id", user.id);
-          const ownJobIds = (ownJobs || []).map(j => j.id);
-          if (ownJobIds.length > 0) {
-            await supabase
-              .from("candidates")
-              .update({ user_id: user.id } as any)
-              .in("job_id", ownJobIds)
-              .is("user_id", null);
-          }
-        } catch (repairErr) {
-          console.warn("Candidate ownership repair warning:", repairErr);
-        }
+      // 1. Resolve active tenant company IDs
+      const scopedCompanyIds = await resolveTenantCompanyScope(user?.id, activeCompanyId);
+
+      // 2. Fetch scoped jobs for this tenant
+      let scopedJobIds: string[] = [];
+      if (scopedCompanyIds.length > 0) {
+        const { data: scopeJobs } = await supabase
+          .from("jobs")
+          .select("id")
+          .in("company_id", scopedCompanyIds);
+        scopedJobIds = (scopeJobs || []).map((j: any) => j.id);
+      } else if (user?.id) {
+        const { data: ownJobs } = await supabase
+          .from("jobs")
+          .select("id")
+          .eq("user_id", user.id);
+        scopedJobIds = (ownJobs || []).map((j: any) => j.id);
       }
 
-      // 2. Fetch candidates table with fail-safe fallback
-      let candidatesData: CandidateRow[] | null = null;
+      // 3. Fetch candidates table strictly scoped to this tenant
+      let candidatesData: CandidateRow[] = [];
       try {
-        const { data, error: candError } = await supabase
+        let candQuery = supabase
           .from("candidates")
           .select("*, candidate_scorecards(rating)")
           .order("created_at", { ascending: false });
-        if (candError) throw candError;
-        candidatesData = data;
+
+        if (scopedCompanyIds.length > 0) {
+          if (scopedJobIds.length > 0) {
+            candQuery = candQuery.or(`company_id.in.(${scopedCompanyIds.join(",")}),job_id.in.(${scopedJobIds.join(",")})`);
+          } else {
+            candQuery = candQuery.in("company_id", scopedCompanyIds);
+          }
+        } else if (scopedJobIds.length > 0) {
+          candQuery = candQuery.in("job_id", scopedJobIds);
+        } else if (user?.id) {
+          candQuery = candQuery.eq("user_id", user.id);
+        }
+
+        const { data, error: candError } = await candQuery;
+        if (!candError && data) {
+          candidatesData = data as CandidateRow[];
+        }
       } catch (err) {
-        console.warn("Failed candidate scorecards join query, falling back to plain candidates select:", err);
-        const { data } = await supabase
-          .from("candidates")
-          .select("*")
-          .order("created_at", { ascending: false });
-        candidatesData = data || [];
+        console.warn("Failed candidate query:", err);
       }
 
-      // 3. Fetch applications table to ensure no applied candidate is missed
-      let appsData: ApplicationRow[] | null = null;
-      try {
-        const { data } = await supabase
-          .from("applications")
-          .select("*, jobs(title)")
-          .order("created_at", { ascending: false });
-        appsData = data;
-      } catch (e) {
-        const { data } = await supabase
-          .from("applications")
-          .select("*")
-          .order("created_at", { ascending: false });
-        appsData = data;
+      // 4. Fetch applications table strictly scoped to this tenant's jobs
+      let appsData: ApplicationRow[] = [];
+      if (scopedJobIds.length > 0) {
+        try {
+          const { data } = await supabase
+            .from("applications")
+            .select("*, jobs(title)")
+            .in("job_id", scopedJobIds)
+            .order("created_at", { ascending: false });
+          if (data) appsData = data as ApplicationRow[];
+        } catch (e) {
+          console.warn("Error fetching applications for tenant jobs:", e);
+        }
       }
 
       if (!appsData || appsData.length === 0) {
-        return candidatesData || [];
+        return candidatesData;
       }
 
       const existingCandKeys = new Set((candidatesData || []).map(c => `${(c.email || "").toLowerCase()}_${c.job_id}`));
@@ -347,10 +382,10 @@ export function useCandidates() {
       });
 
       if (missingApps.length === 0) {
-        return candidatesData || [];
+        return candidatesData;
       }
 
-      // Convert missing applications into Candidate format for instant HR visibility
+      // Convert missing applications for this tenant
       const convertedApps = missingApps.map(a => ({
         id: a.id,
         name: a.name,
@@ -358,6 +393,7 @@ export function useCandidates() {
         phone: a.phone,
         job_id: a.job_id,
         user_id: user?.id || null,
+        company_id: scopedCompanyIds[0] || null,
         role: a.jobs?.title || a.specialty || "متقدم جديد",
         stage: "تقديم الطلب",
         status: a.status || "جديد",
@@ -371,68 +407,11 @@ export function useCandidates() {
         candidate_scorecards: [],
       }));
 
-      // Background persistence via upsert (prevents unique constraint crashes)
-      if (user?.id && missingApps.length > 0) {
-        (async () => {
-          try {
-            const rowsToUpsert = missingApps.map(a => ({
-              id: a.id,
-              name: a.name,
-              email: a.email,
-              phone: a.phone,
-              job_id: a.job_id,
-              user_id: user.id,
-              company_id: a.company_id || null,
-              role: a.jobs?.title || a.specialty || "متقدم جديد",
-              stage: "تقديم الطلب",
-              status: a.status || "جديد",
-              experience: a.experience || null,
-              resume_url: a.resume_url || null,
-              skills: a.skills || null,
-              summary: a.cover_letter || null,
-              source: "رابط التقديم المباشر",
-              tracking_code: a.tracking_code || null,
-            }));
-            await supabase.from("candidates").upsert(rowsToUpsert as CandidateRow[], { onConflict: "id" });
-          } catch (e) {
-            console.warn("Background auto-upsert candidates warning:", e);
-          }
-        })();
-      }
-
-      const allMerged = [...(candidatesData || []), ...convertedApps];
-
-      // Strict Multi-Tenant Candidate & CV Isolation:
-      // A candidate belongs to the current user/company ONLY IF:
-      // - The candidate is owned by the user (user_id === user.id)
-      // - OR the candidate's company_id belongs to the user's company memberships
-      // - OR the candidate's job_id belongs to one of the user's created jobs
-      const ownJobs = user?.id ? await supabase.from("jobs").select("id").eq("user_id", user.id).then(r => r.data || []) : [];
-      const ownJobIds = ownJobs.map((j: any) => j.id);
-
-      let userCompanyIds: string[] = [];
-      if (user?.id) {
-        try {
-          const { data: members } = await supabase.from("company_members").select("company_id").eq("user_id", user.id);
-          if (members) userCompanyIds = members.map((m: any) => m.company_id).filter(Boolean);
-        } catch (e) {
-          console.warn("Could not fetch user company memberships for candidate isolation:", e);
-        }
-      }
-
-      if (userCompanyIds.length > 0) {
-        return allMerged.filter(c =>
-          c.user_id === user?.id ||
-          (c.company_id && userCompanyIds.includes(c.company_id)) ||
-          ownJobIds.includes(c.job_id)
-        );
-      }
-
-      return allMerged.filter(c => c.user_id === user?.id || ownJobIds.includes(c.job_id));
+      return [...candidatesData, ...convertedApps];
     },
     enabled: !!user,
-    staleTime: 5 * 1000,
-    gcTime: 5 * 60 * 1000,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
 }
 
@@ -519,18 +498,38 @@ export function usePaginatedCandidates(page = 0, pageSize = 50) {
   });
 }
 
-export function useInterviews() {
+export function useInterviews(specificCompanyId?: string | null) {
   const { user } = useAuth();
+  const activeCompanyId = specificCompanyId !== undefined ? specificCompanyId : getActiveCompanyId();
 
   return useQuery({
-    queryKey: ["interviews", user?.id],
+    queryKey: ["interviews", user?.id, activeCompanyId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const scopedCompanyIds = await resolveTenantCompanyScope(user?.id, activeCompanyId);
+
+      let scopedCandidateIds: string[] = [];
+      if (scopedCompanyIds.length > 0) {
+        const { data: cands } = await supabase
+          .from("candidates")
+          .select("id")
+          .in("company_id", scopedCompanyIds);
+        scopedCandidateIds = (cands || []).map((c: any) => c.id);
+      }
+
+      const intQuery = supabase
         .from("interviews")
         .select("*")
         .order("date", { ascending: true });
+
+      if (scopedCandidateIds.length > 0) {
+        intQuery.or(`user_id.eq.${user?.id},candidate_id.in.(${scopedCandidateIds.join(",")})`);
+      } else if (user?.id) {
+        intQuery.eq("user_id", user.id);
+      }
+
+      const { data, error } = await intQuery;
       if (error) throw error;
-      return data;
+      return data || [];
     },
     enabled: !!user,
     staleTime: 2 * 60 * 1000,
@@ -736,20 +735,35 @@ export function useNotifications() {
   });
 }
 
-export function useDashboardStats() {
+export function useDashboardStats(specificCompanyId?: string | null) {
   const { user } = useAuth();
+  const activeCompanyId = specificCompanyId !== undefined ? specificCompanyId : getActiveCompanyId();
 
   return useQuery({
-    queryKey: ["dashboard-stats", user?.id],
+    queryKey: ["dashboard-stats", user?.id, activeCompanyId],
     queryFn: async () => {
-      const [jobsRes, candidatesRes, interviewsRes] = await Promise.all([
-        supabase.from("jobs").select("id, status", { count: "exact" }),
-        supabase.from("candidates").select("id, status, created_at", { count: "exact" }),
-        supabase.from("interviews").select("id, status", { count: "exact" }),
+      const scopedCompanyIds = await resolveTenantCompanyScope(user?.id, activeCompanyId);
+
+      const jobsQuery = supabase.from("jobs").select("id, status");
+      const candidatesQuery = supabase.from("candidates").select("id, status, created_at");
+      const interviewsQuery = supabase.from("interviews").select("id, status");
+
+      if (scopedCompanyIds.length > 0) {
+        jobsQuery.in("company_id", scopedCompanyIds);
+        candidatesQuery.in("company_id", scopedCompanyIds);
+      } else if (user?.id) {
+        jobsQuery.eq("user_id", user.id);
+        candidatesQuery.eq("user_id", user.id);
+        interviewsQuery.eq("user_id", user.id);
+      }
+
+      const [jobsRes, candidatesRes] = await Promise.all([
+        jobsQuery,
+        candidatesQuery,
       ]);
       
       const activeJobs = jobsRes.data?.filter(j => j.status === "نشطة").length || 0;
-      const totalCandidates = candidatesRes.count || 0;
+      const totalCandidates = candidatesRes.data?.length || 0;
       const hired = candidatesRes.data?.filter(c => c.status === "مقبول").length || 0;
       
       return { activeJobs, totalCandidates, hired };
@@ -759,3 +773,4 @@ export function useDashboardStats() {
     gcTime: 15 * 60 * 1000,
   });
 }
+

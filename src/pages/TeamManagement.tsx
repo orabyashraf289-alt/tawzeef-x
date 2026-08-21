@@ -3,7 +3,8 @@ import { useAllUserRoles, useUpdateUserRole, useDeleteTeamMember, useInvitations
 import { useAllPermissions, type PermissionRow } from "@/hooks/useScreenPermissions";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCandidates, useJobs, useInterviews } from "@/hooks/useJobs";
-import { useMyCompanies, useCompanyBranches, useCompanyMembers } from "@/hooks/useCompanies";
+import { useCompanyMembers } from "@/hooks/useCompanies";
+import { useCompanyContext } from "@/contexts/CompanyContext";
 import { useCreateCompanyInvitation } from "@/hooks/useCompanyInvitations";
 import { motion } from "framer-motion";
 import {
@@ -111,18 +112,12 @@ export default function TeamManagement() {
   const sendInvitation = useSendInvitation();
   const createCompanyInvitation = useCreateCompanyInvitation();
   const { data: activityLog } = useActivityLog();
-  const { data: candidates } = useCandidates();
-  const { data: jobs } = useJobs();
-  const { data: interviews } = useInterviews();
-  const { data: myCompanies } = useMyCompanies();
-
-  const activeCompany = useMemo(() => {
-    if (!myCompanies || myCompanies.length === 0) return null;
-    return myCompanies.find(c => !c.parent_company_id) || myCompanies[0];
-  }, [myCompanies]);
+  const { activeCompany, companyBranches } = useCompanyContext();
+  const { data: candidates } = useCandidates(activeCompany?.id);
+  const { data: jobs } = useJobs(activeCompany?.id);
+  const { data: interviews } = useInterviews(activeCompany?.id);
 
   const { data: companyMembers = [] } = useCompanyMembers(activeCompany?.id);
-  const { data: companyBranches = [] } = useCompanyBranches(activeCompany?.id);
 
   // Strict Multi-Tenant User Isolation: Only include users who belong to the active company
   const companyUserIds = useMemo(() => {

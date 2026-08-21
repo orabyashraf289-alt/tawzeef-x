@@ -10,7 +10,8 @@ import { motion } from "framer-motion";
 import { useCandidates, useJobs, useInterviews } from "@/hooks/useJobs";
 import { useActiveStages } from "@/hooks/usePipelineStages";
 import { useOffers } from "@/hooks/useOffers";
-import { useMyCompanies, useCompanyBranches } from "@/hooks/useCompanies";
+import { useCompanyBranches } from "@/hooks/useCompanies";
+import { useCompanyContext } from "@/contexts/CompanyContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -40,23 +41,17 @@ import { ReportsSkeleton } from "@/components/Skeletons";
 
 export default function Reports() {
   const { toast } = useToast();
-  const { data: candidates, isLoading: loadingCand } = useCandidates();
-  const { data: jobs, isLoading: loadingJobs } = useJobs();
-  const { data: interviews } = useInterviews();
-  const { data: offers } = useOffers();
+  const { activeCompany, companyBranches: branches } = useCompanyContext();
+  const { data: candidates, isLoading: loadingCand } = useCandidates(activeCompany?.id);
+  const { data: jobs, isLoading: loadingJobs } = useJobs(activeCompany?.id);
+  const { data: interviews } = useInterviews(activeCompany?.id);
+  const { data: offers } = useOffers(activeCompany?.id);
   const dynamicStages = useActiveStages();
 
   const reportRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
   const { t, locale, dir } = useI18n();
-
-  const { data: myCompanies } = useMyCompanies();
-  const activeCompany = useMemo(() => {
-    return myCompanies?.find(c => !c.parent_company_id) || myCompanies?.[0];
-  }, [myCompanies]);
-
-  const { data: branches = [] } = useCompanyBranches(activeCompany?.id);
 
   const branchesComparisonData = useMemo(() => {
     if (!activeCompany) return [];

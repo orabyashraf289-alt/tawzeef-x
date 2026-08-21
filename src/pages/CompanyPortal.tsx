@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Building2, Briefcase, Users, FileText, Mail, Loader2, GitFork, Plus, MapPin, Phone, Pencil, Camera, Info, Sparkles, Trash2, AlertTriangle } from "lucide-react";
 import { useMyCompanies, useCompanyStats, useMyCompanyRole, useCompanyBranches, useCreateCompanyBranch, useUpdateCompany, useDeleteCompany, prepareCompanyPayload } from "@/hooks/useCompanies";
+import { useCompanyContext } from "@/contexts/CompanyContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMyPendingInvitations, useAcceptInvitation, useDeclineInvitation } from "@/hooks/useCompanyInvitations";
 import CompanyInvitationsPanel from "@/components/CompanyInvitationsPanel";
@@ -118,6 +119,8 @@ export default function CompanyPortal() {
 }
 
 function CompanyBlock({ companyId, name, role }: { companyId: string; name: string; role: string }) {
+  const { activeCompanyId, setActiveCompanyId } = useCompanyContext();
+  const isActive = activeCompanyId === companyId;
   const { data: stats } = useCompanyStats(companyId);
   const { data: myRole } = useMyCompanyRole(companyId);
   const { user } = useAuth();
@@ -151,30 +154,47 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
     setDeletingBranchTarget(branch);
     setCheckingBranchData(true);
     setBranchLinkedInfo(null);
-    try {
-      const sb = supabase as any;
-      const [jobs, candidates, offers, interviews] = await Promise.all([
-        sb.from("jobs").select("id", { count: "exact", head: true }).eq("company_id", branch.id),
-        sb.from("candidates").select("id", { count: "exact", head: true }).eq("company_id", branch.id),
-        sb.from("job_offers").select("id", { count: "exact", head: true }).eq("company_id", branch.id),
-        sb.from("interviews").select("id", { count: "exact", head: true }).eq("company_id", branch.id),
-      ]);
-      const jobsCount = jobs.count || 0;
-      const candidatesCount = candidates.count || 0;
-      const offersCount = offers.count || 0;
-      const interviewsCount = interviews.count || 0;
-      const hasData = jobsCount > 0 || candidatesCount > 0 || offersCount > 0 || interviewsCount > 0;
 
+    try {
+      // 1. Check jobs count
+      const { data: compJobs } = await supabase.from("jobs").select("id").eq("company_id", branch.id);
+      const jobsCount = compJobs?.length || 0;
+      const jobIds = (compJobs || []).map(j => j.id);
+
+      // 2. Check candidates count
+      let candidatesCount = 0;
+      if (jobIds.length > 0) {
+        const { count } = await supabase.from("candidates").select("id", { count: "exact" }).or(`company_id.eq.${branch.id},job_id.in.(${jobIds.join(",")})`);
+        candidatesCount = count || 0;
+      } else {
+        const { count } = await supabase.from("candidates").select("id", { count: "exact" }).eq("company_id", branch.id);
+        candidatesCount = count || 0;
+      }
+
+      // 3. Check offers count
+      let offersCount = 0;
+      if (jobIds.length > 0) {
+        const { count } = await supabase.from("job_offers").select("id", { count: "exact" }).in("job_id", jobIds);
+        offersCount = count || 0;
+      }
+
+      // 4. Check interviews count
+      let interviewsCount = 0;
+      if (jobIds.length > 0) {
+        const { count } = await supabase.from("interviews").select("id", { count: "exact" }).in("job_id", jobIds as any);
+        interviewsCount = count || 0;
+      }
+
+      const hasData = jobsCount > 0 || candidatesCount > 0 || offersCount > 0 || interviewsCount > 0;
       setBranchLinkedInfo({
         hasData,
         jobsCount,
         candidatesCount,
         offersCount,
-        interviewsCount,
+        interviewsCount
       });
-    } catch (err: any) {
-      console.error("Error checking branch data:", err);
-      toast({ title: "خطأ في التحقق من بيانات الفرع", description: err.message, variant: "destructive" });
+    } catch (e) {
+      console.warn("Safety check failed, allowing prompt:", e);
     } finally {
       setCheckingBranchData(false);
     }
@@ -258,7 +278,7 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
       console.error("[Batch Branch Import] Error:", err);
       toast({
         title: "خطأ في استيراد الفروع",
-        description: err.message,
+        description: err.message || "حدث خطأ أثناء حفظ الفروع",
         variant: "destructive"
       });
     } finally {
@@ -270,21 +290,25 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
     e.preventDefault();
     if (!branchName.trim()) return;
 
-    await createBranch.mutateAsync({
-      name: branchName,
-      city: branchCity || null,
-      contact_email: branchEmail || null,
-      contact_phone: branchPhone || null,
-      notes: branchNotes || null,
-      parent_company_id: companyId
-    });
+    try {
+      await createBranch.mutateAsync({
+        name: branchName,
+        city: branchCity,
+        contact_email: branchEmail,
+        contact_phone: branchPhone,
+        notes: branchNotes,
+        parent_company_id: companyId,
+      });
 
-    setBranchName("");
-    setBranchCity("");
-    setBranchEmail("");
-    setBranchPhone("");
-    setBranchNotes("");
-    setOpen(false);
+      setOpen(false);
+      setBranchName("");
+      setBranchCity("");
+      setBranchEmail("");
+      setBranchPhone("");
+      setBranchNotes("");
+    } catch (err) {
+      // Handled in mutation
+    }
   };
 
   const cards = useMemo(
@@ -304,7 +328,14 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
             <Building2 className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h2 className="font-bold text-lg">{name}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-bold text-lg">{name}</h2>
+              {isActive && (
+                <Badge className="bg-emerald-600/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 text-[10px] px-2 py-0.5 font-bold">
+                  ✓ بيئة العمل النشطة
+                </Badge>
+              )}
+            </div>
             <Badge variant="outline" className="text-[10px] mt-1">
               {role === "owner" ? "مالك" : role === "hr" ? "HR" : "مشاهد"}
             </Badge>
@@ -312,6 +343,20 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
         </div>
 
         <div className="flex items-center gap-2">
+          {!isActive && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs font-bold border-emerald-500/40 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+              onClick={() => {
+                setActiveCompanyId(companyId);
+                toast({ title: `تم التبديل إلى ${name} كبيئة العمل النشطة 🏢` });
+              }}
+            >
+              التبديل إلى هذه الشركة
+            </Button>
+          )}
+
           {(myRole === "owner" || myRole === "hr") && (
             <Link to="/settings?tab=company">
               <Button variant="outline" size="sm" className="gap-1.5 text-xs">

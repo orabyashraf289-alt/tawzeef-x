@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { getPublicBaseUrl } from "@/lib/getPublicUrl";
 import { logAuditEvent } from "@/hooks/useAuditLog";
+import { getActiveCompanyId, resolveTenantCompanyScope } from "@/hooks/useJobs";
 
 export interface JobOfferWithCandidate extends JobOffer {
   candidates: {
@@ -70,35 +71,42 @@ async function triggerOfferAutomationEvent(params: {
   });
 }
 
-export function useOffers() {
+export function useOffers(specificCompanyId?: string | null) {
   const { user } = useAuth();
+  const activeCompanyId = specificCompanyId !== undefined ? specificCompanyId : getActiveCompanyId();
 
   return useQuery({
-    queryKey: ["offers", user?.id],
+    queryKey: ["offers", user?.id, activeCompanyId],
     staleTime: 3 * 60 * 1000,
     queryFn: async () => {
-      // 1. Fetch user's company memberships to enforce multi-tenant isolation
-      let userCompanyIds: string[] = [];
+      const scopedCompanyIds = await resolveTenantCompanyScope(user?.id, activeCompanyId);
+
       let companyUserIds: string[] = [];
-      if (user?.id) {
+      if (scopedCompanyIds.length > 0) {
         try {
-          const { data: members } = await supabase
+          const { data: compMems } = await supabase
             .from("company_members")
-            .select("company_id")
-            .eq("user_id", user.id);
-          if (members && members.length > 0) {
-            userCompanyIds = members.map((m: any) => m.company_id).filter(Boolean);
-            const { data: compMems } = await supabase
-              .from("company_members")
-              .select("user_id")
-              .in("company_id", userCompanyIds);
-            if (compMems) {
-              companyUserIds = compMems.map((m: any) => m.user_id).filter(Boolean);
-            }
+            .select("user_id")
+            .in("company_id", scopedCompanyIds);
+          if (compMems) {
+            companyUserIds = compMems.map((m: any) => m.user_id).filter(Boolean);
           }
         } catch (e) {
           console.warn("Could not fetch user company memberships for offers:", e);
         }
+      }
+
+      let scopedCandidateIds: string[] = [];
+      if (scopedCompanyIds.length > 0) {
+        try {
+          const { data: cands } = await supabase
+            .from("candidates")
+            .select("id")
+            .in("company_id", scopedCompanyIds);
+          if (cands) {
+            scopedCandidateIds = cands.map((c: any) => c.id);
+          }
+        } catch (e) {}
       }
 
       const { data, error } = await supabase
@@ -107,10 +115,10 @@ export function useOffers() {
         .order("created_at", { ascending: false });
       if (error) throw error;
 
-      // 2. Strict Multi-Tenant Isolation Filter
-      if (companyUserIds.length > 0) {
+      if (companyUserIds.length > 0 || scopedCandidateIds.length > 0) {
         return (data || []).filter((o: any) =>
-          o.user_id === user?.id || companyUserIds.includes(o.user_id)
+          (companyUserIds.length > 0 && companyUserIds.includes(o.user_id)) ||
+          (scopedCandidateIds.length > 0 && scopedCandidateIds.includes(o.candidate_id))
         ) as JobOffer[];
       }
 

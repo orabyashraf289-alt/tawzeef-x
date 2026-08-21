@@ -21,6 +21,7 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useBrandSettings } from "@/hooks/useBrandSettings";
 import BottomNav from "@/components/BottomNav";
 import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
+import CompanySwitcher from "@/components/CompanySwitcher";
 import { prefetchRoute, recordNavigation } from "@/lib/routePrefetch";
 
 const tourIdMap: Record<string, string> = {
@@ -454,15 +455,20 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <main className={cn("flex-1 min-w-0 flex flex-col", dir === "rtl" ? "lg:mr-64" : "lg:ml-64")}>
         {/* Desktop Top App Bar */}
         <header className="sticky top-0 z-30 hidden lg:flex items-center justify-between h-16 px-6 bg-md-surface/85 backdrop-blur-xl border-b border-md-outline-variant/60">
-          {/* Quick Search Pill (Command Palette Trigger) */}
-          <button
-            onClick={() => setCmdOpen(true)}
-            className="flex items-center gap-3 bg-md-surface-container hover:bg-md-surface-container-high border border-md-outline-variant text-md-on-surface-variant px-4 py-2 rounded-md3-full text-xs font-medium w-80 transition-all shadow-sm group"
-          >
-            <Search className="w-4 h-4 text-md-primary group-hover:scale-110 transition-transform" />
-            <span className="flex-1 text-right">بحث سريع بالمرشحين والوظائف...</span>
-            <kbd className="bg-md-surface px-1.5 py-0.5 rounded text-[10px] font-mono border border-md-outline-variant">⌘K</kbd>
-          </button>
+          {/* Quick Search Pill (Command Palette Trigger) + Company Switcher */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setCmdOpen(true)}
+              className="flex items-center gap-3 bg-md-surface-container hover:bg-md-surface-container-high border border-md-outline-variant text-md-on-surface-variant px-4 py-2 rounded-md3-full text-xs font-medium w-80 transition-all shadow-sm group"
+            >
+              <Search className="w-4 h-4 text-md-primary group-hover:scale-110 transition-transform" />
+              <span className="flex-1 text-right">بحث سريع بالمرشحين والوظائف...</span>
+              <kbd className="bg-md-surface px-1.5 py-0.5 rounded text-[10px] font-mono border border-md-outline-variant">⌘K</kbd>
+            </button>
+
+            {/* Active Company / Tenant Workspace Switcher */}
+            <CompanySwitcher />
+          </div>
 
           {/* Right Action Icons & Status */}
           <div className="flex items-center gap-3">
@@ -496,9 +502,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         {/* Mobile Header */}
         <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between h-14 px-4 bg-md-surface/90 backdrop-blur-xl border-b border-md-outline-variant">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <img src={tawzeefLogo} alt="Tawzeef-X" className="w-7 h-7 object-contain" />
-            <span className="text-sm font-black text-md-on-surface">Tawzeef-X</span>
+            <CompanySwitcher />
           </div>
           <div className="flex items-center gap-1.5">
             <button onClick={() => setCmdOpen(true)} className="p-2 rounded-md3-md text-md-on-surface hover:bg-md-surface-variant">
