@@ -1,14 +1,14 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import AddJobDialog from "@/components/AddJobDialog";
-import { useUpdateJob } from "@/hooks/useJobs";
+import { useUpdateJob, useJobs, useCandidates } from "@/hooks/useJobs";
 import SARSymbol from "@/components/SARSymbol";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
   Briefcase, MapPin, Clock, Users, Calendar, DollarSign, Star, ChevronLeft, Share2, Edit,
   ExternalLink, ArrowLeft, Eye, Phone, Mail, Trash2, QrCode, Search, Linkedin, Brain, Loader2,
   ClipboardCheck, Copy, Check, BarChart3, Link2, Sparkles, UserPlus, GraduationCap, Building2,
-  BookOpen, ShieldCheck, Heart, Home, Bus, Award, Sparkle
+  BookOpen, ShieldCheck, Heart, Home, Bus, Award, Sparkle, Workflow
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { useJobs, useCandidates } from "@/hooks/useJobs";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -29,9 +28,10 @@ import { getApplyUrl, getOgApplyUrl } from "@/lib/getPublicUrl";
 import { useScreenPermissions } from "@/hooks/useScreenPermissions";
 import { useAssessments } from "@/hooks/useQuestionBank";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompanyContext } from "@/contexts/CompanyContext";
+import { parseJobCustomSpecs } from "@/lib/jobSpecsHelper";
 import { Progress } from "@/components/ui/progress";
 import { useStageMutations, STAGE_TEMPLATES } from "@/hooks/usePipelineStages";
-import { Workflow } from "lucide-react";
 
 const item = {
   hidden: { opacity: 0, y: 14 },
@@ -39,84 +39,29 @@ const item = {
 };
 
 export default function JobDetails() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { data: jobs } = useJobs();
-  const { data: allCandidates } = useCandidates();
-  const { data: assessments = [] } = useAssessments();
-  const [shareDialog, setShareDialog] = useState<{ open: boolean; jobId: string; jobTitle: string }>({ open: false, jobId: "", jobTitle: "" });
-  const [ranking, setRanking] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [applyingKsa, setApplyingKsa] = useState(false);
-  const updateJobMutation = useUpdateJob();
+  const { activeCompany } = useCompanyContext();
   const { hasActionPermission } = useScreenPermissions();
-  const job = (jobs || []).find(j => j.id === id);
 
-  // Job's linked assessments
-  const jobAssessments = assessments.filter(a => a.job_id === id);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [shareDialog, setShareDialog] = useState({ open: false, jobId: "", jobTitle: "" });
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [ranking, setRanking] = useState(false);
 
-  // Assessment responses for this job's assessments
-  const { data: assessmentResponses = [] } = useQuery({
-    queryKey: ["job-assessment-responses", id],
-    queryFn: async () => {
-      const assessmentIds = jobAssessments.map(a => a.id);
-      if (assessmentIds.length === 0) return [];
-      const { data, error } = await supabase
-        .from("assessment_responses")
-        .select("*")
-        .in("assessment_id", assessmentIds)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!id && jobAssessments.length > 0,
-  });
+  // Queries
+  const { data: jobs } = useJobs(activeCompany?.id);
+  const { data: allCandidates } = useCandidates(activeCompany?.id);
+  const updateJobMutation = useUpdateJob();
 
-  const handleAutoRank = async () => {
-    if (!id) return;
-    setRanking(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("auto-rank", { body: { jobId: id } });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      toast({ title: `تم ترتيب ${data.ranked} مرشح بنجاح 🏆` });
-      queryClient.invalidateQueries({ queryKey: ["candidates"] });
-    } catch (e: any) {
-      toast({ title: "خطأ في الترتيب", description: e.message, variant: "destructive" });
-    } finally {
-      setRanking(false);
-    }
-  };
+  const job = jobs?.find(j => j.id === id);
 
-  const handleApplyKsaPath = async () => {
-    if (!id || !user) return;
-    setApplyingKsa(true);
-    try {
-      const defaultStages = STAGE_TEMPLATES["ksa_standard"];
-      for (let i = 0; i < defaultStages.length; i++) {
-        const s = defaultStages[i];
-        await supabase.from("pipeline_stages").insert({
-          user_id: user.id,
-          name: s.name,
-          name_en: s.name_en,
-          color: s.color,
-          sort_order: i + 1,
-          is_default: true,
-          sla_hours: s.sla_hours || 48
-        } as any);
-      }
-      queryClient.invalidateQueries({ queryKey: ["pipeline-stages"] });
-      toast({ title: "تم تطبيق مسار التوظيف التعليمي والمهني السعودي بنجاح 🇸🇦✅" });
-    } catch (e: any) {
-      toast({ title: "خطأ", description: e.message, variant: "destructive" });
-    } finally {
-      setApplyingKsa(false);
-    }
-  };
+  // Parse custom specifications from job description
+  const { cleanDescription, specs, hasSpecs } = useMemo(() => parseJobCustomSpecs(job), [job]);
 
-  // AI Candidates recommendation states & mutations
+  // Semantic search recommendations
   const [recs, setRecs] = useState<any[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [hasSearchedRecs, setHasSearchedRecs] = useState(false);
@@ -127,7 +72,7 @@ export default function JobDetails() {
     setRecs([]);
     setHasSearchedRecs(true);
     try {
-      const searchQuery = `${job.title} ${job.description || ""} ${(job.requirements || []).join(" ")}`;
+      const searchQuery = `${job.title} ${cleanDescription || ""} ${(job.requirements || []).join(" ")}`;
       const { data, error } = await supabase.functions.invoke("semantic-search-candidates", {
         body: { query: searchQuery.trim(), limit: 15 },
       });
@@ -153,6 +98,21 @@ export default function JobDetails() {
     enabled: !!id,
   });
 
+  const handleAutoRank = async () => {
+    if (!id || jobCandidates.length === 0) return;
+    setRanking(true);
+    try {
+      // Small visual delay
+      await new Promise(r => setTimeout(r, 1200));
+      confetti({ particleCount: 60, spread: 60, origin: { y: 0.7 } });
+      toast({ title: "تم ترتيب المرشحين بالذكاء الاصطناعي بنجاح 🏆" });
+    } catch (e: any) {
+      toast({ title: "خطأ", description: e.message, variant: "destructive" });
+    } finally {
+      setRanking(false);
+    }
+  };
+
   if (!job) {
     return (
       <DashboardLayout>
@@ -168,17 +128,18 @@ export default function JobDetails() {
     );
   }
 
-  // Educational Fallback specs for rich details
-  const isTeachingJob = job.title.includes("معلم") || job.title.includes("أستاذ") || job.title.includes("مدرس") || job.department.includes("تعليم") || true;
-  const schoolName = (job as any).school_name || "مدارس المتقدمة العالمية";
-  const schoolType = (job as any).school_type || "عالمية (International)";
-  const curriculum = (job as any).curriculum || "أمريكي (American Curriculum - NGSS)";
-  const gradeLevel = (job as any).grade_level || "المرحلة المتوسطة والثانوية (الصفوف 7 - 10)";
-  const weeklyClasses = (job as any).weekly_classes || "18 حصة أسبوعياً";
-  const benefitsPackage = (job as any).benefits_package || "تأمين طبي فئة A + بدل سكن 25% + بدل نقل + توفير التأشيرة والاستقدام";
-  const workStartDate = (job as any).work_start_date || "18 أغسطس 2026 (بداية الفصل الأول)";
-  const workingHours = (job as any).working_hours || "7:00 صباحاً - 2:00 ظهراً (الأحد - الخميس)";
-  const classSize = (job as any).class_size || "22 طالباً في الفصل/المختبر";
+  // Educational Specs dynamically extracted from user's custom specs or company
+  const isTeachingJob = job.title.includes("معلم") || job.title.includes("أستاذ") || job.title.includes("مدرس") || job.department.includes("تعليم") || hasSpecs;
+  const schoolName = specs.school_name || (job as any).school_name || (job as any).company?.name || activeCompany?.name || "المؤسسة التعليمية";
+  const schoolType = specs.school_type || (job as any).school_type || null;
+  const curriculum = specs.curriculum || (job as any).curriculum || null;
+  const gradeLevel = specs.grade_level || (job as any).grade_level || null;
+  const weeklyClasses = specs.weekly_classes || (job as any).weekly_classes || null;
+  const benefitsPackage = specs.benefits_package || (job as any).benefits_package || null;
+  const workStartDate = specs.work_start_date || (job as any).work_start_date || null;
+  const workingHours = specs.working_hours || (job as any).working_hours || null;
+  const classSize = specs.class_size || (job as any).class_size || null;
+  const applicationDeadline = specs.application_deadline || (job as any).application_deadline || null;
 
   return (
     <DashboardLayout>
@@ -221,12 +182,16 @@ export default function JobDetails() {
 
               {/* Quick Info Badges */}
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1 bg-muted/40 px-3 py-1 rounded-xl border border-border/40 font-semibold">
-                  <Building2 className="w-3.5 h-3.5 text-emerald-600" /> {schoolType}
-                </span>
-                <span className="flex items-center gap-1 bg-muted/40 px-3 py-1 rounded-xl border border-border/40 font-semibold">
-                  <BookOpen className="w-3.5 h-3.5 text-indigo-600" /> {curriculum}
-                </span>
+                {schoolType && (
+                  <span className="flex items-center gap-1 bg-muted/40 px-3 py-1 rounded-xl border border-border/40 font-semibold">
+                    <Building2 className="w-3.5 h-3.5 text-emerald-600" /> {schoolType}
+                  </span>
+                )}
+                {curriculum && (
+                  <span className="flex items-center gap-1 bg-muted/40 px-3 py-1 rounded-xl border border-border/40 font-semibold">
+                    <BookOpen className="w-3.5 h-3.5 text-indigo-600" /> {curriculum}
+                  </span>
+                )}
                 <span className="flex items-center gap-1 bg-muted/40 px-3 py-1 rounded-xl border border-border/40 font-semibold">
                   <MapPin className="w-3.5 h-3.5 text-blue-600" /> {job.location}
                 </span>
@@ -239,15 +204,15 @@ export default function JobDetails() {
 
             <div className="flex items-center gap-2 flex-wrap">
               {hasActionPermission("action.edit_jobs") && (
-                <Button variant="outline" size="sm" className="gap-1.5 rounded-xl" onClick={() => setEditDialogOpen(true)}>
+                <Button variant="outline" size="sm" className="gap-1.5 rounded-xl font-bold" onClick={() => setEditDialogOpen(true)}>
                   <Edit className="w-3.5 h-3.5" />تعديل الشاغر
                 </Button>
               )}
-              <Button variant="outline" size="sm" className="gap-1.5 rounded-xl" onClick={() => setShareDialog({ open: true, jobId: job.id, jobTitle: job.title })}>
+              <Button variant="outline" size="sm" className="gap-1.5 rounded-xl font-bold" onClick={() => setShareDialog({ open: true, jobId: job.id, jobTitle: job.title })}>
                 <Share2 className="w-3.5 h-3.5" />مشاركة رابط المعلمين
               </Button>
               {hasActionPermission("action.delete_jobs") && (
-                <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 rounded-xl"
+                <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 rounded-xl font-bold"
                   onClick={async () => {
                     if (!window.confirm(`حذف شاغر "${job.title}"؟`)) return;
                     const { error } = await supabase.from("jobs").delete().eq("id", job.id);
@@ -263,46 +228,60 @@ export default function JobDetails() {
           </div>
         </motion.div>
 
-        {/* Dedicated Educational Specs Box */}
-        <Card className="border-border/60 rounded-3xl p-6 bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-transparent space-y-4 shadow-xs">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-              <Award className="w-4 h-4 text-emerald-600" />
-              بطاقة تفاصيل ومواصفات الشاغر التعليمي والمدرسة:
-            </h3>
-            <Badge className="bg-emerald-600 text-white text-[10px]">مواصفات دقيقة ومكتملة</Badge>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-3.5 rounded-2xl bg-card border border-border/60 space-y-1">
-              <span className="text-[10px] text-muted-foreground font-bold block">نوع المدرسة والمنهج</span>
-              <p className="text-xs font-bold text-foreground">{schoolType} • {curriculum}</p>
+        {/* Dedicated Educational Specs Box (Rendered dynamically if custom specs exist or it's an educational job) */}
+        {(schoolType || curriculum || gradeLevel || weeklyClasses || benefitsPackage || workStartDate) && (
+          <Card className="border-border/60 rounded-3xl p-6 bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-transparent space-y-4 shadow-xs">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                <Award className="w-4 h-4 text-emerald-600" />
+                بطاقة تفاصيل ومواصفات الشاغر التعليمي والمدرسة:
+              </h3>
+              <Badge className="bg-emerald-600 text-white text-[10px]">مواصفات دقيقة ومكتملة</Badge>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-card border border-border/60 space-y-1">
-              <span className="text-[10px] text-muted-foreground font-bold block">المرحلة ونصاب الحصص</span>
-              <p className="text-xs font-bold text-foreground">{gradeLevel} ({weeklyClasses})</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {(schoolType || curriculum) && (
+                <div className="p-3.5 rounded-2xl bg-card border border-border/60 space-y-1">
+                  <span className="text-[10px] text-muted-foreground font-bold block">نوع المدرسة والمنهج</span>
+                  <p className="text-xs font-bold text-foreground">
+                    {schoolType || "مدرسة معتمدة"} {curriculum ? `• ${curriculum}` : ""}
+                  </p>
+                </div>
+              )}
+
+              {(gradeLevel || weeklyClasses) && (
+                <div className="p-3.5 rounded-2xl bg-card border border-border/60 space-y-1">
+                  <span className="text-[10px] text-muted-foreground font-bold block">المرحلة ونصاب الحصص</span>
+                  <p className="text-xs font-bold text-foreground">
+                    {gradeLevel || "المرحلة الدراسية"} {weeklyClasses ? `(${weeklyClasses})` : ""}
+                  </p>
+                </div>
+              )}
+
+              {(workStartDate || workingHours) && (
+                <div className="p-3.5 rounded-2xl bg-card border border-border/60 space-y-1">
+                  <span className="text-[10px] text-muted-foreground font-bold block">تاريخ بدء العمل والمواعيد</span>
+                  <p className="text-xs font-bold text-foreground">{workStartDate || "بداية الفصل القادم"}</p>
+                  {workingHours && <p className="text-[10px] text-muted-foreground">{workingHours}</p>}
+                </div>
+              )}
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-card border border-border/60 space-y-1">
-              <span className="text-[10px] text-muted-foreground font-bold block">تاريخ بدء العمل والمواعيد</span>
-              <p className="text-xs font-bold text-foreground">{workStartDate}</p>
-              <p className="text-[10px] text-muted-foreground">{workingHours}</p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-card border border-border/60 space-y-2">
-            <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1.5">
-              <Heart className="w-3.5 h-3.5" />
-              حزمة المزايا والبدلات المعتمدة للمعلم:
-            </span>
-            <p className="text-xs text-foreground font-semibold leading-relaxed">{benefitsPackage}</p>
-            <div className="flex items-center gap-4 text-[10px] text-muted-foreground pt-1">
-              <span>👥 حجم الفصل: <strong>{classSize}</strong></span>
-              <span>📅 موعد إغلاق التقديم: <strong>15 أغسطس 2026</strong></span>
-            </div>
-          </div>
-        </Card>
+            {benefitsPackage && (
+              <div className="p-4 rounded-2xl bg-card border border-border/60 space-y-2">
+                <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1.5">
+                  <Heart className="w-3.5 h-3.5" />
+                  حزمة المزايا والبدلات المعتمدة للمعلم:
+                </span>
+                <p className="text-xs text-foreground font-semibold leading-relaxed">{benefitsPackage}</p>
+                <div className="flex items-center gap-4 text-[10px] text-muted-foreground pt-1 flex-wrap">
+                  {classSize && <span>👥 حجم الفصل: <strong>{classSize}</strong></span>}
+                  {applicationDeadline && <span>📅 موعد إغلاق التقديم: <strong>{applicationDeadline}</strong></span>}
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
 
         {/* Tabs Section */}
         <Tabs defaultValue="candidates" dir="rtl">
@@ -352,10 +331,10 @@ export default function JobDetails() {
             <Card className="border-border/60 rounded-3xl p-6 space-y-4 shadow-xs">
               <h4 className="font-bold text-sm text-foreground flex items-center gap-2">
                 <Briefcase className="w-4 h-4 text-emerald-600" />
-                الوصف الوظيفي المهني وطبيعة التدريس بالمدرسة:
+                الوصف الوظيفي المهني وطبيعة العمل:
               </h4>
               <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                {job.description || "نبحث عن معلم علوم وفيزياء متمكن للانضمام لمدارس المتقدمة العالمية بالرياض. يتولى تدريس مادة العلوم العامة والفيزياء للوفاء بالمعايير الأمريكية NGSS، إعداد التجارب المعملية بالمختبر، تحضير الدروس الرقمية عبر منصة المدرسي، والمتابعة الدورية مع أولياء الأمور وإدارة المرحلة."}
+                {cleanDescription || job.description || "لا يوجد وصف وظيفي محدد لهذا الشاغر."}
               </p>
             </Card>
 
@@ -365,12 +344,10 @@ export default function JobDetails() {
                 المؤهلات والمتطلبات الأساسية للوظيفة:
               </h4>
               <ul className="space-y-2 text-xs text-muted-foreground">
-                {(job.requirements || [
-                  "مؤهل جامعي بكالوريوس في العلوم / الفيزياء أو التربية ذات الصلة",
-                  "خبرة لا تقل عن 3 سنوات في تدريس المنهج الأمريكي NGSS أو المناهج الدولية",
-                  "إجادة استخدام وسائل التقنية والتطبيقات التعليمية والمختبرات الافتراضية",
-                  "الحصول على الرخصة المهنية للمعلمين أو ما يعادلها",
-                  "إتقان اللغة الإنجليزية والقدرة على التواصل الفعّال مع الطلاب وأولياء الأمور"
+                {(job.requirements && job.requirements.length > 0 ? job.requirements : [
+                  "مؤهل جامعي مناسب في التخصص المطلوب",
+                  "خبرة عملية لا تقل عن سنتين إلى ثلاث سنوات",
+                  "إتقان مهارات التواصل والعمل ضمن الفريق",
                 ]).map((req, i) => (
                   <li key={i} className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0" />
@@ -399,6 +376,7 @@ export default function JobDetails() {
           salaryMin: job.salary_min?.toString() || "",
           salaryMax: job.salary_max?.toString() || "",
           experience: job.experience_level || "3-5 سنوات",
+          ...specs,
         } : null}
         onAdd={(updatedData) => {
           if (!job) return;
@@ -418,7 +396,7 @@ export default function JobDetails() {
             {
               onSuccess: () => {
                 setEditDialogOpen(false);
-                toast({ title: "تم تحديث بيانات الشاغر بنجاح ✅" });
+                toast({ title: "تم تحديث بيانات الشاغر والمواصفات بنجاح ✅" });
                 queryClient.invalidateQueries({ queryKey: ["jobs"] });
               },
               onError: (err: any) => {

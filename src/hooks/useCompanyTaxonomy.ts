@@ -1,5 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-import { ALL_AL_ANDALUS_BRANCHES, AL_ANDALUS_BRANCHES_BY_CITY, AlAndalusBranch } from "@/data/alAndalusBranches";
+import { ALL_AL_ANDALUS_BRANCHES } from "@/data/alAndalusBranches";
+import {
+  DEFAULT_SCHOOL_TYPES,
+  DEFAULT_CURRICULA,
+  DEFAULT_GRADE_LEVELS,
+  DEFAULT_TEACHING_LOADS,
+  DEFAULT_WORKING_HOURS,
+  DEFAULT_BENEFITS_OPTIONS,
+} from "@/lib/jobSpecsHelper";
 
 export interface DepartmentItem {
   id: string;
@@ -43,6 +51,7 @@ export const DEFAULT_DEPARTMENTS: DepartmentItem[] = [
   { id: "dept-5", name: "التشغيل واللوجستيات", code: "OPS", color: "#0ea5e9", head: "مدير التشغيل" },
   { id: "dept-6", name: "التصميم وتجربة المستخدم", code: "DES", color: "#8b5cf6", head: "قائد التصميم" },
   { id: "dept-7", name: "خدمة وتجربة العملاء", code: "CS", color: "#14b8a6", head: "مدير الدعم" },
+  { id: "dept-8", name: "القسم التعليمي والأكاديمي", code: "EDU", color: "#10b981", head: "المدير الأكاديمي" },
 ];
 
 export const DEFAULT_LOCATIONS: LocationItem[] = [
@@ -153,6 +162,61 @@ export function useCompanyTaxonomy() {
     }
   });
 
+  // Educational Specifications States
+  const [schoolTypes, setSchoolTypes] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("company_school_types");
+      return saved ? JSON.parse(saved) : DEFAULT_SCHOOL_TYPES;
+    } catch {
+      return DEFAULT_SCHOOL_TYPES;
+    }
+  });
+
+  const [curricula, setCurricula] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("company_curricula");
+      return saved ? JSON.parse(saved) : DEFAULT_CURRICULA;
+    } catch {
+      return DEFAULT_CURRICULA;
+    }
+  });
+
+  const [gradeLevels, setGradeLevels] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("company_grade_levels");
+      return saved ? JSON.parse(saved) : DEFAULT_GRADE_LEVELS;
+    } catch {
+      return DEFAULT_GRADE_LEVELS;
+    }
+  });
+
+  const [teachingLoads, setTeachingLoads] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("company_teaching_loads");
+      return saved ? JSON.parse(saved) : DEFAULT_TEACHING_LOADS;
+    } catch {
+      return DEFAULT_TEACHING_LOADS;
+    }
+  });
+
+  const [workingHoursList, setWorkingHoursList] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("company_working_hours");
+      return saved ? JSON.parse(saved) : DEFAULT_WORKING_HOURS;
+    } catch {
+      return DEFAULT_WORKING_HOURS;
+    }
+  });
+
+  const [benefitsList, setBenefitsList] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("company_benefits_list");
+      return saved ? JSON.parse(saved) : DEFAULT_BENEFITS_OPTIONS;
+    } catch {
+      return DEFAULT_BENEFITS_OPTIONS;
+    }
+  });
+
   // Listen for storage updates across tabs or within window
   useEffect(() => {
     const handleStorageChange = () => {
@@ -168,6 +232,24 @@ export function useCompanyTaxonomy() {
 
         const savedChain = localStorage.getItem("company_approval_chains");
         if (savedChain) setApprovalChains(JSON.parse(savedChain));
+
+        const savedSchoolTypes = localStorage.getItem("company_school_types");
+        if (savedSchoolTypes) setSchoolTypes(JSON.parse(savedSchoolTypes));
+
+        const savedCurricula = localStorage.getItem("company_curricula");
+        if (savedCurricula) setCurricula(JSON.parse(savedCurricula));
+
+        const savedGrades = localStorage.getItem("company_grade_levels");
+        if (savedGrades) setGradeLevels(JSON.parse(savedGrades));
+
+        const savedLoads = localStorage.getItem("company_teaching_loads");
+        if (savedLoads) setTeachingLoads(JSON.parse(savedLoads));
+
+        const savedHours = localStorage.getItem("company_working_hours");
+        if (savedHours) setWorkingHoursList(JSON.parse(savedHours));
+
+        const savedBenefits = localStorage.getItem("company_benefits_list");
+        if (savedBenefits) setBenefitsList(JSON.parse(savedBenefits));
       } catch {}
     };
 
@@ -180,8 +262,9 @@ export function useCompanyTaxonomy() {
     const newDept: DepartmentItem = {
       id: `dept-${Date.now()}`,
       name: name.trim(),
-      code: name.substring(0, 3).toUpperCase(),
+      code: name.trim().slice(0, 3).toUpperCase(),
       color: "#6366f1",
+      head: "مسؤول القسم",
     };
     setDepartments(prev => {
       const updated = [...prev, newDept];
@@ -196,7 +279,7 @@ export function useCompanyTaxonomy() {
     const newLoc: LocationItem = {
       id: `loc-${Date.now()}`,
       name: name.trim(),
-      city: name.trim(),
+      city: name.includes("-") ? name.split("-")[0].trim() : name.trim(),
       country: "السعودية",
       type: "مكتبي",
     };
@@ -241,6 +324,61 @@ export function useCompanyTaxonomy() {
     return newChain.name;
   }, []);
 
+  const addQuickSchoolType = useCallback((name: string) => {
+    if (!name.trim()) return;
+    setSchoolTypes(prev => {
+      if (prev.includes(name.trim())) return prev;
+      const updated = [...prev, name.trim()];
+      try { localStorage.setItem("company_school_types", JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+    return name.trim();
+  }, []);
+
+  const addQuickCurriculum = useCallback((name: string) => {
+    if (!name.trim()) return;
+    setCurricula(prev => {
+      if (prev.includes(name.trim())) return prev;
+      const updated = [...prev, name.trim()];
+      try { localStorage.setItem("company_curricula", JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+    return name.trim();
+  }, []);
+
+  const addQuickGradeLevel = useCallback((name: string) => {
+    if (!name.trim()) return;
+    setGradeLevels(prev => {
+      if (prev.includes(name.trim())) return prev;
+      const updated = [...prev, name.trim()];
+      try { localStorage.setItem("company_grade_levels", JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+    return name.trim();
+  }, []);
+
+  const addQuickTeachingLoad = useCallback((name: string) => {
+    if (!name.trim()) return;
+    setTeachingLoads(prev => {
+      if (prev.includes(name.trim())) return prev;
+      const updated = [...prev, name.trim()];
+      try { localStorage.setItem("company_teaching_loads", JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+    return name.trim();
+  }, []);
+
+  const addQuickBenefit = useCallback((name: string) => {
+    if (!name.trim()) return;
+    setBenefitsList(prev => {
+      if (prev.includes(name.trim())) return prev;
+      const updated = [...prev, name.trim()];
+      try { localStorage.setItem("company_benefits_list", JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+    return name.trim();
+  }, []);
+
   return {
     departments,
     departmentNames: (departments || []).map(d => d.name),
@@ -250,9 +388,24 @@ export function useCompanyTaxonomy() {
     experienceLevelNames: (experienceLevels || []).map(e => e.name),
     approvalChains: approvalChains || DEFAULT_APPROVAL_CHAINS,
     approvalChainNames: (approvalChains || DEFAULT_APPROVAL_CHAINS).map(c => c.name),
+    
+    // Educational & Operational specs
+    schoolTypes,
+    curricula,
+    gradeLevels,
+    teachingLoads,
+    workingHoursList,
+    benefitsList,
+
+    // Mutators
     addQuickDepartment,
     addQuickLocation,
     addQuickExperienceLevel,
     addQuickApprovalChain,
+    addQuickSchoolType,
+    addQuickCurriculum,
+    addQuickGradeLevel,
+    addQuickTeachingLoad,
+    addQuickBenefit,
   };
 }

@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import SARSymbol from "@/components/SARSymbol";
 import { SEO } from "@/components/marketing/SEO";
+import { parseJobCustomSpecs } from "@/lib/jobSpecsHelper";
 
 /* ───────── Form Field Wrapper ───────── */
 function FormField({ label, required, htmlFor, children }: { label: string; required?: boolean; htmlFor?: string; children: React.ReactNode }) {
@@ -157,27 +158,33 @@ export default function ApplyJob() {
   useEffect(() => {
     async function fetchJob() {
       if (!id) return;
-      const { data } = await supabase.from("jobs").select("*").eq("id", id).maybeSingle();
-      if (data) {
-        setJob(data);
-      } else {
-        setJob({
-          id,
-          title: "معلم علوم وفيزياء (NGSS)",
-          department: "قسم العلوم والفيزياء",
-          location: "الرياض، المملكة العربية السعودية",
-          type: "دوام كامل",
-          salary_min: 7500,
-          salary_max: 10500,
-          description: "نبحث عن معلم علوم وفيزياء للانضمام لمدارس المتقدمة العالمية بالرياض لتدريس المنهج الأمريكي NGSS.",
-          requirements: ["مؤهل جامعي تربوي", "خبرة 3+ سنوات", "رخصة مهنية سارية"],
-          school_name: "مدارس المتقدمة العالمية",
-        });
+      try {
+        const { data } = await supabase.from("jobs").select("*, companies(name)").eq("id", id).maybeSingle();
+        if (data) {
+          setJob(data);
+        } else {
+          setJob({
+            id,
+            title: "شاغر وظيفي معتمد",
+            department: "القسم الأكاديمي",
+            location: "المملكة العربية السعودية",
+            type: "دوام كامل",
+            salary_min: null,
+            salary_max: null,
+            description: "يسرنا استقبال طلبات التقديم لهذا الشاغر الوظيفي المعتمد.",
+            requirements: ["مؤهل مناسب في التخصص", "خبرة عملية مناسبة"],
+          });
+        }
+      } catch (e) {
+        console.warn("Could not fetch job:", e);
       }
       setLoading(false);
     }
     fetchJob();
   }, [id]);
+
+  const { cleanDescription, specs, hasSpecs } = useMemo(() => parseJobCustomSpecs(job), [job]);
+  const schoolDisplayName = (job as any)?.companies?.name || specs.school_name || (job as any)?.school_name || "المؤسسة التعليمية المعتمدة";
 
   const completionPercentage = useMemo(() => {
     let score = 0;
@@ -344,7 +351,7 @@ export default function ApplyJob() {
       <section className="bg-gradient-to-l from-emerald-600 via-teal-600 to-emerald-800 text-white py-10 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto space-y-4">
           <Badge variant="outline" className="bg-white/10 text-white border-white/20 text-xs font-bold">
-            🏫 {job?.school_name || "مدارس المتقدمة العالمية بالرياض"}
+            🏫 {schoolDisplayName}
           </Badge>
           <h1 className="text-2xl sm:text-4xl font-black">{job?.title}</h1>
           <div className="flex flex-wrap gap-2 text-xs">
@@ -516,11 +523,52 @@ export default function ApplyJob() {
           </div>
 
           <div className="lg:col-span-5 space-y-6">
-            <div className="bg-card rounded-3xl border border-border/80 p-6 space-y-4 shadow-sm">
+            <div className="bg-card rounded-3xl border border-border/80 p-6 space-y-4 shadow-xs">
               <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-emerald-600" /> متطلبات التدريس بالشاغر:
+                <BookOpen className="w-4 h-4 text-emerald-600" /> تفاصيل ومواصفات الشاغر:
               </h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">{job?.description}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">{cleanDescription || job?.description}</p>
+              
+              {hasSpecs && (
+                <div className="pt-3 border-t border-border/60 space-y-2 text-xs">
+                  {specs.school_type && (
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-foreground">نوع المدرسة:</span>
+                      <span className="text-muted-foreground font-semibold">{specs.school_type}</span>
+                    </div>
+                  )}
+                  {specs.curriculum && (
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-foreground">المنهج:</span>
+                      <span className="text-muted-foreground font-semibold">{specs.curriculum}</span>
+                    </div>
+                  )}
+                  {specs.grade_level && (
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-foreground">المرحلة:</span>
+                      <span className="text-muted-foreground font-semibold">{specs.grade_level}</span>
+                    </div>
+                  )}
+                  {specs.weekly_classes && (
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-foreground">نصاب الحصص:</span>
+                      <span className="text-muted-foreground font-semibold">{specs.weekly_classes}</span>
+                    </div>
+                  )}
+                  {specs.working_hours && (
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-foreground">مواعيد العمل:</span>
+                      <span className="text-muted-foreground font-semibold">{specs.working_hours}</span>
+                    </div>
+                  )}
+                  {specs.benefits_package && (
+                    <div className="pt-1">
+                      <span className="font-bold text-emerald-600 block mb-1">المزايا والبدلات:</span>
+                      <p className="text-muted-foreground text-[11px] font-medium leading-relaxed">{specs.benefits_package}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
