@@ -251,349 +251,325 @@ const AIMascot = memo(function AIMascot({ focusedField, showPassword = false, is
   );
 });
 
-/* ─── Live AI Recruiting Command Center Mockup (High Performance) ─── */
-const AICommandCenterWidget = memo(function AICommandCenterWidget() {
-  const [parseProgress, setParseProgress] = useState(0);
-  const [phase, setPhase] = useState<"parsing" | "matched" | "completed">("parsing");
+/* ─── Real Tawzeef-X Interactive System Showcase ─── */
+const TawzeefXSystemShowcase = memo(function TawzeefXSystemShowcase() {
+  const [activeFeatureTab, setActiveFeatureTab] = useState<"pipeline" | "ai_matcher" | "interviews">("pipeline");
+  const [cvScore, setCvScore] = useState(0);
 
   useEffect(() => {
-    const cycle = () => {
-      setPhase("parsing");
-      setParseProgress(0);
-
-      // Animate parsing progress to 100% over 3 seconds
-      const interval = setInterval(() => {
-        setParseProgress(p => {
-          if (p >= 100) {
-            clearInterval(interval);
-            setPhase("matched");
-            
-            // Advance to completed stepper after 3 more seconds
-            setTimeout(() => {
-              setPhase("completed");
-            }, 3000);
-
-            return 100;
-          }
-          return p + 4;
-        });
-      }, 100);
-
-      return () => {
-        clearInterval(interval);
-      };
-    };
-    
-    let cleanup = cycle();
-    const interval = setInterval(() => {
-      cleanup();
-      cleanup = cycle();
-    }, 12000);
-
-    return () => {
-      cleanup();
-      clearInterval(interval);
-    };
+    const timer = setInterval(() => {
+      setActiveFeatureTab((curr) => {
+        if (curr === "pipeline") return "ai_matcher";
+        if (curr === "ai_matcher") return "interviews";
+        return "pipeline";
+      });
+    }, 6000);
+    return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    let frame: number;
+    let start = performance.now();
+    const duration = 1500;
+    const animate = (now: number) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCvScore(Math.round(96 * eased));
+      if (progress < 1) frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [activeFeatureTab]);
+
   return (
-    <div className="w-full max-w-[325px] mx-auto rounded-[20px] bg-white border border-slate-100 shadow-[0_12px_30px_rgba(0,0,0,0.02)] p-3 relative overflow-hidden select-none text-right">
-      {/* Top subtle gradient line */}
-      <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500" />
-      
-      {/* Background decoration blur */}
-      <div className="absolute -top-12 -right-12 w-20 h-20 rounded-full bg-emerald-500/5 filter blur-2xl pointer-events-none" />
-      <div className="absolute -bottom-12 -left-12 w-20 h-20 rounded-full bg-cyan-500/5 filter blur-3xl pointer-events-none" />
-
-      <div className="space-y-2.5 relative z-10">
+    <div className="w-full max-w-[480px] mx-auto rounded-[24px] bg-white border border-slate-200/80 shadow-[0_20px_50px_rgba(15,23,42,0.06)] p-5 relative overflow-hidden select-none text-right">
+      {/* Top Emerald Brand Header Bar */}
+      <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 mb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+          <div>
+            <span className="text-xs font-black text-slate-800">نظام توظيف إكس الذكي</span>
+            <span className="text-[10px] text-emerald-600 font-bold mr-1.5">(عرض حي مباشر)</span>
+          </div>
+        </div>
         
-        {/* Header */}
-        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-          <div className="flex items-center gap-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] font-black text-slate-800">تحليل المطابقة الذكي (AI Match)</span>
-          </div>
-          <span className="text-[7.5px] font-bold text-slate-400 tracking-wider">Engine v2</span>
+        {/* Interactive Feature Mini Tabs */}
+        <div className="flex items-center bg-slate-100/80 p-1 rounded-xl gap-1 text-[10px] font-bold">
+          <button
+            onClick={() => setActiveFeatureTab("pipeline")}
+            className={`px-2.5 py-1 rounded-lg transition-all duration-200 ${
+              activeFeatureTab === "pipeline"
+                ? "bg-white text-emerald-700 shadow-xs font-black"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            المراحل
+          </button>
+          <button
+            onClick={() => setActiveFeatureTab("ai_matcher")}
+            className={`px-2.5 py-1 rounded-lg transition-all duration-200 ${
+              activeFeatureTab === "ai_matcher"
+                ? "bg-white text-emerald-700 shadow-xs font-black"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            تحليل AI
+          </button>
+          <button
+            onClick={() => setActiveFeatureTab("interviews")}
+            className={`px-2.5 py-1 rounded-lg transition-all duration-200 ${
+              activeFeatureTab === "interviews"
+                ? "bg-white text-emerald-700 shadow-xs font-black"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            المقابلات
+          </button>
         </div>
+      </div>
 
-        {/* Section 1: File Parsing (Always Fully Visible) */}
-        <div className="space-y-1">
-          <div className="flex justify-between items-center text-[8px] font-bold text-slate-500">
-            <span>تحليل السيرة الذاتية...</span>
-            <span className="font-black text-slate-700">{parseProgress}%</span>
-          </div>
-          <div className="p-2 rounded-lg bg-white border border-slate-100 flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-1.5 overflow-hidden">
-              <div className="w-6 h-6 rounded-md bg-cyan-50 flex items-center justify-center text-cyan-500 shrink-0">
-                <FileCheck className="w-3.5 h-3.5" />
+      {/* Tab 1: Pipeline Kanban Simulation */}
+      {activeFeatureTab === "pipeline" && (
+        <motion.div
+          key="pipeline"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          className="space-y-3"
+        >
+          <div className="grid grid-cols-3 gap-2">
+            {/* Stage 1: طلب جديد */}
+            <div className="bg-slate-50/80 rounded-xl p-2.5 border border-slate-200/60 space-y-2">
+              <div className="flex items-center justify-between text-[10px] font-black text-slate-700">
+                <span>طلبات جديدة</span>
+                <span className="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center text-[9px]">4</span>
               </div>
-              <div className="text-right overflow-hidden">
-                <p className="text-[10px] font-bold text-slate-700 truncate">cv_ahmed_software.pdf</p>
-                <p className="text-[7.5px] text-slate-400">حجم الملف: 1.2 ميجابايت</p>
-              </div>
-            </div>
-            <Badge variant="secondary" className={`text-[7.5px] px-1 h-4 transition-all duration-300 ${parseProgress === 100 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/50' : 'bg-slate-50 text-slate-500'}`}>
-              {parseProgress === 100 ? "مكتمل ✅" : "جاري التحليل..."}
-            </Badge>
-          </div>
-          <div className="h-0.5 w-full bg-slate-100 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full transition-all duration-300" 
-              style={{ width: `${parseProgress}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Section 2: AI Matching & Skills Breakdown (Pre-rendered, opacity changes) */}
-        <div className={`space-y-2.5 transition-all duration-500 ${phase === "parsing" ? "opacity-35 blur-[0.5px] scale-[0.98]" : "opacity-100 blur-0 scale-100"}`}>
-          <span className="text-[8.5px] font-black text-slate-400 block pt-0.5">المطابقة والتصنيف الذكي</span>
-          
-          {/* Profile Card Header with matching ring */}
-          <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-50/50 border border-slate-100 shadow-sm">
-            <div className="flex items-center gap-2">
-              <Avatar className="w-7 h-7 border border-white shadow-sm">
-                <AvatarFallback className="bg-gradient-to-tr from-emerald-400 to-cyan-400 text-white font-bold text-[8.5px]">أ م</AvatarFallback>
-              </Avatar>
-              <div className="text-right">
-                <h3 className="text-[10px] font-black text-slate-800">أحمد محمد</h3>
-                <p className="text-[7.5px] text-slate-400 font-bold">مطور برمجيات Senior</p>
+              <div className="bg-white rounded-lg p-2 border border-slate-100 shadow-xs space-y-1">
+                <p className="text-[10px] font-bold text-slate-800">أحمد الشمري</p>
+                <p className="text-[8px] text-slate-400">معلم لغة عربية</p>
+                <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[7.5px] font-bold">
+                  جديد ✦
+                </span>
               </div>
             </div>
 
-            {/* Match percentage gauge SVG */}
-            <div className="relative w-8 h-8 flex items-center justify-center shrink-0">
-              <svg className="w-full h-full transform -rotate-90">
-                <circle cx="16" cy="16" r="13" stroke="#f1f5f9" strokeWidth="2.5" fill="transparent" />
-                <circle cx="16" cy="16" r="13" stroke="url(#paint0_linear)" strokeWidth="2.5" fill="transparent" strokeDasharray="81" strokeDashoffset="3.24" strokeLinecap="round" />
-                <defs>
-                  <linearGradient id="paint0_linear" x1="0" y1="0" x2="1" y2="0">
-                    <stop stopColor="#10b981" />
-                    <stop offset="1" stopColor="#06b6d4" />
-                  </linearGradient>
-                </defs>
-              </svg>
-              <div className="absolute text-center flex flex-col items-center">
-                <span className="text-[8px] font-black text-slate-800 leading-none">96%</span>
-                <span className="text-[4px] text-slate-400 font-bold leading-none mt-0.5">مطابقة</span>
+            {/* Stage 2: فحص ومطابقة AI */}
+            <div className="bg-emerald-50/50 rounded-xl p-2.5 border border-emerald-200/60 space-y-2">
+              <div className="flex items-center justify-between text-[10px] font-black text-emerald-800">
+                <span>مطابقة الـ AI</span>
+                <span className="w-4 h-4 rounded-full bg-emerald-200 flex items-center justify-center text-[9px] text-emerald-800 font-bold">2</span>
               </div>
-            </div>
-          </div>
-
-          {/* Skills and Matching criteria breakdown */}
-          <div className="space-y-1">
-            {[
-              { title: "المهارات التقنية والبرمجية", percent: 98, color: "from-emerald-400 to-cyan-400" },
-              { title: "الخبرة والمشاريع السابقة", percent: 92, color: "from-cyan-400 to-blue-400" },
-              { title: "التوافق الثقافي للمؤسسة", percent: 95, color: "from-emerald-400 to-teal-400" }
-            ].map((item, idx) => (
-              <div key={idx} className="space-y-0.5">
-                <div className="flex justify-between items-center text-[7.5px] font-bold text-slate-600">
-                  <span>{item.title}</span>
-                  <span className="text-slate-800 font-black">{item.percent}%</span>
+              <div className="bg-white rounded-lg p-2 border border-emerald-200 shadow-xs space-y-1 relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-black text-slate-800">سارة المنصور</p>
+                  <span className="text-[9px] font-black text-emerald-600">96%</span>
                 </div>
-                <div className="h-[2px] w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full bg-gradient-to-r ${item.color} rounded-full`}
-                    style={{ width: `${item.percent}%` }}
-                  />
+                <p className="text-[8px] text-slate-400">مشرفة أكاديمية</p>
+                <div className="w-full h-1 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="w-[96%] h-full bg-emerald-500 rounded-full" />
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
 
-          {/* Skill tags */}
-          <div className="flex flex-wrap gap-1 justify-start" dir="ltr">
-            {["React", "TypeScript", "Node.js", "Supabase", "SQL"].map((tag) => (
-              <span key={tag} className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200/40">
-                {tag}
-              </span>
-            ))}
-          </div>
-
-          {/* AI Recommendation Quote box */}
-          <div className="p-2 rounded-lg bg-emerald-50/40 border border-emerald-100/50 relative overflow-hidden">
-            <div className="flex gap-1">
-              <Sparkles className="w-2.5 h-2.5 text-emerald-500 shrink-0 mt-0.5 animate-pulse" />
-              <div className="text-right">
-                <p className="text-[7.5px] font-black text-emerald-700">توصية الذكاء الاصطناعي:</p>
-                <p className="text-[8.5px] text-slate-700 leading-relaxed font-medium mt-0.5">
-                  أحمد يمتلك خبرة عميقة ومشاريع سابقة تطابق المتطلبات بدقة ممتازة. نوصي بجدولة مقابلة فنية فوراً.
-                </p>
+            {/* Stage 3: تم القبول */}
+            <div className="bg-cyan-50/50 rounded-xl p-2.5 border border-cyan-200/60 space-y-2">
+              <div className="flex items-center justify-between text-[10px] font-black text-cyan-800">
+                <span>عرض وظيفي</span>
+                <span className="w-4 h-4 rounded-full bg-cyan-200 flex items-center justify-center text-[9px] text-cyan-800 font-bold">1</span>
+              </div>
+              <div className="bg-white rounded-lg p-2 border border-cyan-200 shadow-xs space-y-1">
+                <p className="text-[10px] font-black text-slate-800">خالد العمري</p>
+                <p className="text-[8px] text-slate-400">مطور Full-Stack</p>
+                <span className="inline-flex items-center gap-1 text-[7.5px] font-bold text-cyan-700 bg-cyan-50 px-1.5 py-0.5 rounded">
+                  <CheckCircle2 className="w-2.5 h-2.5 text-cyan-600" />
+                  تم التوقيع
+                </span>
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
+      )}
 
-        {/* Section 3: Status progression stepper (Pre-rendered, opacity/color changes) */}
-        <div className={`pt-2 border-t border-slate-100 flex items-center justify-between transition-all duration-500 ${phase === "parsing" ? "opacity-35 blur-[0.5px]" : "opacity-100 blur-0"}`}>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-[6.5px] font-bold">✓</div>
-            <span className="text-[8px] font-bold text-slate-500">تقديم الطلب</span>
-          </div>
-          <div className="w-4 h-[0.5px] bg-emerald-200" />
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-[6.5px] font-bold">✓</div>
-            <span className="text-[8px] font-bold text-slate-500">التصفية</span>
-          </div>
-          <div className="w-4 h-[0.5px] bg-slate-200" />
-          <div className="flex items-center gap-1">
-            <div className={`w-3 h-3 rounded-full flex items-center justify-center text-[6.5px] font-bold transition-all duration-500 ${phase === "completed" ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/20' : 'bg-slate-100 text-slate-400'}`}>
-              {phase === "completed" ? "✓" : "3"}
+      {/* Tab 2: AI Matcher Simulation */}
+      {activeFeatureTab === "ai_matcher" && (
+        <motion.div
+          key="ai_matcher"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          className="space-y-3"
+        >
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/70 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Avatar className="w-8 h-8 border border-white shadow-xs">
+                  <AvatarFallback className="bg-gradient-to-tr from-emerald-500 to-teal-500 text-white font-bold text-xs">م ع</AvatarFallback>
+                </Avatar>
+                <div>
+                  <h4 className="text-xs font-black text-slate-800">محمد عبدالله</h4>
+                  <p className="text-[9px] text-slate-500 font-medium">متقدم لوظيفة: رئيس قسم تقنية المعلومات</p>
+                </div>
+              </div>
+              <div className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-black text-xs">
+                {cvScore}% تطابق ذكي
+              </div>
             </div>
-            <span className={`text-[8px] font-bold transition-all duration-500 ${phase === "completed" ? 'text-emerald-600' : 'text-slate-400'}`}>المقابلة</span>
-          </div>
-        </div>
 
+            {/* Criteria Progress */}
+            <div className="space-y-1.5 pt-1">
+              <div className="space-y-1">
+                <div className="flex justify-between text-[9px] font-bold text-slate-600">
+                  <span>الخبرات والقيادة التربوية</span>
+                  <span>98%</span>
+                </div>
+                <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 rounded-full w-[98%]" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-[9px] font-bold text-slate-600">
+                  <span>المؤهلات الأكاديمية والشهادات</span>
+                  <span>94%</span>
+                </div>
+                <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-teal-500 rounded-full w-[94%]" />
+                </div>
+              </div>
+            </div>
+
+            {/* AI Recommendation Quote */}
+            <div className="p-2 rounded-lg bg-emerald-50/70 border border-emerald-200/60 flex items-start gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+              <p className="text-[9px] text-emerald-900 leading-relaxed font-medium">
+                <strong>توصية AI:</strong> المرشح يمتلك خبرة 8 سنوات مطابقة بدقة لمتطلبات المنصب. نوصي بجدولة مقابلة فنية.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Tab 3: Interviews Simulation */}
+      {activeFeatureTab === "interviews" && (
+        <motion.div
+          key="interviews"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          className="space-y-2.5"
+        >
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/70 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-slate-700">مقابلات اليوم المجدولة (Online)</span>
+              <Badge variant="outline" className="text-[8.5px] bg-white border-emerald-200 text-emerald-700 font-bold">
+                غرفة فيديو مدمجة 📹
+              </Badge>
+            </div>
+
+            <div className="bg-white rounded-lg p-2.5 border border-slate-200/80 shadow-xs flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs">
+                  10:30
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-800">مقابلة تقييم: أ. ريم القحطاني</p>
+                  <p className="text-[8px] text-slate-400">لجنة التوظيف المتقدمة</p>
+                </div>
+              </div>
+              <Button size="sm" className="h-6 px-2 text-[8px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-md">
+                انضمام
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Bottom KPI Bar */}
+      <div className="pt-3 border-t border-slate-100 grid grid-cols-4 gap-2 text-center mt-3">
+        <div>
+          <span className="text-base font-black text-slate-800 block">1,250+</span>
+          <span className="text-[8px] font-bold text-slate-400">وظيفة نشطة</span>
+        </div>
+        <div>
+          <span className="text-base font-black text-emerald-600 block">98%</span>
+          <span className="text-[8px] font-bold text-slate-400">دقة الـ AI</span>
+        </div>
+        <div>
+          <span className="text-base font-black text-teal-600 block">3X</span>
+          <span className="text-[8px] font-bold text-slate-400">أسرع توظيفاً</span>
+        </div>
+        <div>
+          <span className="text-base font-black text-slate-800 block">4.9 ★</span>
+          <span className="text-[8px] font-bold text-slate-400">تقييم المنصة</span>
+        </div>
       </div>
     </div>
   );
 });
 
-/* ─── Right branding panel (High Performance) ─── */
+/* ─── Right Branding Panel (Tawzeef-X Authentic Showcase) ─── */
 const BrandingPanel = memo(function BrandingPanel() {
-  const mouseX = useMotionValue(-500);
-  const mouseY = useMotionValue(-500);
-
-  // Extremely fast cursor follow tracking without layouts triggers
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    mouseX.set(e.clientX - rect.left - 225);
-    mouseY.set(e.clientY - rect.top - 225);
-  }, [mouseX, mouseY]);
-
   return (
-    <div
-      className="hidden lg:flex flex-col justify-between h-full relative overflow-hidden p-14 select-none"
-      onMouseMove={handleMouseMove}
-    >
-      {/* Soft emerald-teal light background */}
-      <div className="absolute inset-0 bg-[#f4fcf9]" style={{
-        background: "radial-gradient(circle at 100% 0%, #edfcf7 0%, #f4fbf8 70%)"
-      }} />
-
-      {/* Ambient neon light glow shapes (GPU Composited) */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div
-          className="absolute w-[600px] h-[600px] rounded-full opacity-[0.06] filter blur-[110px] will-change-transform"
-          style={{
-            background: "radial-gradient(circle, #10b981 0%, transparent 70%)",
-            top: "-10%",
-            right: "-10%",
-            animation: "float-sphere-1 18s ease-in-out infinite",
-          }}
-        />
-        <div
-          className="absolute w-[500px] h-[500px] rounded-full opacity-[0.05] filter blur-[95px] will-change-transform"
-          style={{
-            background: "radial-gradient(circle, #06b6d4 0%, transparent 70%)",
-            bottom: "10%",
-            left: "-10%",
-            animation: "float-sphere-2 20s ease-in-out infinite",
-          }}
-        />
-      </div>
-
-      {/* Optimized Starry Particles using off-thread GPU animations */}
-      <div className="absolute inset-0 opacity-[0.25] pointer-events-none overflow-hidden">
-        {[...Array(10)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full bg-emerald-400 floating-particle"
-            style={{
-              width: `${(i % 2) + 2}px`,
-              height: `${(i % 2) + 2}px`,
-              left: `${10 + i * 9}%`,
-              top: `${15 + (i * 13) % 70}%`,
-              ["--float-duration" as any]: `${7 + (i % 3) * 2}s`,
-              ["--float-delay" as any]: `${i * 0.4}s`,
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Grid mesh pattern */}
-      <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{
-        backgroundImage: `linear-gradient(to right, #10b981 1px, transparent 1px), linear-gradient(to bottom, #10b981 1px, transparent 1px)`,
-        backgroundSize: '40px 40px'
-      }} />
-
-      {/* GPU accelerated cursor follow light */}
-      <motion.div
-        className="absolute w-[450px] h-[450px] rounded-full pointer-events-none opacity-[0.12] will-change-transform"
+    <div className="hidden lg:flex flex-col justify-between h-full relative overflow-hidden p-12 select-none">
+      {/* Clean Light Background with soft emerald tint */}
+      <div
+        className="absolute inset-0 bg-slate-50"
         style={{
-          x: mouseX,
-          y: mouseY,
-          background: "radial-gradient(circle, #10b981 0%, transparent 60%)",
-          filter: "blur(60px)",
+          background: "radial-gradient(circle at 100% 0%, #ecfdf5 0%, #f8fafc 60%, #f1f5f9 100%)",
+        }}
+      />
+
+      {/* Subtle Dot Grid */}
+      <div
+        className="absolute inset-0 opacity-[0.035] pointer-events-none"
+        style={{
+          backgroundImage: "radial-gradient(circle, #0f172a 1.2px, transparent 1.2px)",
+          backgroundSize: "28px 28px",
         }}
       />
 
       {/* Header Info */}
-      <div className="relative z-10 px-6 pt-4 space-y-12">
-        {/* Logo */}
-        <div className="flex items-center gap-4">
-          <div
-            className="w-13 h-13 rounded-2xl flex items-center justify-center border border-emerald-500/10 bg-white/80 backdrop-blur-xl relative overflow-hidden group p-2 shadow-sm transition-transform duration-300 hover:scale-105 hover:rotate-[-2deg]"
-          >
-            <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <img src={tawzeefLogo} alt="Tawzeef-X" className="w-9 h-9 object-contain relative z-10" />
+      <div className="relative z-10 space-y-6">
+        {/* Brand Logo */}
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center border border-emerald-500/20 bg-white shadow-sm p-2">
+            <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
           </div>
           <div className="flex flex-col">
             <span className="text-xl font-black tracking-wide leading-tight text-slate-800">Tawzeef-X</span>
-            <span className="text-[10px] font-bold tracking-[0.2em] text-emerald-600/60 uppercase">منصة التوظيف الذكية</span>
+            <span className="text-[9.5px] font-bold tracking-[0.18em] text-emerald-600 uppercase">المنصة الذكية لإدارة التوظيف</span>
           </div>
         </div>
 
-        {/* Hero copy */}
-        <div className="space-y-5">
-          <div
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-emerald-500/10 bg-emerald-50/50 backdrop-blur-xl transition-all duration-300 hover:border-emerald-500/25"
-          >
+        {/* Title & Pitch */}
+        <div className="space-y-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/20 bg-emerald-50/80">
             <Sparkles className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
-            <span className="text-xs font-bold text-emerald-800">منصة التوظيف الذكية #1</span>
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+            <span className="text-xs font-bold text-emerald-800">منصة التوظيف وتقييم الكفاءات #1</span>
           </div>
 
-          <h1 className="text-4xl xl:text-5xl font-black text-slate-800 leading-tight">
-            وظّف الأفضل <br />
-            <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-600 bg-clip-text text-transparent">
-              بذكاء وسرعة فائقة
+          <h2 className="text-3xl xl:text-4xl font-black text-slate-800 leading-tight">
+            أتمتة رحلة التوظيف بالكامل <br />
+            <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 bg-clip-text text-transparent">
+              بدقة وذكاء استثنائي
             </span>
-          </h1>
+          </h2>
 
-          <p className="text-sm leading-relaxed text-slate-500 max-w-[400px]">
-            أتمتة كامل رحلة التوظيف بالذكاء الاصطناعي — من صياغة ونشر الوظيفة والبحث عن المرشحين والمطابقة الذكية، وحتى المقابلات وإرسال العروض.
+          <p className="text-xs leading-relaxed text-slate-500 max-w-[420px]">
+            من نشر الوظائف وتحديد المواصفات التعليمية والمهنية، إلى الفرز التلقائي والمقابلات المدمجة والعروض الوظيفية الرقمية.
           </p>
         </div>
       </div>
 
-      {/* Synced AI Command Center widget */}
-      <div className="relative z-10 my-4 flex items-center justify-center">
-        <AICommandCenterWidget />
+      {/* Live System Showcase Widget */}
+      <div className="relative z-10 my-4">
+        <TawzeefXSystemShowcase />
       </div>
 
-      {/* Bottom Stats Container */}
-      <div
-        className="relative z-10 p-5 rounded-2xl border border-emerald-500/10 bg-white/60 backdrop-blur-2xl shadow-sm overflow-hidden"
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/3 to-cyan-500/3 opacity-30" />
-        <div className="flex items-center justify-between relative z-10 px-4">
-          {[
-            { val: "AI", label: "تقييم ذكي" },
-            { val: "24/7", label: "دعم متواصل" },
-            { val: "98%", label: "رضا العملاء" },
-            { val: "3X", label: "أسرع توظيفاً" },
-          ].map((s, i) => (
-            <div key={i} className="text-center transition-transform duration-200 hover:scale-105">
-              <span className="text-2xl xl:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-slate-800 to-slate-600 leading-none block">
-                {s.val}
-              </span>
-              <span className="text-[9px] font-bold text-slate-400 block mt-1">
-                {s.label}
-              </span>
-            </div>
-          ))}
-        </div>
+      {/* Footer Trust Note */}
+      <div className="relative z-10 flex items-center justify-between text-[11px] font-semibold text-slate-400 pt-3 border-t border-slate-200/60">
+        <span>🔒 بيانات مشفرة وعزل تام بين الشركات</span>
+        <span>⚡ متوافق مع كافة المعايير المهنية</span>
       </div>
     </div>
   );
