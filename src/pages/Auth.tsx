@@ -49,34 +49,204 @@ import { translateAuthError } from "@/lib/authErrors";
 import { logAuditEvent } from "@/hooks/useAuditLog";
 import { checkPasswordStrength, isRateLimited, isValidEmail, sanitizeInput, detectSuspiciousInput } from "@/lib/security";
 
-/* ─── Optimized Animated Aurora Background ─── */
-const AuroraBackground = memo(function AuroraBackground() {
+/* ─── Google Gemini Fluid Atmosphere Background (Clean Light Theme) ─── */
+const GeminiAtmosphere = memo(function GeminiAtmosphere() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-      {/* Aurora layer 1 — teal sweep */}
+      {/* Gemini Ambient Mesh Orb 1 — Emerald Glow (Top Right) */}
       <div
-        className="absolute w-[140%] h-[140%] top-[-40%] right-[-30%] will-change-transform"
+        className="absolute w-[650px] h-[650px] rounded-full will-change-transform opacity-70"
         style={{
-          background: "conic-gradient(from 180deg at 50% 50%, hsl(var(--primary) / 0.12) 0deg, hsl(var(--accent) / 0.06) 120deg, transparent 240deg, hsl(var(--primary) / 0.12) 360deg)",
+          background: "radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, rgba(52, 211, 153, 0.05) 50%, transparent 70%)",
+          top: "-15%",
+          right: "-10%",
           filter: "blur(90px)",
-          transform: "translate3d(0,0,0)",
-          animation: "spin-slow 70s linear infinite",
+          animation: "float-sphere-1 20s ease-in-out infinite",
         }}
       />
-      {/* Aurora layer 2 — coral bloom */}
+      {/* Gemini Ambient Mesh Orb 2 — Cyan/Teal Glow (Bottom Left) */}
       <div
-        className="absolute w-[120%] h-[120%] bottom-[-30%] left-[-20%] will-change-transform"
+        className="absolute w-[600px] h-[600px] rounded-full will-change-transform opacity-60"
         style={{
-          background: "conic-gradient(from 0deg at 40% 60%, hsl(var(--accent) / 0.08) 0deg, transparent 120deg, hsl(var(--primary) / 0.07) 240deg, hsl(var(--accent) / 0.08) 360deg)",
-          filter: "blur(110px)",
-          transform: "translate3d(0,0,0)",
-          animation: "spin-reverse-slow 90s linear infinite",
+          background: "radial-gradient(circle, rgba(6, 182, 212, 0.10) 0%, rgba(59, 130, 246, 0.04) 50%, transparent 70%)",
+          bottom: "-10%",
+          left: "-10%",
+          filter: "blur(100px)",
+          animation: "float-sphere-2 24s ease-in-out infinite",
         }}
       />
-      <div className="absolute inset-0 opacity-[0.02]" style={{
-        backgroundImage: "radial-gradient(circle, hsl(var(--foreground)) 1px, transparent 1px)",
-        backgroundSize: "32px 32px",
-      }} />
+      {/* Gemini Ambient Mesh Orb 3 — Soft Violet Spark (Center Top) */}
+      <div
+        className="absolute w-[450px] h-[450px] rounded-full will-change-transform opacity-40"
+        style={{
+          background: "radial-gradient(circle, rgba(99, 102, 241, 0.07) 0%, transparent 65%)",
+          top: "35%",
+          left: "40%",
+          filter: "blur(85px)",
+          animation: "spin-slow 60s linear infinite",
+        }}
+      />
+
+      {/* Modern Google Material Dot Grid */}
+      <div
+        className="absolute inset-0 opacity-[0.035]"
+        style={{
+          backgroundImage: "radial-gradient(circle, #0f172a 1.2px, transparent 1.2px)",
+          backgroundSize: "28px 28px",
+        }}
+      />
+    </div>
+  );
+});
+
+/* ─── Google-Style Interactive AI Assistant Mascot ─── */
+interface MascotProps {
+  focusedField: string | null;
+  showPassword?: boolean;
+  isLoading?: boolean;
+  onMascotClick?: () => void;
+}
+
+const AIMascot = memo(function AIMascot({ focusedField, showPassword = false, isLoading = false }: MascotProps) {
+  const isPassword = focusedField === "password";
+  const isEmailOrName = focusedField === "email" || focusedField === "name" || focusedField === "companyName";
+
+  return (
+    <div className="relative flex flex-col items-center justify-center select-none py-1">
+      {/* Floating Mascot Head Wrapper */}
+      <motion.div
+        animate={{
+          y: isPassword ? [0, 2, 0] : [0, -5, 0],
+          rotate: isPassword ? 0 : [0, 1.5, -1.5, 0],
+        }}
+        transition={{
+          repeat: Infinity,
+          duration: isPassword ? 2 : 4,
+          ease: "easeInOut",
+        }}
+        className="relative w-20 h-16 flex items-center justify-center cursor-pointer group"
+      >
+        {/* Ambient Halo behind head */}
+        <div
+          className={`absolute inset-0 rounded-full filter blur-md transition-all duration-500 ${
+            isLoading
+              ? "bg-amber-400/40 scale-125 animate-pulse"
+              : isPassword
+              ? "bg-purple-500/20 scale-105"
+              : isEmailOrName
+              ? "bg-emerald-500/30 scale-110"
+              : "bg-emerald-500/15 scale-95 group-hover:scale-110"
+          }`}
+        />
+
+        {/* Head Base */}
+        <div className="relative w-16 h-13 rounded-[22px] bg-gradient-to-b from-white to-slate-50 border-2 border-emerald-500/30 shadow-[0_8px_20px_rgba(16,185,129,0.15)] flex flex-col items-center justify-center p-1.5 overflow-hidden transition-colors duration-300">
+          
+          {/* Top Antenna Spark */}
+          <div className="absolute -top-1.5 w-2.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
+
+          {/* Screen Visor / Face Area */}
+          <div className="w-full h-8 rounded-[14px] bg-slate-900 flex items-center justify-center px-2 relative overflow-hidden shadow-inner">
+            
+            {/* Soft scanline reflection */}
+            <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
+
+            {/* Normal / Looking Eyes */}
+            {!isPassword && (
+              <div className="flex items-center justify-center gap-2.5 w-full">
+                {/* Left Eye */}
+                <motion.div
+                  animate={{
+                    scaleY: [1, 1, 0.1, 1],
+                    y: isEmailOrName ? 2.5 : 0,
+                    x: isEmailOrName ? 1 : 0,
+                  }}
+                  transition={{
+                    scaleY: { repeat: Infinity, repeatDelay: 3.5, duration: 0.2 },
+                    y: { duration: 0.25 },
+                    x: { duration: 0.25 },
+                  }}
+                  className={`rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981] ${
+                    isEmailOrName ? "w-2.5 h-2.5" : "w-2 h-2.5"
+                  }`}
+                />
+                {/* Right Eye */}
+                <motion.div
+                  animate={{
+                    scaleY: [1, 1, 0.1, 1],
+                    y: isEmailOrName ? 2.5 : 0,
+                    x: isEmailOrName ? 1 : 0,
+                  }}
+                  transition={{
+                    scaleY: { repeat: Infinity, repeatDelay: 3.5, duration: 0.2 },
+                    y: { duration: 0.25 },
+                    x: { duration: 0.25 },
+                  }}
+                  className={`rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981] ${
+                    isEmailOrName ? "w-2.5 h-2.5" : "w-2 h-2.5"
+                  }`}
+                />
+              </div>
+            )}
+
+            {/* Password Covered / Peeking Eyes */}
+            {isPassword && (
+              <div className="flex items-center justify-center gap-2 w-full">
+                {showPassword ? (
+                  /* Peeking One Eye Mode */
+                  <>
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#06b6d4]"
+                    />
+                    <div className="w-2.5 h-0.5 rounded-full bg-slate-600" />
+                  </>
+                ) : (
+                  /* Both Eyes Closed Shyly `( ˘ ◡ ˘ )` */
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex items-center gap-2 text-emerald-400 font-black text-[9px] tracking-widest"
+                  >
+                    <span>✦</span>
+                    <span className="text-[7px] text-emerald-300/80">🔒</span>
+                    <span>✦</span>
+                  </motion.div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Hands covering eyes when in password mode */}
+          <AnimatePresence>
+            {isPassword && !showPassword && (
+              <motion.div
+                initial={{ y: 15, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 15, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                className="absolute inset-x-2 bottom-1 flex justify-between z-20"
+              >
+                {/* Left Paw */}
+                <div className="w-3.5 h-3.5 rounded-full bg-white border border-emerald-400 shadow-sm flex items-center justify-center text-[7px]">
+                  ✋
+                </div>
+                {/* Right Paw */}
+                <div className="w-3.5 h-3.5 rounded-full bg-white border border-emerald-400 shadow-sm flex items-center justify-center text-[7px]">
+                  🤚
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Status Mini Badge */}
+        <div className="absolute -bottom-1 px-1.5 py-0.5 rounded-full bg-white/90 border border-emerald-200 shadow-xs flex items-center gap-1 text-[8px] font-black text-emerald-700">
+          <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping" />
+          <span>{isPassword ? "حماية 🔐" : isEmailOrName ? "يكتب... ✍️" : "مساعد ذكي ✨"}</span>
+        </div>
+      </motion.div>
     </div>
   );
 });
@@ -754,22 +924,25 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
   const focused = (field: string) => focusedField === field;
 
   const inputClass = (field: string) =>
-    `h-[48px] pr-11 rounded-xl text-[14px] font-medium transition-all duration-300 border-2 focus-visible:ring-0 focus-visible:ring-offset-0 ${
+    `h-[50px] pr-11 rounded-2xl text-[14px] font-medium transition-all duration-300 border focus-visible:ring-0 focus-visible:ring-offset-0 ${
       focused(field)
-        ? "bg-white border-primary shadow-[0_0_0_4px_rgba(16,185,129,0.12)] text-slate-900"
-        : "bg-slate-50/50 border-slate-200/80 hover:border-slate-300 text-slate-700 placeholder:text-slate-400"
+        ? "bg-white border-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.12)] text-slate-900"
+        : "bg-slate-50/70 border-slate-200/90 hover:border-slate-300 hover:bg-white text-slate-800 placeholder:text-slate-400"
     }`;
 
   const iconClass = (field: string) =>
-    `absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-all duration-300 ${
-      focused(field) ? "text-primary scale-110" : "text-slate-400"
+    `absolute right-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 transition-all duration-300 ${
+      focused(field) ? "text-emerald-600 scale-110" : "text-slate-400"
     }`;
 
   return (
-    <div className="w-full max-w-[440px] mx-auto px-4 select-none">
+    <div className="w-full max-w-[460px] mx-auto px-2 sm:px-4 select-none">
 
-      {/* Styled Sweeping Border Gradient Glassmorphism Container */}
-      <div className="sweeping-border-card backdrop-blur-3xl shadow-2xl rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden shadow-[0_0_60px_-12px_rgba(16,185,129,0.12)]">
+      {/* Styled Google Material 3 Elevated Card */}
+      <div className="relative rounded-[28px] bg-white/95 backdrop-blur-2xl border border-slate-200/80 shadow-[0_20px_50px_rgba(16,185,129,0.07)] p-6 sm:p-8 space-y-6 overflow-hidden">
+        
+        {/* Top Gemini Gradient Accent Line */}
+        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-500" />
         
         {emailConfirmation ? (
           <motion.div
@@ -911,19 +1084,28 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
             </div>
           </motion.div>
         ) : (
-          <div className="space-y-6">
-            {/* Branding Logo */}
-            <div className="flex flex-col items-center justify-center text-center pb-4 border-b border-slate-100/80 mb-6">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden p-2.5 bg-gradient-to-tr from-primary/10 to-accent/10 border border-primary/20 shadow-md">
-                <img src={tawzeefLogo} alt="Tawzeef-X" className="w-7 h-7 object-contain" />
+          <div className="space-y-5">
+            {/* Top Brand Logo & Animated Interactive Google-Style Mascot */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-2">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl flex items-center justify-center overflow-hidden p-2 bg-gradient-to-tr from-emerald-50 to-cyan-50 border border-emerald-500/20 shadow-xs">
+                  <img src={tawzeefLogo} alt="Tawzeef-X" className="w-7 h-7 object-contain" />
+                </div>
+                <div>
+                  <h1 className="text-base font-black text-slate-800 leading-tight">Tawzeef-X</h1>
+                  <p className="text-[8.5px] font-bold tracking-[0.18em] text-emerald-600 uppercase">منصة التوظيف الذكية</p>
+                </div>
               </div>
-              <h1 className="text-lg font-black text-slate-800 mt-2">Tawzeef-X</h1>
-              <p className="text-[9px] font-bold tracking-[0.2em] text-primary/60 uppercase">منصة التوظيف الذكية</p>
+
+              {/* Interactive Mascot */}
+              <div className="shrink-0">
+                <AIMascot focusedField={focusedField} showPassword={showPassword} isLoading={loading} />
+              </div>
             </div>
 
             {/* Back link */}
             <div className="hidden lg:block">
-              <a href="/" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-all duration-300 font-medium group">
+              <a href="/" className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-700 transition-all duration-300 font-medium group">
                 <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform duration-300" />
                 <span>العودة للرئيسية</span>
               </a>
@@ -937,18 +1119,18 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                 exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
                 transition={{ duration: 0.3 }}
-                className="space-y-1.5 text-right"
+                className="space-y-1 text-right"
               >
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-primary mb-1">
-                  <Sparkles className="w-3 h-3 text-primary animate-pulse" />
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-500/20 bg-emerald-50 text-emerald-700 mb-1">
+                  <Sparkles className="w-3 h-3 text-emerald-600 animate-pulse" />
                   <span className="text-[10px] font-bold tracking-wide">
                     {searchParams.get("role") === "candidate" ? "بوابة المتقدمين للوظائف" : isLogin ? "مرحباً بعودتك" : "انضم للمنصة الأذكى"}
                   </span>
                 </div>
-                <h2 className="text-2xl font-black text-foreground tracking-tight leading-tight">
+                <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-tight">
                   {searchParams.get("role") === "candidate" ? "تسجيل دخول المتقدمين" : isLogin ? "تسجيل الدخول" : "إنشاء حساب جديد"}
                 </h2>
-                <p className="text-muted-foreground text-xs leading-normal">
+                <p className="text-slate-500 text-xs leading-normal">
                   {searchParams.get("role") === "candidate" 
                     ? "أدخل بريدك الإلكتروني ورقم جوالك ككلمة مرور لمتابعة طلبك"
                     : isLogin 
@@ -1319,10 +1501,10 @@ export default function Auth() {
             />
           </div>
         ) : (
-          <AuroraBackground />
+          <GeminiAtmosphere />
         )}
       </div>
-      <div className="relative z-10 min-h-screen min-h-[100dvh] grid lg:grid-cols-[1fr_1.15fr]">
+      <div className="relative z-10 min-h-screen min-h-[100dvh] grid lg:grid-cols-[1.1fr_1fr]">
         <BrandingPanel />
         <div className="flex items-center justify-center py-10 sm:py-14 lg:py-0 px-3">
           <AuthForm isLogin={isLogin} setIsLogin={setIsLogin} setPendingOtp={setPendingOtp} />
