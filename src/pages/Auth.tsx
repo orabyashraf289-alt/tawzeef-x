@@ -49,49 +49,49 @@ import { translateAuthError } from "@/lib/authErrors";
 import { logAuditEvent } from "@/hooks/useAuditLog";
 import { checkPasswordStrength, isRateLimited, isValidEmail, sanitizeInput, detectSuspiciousInput } from "@/lib/security";
 
-/* ─── Google Gemini Fluid Atmosphere Background (Clean Light Theme) ─── */
-const GeminiAtmosphere = memo(function GeminiAtmosphere() {
+/* ─── Tawzeef-X System Native Atmosphere Background ─── */
+const SystemAtmosphere = memo(function SystemAtmosphere() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-      {/* Gemini Ambient Mesh Orb 1 — Emerald Glow (Top Right) */}
+      {/* Primary Brand Emerald Orb (Top-Right) */}
       <div
-        className="absolute w-[650px] h-[650px] rounded-full will-change-transform opacity-70"
+        className="absolute w-[680px] h-[680px] rounded-full will-change-transform opacity-75"
         style={{
-          background: "radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, rgba(52, 211, 153, 0.05) 50%, transparent 70%)",
+          background: "radial-gradient(circle, hsl(var(--primary) / 0.09) 0%, hsl(var(--accent) / 0.04) 50%, transparent 70%)",
           top: "-15%",
-          right: "-10%",
+          right: "-8%",
           filter: "blur(90px)",
           animation: "float-sphere-1 20s ease-in-out infinite",
         }}
       />
-      {/* Gemini Ambient Mesh Orb 2 — Cyan/Teal Glow (Bottom Left) */}
+      {/* Brand Accent Teal Orb (Bottom-Left) */}
       <div
-        className="absolute w-[600px] h-[600px] rounded-full will-change-transform opacity-60"
+        className="absolute w-[600px] h-[600px] rounded-full will-change-transform opacity-65"
         style={{
-          background: "radial-gradient(circle, rgba(6, 182, 212, 0.10) 0%, rgba(59, 130, 246, 0.04) 50%, transparent 70%)",
+          background: "radial-gradient(circle, hsl(var(--accent) / 0.07) 0%, hsl(var(--primary) / 0.03) 50%, transparent 70%)",
           bottom: "-10%",
-          left: "-10%",
+          left: "-8%",
           filter: "blur(100px)",
           animation: "float-sphere-2 24s ease-in-out infinite",
         }}
       />
-      {/* Gemini Ambient Mesh Orb 3 — Soft Violet Spark (Center Top) */}
+      {/* Central Soft Ambient Glow */}
       <div
-        className="absolute w-[450px] h-[450px] rounded-full will-change-transform opacity-40"
+        className="absolute w-[500px] h-[500px] rounded-full will-change-transform opacity-30"
         style={{
-          background: "radial-gradient(circle, rgba(99, 102, 241, 0.07) 0%, transparent 65%)",
-          top: "35%",
-          left: "40%",
-          filter: "blur(85px)",
+          background: "radial-gradient(circle, hsl(var(--primary) / 0.05) 0%, transparent 65%)",
+          top: "30%",
+          left: "35%",
+          filter: "blur(80px)",
           animation: "spin-slow 60s linear infinite",
         }}
       />
 
-      {/* Modern Google Material Dot Grid */}
+      {/* Tawzeef-X System Subtle Mesh Dot Grid */}
       <div
-        className="absolute inset-0 opacity-[0.035]"
+        className="absolute inset-0 opacity-[0.03]"
         style={{
-          backgroundImage: "radial-gradient(circle, #0f172a 1.2px, transparent 1.2px)",
+          backgroundImage: "radial-gradient(circle, hsl(var(--foreground)) 1.2px, transparent 1.2px)",
           backgroundSize: "28px 28px",
         }}
       />
@@ -511,11 +511,11 @@ const TawzeefXSystemShowcase = memo(function TawzeefXSystemShowcase() {
 const BrandingPanel = memo(function BrandingPanel() {
   return (
     <div className="hidden lg:flex flex-col justify-between h-full relative overflow-hidden p-12 select-none">
-      {/* Clean Light Background with soft emerald tint */}
+      {/* Clean System Background using theme tokens */}
       <div
-        className="absolute inset-0 bg-slate-50"
+        className="absolute inset-0 bg-background"
         style={{
-          background: "radial-gradient(circle at 100% 0%, #ecfdf5 0%, #f8fafc 60%, #f1f5f9 100%)",
+          background: "radial-gradient(circle at 100% 0%, hsl(var(--primary) / 0.05) 0%, hsl(var(--background)) 60%, hsl(var(--secondary) / 0.4) 100%)",
         }}
       />
 
@@ -1477,7 +1477,7 @@ export default function Auth() {
             />
           </div>
         ) : (
-          <GeminiAtmosphere />
+          <SystemAtmosphere />
         )}
       </div>
       <div className="relative z-10 min-h-screen min-h-[100dvh] grid lg:grid-cols-[1.1fr_1fr]">
