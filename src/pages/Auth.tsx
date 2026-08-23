@@ -1,5 +1,5 @@
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
-import React, { useState, useEffect, useCallback, useRef, memo, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef, memo } from "react";
 import confetti from "canvas-confetti";
 import { useNavigate, useSearchParams, Navigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,59 +49,37 @@ import { translateAuthError } from "@/lib/authErrors";
 import { logAuditEvent } from "@/hooks/useAuditLog";
 import { checkPasswordStrength, isRateLimited, isValidEmail, sanitizeInput, detectSuspiciousInput } from "@/lib/security";
 
-/* ─── Cosmic Dark Background: Starfield + Plasma Orbs ─── */
-const CosmicBackground = memo(function CosmicBackground() {
-  const stars = useMemo(() =>
-    Array.from({ length: 55 }, (_, i) => ({
-      id: i,
-      size: Math.random() * 2.5 + 0.5,
-      top: Math.random() * 100,
-      left: Math.random() * 100,
-      delay: Math.random() * 6,
-      duration: Math.random() * 3 + 2.5,
-    })), []
-  );
+/* ─── Optimized Animated Aurora Background ─── */
+const AuroraBackground = memo(function AuroraBackground() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-      {/* Stars */}
-      {stars.map(s => (
-        <div key={s.id} className="absolute rounded-full bg-white"
-          style={{
-            width: `${s.size}px`, height: `${s.size}px`,
-            top: `${s.top}%`, left: `${s.left}%`,
-            animation: `twinkle ${s.duration}s ease-in-out infinite`,
-            animationDelay: `${s.delay}s`,
-            willChange: 'opacity, transform',
-          }} />
-      ))}
-      {/* Emerald plasma orb — top right */}
-      <div className="absolute w-[700px] h-[700px] rounded-full will-change-transform" style={{
-        background: 'radial-gradient(circle, #10b981 0%, transparent 70%)',
-        filter: 'blur(160px)', opacity: 0.13, top: '-20%', right: '-15%',
-        animation: 'float-sphere-1 18s ease-in-out infinite',
-      }} />
-      {/* Cyan plasma orb — bottom left */}
-      <div className="absolute w-[550px] h-[550px] rounded-full will-change-transform" style={{
-        background: 'radial-gradient(circle, #06b6d4 0%, transparent 70%)',
-        filter: 'blur(140px)', opacity: 0.10, bottom: '-12%', left: '-10%',
-        animation: 'float-sphere-2 22s ease-in-out infinite',
-      }} />
-      {/* Indigo orb — center accent */}
-      <div className="absolute w-[400px] h-[400px] rounded-full" style={{
-        background: 'radial-gradient(circle, #6366f1 0%, transparent 70%)',
-        filter: 'blur(100px)', opacity: 0.06, top: '45%', left: '45%',
-        transform: 'translate(-50%,-50%)',
-      }} />
-      {/* Grid mesh */}
-      <div className="absolute inset-0" style={{
-        backgroundImage: `linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px)`,
-        backgroundSize: '40px 40px',
+      {/* Aurora layer 1 — teal sweep */}
+      <div
+        className="absolute w-[140%] h-[140%] top-[-40%] right-[-30%] will-change-transform"
+        style={{
+          background: "conic-gradient(from 180deg at 50% 50%, hsl(var(--primary) / 0.12) 0deg, hsl(var(--accent) / 0.06) 120deg, transparent 240deg, hsl(var(--primary) / 0.12) 360deg)",
+          filter: "blur(90px)",
+          transform: "translate3d(0,0,0)",
+          animation: "spin-slow 70s linear infinite",
+        }}
+      />
+      {/* Aurora layer 2 — coral bloom */}
+      <div
+        className="absolute w-[120%] h-[120%] bottom-[-30%] left-[-20%] will-change-transform"
+        style={{
+          background: "conic-gradient(from 0deg at 40% 60%, hsl(var(--accent) / 0.08) 0deg, transparent 120deg, hsl(var(--primary) / 0.07) 240deg, hsl(var(--accent) / 0.08) 360deg)",
+          filter: "blur(110px)",
+          transform: "translate3d(0,0,0)",
+          animation: "spin-reverse-slow 90s linear infinite",
+        }}
+      />
+      <div className="absolute inset-0 opacity-[0.02]" style={{
+        backgroundImage: "radial-gradient(circle, hsl(var(--foreground)) 1px, transparent 1px)",
+        backgroundSize: "32px 32px",
       }} />
     </div>
   );
 });
-
-
 
 /* ─── Live AI Recruiting Command Center Mockup (High Performance) ─── */
 const AICommandCenterWidget = memo(function AICommandCenterWidget() {
@@ -776,21 +754,22 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
   const focused = (field: string) => focusedField === field;
 
   const inputClass = (field: string) =>
-    `h-[48px] pr-11 rounded-xl text-[14px] font-medium transition-all duration-300 border focus-visible:ring-0 focus-visible:ring-offset-0 text-white ${
+    `h-[48px] pr-11 rounded-xl text-[14px] font-medium transition-all duration-300 border-2 focus-visible:ring-0 focus-visible:ring-offset-0 ${
       focused(field)
-        ? "bg-white/12 border-emerald-500/60 shadow-[0_0_0_4px_rgba(16,185,129,0.15)] placeholder:text-white/30"
-        : "bg-white/8 border-white/15 hover:border-white/28 placeholder:text-white/30"
+        ? "bg-white border-primary shadow-[0_0_0_4px_rgba(16,185,129,0.12)] text-slate-900"
+        : "bg-slate-50/50 border-slate-200/80 hover:border-slate-300 text-slate-700 placeholder:text-slate-400"
     }`;
 
   const iconClass = (field: string) =>
     `absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-all duration-300 ${
-      focused(field) ? "text-emerald-400 scale-110" : "text-white/35"
+      focused(field) ? "text-primary scale-110" : "text-slate-400"
     }`;
 
   return (
-    <div className="w-full max-w-[440px] mx-auto select-none">
-      <div className="space-y-6 relative overflow-hidden">
+    <div className="w-full max-w-[440px] mx-auto px-4 select-none">
 
+      {/* Styled Sweeping Border Gradient Glassmorphism Container */}
+      <div className="sweeping-border-card backdrop-blur-3xl shadow-2xl rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden shadow-[0_0_60px_-12px_rgba(16,185,129,0.12)]">
         
         {emailConfirmation ? (
           <motion.div
@@ -934,17 +913,17 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
         ) : (
           <div className="space-y-6">
             {/* Branding Logo */}
-            <div className="flex flex-col items-center justify-center text-center pb-4 border-b border-white/10 mb-6">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden p-2.5 bg-white/10 border border-white/20 shadow-md backdrop-blur">
+            <div className="flex flex-col items-center justify-center text-center pb-4 border-b border-slate-100/80 mb-6">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden p-2.5 bg-gradient-to-tr from-primary/10 to-accent/10 border border-primary/20 shadow-md">
                 <img src={tawzeefLogo} alt="Tawzeef-X" className="w-7 h-7 object-contain" />
               </div>
-              <h1 className="text-lg font-black text-white mt-2">Tawzeef-X</h1>
-              <p className="text-[9px] font-bold tracking-[0.2em] text-emerald-400/70 uppercase">منصة التوظيف الذكية</p>
+              <h1 className="text-lg font-black text-slate-800 mt-2">Tawzeef-X</h1>
+              <p className="text-[9px] font-bold tracking-[0.2em] text-primary/60 uppercase">منصة التوظيف الذكية</p>
             </div>
 
             {/* Back link */}
             <div className="hidden lg:block">
-              <a href="/" className="inline-flex items-center gap-1.5 text-xs text-white/40 hover:text-white/80 transition-all duration-300 font-medium group">
+              <a href="/" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-all duration-300 font-medium group">
                 <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform duration-300" />
                 <span>العودة للرئيسية</span>
               </a>
@@ -960,13 +939,13 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                 transition={{ duration: 0.3 }}
                 className="space-y-1.5 text-right"
               >
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 mb-1">
-                  <Sparkles className="w-3 h-3 text-emerald-400 animate-pulse" />
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-primary mb-1">
+                  <Sparkles className="w-3 h-3 text-primary animate-pulse" />
                   <span className="text-[10px] font-bold tracking-wide">
                     {searchParams.get("role") === "candidate" ? "بوابة المتقدمين للوظائف" : isLogin ? "مرحباً بعودتك" : "انضم للمنصة الأذكى"}
                   </span>
                 </div>
-                <h2 className="text-2xl font-black text-white tracking-tight leading-tight">
+                <h2 className="text-2xl font-black text-foreground tracking-tight leading-tight">
                   {searchParams.get("role") === "candidate" ? "تسجيل دخول المتقدمين" : isLogin ? "تسجيل الدخول" : "إنشاء حساب جديد"}
                 </h2>
                 <p className="text-muted-foreground text-xs leading-normal">
@@ -1005,12 +984,12 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                   <div className="space-y-4">
                     {/* Account Type Toggle */}
                     <div className="space-y-1.5 text-right">
-                      <label className="text-xs font-semibold text-white/70 tracking-wide block">
+                      <label className="text-xs font-semibold text-slate-600 tracking-wide block">
                         نوع الحساب
                       </label>
-                      <div className="flex bg-white/8 rounded-xl p-1 border border-white/10 relative h-[42px] select-none">
+                      <div className="flex bg-muted/40 rounded-xl p-1 border border-border/30 relative h-[42px] select-none">
                         <div
-                          className="absolute inset-y-1 rounded-lg bg-white/15 shadow-sm border border-white/12 transition-all duration-300 ease-out"
+                          className="absolute inset-y-1 rounded-lg bg-card shadow-sm border border-border/40 transition-all duration-300 ease-out"
                           style={{
                             width: "calc(50% - 4px)",
                             right: accountType === "company" ? "4px" : "calc(50% + 2px)",
@@ -1026,7 +1005,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                             type="button"
                             onClick={() => setAccountType(opt.type)}
                             className={`flex-1 py-1 rounded-lg text-xs font-bold transition-colors duration-300 flex items-center justify-center gap-1.5 relative z-10 ${
-                              accountType === opt.type ? "text-white" : "text-white/45 hover:text-white"
+                              accountType === opt.type ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                             }`}
                           >
                             {opt.icon}
@@ -1038,7 +1017,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
                     {/* Full Name */}
                     <div className="space-y-1.5 text-right">
-                      <label htmlFor="auth-fullname" className="text-xs font-semibold text-white/70 tracking-wide block cursor-pointer">
+                      <label htmlFor="auth-fullname" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
                         الاسم الكامل
                       </label>
                       <div className="relative">
@@ -1067,7 +1046,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                         transition={{ duration: 0.25 }}
                         className="space-y-1.5 text-right"
                       >
-                        <label htmlFor="auth-company" className="text-xs font-semibold text-white/70 tracking-wide block cursor-pointer">
+                        <label htmlFor="auth-company" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
                           اسم الشركة / المؤسسة
                         </label>
                         <div className="relative">
@@ -1092,7 +1071,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
                 {/* Email */}
                 <div className="space-y-1.5 text-right">
-                  <label htmlFor="auth-email" className="text-xs font-semibold text-white/70 tracking-wide block cursor-pointer">
+                  <label htmlFor="auth-email" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
                     البريد الإلكتروني
                   </label>
                   <div className="relative">
@@ -1116,7 +1095,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
                 {/* Password */}
                 <div className="space-y-1.5 text-right">
-                  <label htmlFor="auth-password" className="text-xs font-semibold text-white/70 tracking-wide block cursor-pointer">
+                  <label htmlFor="auth-password" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
                     كلمة المرور
                   </label>
                   <div className="relative">
@@ -1217,35 +1196,35 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
             <div className="relative flex items-center justify-center my-4 select-none">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-white/10" />
+                <span className="w-full border-t border-border/40" />
               </div>
-              <span className="relative px-3 text-[10px] font-bold text-white/30 bg-transparent uppercase tracking-widest">
+              <span className="relative px-3 text-[10px] font-bold text-muted-foreground/50 bg-background/0 uppercase tracking-widest">
                 أو المتابعة عبر
               </span>
             </div>
 
             <SocialButtons />
 
-            <p className="text-center text-xs text-white/45 select-none">
+            <p className="text-center text-xs text-muted-foreground select-none">
               {isLogin ? "ليس لديك حساب؟" : "لديك حساب بالفعل؟"}{" "}
               <button
                 onClick={() => setIsLogin(!isLogin)}
-                className="text-emerald-400 font-bold hover:text-emerald-300 transition-colors underline-offset-4 hover:underline"
+                className="text-primary font-bold hover:text-accent transition-colors underline-offset-4 hover:underline"
               >
                 {isLogin ? "أنشئ حساب جديد" : "سجّل دخولك"}
               </button>
             </p>
 
-            <p className="text-center text-[10px] text-white/25 leading-relaxed select-none">
+            <p className="text-center text-[10px] text-muted-foreground/35 leading-relaxed select-none">
               بالمتابعة أنت توافق على{" "}
-              <span className="text-white/35 underline-offset-2 hover:underline cursor-pointer">شروط الاستخدام</span>
+              <span className="text-muted-foreground/50 underline-offset-2 hover:underline cursor-pointer">شروط الاستخدام</span>
               {" "}و{" "}
-              <span className="text-white/35 underline-offset-2 hover:underline cursor-pointer">سياسة الخصوصية</span>
+              <span className="text-muted-foreground/50 underline-offset-2 hover:underline cursor-pointer">سياسة الخصوصية</span>
             </p>
 
             {/* Mobile back button */}
             <div className="lg:hidden text-center pt-2">
-              <a href="/" className="text-white/40 hover:text-white/80 text-xs inline-flex items-center gap-1.5 transition-colors font-bold group">
+              <a href="/" className="text-muted-foreground hover:text-foreground text-xs inline-flex items-center gap-1.5 transition-colors font-bold group">
                 <span>العودة للرئيسية</span>
                 <ArrowLeft className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300 rotate-180" />
               </a>
@@ -1274,25 +1253,25 @@ export default function Auth() {
   }
 
   return (
-    <div
-      className="min-h-screen min-h-[100dvh] relative overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, #080d14 0%, #0c1520 50%, #080f1a 100%)' }}
-      dir="rtl"
-    >
-      {/* CSS keyframes + utility classes */}
+    <div className="min-h-screen min-h-[100dvh] relative overflow-hidden bg-gradient-to-tr from-emerald-50/30 via-slate-50 to-cyan-50/30 text-slate-800" dir="rtl">
+      {/* Styles for sweeping border gradient + off-thread hardware accelerated CSS animations */}
       <style>{`
-        @keyframes twinkle {
-          0%, 100% { opacity: 0.08; transform: scale(1); }
-          50% { opacity: 0.85; transform: scale(1.4); }
+        @keyframes gradient-sweep {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
         }
-        .glass-auth-card {
-          background: rgba(255, 255, 255, 0.065);
-          backdrop-filter: blur(28px);
-          -webkit-backdrop-filter: blur(28px);
-          border: 1px solid rgba(255, 255, 255, 0.13);
-          border-radius: 24px;
-          box-shadow: 0 30px 70px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08);
+        .sweeping-border-card {
+          position: relative;
+          border: 1.5px solid transparent;
+          background: linear-gradient(to bottom, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.98) 100%) padding-box,
+                      linear-gradient(135deg, hsl(var(--primary) / 0.35) 0%, hsl(var(--accent) / 0.2) 50%, hsl(var(--primary) / 0.45) 100%) border-box;
+          background-size: 200% 200%;
+          animation: gradient-sweep 8s ease infinite;
+          backdrop-filter: blur(20px);
         }
+
+        /* GPU accelerated background sphere animations */
         @keyframes float-sphere-1 {
           0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
           50% { transform: translate3d(40px, -30px, 0) scale(1.15); }
@@ -1300,18 +1279,6 @@ export default function Auth() {
         @keyframes float-sphere-2 {
           0%, 100% { transform: translate3d(0, 0, 0) scale(1.15); }
           50% { transform: translate3d(-35px, 35px, 0) scale(0.95); }
-        }
-        @keyframes float-particle {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.15; }
-          50% { transform: translate3d(15px, -35px, 0) scale(1.4); opacity: 0.6; }
-        }
-        @keyframes shimmer-move {
-          0% { transform: translate3d(-100%, 0, 0); }
-          100% { transform: translate3d(200%, 0, 0); }
-        }
-        @keyframes scan-vertical {
-          0%, 100% { transform: translate3d(0, 0, 0); }
-          50% { transform: translate3d(0, 310px, 0); }
         }
         @keyframes spin-slow {
           0% { transform: rotate(0deg) translate3d(0,0,0); }
@@ -1321,6 +1288,19 @@ export default function Auth() {
           0% { transform: rotate(360deg) translate3d(0,0,0); }
           100% { transform: rotate(0deg) translate3d(0,0,0); }
         }
+        @keyframes float-particle {
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.15; }
+          50% { transform: translate3d(15px, -35px, 0) scale(1.4); opacity: 0.6; }
+        }
+        @keyframes scan-vertical {
+          0%, 100% { transform: translate3d(0, 0, 0); }
+          50% { transform: translate3d(0, 310px, 0); }
+        }
+        @keyframes shimmer-move {
+          0% { transform: translate3d(-100%, 0, 0); }
+          100% { transform: translate3d(200%, 0, 0); }
+        }
+
         .floating-particle {
           will-change: transform;
           animation: float-particle var(--float-duration, 8s) ease-in-out infinite;
@@ -1329,7 +1309,7 @@ export default function Auth() {
       `}</style>
 
       {/* Background */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 bg-background">
         {brandSettings?.loginBgUrl ? (
           <div className="absolute inset-0 z-0">
             <img src={brandSettings.loginBgUrl} alt="Custom Login Background" className="w-full h-full object-cover" />
@@ -1339,105 +1319,14 @@ export default function Auth() {
             />
           </div>
         ) : (
-          <CosmicBackground />
+          <AuroraBackground />
         )}
       </div>
-
-      {/* Main content — centered single column */}
-      <div className="relative z-10 min-h-screen min-h-[100dvh] flex flex-col items-center justify-center py-10 px-4">
-
-        {/* Top brand mark */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mb-5 flex items-center gap-3"
-        >
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-white/10 backdrop-blur border border-white/15 p-2 shadow-lg">
-            <img src={tawzeefLogo} alt="Tawzeef-X" className="w-6 h-6 object-contain" />
-          </div>
-          <div>
-            <p className="text-white font-black text-lg tracking-wide leading-tight">Tawzeef-X</p>
-            <p className="text-emerald-400/70 text-[9px] font-bold tracking-[0.22em] uppercase">منصة التوظيف الذكية</p>
-          </div>
-        </motion.div>
-
-        {/* AI widget preview */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.15 }}
-          className="mb-5 w-full max-w-[310px]"
-        >
-          <AICommandCenterWidget />
-        </motion.div>
-
-        {/* Glass card + floating stat badges */}
-        <motion.div
-          initial={{ opacity: 0, y: 30, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.65, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-[440px]"
-        >
-          {/* Floating badge: AI */}
-          <motion.div
-            animate={{ y: [0, -10, 0] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute -top-5 -right-3 z-20 hidden sm:block"
-          >
-            <div className="bg-white/10 backdrop-blur-xl border border-emerald-500/30 rounded-2xl px-3 py-2 shadow-xl flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full bg-emerald-500/25 flex items-center justify-center">
-                <span className="text-emerald-400 text-[8px] font-black">AI</span>
-              </div>
-              <div>
-                <p className="text-white text-[10px] font-black leading-none">ذكاء اصطناعي</p>
-                <p className="text-emerald-400/70 text-[8px] font-semibold">مطابقة فورية</p>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Floating badge: 98% */}
-          <motion.div
-            animate={{ y: [0, 8, 0] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
-            className="absolute top-1/3 -left-16 z-20 hidden lg:block"
-          >
-            <div className="bg-white/10 backdrop-blur-xl border border-cyan-500/30 rounded-2xl px-3 py-2 shadow-xl">
-              <p className="text-white text-sm font-black leading-none">98%</p>
-              <p className="text-cyan-400/80 text-[8px] font-semibold">رضا العملاء ⭐</p>
-            </div>
-          </motion.div>
-
-          {/* Floating badge: 3X */}
-          <motion.div
-            animate={{ y: [0, -8, 0] }}
-            transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-            className="absolute -bottom-4 -right-3 z-20 hidden sm:block"
-          >
-            <div className="bg-white/10 backdrop-blur-xl border border-yellow-500/20 rounded-2xl px-3 py-2 shadow-xl flex items-center gap-2">
-              <Zap className="w-3.5 h-3.5 text-yellow-400" />
-              <div>
-                <p className="text-white text-[10px] font-black leading-none">3X أسرع</p>
-                <p className="text-yellow-400/70 text-[8px] font-semibold">توظيف ذكي</p>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Glass card */}
-          <div className="glass-auth-card p-8">
-            <AuthForm isLogin={isLogin} setIsLogin={setIsLogin} setPendingOtp={setPendingOtp} />
-          </div>
-        </motion.div>
-
-        {/* Footer */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7 }}
-          className="mt-8 text-white/18 text-[10px] text-center"
-        >
-          © 2026 Tawzeef-X · جميع الحقوق محفوظة
-        </motion.p>
+      <div className="relative z-10 min-h-screen min-h-[100dvh] grid lg:grid-cols-[1fr_1.15fr]">
+        <BrandingPanel />
+        <div className="flex items-center justify-center py-10 sm:py-14 lg:py-0 px-3">
+          <AuthForm isLogin={isLogin} setIsLogin={setIsLogin} setPendingOtp={setPendingOtp} />
+        </div>
       </div>
     </div>
   );
