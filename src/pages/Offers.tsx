@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import SARSymbol from "@/components/SARSymbol";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useCandidates, useJobs } from "@/hooks/useJobs";
@@ -62,6 +63,7 @@ import {
   Lightbulb,
   Loader2,
   Gift,
+  FileCheck2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useI18n } from "@/contexts/I18nContext";
@@ -1045,6 +1047,19 @@ export default function OffersPage() {
                               <Smartphone className="w-4 h-4" />
                             </Button>
                           </>
+                        )}
+                        {offer.status === "accepted" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-2.5 text-xs font-bold text-emerald-700 bg-emerald-50 border-emerald-300 hover:bg-emerald-100 gap-1 rounded-xl shadow-xs"
+                            asChild
+                          >
+                            <Link to="/converted-orders">
+                              <FileCheck2 className="w-3.5 h-3.5 text-emerald-600" />
+                              أمر تعيين 📑
+                            </Link>
+                          </Button>
                         )}
                         {(offer.status === "sent" || offer.status === "viewed") && (
                           <Button

@@ -19,6 +19,7 @@ const ROUTE_PERMISSION_MAP: Record<string, string> = {
   "/pipeline": "screen.pipeline",
   "/interviews": "screen.interviews",
   "/offers": "screen.offers",
+  "/converted-orders": "screen.converted_orders",
   "/reports": "screen.reports",
   "/hiring-plan": "screen.hiring_plan",
   "/notifications": "screen.notifications",

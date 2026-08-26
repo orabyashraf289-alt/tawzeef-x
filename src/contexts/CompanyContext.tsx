@@ -163,3 +163,6 @@ export function useCompanyContext() {
   }
   return context;
 }
+
+export const useCompany = useCompanyContext;
+

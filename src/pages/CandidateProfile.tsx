@@ -13,7 +13,7 @@ import {
   MessageSquare, FileText, Briefcase, GraduationCap, Check, Clock, 
   Circle, CalendarPlus, User, Activity, Hash, Layers, Globe, 
   Copy, ChevronLeft, Sparkles, Eye, StarOff, GitBranch, ClipboardCheck,
-  Lock, Shield, Award, CheckCircle2, Video, BookOpen, Heart, Home, Bus, ExternalLink
+  Lock, Shield, Award, CheckCircle2, Video, BookOpen, Heart, Home, Bus, ExternalLink, FileCheck2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCandidates } from "@/hooks/useJobs";
@@ -342,6 +342,17 @@ export default function CandidateProfile() {
                 >
                   <Star className="w-3.5 h-3.5" />
                   {talentEntry ? "في النخبة الممتازة" : "حفظ في بنك المعلمين"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 rounded-xl text-xs h-9 text-emerald-700 bg-emerald-50 border-emerald-300 hover:bg-emerald-100 font-bold"
+                  asChild
+                >
+                  <Link to="/converted-orders">
+                    <FileCheck2 className="w-3.5 h-3.5 text-emerald-600" />
+                    تحويل لأمر تعيين 📑
+                  </Link>
                 </Button>
               </div>
             </div>

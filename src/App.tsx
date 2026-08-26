@@ -39,6 +39,7 @@ const BookInterview = lazy(() => import("./pages/BookInterview"));
 const TeamManagement = lazy(() => import("./pages/TeamManagement"));
 const CompanyAgencies = lazy(() => import("./pages/CompanyAgencies"));
 const Offers = lazy(() => import("./pages/Offers"));
+const ConvertedOrders = lazy(() => import("./pages/ConvertedOrders"));
 const OfferPortal = lazy(() => import("./pages/OfferPortal"));
 const VideoRoom = lazy(() => import("./pages/VideoRoom"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -132,6 +133,7 @@ function AnimatedRoutes() {
         <Route path="/notifications" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Notifications /></RoleProtectedRoute>} />
         <Route path="/pipeline" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Pipeline /></RoleProtectedRoute>} />
         <Route path="/offers" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Offers /></RoleProtectedRoute>} />
+        <Route path="/converted-orders" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><ConvertedOrders /></RoleProtectedRoute>} />
         <Route path="/settings" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Settings /></RoleProtectedRoute>} />
         <Route path="/hiring-plan" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><HiringPlan /></RoleProtectedRoute>} />
         <Route path="/tutorial" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Tutorial /></RoleProtectedRoute>} />

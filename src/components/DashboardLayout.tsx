@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Briefcase, Users, Bot, Settings, Menu, Calendar, BarChart3, Bell, LogOut, X, Kanban, Crown, UserCog, FileText, Sun, Moon, Monitor, Target, Globe, GraduationCap, Shield, Star, Download, BookOpen, GitBranch, Map, Search, Archive, Building2, Handshake, ClipboardList, ShieldCheck, ChevronDown, CheckSquare, Plus,
+  LayoutDashboard, Briefcase, Users, Bot, Settings, Menu, Calendar, BarChart3, Bell, LogOut, X, Kanban, Crown, UserCog, FileText, Sun, Moon, Monitor, Target, Globe, GraduationCap, Shield, Star, Download, BookOpen, GitBranch, Map, Search, Archive, Building2, Handshake, ClipboardList, ShieldCheck, ChevronDown, CheckSquare, Plus, FileCheck2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -47,6 +47,7 @@ const navGroups = [
       { icon: Kanban, labelKey: "nav.pipeline", path: "/pipeline", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
       { icon: Calendar, labelKey: "nav.interviews", path: "/interviews", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
       { icon: FileText, labelKey: "nav.offers", path: "/offers", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
+      { icon: FileCheck2, labelKey: "nav.convertedOrders", path: "/converted-orders", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment", "enterprise"] },
       { icon: CheckSquare, labelKey: "nav.tasks", path: "/tasks", roles: ["admin", "recruiter", "reviewer"], workspaces: ["enterprise"] },
       { icon: Target, labelKey: "nav.evaluation", path: "/evaluation", roles: ["admin", "recruiter", "reviewer"], workspaces: ["enterprise"] },
     ]

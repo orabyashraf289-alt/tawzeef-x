@@ -8,6 +8,7 @@ const ar: Record<string, string> = {
   "nav.pipeline": "مسار التوظيف",
   "nav.interviews": "المقابلات",
   "nav.offers": "العروض",
+  "nav.convertedOrders": "الطلبات المحولة",
   "nav.reports": "التقارير",
   "nav.hiringPlan": "خطة التوظيف",
   "nav.notifications": "الإشعارات",
