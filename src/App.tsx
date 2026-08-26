@@ -40,6 +40,7 @@ const TeamManagement = lazy(() => import("./pages/TeamManagement"));
 const CompanyAgencies = lazy(() => import("./pages/CompanyAgencies"));
 const Offers = lazy(() => import("./pages/Offers"));
 const ConvertedOrders = lazy(() => import("./pages/ConvertedOrders"));
+const OrderOnboardingPortal = lazy(() => import("./pages/OrderOnboardingPortal"));
 const OfferPortal = lazy(() => import("./pages/OfferPortal"));
 const VideoRoom = lazy(() => import("./pages/VideoRoom"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -103,6 +104,7 @@ function AnimatedRoutes() {
         <Route path="/portal" element={<CandidatePortal />} />
         <Route path="/book/:candidateId" element={<BookInterview />} />
         <Route path="/offer/:token" element={<OfferPortal />} />
+        <Route path="/onboard/:orderId" element={<OrderOnboardingPortal />} />
         <Route path="/install" element={<Install />} />
         <Route path="/meeting/:roomId" element={<VideoRoom />} />
         <Route path="/assessment/:token" element={<TakeAssessment />} />
