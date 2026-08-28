@@ -1,4 +1,6 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useMemo, ReactNode } from "react";
+import { ThemeProvider as MuiThemeProvider } from "@mui/material/styles";
+import { getMaterialTheme } from "@/theme/materialTheme";
 
 type Theme = "light" | "dark" | "system";
 
@@ -39,6 +41,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const resolvedTheme = theme === "system" ? getSystemTheme() : theme;
 
+  const muiTheme = useMemo(() => getMaterialTheme(resolvedTheme), [resolvedTheme]);
+
   useEffect(() => {
     const root = document.documentElement;
     root.classList.remove("light", "dark");
@@ -67,7 +71,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme, primaryColor, setPrimaryColor }}>
-      {children}
+      <MuiThemeProvider theme={muiTheme}>
+        {children}
+      </MuiThemeProvider>
     </ThemeContext.Provider>
   );
 }
