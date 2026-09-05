@@ -2044,14 +2044,20 @@ function SubscriptionSection() {
   }
 
   // Resolve active plan detail
-  const currentPlan = plans?.find(p => p.id === activeSub?.plan_id) || plans?.find(p => p.name === "free");
-  const isFree = currentPlan?.name === "free";
-  const isPro = currentPlan?.name === "pro";
-  const isBasic = currentPlan?.name === "basic";
+  const currentPlan =
+    plans?.find(p =>
+      p.id === activeSub?.plan_id ||
+      p.name?.toLowerCase() === activeSub?.plan_id?.toLowerCase() ||
+      p.name_ar === activeSub?.plan_id
+    ) || (plans && plans.find(p => p.name === "free")) || null;
+
+  const isFree = currentPlan?.name === "free" || currentPlan?.name_ar === "مجاني";
+  const isPro = currentPlan?.name === "pro" || currentPlan?.name_ar === "احترافي";
+  const isBasic = currentPlan?.name === "basic" || currentPlan?.name_ar === "أساسي";
 
   const nextPlans = plans?.filter(p => {
-    if (isFree) return p.name !== "free";
-    if (isBasic) return p.name === "pro";
+    if (isFree) return p.name !== "free" && p.name_ar !== "مجاني";
+    if (isBasic) return p.name === "pro" || p.name_ar === "احترافي";
     return false; // Pro is already highest
   }) || [];
 

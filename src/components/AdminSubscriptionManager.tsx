@@ -45,20 +45,22 @@ function useCompaniesList() {
 
       const mainCompanyIds = mainCompanies.map((c) => c.id);
 
-      // Get all company owners for main companies
+      // Get company members for main companies
       const { data: members } = await supabase
         .from("company_members" as any)
         .select("company_id, user_id, member_role")
-        .in("company_id", mainCompanyIds)
-        .eq("member_role", "owner");
+        .in("company_id", mainCompanyIds);
 
-      const ownerUserIds = (members || []).map((m: any) => m.user_id);
+      const possibleUserIds = Array.from(new Set([
+        ...mainCompanies.map((c) => c.owner_user_id).filter(Boolean),
+        ...(members || []).map((m: any) => m.user_id).filter(Boolean),
+      ]));
 
       // Get owner profiles
       const { data: profiles } = await supabase
         .from("profiles")
         .select("*")
-        .in("user_id", ownerUserIds);
+        .in("user_id", possibleUserIds);
 
       // Get subscriptions for main companies
       const { data: subs } = await supabase
@@ -72,8 +74,10 @@ function useCompaniesList() {
         .select("*");
 
       return mainCompanies.map((c) => {
-        const member = (members || []).find((m: any) => m.company_id === c.id);
-        const profile = member ? (profiles || []).find((p) => p.user_id === member.user_id) : null;
+        const companyMembers = (members || []).filter((m: any) => m.company_id === c.id);
+        const ownerMember = companyMembers.find((m: any) => m.member_role === "owner") || companyMembers[0];
+        const effectiveUserId = c.owner_user_id || ownerMember?.user_id || null;
+        const profile = effectiveUserId ? (profiles || []).find((p) => p.user_id === effectiveUserId || p.id === effectiveUserId) : null;
         const sub = (subs as any[] || []).find((s: any) => s.company_id === c.id);
         const plan = sub ? (plans as any[] || []).find((p: any) => p.id === sub.plan_id) : null;
         
@@ -86,7 +90,7 @@ function useCompaniesList() {
           companyId: c.id,
           companyName: c.name || "شركة بدون اسم",
           ownerName: profile?.full_name || "بدون اسم مالك",
-          ownerUserId: member?.user_id || null,
+          ownerUserId: effectiveUserId,
           joinedAt: c.created_at,
           subscription: sub,
           plan,
@@ -168,7 +172,9 @@ export default function AdminSubscriptionManager() {
       currentPlanId: company.plan?.id,
       requestId,
     });
-    const targetPlan = targetPlanId ? (plans || []).find((p) => p.id === targetPlanId) : null;
+    const targetPlan = targetPlanId
+      ? (plans || []).find((p) => p.id === targetPlanId || p.name?.toLowerCase() === targetPlanId.toLowerCase() || p.name_ar === targetPlanId)
+      : null;
     const defaultPlan = targetPlan || company.plan || (plans && plans[0]);
     if (defaultPlan) {
       setSelectedPlanId(defaultPlan.id);
@@ -389,7 +395,7 @@ export default function AdminSubscriptionManager() {
                             const co = (companies || []).find((c) => c.companyId === req.company_id);
                             rejectUpgrade.mutate({
                               requestId: req.id,
-                              ownerUserId: co?.ownerUserId,
+                              ownerUserId: co?.ownerUserId || req.requested_by_user_id,
                             });
                             toast({ title: "تم رفض طلب الترقية وإشعار العميل" });
                           }
@@ -403,7 +409,15 @@ export default function AdminSubscriptionManager() {
                         className="gap-1.5 font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
                         onClick={() => {
                           const co = (companies || []).find((c) => c.companyId === req.company_id);
-                          if (co) openUpgradeModal(co, req.id, req.target_plan_id);
+                          if (co) {
+                            openUpgradeModal(co, req.id, req.target_plan_id);
+                          } else {
+                            openUpgradeModal({
+                              companyId: req.company_id,
+                              companyName: req.company_name || "الشركة",
+                              ownerUserId: req.requested_by_user_id || null,
+                            }, req.id, req.target_plan_id);
+                          }
                         }}
                       >
                         <CheckCircle2 className="w-4 h-4" />
