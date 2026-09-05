@@ -28,6 +28,13 @@ import {
   LucideIcon,
 } from "lucide-react";
 
+export interface StepActionTrigger {
+  labelAr: string;
+  labelEn: string;
+  actionType: "navigate" | "open_modal" | "custom_event";
+  target: string;
+}
+
 export interface GuideStep {
   stepNumber: number;
   titleAr: string;
@@ -38,6 +45,13 @@ export interface GuideStep {
   expectedOutcomeEn: string;
   tipsAr?: string;
   tipsEn?: string;
+  actionTrigger?: StepActionTrigger;
+}
+
+export interface WorkflowStage {
+  stepNumber: number;
+  labelAr: string;
+  labelEn: string;
 }
 
 export interface ScreenButtonGuide {
@@ -78,6 +92,7 @@ export interface ScreenGuideItem {
   summaryEn: string;
   targetAudienceAr: string;
   targetAudienceEn: string;
+  workflowStages?: WorkflowStage[];
   steps: GuideStep[];
   keyButtons: ScreenButtonGuide[];
   proTips: ScreenProTip[];
@@ -102,6 +117,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Real-time monitoring hub for all hiring activities, stats, and critical indicators.",
     targetAudienceAr: "مدراء التوظيف، مسؤولو الموارد البشرية، الإدارة العليا",
     targetAudienceEn: "Hiring Managers, HR Specialists, Executives",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "متابعة المؤشرات", labelEn: "Monitor KPIs" },
+      { stepNumber: 2, labelAr: "مراجعة المهام", labelEn: "Urgent Tasks" },
+      { stepNumber: 3, labelAr: "فحص المتقدمين", labelEn: "New Applicants" },
+      { stepNumber: 4, labelAr: "اتخاذ إجراء سريع", labelEn: "Quick Action" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -110,7 +131,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "راقب عدد الوظائف النشطة، إجمالي المتقدمين، المقابلات المجدولة اليوم، والعروض الوظيفية المعلقة.",
         actionEn: "Check active job openings, total applicants, today's interviews, and pending offers.",
         expectedOutcomeAr: "معرفة سريعة بحجم العمل المطلوب اليوم دون الحاجة للبحث في القوائم.",
-        expectedOutcomeEn: "Instant snapshot of current hiring workload and pending actions."
+        expectedOutcomeEn: "Instant snapshot of current hiring workload and pending actions.",
+              actionTrigger: {
+          labelAr: "إنشاء شاغر جديد الآن ⚡",
+          labelEn: "Create New Job Now ⚡",
+          actionType: "navigate",
+          target: "/jobs?action=new",
+        },
       },
       {
         stepNumber: 2,
@@ -207,6 +234,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Create, manage, and distribute job postings with direct applicant portals and QR codes.",
     targetAudienceAr: "مسؤولو التوظيف، مدراء الأقسام، مسؤولو الموارد البشرية",
     targetAudienceEn: "Recruiters, Hiring Managers, HR Coordinators",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "إنشاء المسودة", labelEn: "Draft Specs" },
+      { stepNumber: 2, labelAr: "المعايير والرخص", labelEn: "Requirements & ETEC" },
+      { stepNumber: 3, labelAr: "حفظ ونشر الشاغر", labelEn: "Publish Live" },
+      { stepNumber: 4, labelAr: "رابط التقديم و QR", labelEn: "Share Link & QR" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -215,7 +248,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "انقر على زر 'إنشاء وظيفة جديدة' في أعلى يسار الشاشة، أو اختر قالباً جاهزاً من 'مكتبة النظام'.",
         actionEn: "Click 'New Job' or pick a ready template from the System Library.",
         expectedOutcomeAr: "فتح نموذج إدخال بيانات الوظيفة الشامل.",
-        expectedOutcomeEn: "Opens comprehensive job configuration dialog."
+        expectedOutcomeEn: "Opens comprehensive job configuration dialog.",
+              actionTrigger: {
+          labelAr: "فتح نموذج إنشاء وظيفة ⚡",
+          labelEn: "Open Job Form ⚡",
+          actionType: "navigate",
+          target: "/jobs?action=new",
+        },
       },
       {
         stepNumber: 2,
@@ -224,7 +263,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "أدخل المسمى الوظيفي، القسم، المدينة، نمط العمل (حضوري/عن بعد)، وسنوات الخبرة المطلوبة والراتب التقديري.",
         actionEn: "Enter Job Title, Department, City, Work Mode, required experience, and salary range.",
         expectedOutcomeAr: "تحديد معايير الفلترة التلقائية التي سيعتمد عليها الذكاء الاصطناعي.",
-        expectedOutcomeEn: "Configures automatic criteria used by AI scoring."
+        expectedOutcomeEn: "Configures automatic criteria used by AI scoring.",
+              actionTrigger: {
+          labelAr: "استعراض قوالب الوظائف ⚡",
+          labelEn: "Browse Templates ⚡",
+          actionType: "navigate",
+          target: "/library",
+        },
       },
       {
         stepNumber: 3,
@@ -312,6 +357,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Review applicants, parse resumes with AI, verify educator licenses, and filter candidates.",
     targetAudienceAr: "مسؤولو التوظيف، لجان المقابلات، مدراء الأقسام",
     targetAudienceEn: "Recruiters, Interview Panels, Department Leads",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "استقبال الطلب", labelEn: "Inbound Application" },
+      { stepNumber: 2, labelAr: "مطابقة الـ AI", labelEn: "AI Match Scoring" },
+      { stepNumber: 3, labelAr: "فحص رخصة ETEC", labelEn: "ETEC License Check" },
+      { stepNumber: 4, labelAr: "الترقية للمقابلة", labelEn: "Advance to Interview" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -320,7 +371,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "استخدم القوائم المنسدلة في أعلى الشاشة لاختيار الوظيفة المحددة، أو فلترة المرشحين حسب الحالة (جديد، مقابلة، تقييم، عرض).",
         actionEn: "Use top dropdowns to narrow down by job opening, stage, or application date.",
         expectedOutcomeAr: "حصر المتقدمين للشواغر المطلوبة وتسهيل فرزهم.",
-        expectedOutcomeEn: "Focuses view strictly on the relevant applicant pool."
+        expectedOutcomeEn: "Focuses view strictly on the relevant applicant pool.",
+              actionTrigger: {
+          labelAr: "الانتقال لمسار الكانبان ⚡",
+          labelEn: "Open Pipeline Kanban ⚡",
+          actionType: "navigate",
+          target: "/pipeline",
+        },
       },
       {
         stepNumber: 2,
@@ -417,6 +474,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Interactive drag-and-drop board tracking candidates across hiring stages with quality gates.",
     targetAudienceAr: "مدراء ومسؤولو التوظيف ولجان الاعتماد",
     targetAudienceEn: "Recruiters, Hiring Managers, Approval Panels",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "تقديم جديد", labelEn: "New Applications" },
+      { stepNumber: 2, labelAr: "مراجعة أولية", labelEn: "Initial Screening" },
+      { stepNumber: 3, labelAr: "المقابلة والدرس", labelEn: "Interview & Demo" },
+      { stepNumber: 4, labelAr: "العرض والتعيين", labelEn: "Offer & Placement" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -425,7 +488,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "من القائمة المنسدلة في الأعلى، اختر الوظيفة لمشاهدة مسار مرشحيها المقسم حسب المراحل.",
         actionEn: "Pick job opening to view its dedicated pipeline stage columns.",
         expectedOutcomeAr: "عرض كافة أعمدة المراحل الخاصة بهذه الوظيفة فقط.",
-        expectedOutcomeEn: "Renders clean, focused Kanban columns for this job."
+        expectedOutcomeEn: "Renders clean, focused Kanban columns for this job.",
+              actionTrigger: {
+          labelAr: "جدولة مقابلة للمرشح ⚡",
+          labelEn: "Schedule Interview ⚡",
+          actionType: "navigate",
+          target: "/interviews",
+        },
       },
       {
         stepNumber: 2,
@@ -516,6 +585,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Manage interview calendar, schedule meetings, launch virtual video rooms, and record scores.",
     targetAudienceAr: "مسؤولو التوظيف، لجان المقابلات، رؤساء الأقسام",
     targetAudienceEn: "Recruiters, Interviewers, Department Heads",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "حجز الموعد", labelEn: "Slot Booking" },
+      { stepNumber: 2, labelAr: "دعوة اللجنة", labelEn: "Panel Invites" },
+      { stepNumber: 3, labelAr: "غرفة فيديو HD", labelEn: "HD Video Room" },
+      { stepNumber: 4, labelAr: "اعتماد التقييم", labelEn: "Submit Scorecard" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -524,7 +599,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "اضغط على زر 'جدولة مقابلة جديدة' في أعلى الصفحة، أو من بطاقة المرشح في شاشة الكانبان.",
         actionEn: "Click 'Schedule Interview' button or initiate from candidate card.",
         expectedOutcomeAr: "فتح نافذة اختيار المرشح والوقت والنوع.",
-        expectedOutcomeEn: "Opens interview scheduling configuration modal."
+        expectedOutcomeEn: "Opens interview scheduling configuration modal.",
+              actionTrigger: {
+          labelAr: "جدولة موعد جديد الآن ⚡",
+          labelEn: "Schedule Interview Slot ⚡",
+          actionType: "navigate",
+          target: "/interviews?action=create",
+        },
       },
       {
         stepNumber: 2,
@@ -615,6 +696,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Generate official job offers in SAR, configure allowances, send digital links, and secure e-signatures with PDF generation.",
     targetAudienceAr: "مدراء الموارد البشرية، مسؤولو التوظيف، الإدارة المالية",
     targetAudienceEn: "HR Directors, Talent Acquisition Leads, Finance",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "الراتب والبدلات", labelEn: "Comp & Allowances" },
+      { stepNumber: 2, labelAr: "مسودة العقد", labelEn: "Contract Review" },
+      { stepNumber: 3, labelAr: "إرسال الرابط", labelEn: "Send Encrypted Link" },
+      { stepNumber: 4, labelAr: "التوقيع و PDF", labelEn: "E-Sign & PDF" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -623,7 +710,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "انقر زر 'عرض وظيفي جديد' واختر المرشح الفائز من قائمة المقبولين.",
         actionEn: "Click 'New Offer' and select the qualified candidate from the list.",
         expectedOutcomeAr: "فتح محرر العرض الوظيفي الرسمي المتكامل.",
-        expectedOutcomeEn: "Opens official job offer builder with salary breakdown."
+        expectedOutcomeEn: "Opens official job offer builder with salary breakdown.",
+              actionTrigger: {
+          labelAr: "إنشاء عرض وظيفي رسمي ⚡",
+          labelEn: "Draft Job Offer ⚡",
+          actionType: "navigate",
+          target: "/offers?action=create",
+        },
       },
       {
         stepNumber: 2,
@@ -714,6 +807,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Central repository of ready-made job templates, legal employment contracts, HR messages, and Google Material Symbols.",
     targetAudienceAr: "مسؤولو التوظيف، مدراء الموارد البشرية، مصممو ومطورو النظام",
     targetAudienceEn: "Recruiters, HR Specialists, System Admins",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "قوالب الوظائف", labelEn: "Job Templates" },
+      { stepNumber: 2, labelAr: "مسودات العقود", labelEn: "Legal Contracts" },
+      { stepNumber: 3, labelAr: "نماذج المراسلات", labelEn: "Email Templates" },
+      { stepNumber: 4, labelAr: "رموز Material 3", labelEn: "Material Symbols" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -722,7 +821,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "تنقل بين أجنحة المكتبة الأربعة: 1) قوالب الوظائف الجاهزة، 2) مسودات العقود والوثائق، 3) قوالب البريد والمراسلات، 4) مكتبة Google Material 3.",
         actionEn: "Toggle between the 4 tabs: Job Templates, Contracts & Offers, Messages, and Material 3.",
         expectedOutcomeAr: "الوصول السريع للأصل أو النموذج الذي تحتاجه في ثوانٍ معدودة.",
-        expectedOutcomeEn: "Rapid access to any HR template or design asset."
+        expectedOutcomeEn: "Rapid access to any HR template or design asset.",
+              actionTrigger: {
+          labelAr: "استخدام قالب لإنشاء وظيفة ⚡",
+          labelEn: "Use Template For Job ⚡",
+          actionType: "navigate",
+          target: "/jobs?action=new",
+        },
       },
       {
         stepNumber: 2,
@@ -731,7 +836,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "في جناح 'قوالب الوظائف'، ابحث عن الوظيفة (مثلاً: معلم كيمياء، مطور واجهات، أخصائي تسويق) واضغط زر 'استخدام القالب لإنشاء وظيفة'.",
         actionEn: "Pick a job template and click 'Use Template to Create Job'.",
         expectedOutcomeAr: "فتح شاشة الوظائف ونقل كافة المسؤوليات والمهارات والشروط جاهزة ومكتوبة باحترافية.",
-        expectedOutcomeEn: "Populates the job builder instantly with industry-grade requirements and skills."
+        expectedOutcomeEn: "Populates the job builder instantly with industry-grade requirements and skills.",
+              actionTrigger: {
+          labelAr: "استعراض مسودات العقود ⚡",
+          labelEn: "View Contract Drafts ⚡",
+          actionType: "navigate",
+          target: "/library",
+        },
       },
       {
         stepNumber: 3,
@@ -813,6 +924,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Manage team tasks with status Kanban boards, deadlines, priorities, and productivity metrics.",
     targetAudienceAr: "مسؤولو التوظيف، قادة الفرق، مدراء الموارد البشرية",
     targetAudienceEn: "Team Leads, HR Specialists, Recruiters",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "إنشاء المهمة", labelEn: "Create Task" },
+      { stepNumber: 2, labelAr: "تعيين المسؤول", labelEn: "Assign & Deadline" },
+      { stepNumber: 3, labelAr: "تنفيذ العمل", labelEn: "In Progress" },
+      { stepNumber: 4, labelAr: "الإنجاز والاعتماد", labelEn: "Mark Completed" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -821,7 +938,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "اضغط على زر 'مهمة جديدة' في أعلى الشاشة وأدخل عنوان المهمة، الوصف، والأولوية (عاجلة / متوسطة / منخفضة).",
         actionEn: "Click 'New Task' button, enter title, description, and priority level.",
         expectedOutcomeAr: "ظهور المهمة في عمود 'قيد الانتظار / المهام الجديدة'.",
-        expectedOutcomeEn: "Task appears in the 'Pending' column."
+        expectedOutcomeEn: "Task appears in the 'Pending' column.",
+              actionTrigger: {
+          labelAr: "إضافة مهمة جديدة الآن ⚡",
+          labelEn: "Add New Task ⚡",
+          actionType: "navigate",
+          target: "/tasks?action=new",
+        },
       },
       {
         stepNumber: 2,
@@ -896,6 +1019,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Comprehensive 360 appraisal engine: SMART goals, KPI tracking, self-evaluations, peer reviews, and manager grading.",
     targetAudienceAr: "مدراء الموارد البشرية، رؤساء الأقسام، الموظفون",
     targetAudienceEn: "HR Directors, Department Heads, Employees",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "الأهداف والمعايير", labelEn: "SMART Goals" },
+      { stepNumber: 2, labelAr: "التقييم الذاتي", labelEn: "Self Appraisal" },
+      { stepNumber: 3, labelAr: "تقييم الأقران", labelEn: "Peer Reviews" },
+      { stepNumber: 4, labelAr: "اعتماد المدير", labelEn: "Manager Appraisal" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -979,6 +1108,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Specialized AI copilot for resume evaluation, interview question generation, candidate scoring, and HR advisory.",
     targetAudienceAr: "مسؤولو التوظيف، مدراء الموارد البشرية، المقابلون",
     targetAudienceEn: "Recruiters, HR Directors, Interviewers",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "اختيار الاستفسار", labelEn: "Select Query" },
+      { stepNumber: 2, labelAr: "تحليل الـ AI", labelEn: "AI Analysis" },
+      { stepNumber: 3, labelAr: "مقارنة الكفاءات", labelEn: "Competency Matrix" },
+      { stepNumber: 4, labelAr: "تطبيق المخرجات", labelEn: "Apply to Hiring" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -987,7 +1122,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "انقر على أحد الأزرار السريعة (مثل: 'اقترح أسئلة مقابلة لمعلم رياضيات', 'قارن بين المرشحين', 'حلل سيرة ذاتية') أو اكتب سؤالك في خانة الدردشة.",
         actionEn: "Click ready prompt chips or type your specialized recruitment question.",
         expectedOutcomeAr: "بدء الذكاء الاصطناعي في تحليل الطلب وصياغة إجابة تخصصية فورية.",
-        expectedOutcomeEn: "Instant expert recruitment answer formulated in seconds."
+        expectedOutcomeEn: "Instant expert recruitment answer formulated in seconds.",
+              actionTrigger: {
+          labelAr: "بدء محادثة ذكية جديدة ⚡",
+          labelEn: "Start AI Chat ⚡",
+          actionType: "navigate",
+          target: "/ai-assistant",
+        },
       },
       {
         stepNumber: 2,
@@ -1062,6 +1203,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Build specialized question banks, conduct proctored assessments, and calculate integrity scores.",
     targetAudienceAr: "لجان الاختبارات، الموجهون التربويون، مسؤولو التوظيف",
     targetAudienceEn: "Assessment Teams, Educational Supervisors, Recruiters",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "إنشاء البنك", labelEn: "Question Bank" },
+      { stepNumber: 2, labelAr: "توليد بالـ AI", labelEn: "MCQ & AI Questions" },
+      { stepNumber: 3, labelAr: "إرسال الاختبار", labelEn: "Dispatch Exam" },
+      { stepNumber: 4, labelAr: "النزاهة والدرجات", labelEn: "Integrity Scoring" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -1070,7 +1217,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "اضغط على 'بنك أسئلة جديد'، حدد المادة أو التخصص ومستوى الصعوبة.",
         actionEn: "Click 'New Question Bank', set subject, domain, and difficulty.",
         expectedOutcomeAr: "إنشاء مستودع أسئلة منظم للوظيفة المستهدفة.",
-        expectedOutcomeEn: "Instantiates categorized assessment repository."
+        expectedOutcomeEn: "Instantiates categorized assessment repository.",
+              actionTrigger: {
+          labelAr: "إنشاء بنك أسئلة جديد ⚡",
+          labelEn: "Create Question Bank ⚡",
+          actionType: "navigate",
+          target: "/question-bank?action=create",
+        },
       },
       {
         stepNumber: 2,
@@ -1154,6 +1307,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Indexed resume archive with semantic skill search to re-engage past applicants instantly.",
     targetAudienceAr: "مسؤولو التوظيف، باحثو المواهب (Sourcers)",
     targetAudienceEn: "Talent Sourcers, Senior Recruiters",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "البحث بالمهارات", labelEn: "Semantic Search" },
+      { stepNumber: 2, labelAr: "معاينة السيرة", labelEn: "Inspect Track Record" },
+      { stepNumber: 3, labelAr: "ترشيح لشواغر", labelEn: "Re-enroll in Job" },
+      { stepNumber: 4, labelAr: "المتابعة في المسار", labelEn: "Track in Pipeline" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -1162,7 +1321,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "اكتب في شريط البحث أي كلمة مفتاحية (مثلاً: 'معلم لغة إنجليزية', 'رخصة مهنية خبير', 'جدة').",
         actionEn: "Search across archive using keywords, skills, or licenses.",
         expectedOutcomeAr: "ظهور جميع المرشحين المطابقين من كافة الوظائف السابقة في ثوانٍ.",
-        expectedOutcomeEn: "Returns all matching candidates across past requisition history."
+        expectedOutcomeEn: "Returns all matching candidates across past requisition history.",
+              actionTrigger: {
+          labelAr: "ترشيح موهبة لشواغر حالية ⚡",
+          labelEn: "Assign to Active Job ⚡",
+          actionType: "navigate",
+          target: "/pipeline",
+        },
       },
       {
         stepNumber: 2,
@@ -1237,6 +1402,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Interactive dashboards for hiring velocity, pipeline funnels, source attribution, and exportable reports.",
     targetAudienceAr: "الإدارة العليا، مدراء الموارد البشرية، مدراء التوظيف",
     targetAudienceEn: "Executives, HR Leaders, Recruitment Heads",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "النطاق الزمني", labelEn: "Time Range" },
+      { stepNumber: 2, labelAr: "قمع التحويل", labelEn: "Conversion Funnel" },
+      { stepNumber: 3, labelAr: "سرعة التوظيف", labelEn: "Time-to-Hire" },
+      { stepNumber: 4, labelAr: "تصدير التقارير", labelEn: "Export PDF/Excel" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -1245,7 +1416,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "حدد الفترة الزمنية (آخر 30 يوماً / الربع الحالي / مخصص) واختر وظيفة أو فرعاً معيناً.",
         actionEn: "Set date filter (Last 30 Days, Q1, Year) and scope by branch or department.",
         expectedOutcomeAr: "تحديث جميع الرسوم البيانية والأرقام لتطابق النطاق المختار.",
-        expectedOutcomeEn: "Charts instantly reflect targeted time period and scope."
+        expectedOutcomeEn: "Charts instantly reflect targeted time period and scope.",
+              actionTrigger: {
+          labelAr: "استعراض لوحة التقارير ⚡",
+          labelEn: "View Analytics ⚡",
+          actionType: "navigate",
+          target: "/reports",
+        },
       },
       {
         stepNumber: 2,
@@ -1320,6 +1497,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Establish hiring quotas, track department budgets, and monitor target headcount achievement.",
     targetAudienceAr: "الإدارة العليا، مدراء الموارد البشرية، الإدارة المالية",
     targetAudienceEn: "C-Level, HR Heads, Finance Directors",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "مستهدفات القسم", labelEn: "Department Quotas" },
+      { stepNumber: 2, labelAr: "الميزانيات المعتمدة", labelEn: "Budget Allocation" },
+      { stepNumber: 3, labelAr: "التتبع التلقائي", labelEn: "Automated Tracking" },
+      { stepNumber: 4, labelAr: "قياس الإنجاز", labelEn: "Variance & Results" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -1387,6 +1570,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Manage external agency referrals, staffing partner portals, commission tracking, and candidate placement.",
     targetAudienceAr: "مسؤولو التوظيف، مشرفو التعاقدات الخارجية، الإدارة المالية",
     targetAudienceEn: "Agency Coordinators, Talent Acquisition, Finance",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "استلام الطلبات", labelEn: "Agency Orders" },
+      { stepNumber: 2, labelAr: "مراجعة المرشح", labelEn: "Screen Candidate" },
+      { stepNumber: 3, labelAr: "توثيق المباشرة", labelEn: "Placement Confirmed" },
+      { stepNumber: 4, labelAr: "صرف العمولة", labelEn: "Commission Payout" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -1395,7 +1584,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "استعرض جدول الطلبات المحولة للتعرف على المكاتب المرسلة والمرشحين المقترحين والوظائف المرتبطة بها.",
         actionEn: "Browse converted requisitions to review partner agency candidate submissions.",
         expectedOutcomeAr: "حصر ومراجعة مرشحي المكاتب الخارجية في واجهة مركزية واحدة.",
-        expectedOutcomeEn: "Centralized oversight of all third-party staffing submissions."
+        expectedOutcomeEn: "Centralized oversight of all third-party staffing submissions.",
+              actionTrigger: {
+          labelAr: "إدارة مكاتب التوظيف ⚡",
+          labelEn: "Manage Agencies ⚡",
+          actionType: "navigate",
+          target: "/company/agencies",
+        },
       },
       {
         stepNumber: 2,
@@ -1470,6 +1665,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Invite team members, assign RBAC roles (Admin, Recruiter, Reviewer), and configure screen permissions.",
     targetAudienceAr: "مسؤولو النظام، مدراء الموارد البشرية",
     targetAudienceEn: "Super Admins, HR System Administrators",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "دعوة بالبريد", labelEn: "Send Invitation" },
+      { stepNumber: 2, labelAr: "تحديد الدور", labelEn: "Assign RBAC Role" },
+      { stepNumber: 3, labelAr: "مصفوفة الصلاحيات", labelEn: "Screen Permissions" },
+      { stepNumber: 4, labelAr: "متابعة الأنشطة", labelEn: "Monitor Activity" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -1478,7 +1679,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "انقر زر 'دعوة عضو جديد' في أعلى الشاشة وأدخل البريد الإلكتروني والاسم والدور المقترح.",
         actionEn: "Click 'Invite Member', enter email, full name, and select role.",
         expectedOutcomeAr: "إرسال رابط دعوة آمن عبر البريد الإلكتروني.",
-        expectedOutcomeEn: "Dispatches secure email onboarding invitation."
+        expectedOutcomeEn: "Dispatches secure email onboarding invitation.",
+              actionTrigger: {
+          labelAr: "دعوة عضو جديد للفريق ⚡",
+          labelEn: "Invite Team Member ⚡",
+          actionType: "navigate",
+          target: "/team?action=invite",
+        },
       },
       {
         stepNumber: 2,
@@ -1543,6 +1750,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Comprehensive, tamper-proof log of sensitive operations (job changes, salary edits, offer acceptances, auth events).",
     targetAudienceAr: "مسؤولو الأمان السيبراني، مدراء الامتثال، الإدارة العليا",
     targetAudienceEn: "Security Officers, Compliance Leads, Super Admins",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "التوثيق التلقائي", labelEn: "Immutable Logging" },
+      { stepNumber: 2, labelAr: "تصفية الأحداث", labelEn: "Filter Events" },
+      { stepNumber: 3, labelAr: "فحص التغيير", labelEn: "Diff & IP Check" },
+      { stepNumber: 4, labelAr: "تصدير الامتثال", labelEn: "Export Compliance" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -1609,6 +1822,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Customize brand assets (logo, colors, login bg), email gateways, integrations (Webhooks, API), and security controls.",
     targetAudienceAr: "مسؤولو النظام، مسؤولو الموارد البشرية، مدراء تقنية المعلومات",
     targetAudienceEn: "System Administrators, IT Leads, HR Managers",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "الهوية والشعار", labelEn: "Brand Assets" },
+      { stepNumber: 2, labelAr: "البريد المؤسسي", labelEn: "Corporate SMTP" },
+      { stepNumber: 3, labelAr: "الأمان 2FA", labelEn: "2FA & Security" },
+      { stepNumber: 4, labelAr: "التكاملات و API", labelEn: "Webhooks & API" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -1617,7 +1836,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "انتقل إلى تبويب 'الهوية والمنشأة'، وارفع شعار منشأتك وحدد الاسم واللون الأساسي ليظهر في كافة صفحات التقديم والعروض الوظيفية الرسمية.",
         actionEn: "Navigate to 'Branding' tab, upload logo and set primary theme color.",
         expectedOutcomeAr: "ظهور شعارك تلقائياً على كل العروض الوظيفية وخطابات العمل وبوابة التقديم.",
-        expectedOutcomeEn: "Consistent enterprise branding across candidate portals and PDF offers."
+        expectedOutcomeEn: "Consistent enterprise branding across candidate portals and PDF offers.",
+              actionTrigger: {
+          labelAr: "تخصيص هوية المنشأة ⚡",
+          labelEn: "Customize Branding ⚡",
+          actionType: "navigate",
+          target: "/settings",
+        },
       },
       {
         stepNumber: 2,
@@ -1676,6 +1901,12 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     summaryEn: "Complete encyclopedia covering all 16 platform modules, workflows, tutorials, shortcuts, and FAQs.",
     targetAudienceAr: "كافة مستخدمي المنصة من موظفين ومسؤولين ومقيمين",
     targetAudienceEn: "All system users, recruiters, managers, and reviewers",
+    workflowStages: [
+      { stepNumber: 1, labelAr: "البحث في الدليل", labelEn: "Search Guide" },
+      { stepNumber: 2, labelAr: "خطوات العمل", labelEn: "Actionable Steps" },
+      { stepNumber: 3, labelAr: "التنفيذ المباشر", labelEn: "Hands-on Execution" },
+      { stepNumber: 4, labelAr: "إتقان المنصة", labelEn: "Mastery" },
+    ],
     steps: [
       {
         stepNumber: 1,
@@ -1684,7 +1915,13 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
         actionAr: "اكتب في حقل البحث أي ميزة ترغب بمعرفتها (مثلاً: 'رخصة المعلم', 'عقد العمل', 'المقابلات الافتراضية').",
         actionEn: "Type any feature keyword in search box to filter relevant modules instantly.",
         expectedOutcomeAr: "ظهور القسم المعني مع خطوات الاستخدام التفصيلية فوراً.",
-        expectedOutcomeEn: "Instant spotlight on the desired workflow instructions."
+        expectedOutcomeEn: "Instant spotlight on the desired workflow instructions.",
+              actionTrigger: {
+          labelAr: "فتح الدليل الشامل 16 قسماً ⚡",
+          labelEn: "Open 16-Module Tutorial ⚡",
+          actionType: "navigate",
+          target: "/tutorial",
+        },
       },
       {
         stepNumber: 2,

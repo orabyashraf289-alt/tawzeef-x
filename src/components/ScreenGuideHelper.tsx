@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { useLocation, Link } from "react-router-dom";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   HelpCircle,
@@ -18,8 +18,17 @@ import {
   BookOpen,
   MousePointerClick,
   Layers,
-  HelpCircle as QuestionIcon
+  HelpCircle as QuestionIcon,
+  Zap,
+  Volume2,
+  VolumeX,
+  Columns,
+  PanelRightClose,
+  Trophy,
+  RotateCcw,
+  CheckCheck
 } from "lucide-react";
+import confetti from "canvas-confetti";
 import { useI18n } from "@/contexts/I18nContext";
 import { useToast } from "@/hooks/use-toast";
 import { SCREEN_GUIDES, getGuideForPath, ScreenGuideItem } from "@/data/screenGuidesData";
@@ -27,6 +36,7 @@ import { cn } from "@/lib/utils";
 
 export default function ScreenGuideHelper() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { locale, dir } = useI18n();
   const { toast } = useToast();
 
@@ -41,17 +51,41 @@ export default function ScreenGuideHelper() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedGuideId, setSelectedGuideId] = useState<string>(currentDetectedGuide.id);
   const [activeTab, setActiveTab] = useState<"steps" | "buttons" | "tips" | "all">("steps");
+  
+  // View Mode: "modal" (center popup) vs "drawer" (side-docked panel)
+  const [viewMode, setViewMode] = useState<"modal" | "drawer">(() => {
+    return (localStorage.getItem("tx_guide_view_mode") as "modal" | "drawer") || "modal";
+  });
+
   const [isMinimized, setIsMinimized] = useState<boolean>(() => {
     return localStorage.getItem("tx_guide_minimized") === "true";
   });
-  const [completedSteps, setCompletedSteps] = useState<Record<string, number[]>>({});
+
+  const [completedSteps, setCompletedSteps] = useState<Record<string, number[]>>(() => {
+    try {
+      const saved = localStorage.getItem("tx_guide_completed_steps");
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
   const [searchQuery, setSearchQuery] = useState("");
   const [copied, setCopied] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   // Sync selected guide when path changes
   useEffect(() => {
     setSelectedGuideId(currentDetectedGuide.id);
   }, [currentDetectedGuide.id]);
+
+  // Stop voice speech when closing or changing screen
+  useEffect(() => {
+    if (!isOpen && typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  }, [isOpen, selectedGuideId]);
 
   // Listen to custom event to open guide from Header or elsewhere
   useEffect(() => {
@@ -64,7 +98,6 @@ export default function ScreenGuideHelper() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.shiftKey && e.key === "?") || (e.altKey && e.key.toLowerCase() === "h")) {
-        // If not typing in input/textarea
         if (
           document.activeElement?.tagName !== "INPUT" &&
           document.activeElement?.tagName !== "TEXTAREA"
@@ -88,19 +121,70 @@ export default function ScreenGuideHelper() {
     });
   };
 
+  // Toggle View Mode (Modal <-> Side Drawer)
+  const toggleViewMode = () => {
+    setViewMode(prev => {
+      const next = prev === "modal" ? "drawer" : "modal";
+      localStorage.setItem("tx_guide_view_mode", next);
+      toast({
+        title: next === "drawer" 
+          ? (isEn ? "Docked to Side Panel 📌" : "تم التثبيت كشريط جانبي للعمل المباشر 📌")
+          : (isEn ? "Expanded to Full Modal ⛶" : "تم العرض كنافذة منبثقة كبرى ⛶"),
+        description: next === "drawer"
+          ? (isEn ? "You can now work on the screen while watching instructions!" : "يمكنك الآن الضغط على عناصر الصفحة ومتابعة التعليمات في نفس الوقت!")
+          : (isEn ? "Comfortable full screen view." : "عرض كامل ومريح لكافة التفاصيل.")
+      });
+      return next;
+    });
+  };
+
   // Active guide being viewed
   const activeGuide: ScreenGuideItem = useMemo(() => {
     return SCREEN_GUIDES.find(g => g.id === selectedGuideId) || currentDetectedGuide;
   }, [selectedGuideId, currentDetectedGuide]);
 
-  // Toggle step completion checkbox
+  const activeDoneSteps = completedSteps[activeGuide.id] || [];
+  const progressPercent = Math.round(
+    activeGuide.steps.length > 0 ? (activeDoneSteps.length / activeGuide.steps.length) * 100 : 0
+  );
+
+  // Toggle step completion checkbox with confetti celebration on 100%
   const toggleStepDone = (stepNumber: number) => {
     setCompletedSteps(prev => {
       const currentDone = prev[activeGuide.id] || [];
       const updated = currentDone.includes(stepNumber)
         ? currentDone.filter(s => s !== stepNumber)
         : [...currentDone, stepNumber];
-      return { ...prev, [activeGuide.id]: updated };
+      
+      const newMap = { ...prev, [activeGuide.id]: updated };
+      localStorage.setItem("tx_guide_completed_steps", JSON.stringify(newMap));
+
+      // If reached 100% just now, fire celebration confetti!
+      if (updated.length === activeGuide.steps.length && activeGuide.steps.length > 0) {
+        confetti({
+          particleCount: 110,
+          spread: 85,
+          origin: { y: 0.6 },
+          colors: ["#10b981", "#06b6d4", "#f59e0b", "#3b82f6"]
+        });
+        toast({
+          title: isEn ? "🎉 Outstanding! All steps completed!" : "🎉 رائع جداً! أتممت كافة خطوات هذه الشاشة بنجاح!",
+          description: isEn 
+            ? "You have completely mastered this screen's workflow." 
+            : "أصبحت جاهزاً ومتقناً للعمل على هذه الشاشة باحترافية تامة وبدون أي دعم."
+        });
+      }
+
+      return newMap;
+    });
+  };
+
+  // Reset steps for this screen
+  const resetSteps = () => {
+    setCompletedSteps(prev => {
+      const newMap = { ...prev, [activeGuide.id]: [] };
+      localStorage.setItem("tx_guide_completed_steps", JSON.stringify(newMap));
+      return newMap;
     });
   };
 
@@ -126,6 +210,41 @@ export default function ScreenGuideHelper() {
     });
     setTimeout(() => setCopied(false), 2500);
   }, [activeGuide, isEn, toast]);
+
+  // Audio Voice Reader (Web Speech API)
+  const toggleVoiceNarration = () => {
+    if (typeof window === "undefined" || !window.speechSynthesis) {
+      toast({
+        title: isEn ? "Speech not supported" : "القارئ الصوتي غير مدعوم في هذا المتصفح",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    const title = isEn ? activeGuide.titleEn : activeGuide.titleAr;
+    const summary = isEn ? activeGuide.summaryEn : activeGuide.summaryAr;
+    const stepsSpeech = activeGuide.steps
+      .map(s => `${isEn ? "Step" : "الخطوة"} ${s.stepNumber}: ${isEn ? s.titleEn : s.titleAr}. ${isEn ? s.actionEn : s.actionAr}`)
+      .join(". ");
+
+    const fullScript = `${title}. ${summary}. ${stepsSpeech}`;
+    const utterance = new SpeechSynthesisUtterance(fullScript);
+    utterance.lang = isEn ? "en-US" : "ar-SA";
+    utterance.rate = 0.95;
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  };
 
   // Filtered guides for the "All Screens" tab
   const filteredAllGuides = useMemo(() => {
@@ -184,10 +303,13 @@ export default function ScreenGuideHelper() {
                   <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
                 </div>
                 <div className="text-right">
-                  <p className="text-xs font-black tracking-wide leading-none">
-                    {isEn ? "Screen Guide" : "دليل الشاشة"}
+                  <p className="text-xs font-black tracking-wide leading-none flex items-center gap-1.5">
+                    <span>{isEn ? "Screen Copilot" : "مرشد الشاشة الذكي"}</span>
+                    {progressPercent === 100 && (
+                      <CheckCircle2 className="w-3 h-3 text-emerald-200 inline" />
+                    )}
                   </p>
-                  <p className="text-[10px] text-emerald-100/90 font-medium leading-tight max-w-[120px] truncate">
+                  <p className="text-[10px] text-emerald-100/90 font-medium leading-tight max-w-[130px] truncate">
                     {isEn ? currentDetectedGuide.titleEn : currentDetectedGuide.titleAr}
                   </p>
                 </div>
@@ -231,54 +353,80 @@ export default function ScreenGuideHelper() {
         </AnimatePresence>
       </div>
 
-      {/* 2. LARGE POPUP MODAL (CONTEXTUAL SCREEN GUIDE) */}
+      {/* 2. THE SCREEN GUIDE (SUPPORTING BOTH FULL-MODAL AND DOCKED SIDE-DRAWER MODES) */}
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 select-text overflow-hidden">
-            {/* Backdrop Blur Overlay */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity"
-            />
+          <div
+            className={cn(
+              viewMode === "modal"
+                ? "fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 select-text overflow-hidden"
+                : cn(
+                    "fixed top-0 bottom-0 z-50 pointer-events-none flex",
+                    dir === "rtl" ? "left-0" : "right-0"
+                  )
+            )}
+          >
+            {/* Backdrop Blur Overlay - ONLY rendered in Center Modal mode */}
+            {viewMode === "modal" && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsOpen(false)}
+                className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity"
+              />
+            )}
 
-            {/* Modal Dialog Container */}
+            {/* Modal / Drawer Container */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.93, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.93, y: 20 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              initial={
+                viewMode === "modal"
+                  ? { opacity: 0, scale: 0.93, y: 20 }
+                  : { opacity: 0, x: dir === "rtl" ? -420 : 420 }
+              }
+              animate={
+                viewMode === "modal"
+                  ? { opacity: 1, scale: 1, y: 0 }
+                  : { opacity: 1, x: 0 }
+              }
+              exit={
+                viewMode === "modal"
+                  ? { opacity: 0, scale: 0.93, y: 20 }
+                  : { opacity: 0, x: dir === "rtl" ? -420 : 420 }
+              }
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
               className={cn(
-                "relative z-10 w-full max-w-4xl max-h-[90vh] flex flex-col",
-                "bg-card/95 backdrop-blur-2xl border border-border/70 shadow-2xl rounded-3xl overflow-hidden",
+                "pointer-events-auto relative z-10 flex flex-col",
+                "bg-card/95 backdrop-blur-2xl border border-border/80 shadow-2xl overflow-hidden",
                 "text-card-foreground",
+                viewMode === "modal"
+                  ? "w-full max-w-4xl max-h-[90vh] rounded-3xl"
+                  : "w-full sm:w-[460px] md:w-[500px] h-full rounded-none border-y-0 shadow-3xl",
                 dir === "rtl" ? "text-right" : "text-left"
               )}
               dir={dir}
             >
-              {/* Modal Top Header */}
-              <div className="flex items-center justify-between p-5 sm:p-6 border-b border-border/50 bg-gradient-to-b from-muted/30 to-transparent">
+              {/* Top Header Bar */}
+              <div className="flex items-center justify-between p-4 sm:p-5 border-b border-border/50 bg-gradient-to-b from-muted/40 to-transparent">
                 {/* Screen Icon + Title & Category */}
-                <div className="flex items-center gap-3.5 min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
                   <div
                     className={cn(
-                      "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border shadow-xs",
+                      "w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border shadow-xs",
                       activeGuide.bg,
                       activeGuide.border
                     )}
                   >
-                    <ActiveIcon className={cn("w-6 h-6", activeGuide.color)} />
+                    <ActiveIcon className={cn("w-5 h-5", activeGuide.color)} />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-lg sm:text-xl font-black text-foreground truncate">
+                      <h2 className="text-base sm:text-lg font-black text-foreground truncate">
                         {isEn ? activeGuide.titleEn : activeGuide.titleAr}
                       </h2>
                       <span
                         className={cn(
-                          "px-2.5 py-0.5 rounded-full text-[11px] font-bold border",
+                          "px-2 py-0.5 rounded-full text-[10px] font-bold border",
                           activeGuide.bg,
                           activeGuide.color,
                           activeGuide.border
@@ -287,21 +435,56 @@ export default function ScreenGuideHelper() {
                         {isEn ? activeGuide.badgeEn : activeGuide.badgeAr}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {isEn ? `Target Audience: ${activeGuide.targetAudienceEn}` : `الفئة المستهدفة: ${activeGuide.targetAudienceAr}`}
+                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                      {isEn ? activeGuide.targetAudienceEn : activeGuide.targetAudienceAr}
                     </p>
                   </div>
                 </div>
 
-                {/* Right Header Actions */}
-                <div className="flex items-center gap-2 shrink-0">
+                {/* Header Action Tools */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Voice Narration Button */}
+                  <button
+                    onClick={toggleVoiceNarration}
+                    className={cn(
+                      "p-2 rounded-xl border transition-all flex items-center gap-1",
+                      isSpeaking
+                        ? "bg-amber-500 text-white border-amber-600 animate-pulse"
+                        : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border-border/50"
+                    )}
+                    title={
+                      isSpeaking
+                        ? (isEn ? "Pause Audio Narration" : "إيقاف القارئ الصوتي")
+                        : (isEn ? "Listen to Steps (Voice Narration)" : "الاستماع لشرح الخطوات صوتياً")
+                    }
+                  >
+                    {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                  </button>
+
+                  {/* Dock / Expand Mode Toggle Button */}
+                  <button
+                    onClick={toggleViewMode}
+                    className="p-2 rounded-xl bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border/50 transition-colors"
+                    title={
+                      viewMode === "modal"
+                        ? (isEn ? "Dock to Side Panel (Keep screen visible)" : "تثبيت كشريط جانبي للعمل المباشر على الصفحة")
+                        : (isEn ? "Expand to Full Modal" : "تكبير كنافذة منبثقة")
+                    }
+                  >
+                    {viewMode === "modal" ? (
+                      <PanelRightClose className="w-4 h-4 text-emerald-500" />
+                    ) : (
+                      <Maximize2 className="w-4 h-4 text-emerald-500" />
+                    )}
+                  </button>
+
                   {/* Quick Screen Switcher Dropdown */}
                   <div className="relative">
                     <select
                       value={activeGuide.id}
                       onChange={e => setSelectedGuideId(e.target.value)}
-                      className="bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold py-1.5 px-3 rounded-xl border border-border/60 outline-none cursor-pointer transition-colors max-w-[140px] sm:max-w-[200px] truncate"
-                      title={isEn ? "Switch to guide of another screen" : "تبديل لشاشة أخرى"}
+                      className="bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold py-1.5 px-2.5 rounded-xl border border-border/60 outline-none cursor-pointer transition-colors max-w-[120px] sm:max-w-[160px] truncate"
+                      title={isEn ? "Switch screen guide" : "تبديل الشاشة"}
                     >
                       {SCREEN_GUIDES.map(g => (
                         <option key={g.id} value={g.id}>
@@ -311,50 +494,67 @@ export default function ScreenGuideHelper() {
                     </select>
                   </div>
 
-                  {/* Copy Steps Button */}
-                  <button
-                    onClick={handleCopySteps}
-                    className="p-2 rounded-xl bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
-                    title={isEn ? "Copy steps text" : "نسخ خطوات العمل"}
-                  >
-                    {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                  </button>
-
-                  {/* Close Modal Button */}
+                  {/* Close Button */}
                   <button
                     onClick={() => setIsOpen(false)}
-                    className="p-2 rounded-xl bg-muted hover:bg-destructive/15 text-muted-foreground hover:text-destructive transition-colors"
-                    title={isEn ? "Close guide (Esc)" : "إغلاق الدليل"}
+                    className="p-2 rounded-xl bg-muted hover:bg-destructive/15 text-muted-foreground hover:text-destructive transition-colors border border-border/50"
+                    title={isEn ? "Close" : "إغلاق"}
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              {/* Sub-Header: Objective & Summary Card */}
-              <div className="px-5 sm:px-6 py-3.5 bg-muted/40 border-b border-border/40 flex items-start gap-3">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
-                  <Lightbulb className="w-4 h-4" />
+              {/* Summary Banner */}
+              <div className="px-4 sm:px-5 py-3 bg-muted/30 border-b border-border/40 flex items-start gap-2.5">
+                <div className="w-6 h-6 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <Lightbulb className="w-3.5 h-3.5" />
                 </div>
-                <p className="text-xs sm:text-sm text-foreground/90 font-medium leading-relaxed">
+                <p className="text-xs sm:text-[13px] text-foreground/90 font-medium leading-relaxed">
                   {isEn ? activeGuide.summaryEn : activeGuide.summaryAr}
                 </p>
               </div>
 
-              {/* Interactive Tabs Bar */}
-              <div className="flex items-center gap-2 px-5 sm:px-6 border-b border-border/50 bg-background/50 overflow-x-auto no-scrollbar">
+              {/* 3. VISUAL WORKFLOW STEPPER DIAGRAM */}
+              {activeGuide.workflowStages && activeGuide.workflowStages.length > 0 && (
+                <div className="px-4 sm:px-5 py-3 bg-background/70 border-b border-border/40 overflow-x-auto no-scrollbar">
+                  <div className="flex items-center justify-between min-w-[360px] gap-1.5">
+                    {activeGuide.workflowStages.map((stg, sIdx) => {
+                      const isLast = sIdx === activeGuide.workflowStages!.length - 1;
+                      return (
+                        <div key={stg.stepNumber} className="flex items-center flex-1 gap-1.5">
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black flex items-center justify-center">
+                              {stg.stepNumber}
+                            </span>
+                            <span className="text-[11px] font-bold text-foreground/90 whitespace-nowrap">
+                              {isEn ? stg.labelEn : stg.labelAr}
+                            </span>
+                          </div>
+                          {!isLast && (
+                            <div className="flex-1 h-0.5 bg-border/60 min-w-[12px] mx-1" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Tab Navigation */}
+              <div className="flex items-center gap-1.5 px-4 sm:px-5 border-b border-border/50 bg-background/50 overflow-x-auto no-scrollbar">
                 <button
                   onClick={() => setActiveTab("steps")}
                   className={cn(
-                    "flex items-center gap-2 py-3 px-3.5 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap",
+                    "flex items-center gap-1.5 py-2.5 px-3 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap",
                     activeTab === "steps"
                       ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
                       : "border-transparent text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <MousePointerClick className="w-4 h-4" />
-                  <span>{isEn ? "Action Steps (1, 2, 3...)" : "خطوات العمل الإجرائية (١، ٢، ٣...)"}</span>
-                  <span className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] px-1.5 py-0.5 rounded-full">
+                  <MousePointerClick className="w-3.5 h-3.5" />
+                  <span>{isEn ? "Action Steps" : "خطوات العمل"}</span>
+                  <span className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] px-1.5 py-0.2 rounded-full">
                     {activeGuide.steps.length}
                   </span>
                 </button>
@@ -362,15 +562,15 @@ export default function ScreenGuideHelper() {
                 <button
                   onClick={() => setActiveTab("buttons")}
                   className={cn(
-                    "flex items-center gap-2 py-3 px-3.5 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap",
+                    "flex items-center gap-1.5 py-2.5 px-3 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap",
                     activeTab === "buttons"
                       ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
                       : "border-transparent text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Layers className="w-4 h-4" />
-                  <span>{isEn ? "Key Buttons & Actions" : "أهم الأزرار والإجراءات"}</span>
-                  <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded-full">
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>{isEn ? "Key Buttons" : "خريطة الأزرار"}</span>
+                  <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.2 rounded-full">
                     {activeGuide.keyButtons.length}
                   </span>
                 </button>
@@ -378,106 +578,136 @@ export default function ScreenGuideHelper() {
                 <button
                   onClick={() => setActiveTab("tips")}
                   className={cn(
-                    "flex items-center gap-2 py-3 px-3.5 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap",
+                    "flex items-center gap-1.5 py-2.5 px-3 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap",
                     activeTab === "tips"
                       ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
                       : "border-transparent text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <QuestionIcon className="w-4 h-4" />
-                  <span>{isEn ? "Pro Tips & FAQs" : "أسرار العمل وحلول المشاكل"}</span>
-                  <span className="bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] px-1.5 py-0.5 rounded-full">
-                    {activeGuide.proTips.length + activeGuide.faqs.length}
-                  </span>
+                  <QuestionIcon className="w-3.5 h-3.5" />
+                  <span>{isEn ? "Tips & FAQs" : "نصائح وحلول"}</span>
                 </button>
 
                 <button
                   onClick={() => setActiveTab("all")}
                   className={cn(
-                    "flex items-center gap-2 py-3 px-3.5 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap",
+                    "flex items-center gap-1.5 py-2.5 px-3 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap",
                     activeTab === "all"
                       ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
                       : "border-transparent text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <BookOpen className="w-4 h-4" />
-                  <span>{isEn ? "All System Screens" : "دليل كافة الشاشات"}</span>
-                  <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded-full">
-                    {SCREEN_GUIDES.length}
-                  </span>
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>{isEn ? "All Screens" : "كافة الشاشات"}</span>
                 </button>
               </div>
 
-              {/* Modal Body Scroll Area */}
-              <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4 max-h-[55vh]">
-                {/* TAB 1: STEP-BY-STEP ACTION WORKFLOW */}
+              {/* Scrollable Body Content */}
+              <div
+                className={cn(
+                  "flex-1 overflow-y-auto p-4 sm:p-5 space-y-4",
+                  viewMode === "modal" ? "max-h-[52vh]" : "max-h-[calc(100vh-250px)]"
+                )}
+              >
+                {/* TAB 1: STEPS WITH DIRECT ACTIONS & PROGRESS BAR */}
                 {activeTab === "steps" && (
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between pb-1">
-                      <p className="text-xs font-semibold text-muted-foreground">
-                        {isEn
-                          ? "Follow these clear steps to complete your tasks on this screen without contacting support:"
-                          : "اتبع هذه الخطوات بالترتيب لتشغيل وإنجاز عملك على هذه الشاشة دون الحاجة لسؤال أي شخص:"}
-                      </p>
-                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
-                        {(completedSteps[activeGuide.id] || []).length} / {activeGuide.steps.length}{" "}
-                        {isEn ? "Completed" : "مكتمل"}
-                      </span>
+                    {/* Progress Bar & Accomplishment Summary */}
+                    <div className="p-3 rounded-2xl bg-muted/40 border border-border/50 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-foreground flex items-center gap-1.5">
+                          <CheckCheck className="w-4 h-4 text-emerald-500" />
+                          <span>{isEn ? "Screen Execution Progress:" : "نسبة إنجاز خطوات الشاشة:"}</span>
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-emerald-600 dark:text-emerald-400">
+                            {progressPercent}%
+                          </span>
+                          {activeDoneSteps.length > 0 && (
+                            <button
+                              onClick={resetSteps}
+                              className="text-[10px] text-muted-foreground hover:text-foreground underline flex items-center gap-0.5"
+                              title={isEn ? "Reset progress" : "إعادة ضبط التقدم"}
+                            >
+                              <RotateCcw className="w-2.5 h-2.5" />
+                              <span>{isEn ? "Reset" : "إعادة"}</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${progressPercent}%` }}
+                          transition={{ duration: 0.4 }}
+                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"
+                        />
+                      </div>
+
+                      {progressPercent === 100 && (
+                        <div className="pt-1 flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-bold animate-pulse">
+                          <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                          <span>{isEn ? "Congratulations! Full workflow completed!" : "تهانينا! أكملت كافة متطلبات الشاشة بنجاح تام."}</span>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="space-y-3.5">
+                    {/* Step Cards with Action Triggers */}
+                    <div className="space-y-3">
                       {activeGuide.steps.map(step => {
-                        const isDone = (completedSteps[activeGuide.id] || []).includes(step.stepNumber);
+                        const isDone = activeDoneSteps.includes(step.stepNumber);
                         return (
                           <div
                             key={step.stepNumber}
-                            onClick={() => toggleStepDone(step.stepNumber)}
                             className={cn(
-                              "p-4 rounded-2xl border transition-all cursor-pointer group",
+                              "p-4 rounded-2xl border transition-all group",
                               isDone
                                 ? "bg-emerald-500/5 border-emerald-500/30 opacity-90"
                                 : "bg-card border-border/70 hover:border-emerald-500/50 hover:shadow-xs"
                             )}
                           >
-                            <div className="flex items-start gap-3.5">
-                              {/* Step Number Circle / Checkbox */}
-                              <div
+                            <div className="flex items-start gap-3">
+                              {/* Step Checkbox / Number */}
+                              <button
+                                onClick={() => toggleStepDone(step.stepNumber)}
                                 className={cn(
-                                  "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 transition-colors shadow-2xs mt-0.5",
+                                  "w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 transition-all mt-0.5 shadow-2xs",
                                   isDone
                                     ? "bg-emerald-500 text-white"
-                                    : "bg-muted text-foreground group-hover:bg-emerald-500/20 group-hover:text-emerald-600"
+                                    : "bg-muted text-foreground hover:bg-emerald-500/20 hover:text-emerald-600"
                                 )}
+                                title={isEn ? "Toggle step complete" : "تبديل حالة الإنجاز"}
                               >
                                 {isDone ? <Check className="w-4 h-4" /> : step.stepNumber}
-                              </div>
+                              </button>
 
                               <div className="flex-1 min-w-0 space-y-2">
                                 <div className="flex items-center justify-between gap-2">
                                   <h3
                                     className={cn(
-                                      "text-sm sm:text-base font-bold text-foreground",
+                                      "text-xs sm:text-sm font-bold text-foreground",
                                       isDone && "line-through text-muted-foreground"
                                     )}
                                   >
                                     {isEn ? step.titleEn : step.titleAr}
                                   </h3>
-                                  <span className="text-[11px] text-muted-foreground group-hover:text-emerald-500 flex items-center gap-1 shrink-0">
-                                    {isDone
-                                      ? isEn ? "Done" : "تمت الخطوة"
-                                      : isEn ? "Click to mark done" : "اضغط للتعليم كمكتمل"}
-                                  </span>
+                                  <button
+                                    onClick={() => toggleStepDone(step.stepNumber)}
+                                    className="text-[10px] text-muted-foreground hover:text-emerald-500 shrink-0"
+                                  >
+                                    {isDone ? (isEn ? "Done" : "مكتمل") : (isEn ? "Mark done" : "تعليم كمكتمل")}
+                                  </button>
                                 </div>
 
-                                {/* Step Action Description */}
-                                <p className="text-xs sm:text-sm text-foreground/80 leading-relaxed">
+                                <p className="text-xs text-foreground/80 leading-relaxed">
                                   {isEn ? step.actionEn : step.actionAr}
                                 </p>
 
-                                {/* Expected Outcome Badge */}
-                                <div className="p-2.5 rounded-xl bg-muted/60 border border-border/40 flex items-start gap-2">
-                                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                                  <div className="text-xs">
+                                {/* Expected Outcome Box */}
+                                <div className="p-2 rounded-xl bg-muted/60 border border-border/40 flex items-start gap-1.5 text-[11px]">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                                  <div>
                                     <span className="font-bold text-emerald-600 dark:text-emerald-400">
                                       {isEn ? "Expected Outcome: " : "النتيجة المؤكدة: "}
                                     </span>
@@ -486,6 +716,27 @@ export default function ScreenGuideHelper() {
                                     </span>
                                   </div>
                                 </div>
+
+                                {/* 4. ONE-CLICK DIRECT ACTION TRIGGER BUTTON */}
+                                {step.actionTrigger && (
+                                  <div className="pt-1">
+                                    <button
+                                      onClick={() => {
+                                        navigate(step.actionTrigger!.target);
+                                        if (viewMode === "modal") {
+                                          setViewMode("drawer");
+                                          localStorage.setItem("tx_guide_view_mode", "drawer");
+                                        }
+                                      }}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs hover:shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                    >
+                                      <Zap className="w-3.5 h-3.5 text-amber-300" />
+                                      <span>
+                                        {isEn ? step.actionTrigger.labelEn : step.actionTrigger.labelAr}
+                                      </span>
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -495,7 +746,7 @@ export default function ScreenGuideHelper() {
                   </div>
                 )}
 
-                {/* TAB 2: KEY BUTTONS & ACTIONS MAP */}
+                {/* TAB 2: BUTTONS & ACTIONABLE CONTROLS */}
                 {activeTab === "buttons" && (
                   <div className="space-y-4">
                     <p className="text-xs font-semibold text-muted-foreground">
@@ -504,11 +755,11 @@ export default function ScreenGuideHelper() {
                         : "شرح شامل لكافة الأزرار والأدوات التفاعلية المتاحة في هذه الشاشة وماذا تفعل:"}
                     </p>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-2.5">
                       {activeGuide.keyButtons.map((btn, idx) => (
                         <div
                           key={idx}
-                          className="p-4 rounded-2xl bg-card border border-border/70 hover:border-emerald-500/40 transition-all flex flex-col justify-between space-y-2 shadow-2xs"
+                          className="p-3.5 rounded-2xl bg-card border border-border/70 hover:border-emerald-500/40 transition-all flex flex-col justify-between space-y-1.5 shadow-2xs"
                         >
                           <div className="flex items-center gap-2">
                             <span
@@ -532,10 +783,9 @@ export default function ScreenGuideHelper() {
                       ))}
                     </div>
 
-                    {/* Quick navigation links to related screens */}
                     {activeGuide.quickLinks && activeGuide.quickLinks.length > 0 && (
-                      <div className="mt-5 p-4 rounded-2xl bg-muted/40 border border-border/50">
-                        <p className="text-xs font-bold text-foreground mb-2.5">
+                      <div className="mt-4 p-3.5 rounded-2xl bg-muted/40 border border-border/50">
+                        <p className="text-xs font-bold text-foreground mb-2">
                           {isEn ? "🔗 Related Quick Screens:" : "🔗 شاشات مرتبطة يمكنك الانتقال إليها فوراً:"}
                         </p>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -543,7 +793,9 @@ export default function ScreenGuideHelper() {
                             <Link
                               key={idx}
                               to={link.path}
-                              onClick={() => setIsOpen(false)}
+                              onClick={() => {
+                                if (viewMode === "modal") setIsOpen(false);
+                              }}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-card border border-border/70 text-xs font-bold text-foreground hover:text-emerald-500 hover:border-emerald-500/40 transition-all"
                             >
                               <span>{isEn ? link.labelEn : link.labelAr}</span>
@@ -558,56 +810,50 @@ export default function ScreenGuideHelper() {
 
                 {/* TAB 3: PRO TIPS & FAQS */}
                 {activeTab === "tips" && (
-                  <div className="space-y-5">
-                    {/* Pro Tips Section */}
+                  <div className="space-y-4">
                     {activeGuide.proTips.length > 0 && (
-                      <div className="space-y-3">
+                      <div className="space-y-2.5">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                          <Lightbulb className="w-4 h-4" />
+                          <Lightbulb className="w-3.5 h-3.5" />
                           <span>{isEn ? "Pro Tips & Best Practices" : "نصائح وأسرار الاستخدام الاحترافي"}</span>
                         </h4>
-                        <div className="grid grid-cols-1 gap-3">
-                          {activeGuide.proTips.map((tip, idx) => (
-                            <div
-                              key={idx}
-                              className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-xs sm:text-sm space-y-1"
-                            >
-                              <p className="font-bold text-foreground">
-                                {isEn ? tip.titleEn : tip.titleAr}
-                              </p>
-                              <p className="text-muted-foreground leading-relaxed">
-                                {isEn ? tip.descriptionEn : tip.descriptionAr}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
+                        {activeGuide.proTips.map((tip, idx) => (
+                          <div
+                            key={idx}
+                            className="p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-xs space-y-1"
+                          >
+                            <p className="font-bold text-foreground">
+                              {isEn ? tip.titleEn : tip.titleAr}
+                            </p>
+                            <p className="text-muted-foreground leading-relaxed">
+                              {isEn ? tip.descriptionEn : tip.descriptionAr}
+                            </p>
+                          </div>
+                        ))}
                       </div>
                     )}
 
-                    {/* FAQs Section */}
                     {activeGuide.faqs.length > 0 && (
-                      <div className="space-y-3 pt-2">
+                      <div className="space-y-2.5 pt-2">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                          <QuestionIcon className="w-4 h-4 text-emerald-500" />
+                          <QuestionIcon className="w-3.5 h-3.5 text-emerald-500" />
                           <span>{isEn ? "Troubleshooting & FAQs" : "الأسئلة الشائعة وحلول المشكلات"}</span>
                         </h4>
-                        <div className="space-y-2.5">
-                          {activeGuide.faqs.map((faq, idx) => (
-                            <div
-                              key={idx}
-                              className="p-4 rounded-2xl bg-card border border-border/70 space-y-1.5"
-                            >
-                              <p className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
-                                <span className="text-emerald-500 font-black">س:</span>
-                                <span>{isEn ? faq.qEn : faq.qAr}</span>
-                              </p>
-                              <p className="text-xs text-muted-foreground leading-relaxed pl-4">
-                                <span className="text-emerald-600 font-bold">ج: </span>
-                                <span>{isEn ? faq.aEn : faq.aAr}</span>
-                              </p>
-                            </div>
-                          ))}
-                        </div>
+                        {activeGuide.faqs.map((faq, idx) => (
+                          <div
+                            key={idx}
+                            className="p-3.5 rounded-2xl bg-card border border-border/70 space-y-1"
+                          >
+                            <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                              <span className="text-emerald-500 font-black">س:</span>
+                              <span>{isEn ? faq.qEn : faq.qAr}</span>
+                            </p>
+                            <p className="text-xs text-muted-foreground leading-relaxed pl-3">
+                              <span className="text-emerald-600 font-bold">ج: </span>
+                              <span>{isEn ? faq.aEn : faq.aAr}</span>
+                            </p>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -615,21 +861,19 @@ export default function ScreenGuideHelper() {
 
                 {/* TAB 4: ALL SYSTEM SCREENS DIRECTORY */}
                 {activeTab === "all" && (
-                  <div className="space-y-4">
-                    {/* Search Filter */}
+                  <div className="space-y-3">
                     <div className="relative">
-                      <Search className="w-4 h-4 absolute top-1/2 -translate-y-1/2 right-3.5 text-muted-foreground" />
+                      <Search className="w-4 h-4 absolute top-1/2 -translate-y-1/2 right-3 text-muted-foreground" />
                       <input
                         type="text"
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
-                        placeholder={isEn ? "Search any screen or tool..." : "ابحث عن أي شاشة أو أداة في النظام..."}
-                        className="w-full h-10 pr-10 pl-4 rounded-xl bg-muted/60 border border-border/70 text-xs sm:text-sm focus:outline-none focus:border-emerald-500/60"
+                        placeholder={isEn ? "Search screens..." : "ابحث عن أي شاشة في النظام..."}
+                        className="w-full h-9 pr-9 pl-3 rounded-xl bg-muted/60 border border-border/70 text-xs focus:outline-none focus:border-emerald-500/60"
                       />
                     </div>
 
-                    {/* Screen Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div className="grid grid-cols-1 gap-2 pt-1">
                       {filteredAllGuides.map(item => {
                         const ItemIcon = item.icon;
                         const isSelected = item.id === activeGuide.id;
@@ -641,33 +885,33 @@ export default function ScreenGuideHelper() {
                               setActiveTab("steps");
                             }}
                             className={cn(
-                              "p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3",
+                              "p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2.5",
                               isSelected
                                 ? "bg-emerald-500/10 border-emerald-500 shadow-2xs"
                                 : "bg-card border-border/70 hover:border-emerald-500/40 hover:bg-muted/30"
                             )}
                           >
-                            <div className="flex items-center gap-3 min-w-0">
+                            <div className="flex items-center gap-2.5 min-w-0">
                               <div
                                 className={cn(
-                                  "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border",
+                                  "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border",
                                   item.bg,
                                   item.border
                                 )}
                               >
-                                <ItemIcon className={cn("w-4 h-4", item.color)} />
+                                <ItemIcon className={cn("w-3.5 h-3.5", item.color)} />
                               </div>
                               <div className="min-w-0">
-                                <p className="text-xs sm:text-sm font-bold text-foreground truncate">
+                                <p className="text-xs font-bold text-foreground truncate">
                                   {isEn ? item.titleEn : item.titleAr}
                                 </p>
-                                <p className="text-[11px] text-muted-foreground truncate">
+                                <p className="text-[10px] text-muted-foreground truncate">
                                   {isEn ? item.badgeEn : item.badgeAr}
                                 </p>
                               </div>
                             </div>
 
-                            <button className="text-xs text-emerald-600 dark:text-emerald-400 font-bold shrink-0 hover:underline">
+                            <button className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold shrink-0 hover:underline">
                               {isEn ? "View Guide" : "عرض الدليل"}
                             </button>
                           </div>
@@ -678,33 +922,34 @@ export default function ScreenGuideHelper() {
                 )}
               </div>
 
-              {/* Modal Bottom Footer */}
-              <div className="p-4 sm:p-5 border-t border-border/50 bg-muted/30 flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <Link
-                    to="/tutorial"
-                    onClick={() => setIsOpen(false)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-muted hover:bg-muted/80 text-foreground text-xs font-bold transition-all border border-border/60"
-                  >
-                    <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>{isEn ? "Full System Tutorial (16 Modules)" : "دليل النظام بالكامل (١٦ قسماً)"}</span>
-                  </Link>
-                </div>
+              {/* Bottom Footer Actions */}
+              <div className="p-3.5 sm:p-4 border-t border-border/50 bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
+                <Link
+                  to="/tutorial"
+                  onClick={() => setIsOpen(false)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted hover:bg-muted/80 text-foreground text-xs font-bold transition-all border border-border/60"
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="hidden sm:inline">
+                    {isEn ? "Full Tutorial (16 Modules)" : "دليل النظام بالكامل"}
+                  </span>
+                  <span className="sm:hidden">{isEn ? "Tutorial" : "الدليل"}</span>
+                </Link>
 
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={handleCopySteps}
-                    className="px-4 py-2 rounded-xl bg-muted hover:bg-muted/80 text-foreground text-xs font-bold transition-all flex items-center gap-1.5"
+                    className="px-3 py-1.5 rounded-xl bg-muted hover:bg-muted/80 text-foreground text-xs font-bold transition-all flex items-center gap-1 border border-border/50"
                   >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>{copied ? (isEn ? "Copied!" : "تم النسخ!") : (isEn ? "Copy Steps" : "نسخ الخطوات")}</span>
+                    <Copy className="w-3 h-3" />
+                    <span>{copied ? (isEn ? "Copied!" : "تم النسخ!") : (isEn ? "Copy" : "نسخ")}</span>
                   </button>
 
                   <button
                     onClick={() => setIsOpen(false)}
-                    className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition-all"
+                    className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition-all"
                   >
-                    {isEn ? "I'm Ready, Start Working" : "فهمت الخطوات، ابدأ العمل الآن"}
+                    {isEn ? "Start Working" : "ابدأ العمل الآن"}
                   </button>
                 </div>
               </div>
