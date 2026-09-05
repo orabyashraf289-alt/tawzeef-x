@@ -10,7 +10,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import {
-  LayoutDashboard, Briefcase, Users, Calendar, FileText, BarChart3, Bot, Settings, Bell, Kanban, Target, Star, BookOpen, GitBranch, Shield, UserCog, Search, Clock, X, History, User, Building2, Trash2, LibraryBig,
+  LayoutDashboard, Briefcase, Users, Calendar, FileText, BarChart3, Bot, Settings, Bell, Kanban, Target, Star, BookOpen, GitBranch, Shield, UserCog, Search, Clock, X, History, User, Building2, Trash2, LibraryBig, Sparkles,
 } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
 import { useSearchHistory, useRecordSearch, useClearSearchHistory, useDeleteSearchEntry } from "@/hooks/useSearchHistory";
@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 
 const commandItems = [
   { icon: LayoutDashboard, labelKey: "nav.dashboard", path: "/dashboard", keywords: "dashboard لوحة التحكم رئيسية home" },
+  { icon: Sparkles, labelKey: "nav.screenGuide", path: "#open-guide", keywords: "screen guide كيف تعمل هذه الشاشة خطوات العمل مساعدة الشاشة دليل الشاشة" },
   { icon: Briefcase, labelKey: "nav.jobs", path: "/jobs", keywords: "jobs وظائف وظيفة" },
   { icon: Users, labelKey: "nav.candidates", path: "/candidates", keywords: "candidates مرشحين" },
   { icon: Kanban, labelKey: "nav.pipeline", path: "/pipeline", keywords: "pipeline مراحل" },
@@ -47,6 +48,7 @@ const slashCommands = [
   { trigger: "/offer", labelAr: "إنشاء عرض", labelEn: "Create offer", path: "/offers?action=create", icon: FileText },
   { trigger: "/ai", labelAr: "المساعد الذكي", labelEn: "AI Assistant", path: "/ai-assistant", icon: Bot },
   { trigger: "/report", labelAr: "التقارير", labelEn: "Reports", path: "/reports", icon: BarChart3 },
+  { trigger: "/screen", labelAr: "دليل وخطوات تشغيل الشاشة الحالية", labelEn: "Screen Guide & Steps", path: "#open-guide", icon: Sparkles },
   { trigger: "/help", labelAr: "المساعدة ودليل النظام", labelEn: "Help & Guide", path: "/tutorial", icon: BookOpen },
 ];
 
@@ -121,6 +123,10 @@ export default function CommandPalette({ open, onOpenChange }: { open: boolean; 
 
   const handleSelect = useCallback((path: string, searchQuery?: string) => {
     onOpenChange(false);
+    if (path === "#open-guide") {
+      window.dispatchEvent(new CustomEvent("open-screen-guide"));
+      return;
+    }
     if (searchQuery && searchQuery.trim().length >= 2) {
       const totalResults = matchedJobs.length + matchedCandidates.length;
       recordSearch.mutate({ query: searchQuery, scope: "global", result_count: totalResults });

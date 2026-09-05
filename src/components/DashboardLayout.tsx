@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Briefcase, Users, Bot, Settings, Menu, Calendar, BarChart3, Bell, LogOut, X, Kanban, Crown, UserCog, FileText, Sun, Moon, Monitor, Target, Globe, GraduationCap, Shield, Star, Download, BookOpen, GitBranch, Map, Search, Archive, Building2, Handshake, ClipboardList, ShieldCheck, ChevronDown, CheckSquare, Plus, FileCheck2, LibraryBig,
+  LayoutDashboard, Briefcase, Users, Bot, Settings, Menu, Calendar, BarChart3, Bell, LogOut, X, Kanban, Crown, UserCog, FileText, Sun, Moon, Monitor, Target, Globe, GraduationCap, Shield, Star, Download, BookOpen, GitBranch, Map, Search, Archive, Building2, Handshake, ClipboardList, ShieldCheck, ChevronDown, CheckSquare, Plus, FileCheck2, LibraryBig, Sparkles,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ import { useBrandSettings } from "@/hooks/useBrandSettings";
 import BottomNav from "@/components/BottomNav";
 import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
 import CompanySwitcher from "@/components/CompanySwitcher";
+import ScreenGuideHelper from "@/components/ScreenGuideHelper";
 import { prefetchRoute, recordNavigation } from "@/lib/routePrefetch";
 
 const tourIdMap: Record<string, string> = {
@@ -505,6 +506,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             </Link>
 
             <button
+              onClick={() => window.dispatchEvent(new CustomEvent("open-screen-guide"))}
+              className="px-3 py-1.5 rounded-md3-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 group"
+              title={locale === "en" ? "Screen Guide & Steps (Shift + ?)" : "دليل وخطوات تشغيل هذه الشاشة (Shift + ?)"}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-emerald-500 group-hover:rotate-12 transition-transform" />
+              <span>{locale === "en" ? "Screen Guide" : "دليل الشاشة"}</span>
+            </button>
+
+            <button
               onClick={startTour}
               className="px-3 py-1.5 rounded-md3-full bg-md-secondary-container text-md-on-secondary-container text-xs font-bold hover:bg-md-secondary-container/80 transition-colors"
             >
@@ -520,6 +530,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <CompanySwitcher />
           </div>
           <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("open-screen-guide"))}
+              className="p-2 rounded-md3-md text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+              title="دليل الشاشة"
+            >
+              <Sparkles className="w-4 h-4" />
+            </button>
             <Link to="/tutorial" className="p-2 rounded-md3-md text-md-on-surface hover:bg-md-surface-variant" title="دليل النظام">
               <BookOpen className="w-4 h-4 text-md-primary" />
             </Link>
@@ -558,6 +575,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <BottomNav />
       <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
       <OnboardingTour active={showTour} onEnd={endTour} />
+      <ScreenGuideHelper />
     </div>
   );
 }

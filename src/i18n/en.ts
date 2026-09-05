@@ -20,6 +20,7 @@ const en: Record<string, string> = {
   "nav.qualityReport": "Code Quality",
   "nav.talentPool": "Talent Pool",
   "nav.systemLibrary": "System Library",
+  "nav.screenGuide": "Screen Guide & Action Steps",
   "nav.roadmap": "Roadmap",
   "nav.resumeArchive": "Resume Archive",
   "nav.company": "Company Portal",

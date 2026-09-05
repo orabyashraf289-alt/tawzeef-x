@@ -20,6 +20,7 @@ const ar: Record<string, string> = {
   "nav.qualityReport": "تقرير جودة الكود",
   "nav.talentPool": "قاعدة المواهب",
   "nav.systemLibrary": "مكتبة النظام",
+  "nav.screenGuide": "دليل الشاشة وخطوات العمل",
   "nav.roadmap": "خطة التطوير",
   "nav.resumeArchive": "أرشيف السير الذاتية",
   "nav.company": "بوابة الشركة",
