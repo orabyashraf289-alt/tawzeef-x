@@ -1,13 +1,21 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Video, PhoneOff, Copy, Check, ExternalLink, Mic, MicOff, CircleDot, Square, FileText, Download, Save, Loader2, Sparkles, Brain } from "lucide-react";
+import {
+  ArrowRight, Video, PhoneOff, Copy, Check, ExternalLink, Mic, MicOff,
+  CircleDot, Square, FileText, Download, Save, Loader2, Sparkles, Brain,
+  Star, Printer, HelpCircle, ListChecks, CheckCircle2, MessageSquare,
+  Plus, RotateCcw, ThumbsUp, ThumbsDown, AlertCircle, Award, Scale, CheckSquare
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
+import confetti from "canvas-confetti";
 
 // ——— Web Speech API hook for live transcription ———
 function useSpeechRecognition() {
@@ -155,11 +163,304 @@ export default function VideoRoom() {
 
   useEffect(() => { if (intId) setInterviewId(intId); }, [intId]);
 
-  // AI Analyst state & handlers
-  const [sidebarTab, setSidebarTab] = useState<"transcript" | "ai">("transcript");
+  // Sidebar state (4 tabs: transcript, scorecard, questions, ai)
+  const [sidebarTab, setSidebarTab] = useState<"transcript" | "scorecard" | "questions" | "ai">("transcript");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiReport, setAiReport] = useState<any | null>(null);
   const [aiSaving, setAiSaving] = useState(false);
+
+  // Live Scorecard Rubric State
+  const [rubricScores, setRubricScores] = useState({
+    technical: 3,
+    communication: 3,
+    problemSolving: 3,
+    cultureFit: 3,
+  });
+  const [scorecardRecommendation, setScorecardRecommendation] = useState<"strong_hire" | "hire" | "maybe" | "no_hire">("hire");
+  const [scorecardNotes, setScorecardNotes] = useState("");
+  const [scorecardSaving, setScorecardSaving] = useState(false);
+
+  const totalRubricScore = useMemo(() => {
+    const sum = rubricScores.technical + rubricScores.communication + rubricScores.problemSolving + rubricScores.cultureFit;
+    return Math.round((sum / 20) * 100);
+  }, [rubricScores]);
+
+  // Live Question Bank State
+  const DEFAULT_INTERVIEW_QUESTIONS = useMemo(() => [
+    {
+      id: "q1",
+      category: "افتتاحي",
+      question: "عرّفنا بنفسك وبأبرز محطات مسيرتك المهنية والإنجازات التي تفتخر بها؟",
+      tip: "ابحث عن: تسلسل زمني منطقي، ثقة بالنفس، تركيز على النتائج الملموسة.",
+    },
+    {
+      id: "q2",
+      category: "تخصصي وفني",
+      question: `ما هي المنهجيات والأساليب الحديثة التي تعتمد عليها في أداء مهام وظيفة (${position || "المعلن عنها"})؟`,
+      tip: "ابحث عن: عمق المعرفة الفنية، الإلمام بالأدوات الحديثة والابتكار.",
+    },
+    {
+      id: "q3",
+      category: "سلوكي (STAR)",
+      question: "اذكر موقفاً عملياً معقداً واجهته مؤخراً، ما كان دورك المحدد وكيف تجاوزت التحدي؟",
+      tip: "منهجية STAR: الموقف (Situation)، المهمة (Task)، الإجراء (Action)، النتيجة (Result).",
+    },
+    {
+      id: "q4",
+      category: "حل المشكلات",
+      question: "إذا تعارضت أولويات الإدارة مع ضيق الوقت المتاح لتسليم مشروع هام، كيف تتصرف؟",
+      tip: "ابحث عن: مهارات التفاوض، ترتيب الأولويات، التواصل الشفاف مع أصحاب المصلحة.",
+    },
+    {
+      id: "q5",
+      category: "ملاءمة وثقافة",
+      question: "ما هي البيئة التي تحفزك على العطاء، وما هي تطلعاتك للتطور خلال السنوات القادمة؟",
+      tip: "ابحث عن: الشغف المهني، التوافق مع قيم وثقافة المؤسسة.",
+    },
+  ], [position]);
+
+  const [questionsList, setQuestionsList] = useState(DEFAULT_INTERVIEW_QUESTIONS);
+  const [askedQuestions, setAskedQuestions] = useState<string[]>([]);
+  const [generatingCustomQs, setGeneratingCustomQs] = useState(false);
+
+  const toggleQuestionAsked = (id: string) => {
+    setAskedQuestions((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSaveScorecard = async () => {
+    if (!interviewId) {
+      toast({ title: "لم يتم تحديد معرّف المقابلة للحفظ", variant: "destructive" });
+      return;
+    }
+    setScorecardSaving(true);
+    try {
+      const starRating = Math.max(1, Math.round(totalRubricScore / 20));
+      const formattedScorecard = `--- بطاقة التقييم اللحظية للمقابلة ---
+النتيجة الكلية: ${totalRubricScore}% (${starRating}/5 نجوم)
+التوصية: ${
+  scorecardRecommendation === "strong_hire"
+    ? "موصى به بقوة (Strong Hire) ⭐"
+    : scorecardRecommendation === "hire"
+    ? "مقبول (Hire) ✓"
+    : scorecardRecommendation === "maybe"
+    ? "قيد الانتظار / احتياط (On Hold) ⏸️"
+    : "غير ملائم (No Hire) ❌"
+}
+
+تفاصيل المعايير:
+- المهارات الفنية والتخصصية: ${rubricScores.technical}/5
+- مهارات التواصل والحضور: ${rubricScores.communication}/5
+- حل المشكلات والتفكير النقدي: ${rubricScores.problemSolving}/5
+- التوافق الثقافي والدافعية: ${rubricScores.cultureFit}/5
+
+ملاحظات المقيم:
+${scorecardNotes || "لا توجد ملاحظات إضافية."}`;
+
+      const { error } = await supabase
+        .from("interviews")
+        .update({
+          rating: starRating,
+          notes: formattedScorecard,
+          status: "مكتملة",
+        })
+        .eq("id", interviewId);
+
+      if (error) throw error;
+
+      confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+      toast({
+        title: "✅ تم اعتماد بطاقة التقييم اللحظية بنجاح",
+        description: `الدرجة الكلية: ${totalRubricScore}% — تم تحديث حالة المقابلة إلى مكتملة`,
+      });
+    } catch (err: any) {
+      toast({ title: "فشل حفظ التقييم", description: err.message, variant: "destructive" });
+    } finally {
+      setScorecardSaving(false);
+    }
+  };
+
+  const handleGenerateAIQuestions = async () => {
+    setGeneratingCustomQs(true);
+    try {
+      const prompt = `أنت خبير توظيف. قم باقتراح 3 أسئلة مقابلة احترافية باللغة العربية متقدمة ومخصصة لوظيفة "${position || "غير محددة"}" واسم المرشح "${candidateName || "مرشح"}".
+يرجى إرجاع مصفوفة JSON نظيفة تحتوي على كائنات بالحقول:
+- question: نص السؤال باللغة العربية
+- category: تصنيف السؤال (مثل: تخصصي، ذكاء عاطفي، قيادة)
+- tip: توجيه مختصر للمحاور عما يجب البحث عنه في الإجابة
+
+أعد النتيجة فقط داخل كود بلوك \`\`\`json.`;
+
+      const { data, error } = await supabase.functions.invoke("chat", {
+        body: {
+          messages: [
+            { role: "system", content: "أنت خبير صياغة أسئلة مقابلات. أرجع JSON فقط." },
+            { role: "user", content: prompt }
+          ],
+          disable_tools: true,
+          stream: false,
+        }
+      });
+
+      if (error) throw error;
+      const content = data?.choices?.[0]?.message?.content || "";
+      const match = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      const raw = match ? match[1] : content;
+      const parsed = JSON.parse(raw);
+
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const formatted = parsed.map((item: any, i: number) => ({
+          id: `ai-q-${Date.now()}-${i}`,
+          category: item.category || "ذكاء اصطناعي ✨",
+          question: item.question,
+          tip: item.tip || "ابحث عن العمق والأدلة العملية.",
+        }));
+        setQuestionsList((prev) => [...prev, ...formatted]);
+        toast({ title: `تم توليد ${formatted.length} أسئلة ذكية إضافية بنجاح ✨` });
+      }
+    } catch (e: any) {
+      toast({ title: "تعذر توليد الأسئلة", description: e.message, variant: "destructive" });
+    } finally {
+      setGeneratingCustomQs(false);
+    }
+  };
+
+  const handlePrintEvaluationReport = () => {
+    const printWin = window.open("", "_blank", "width=850,height=1000");
+    if (!printWin) {
+      toast({ title: "يرجى السماح بالنوافذ المنبثقة للطباعة", variant: "destructive" });
+      return;
+    }
+
+    const reportHtml = `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="utf-8"/>
+        <title>تقرير تقييم المقابلة — ${candidateName || "المرشح"}</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 40px; color: #1e293b; background: #fff; line-height: 1.6; }
+          .header { display: flex; justify-content: space-between; border-bottom: 2px solid #059669; padding-bottom: 16px; margin-bottom: 24px; }
+          .title { font-size: 24px; font-weight: 900; color: #0f172a; margin: 0; }
+          .badge { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: bold; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+          .section { margin-bottom: 24px; background: #f8fafc; padding: 18px; border-radius: 14px; border: 1px solid #e2e8f0; }
+          .section-title { font-size: 15px; font-weight: bold; color: #0f172a; margin-top: 0; margin-bottom: 12px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+          th, td { text-align: right; padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+          th { background: #f1f5f9; color: #475569; }
+          .score-total { font-size: 32px; font-weight: 900; color: #059669; }
+          @media print { body { padding: 15px; } .no-print { display: none; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h1 class="title">تقرير تقييم المقابلة الشخصية</h1>
+            <p style="color: #64748b; font-size: 13px; margin: 4px 0 0 0;">منصة Tawzeef-X — قسم التوظيف والاستقطاب</p>
+          </div>
+          <div style="text-align: left;">
+            <span class="badge">توثيق رسمي معتمد</span>
+            <p style="font-size: 12px; color: #94a3b8; margin: 6px 0 0 0;">التاريخ: ${new Date().toLocaleDateString("ar-SA")}</p>
+          </div>
+        </div>
+
+        <div class="section" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <p style="margin: 0; font-size: 13px; color: #64748b;">اسم المرشح:</p>
+            <h2 style="margin: 4px 0; font-size: 18px;">${candidateName || "مرشح مسجل"}</h2>
+            <p style="margin: 0; font-size: 13px; color: #64748b;">الوظيفة: <strong>${position || "غير محدد"}</strong></p>
+          </div>
+          <div style="text-align: center;">
+            <p style="margin: 0; font-size: 12px; color: #64748b;">النتيجة الكلية للتقييم</p>
+            <div class="score-total">${totalRubricScore}%</div>
+            <span class="badge">${scorecardRecommendation.toUpperCase()}</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">📊 نتائج معايير بطاقة التقييم</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>المعيار التقييمي</th>
+                <th>الدرجة الممنوحة</th>
+                <th>التقييم من 5</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>المهارات الفنية والتخصصية</td>
+                <td>${rubricScores.technical} / 5</td>
+                <td>${"★".repeat(rubricScores.technical)}${"☆".repeat(5 - rubricScores.technical)}</td>
+              </tr>
+              <tr>
+                <td>مهارات التواصل والحضور والثقة</td>
+                <td>${rubricScores.communication} / 5</td>
+                <td>${"★".repeat(rubricScores.communication)}${"☆".repeat(5 - rubricScores.communication)}</td>
+              </tr>
+              <tr>
+                <td>حل المشكلات والتفكير النقدي</td>
+                <td>${rubricScores.problemSolving} / 5</td>
+                <td>${"★".repeat(rubricScores.problemSolving)}${"☆".repeat(5 - rubricScores.problemSolving)}</td>
+              </tr>
+              <tr>
+                <td>التوافق الثقافي والدافعية</td>
+                <td>${rubricScores.cultureFit} / 5</td>
+                <td>${"★".repeat(rubricScores.cultureFit)}${"☆".repeat(5 - rubricScores.cultureFit)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        ${
+          scorecardNotes
+            ? `
+        <div class="section">
+          <h3 class="section-title">📝 ملاحظات المقيم</h3>
+          <p style="font-size: 13px; white-space: pre-wrap; margin: 0;">${scorecardNotes}</p>
+        </div>
+        `
+            : ""
+        }
+
+        ${
+          aiReport
+            ? `
+        <div class="section">
+          <h3 class="section-title">✨ تحليل مساعد الذكاء الاصطناعي</h3>
+          <p style="font-size: 13px;"><strong>الملخص:</strong> ${aiReport.summary || ""}</p>
+          <div style="margin-top: 10px;">
+            <strong style="color: #059669; font-size: 13px;">أبرز نقاط القوة:</strong>
+            <ul style="font-size: 13px; margin: 4px 0;">
+              ${aiReport.strengths?.map((s: string) => `<li>${s}</li>`).join("") || ""}
+            </ul>
+          </div>
+          <div style="margin-top: 10px;">
+            <strong style="color: #dc2626; font-size: 13px;">جوانب التطوير:</strong>
+            <ul style="font-size: 13px; margin: 4px 0;">
+              ${aiReport.weaknesses?.map((w: string) => `<li>${w}</li>`).join("") || ""}
+            </ul>
+          </div>
+        </div>
+        `
+            : ""
+        }
+
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; font-size: 12px; color: #64748b;">
+          <div>توقيع مسؤول المقابلة: __________________</div>
+          <div>اعتماد إدارة الموارد البشرية: __________________</div>
+        </div>
+
+        <script>
+          window.onload = function() { window.print(); }
+        </script>
+      </body>
+      </html>
+    `;
+    printWin.document.write(reportHtml);
+    printWin.document.close();
+  };
 
   const handleAIAnalysis = async () => {
     if (!speech.transcript.trim()) return;
@@ -455,47 +756,74 @@ ${aiReport.communication}`;
           </AnimatePresence>
         </div>
 
-        {/* Transcript Sidebar */}
+        {/* Enhanced Multi-Tab Interactive Sidebar */}
         <AnimatePresence>
           {showTranscript && (
             <motion.div
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 350, opacity: 1 }}
+              animate={{ width: 400, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.3 }}
               className="border-r border-border bg-card flex flex-col overflow-hidden shrink-0"
             >
-              {/* Sidebar Tabs */}
-              <div className="flex border-b border-border bg-muted/30 shrink-0">
+              {/* Sidebar Tabs (4 tabs) */}
+              <div className="flex border-b border-border bg-muted/30 shrink-0 overflow-x-auto">
                 <button
                   type="button"
                   onClick={() => setSidebarTab("transcript")}
                   className={cn(
-                    "flex-1 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center justify-center gap-1.5",
+                    "flex-1 py-2.5 px-2 text-[11px] font-bold border-b-2 transition-all flex items-center justify-center gap-1 shrink-0",
                     sidebarTab === "transcript"
                       ? "border-primary text-primary bg-background"
                       : "border-transparent text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <FileText className="w-3.5 h-3.5" />
-                  النسخ النصي
+                  <FileText className="w-3 h-3" />
+                  النسخ 🎙️
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab("scorecard")}
+                  className={cn(
+                    "flex-1 py-2.5 px-2 text-[11px] font-bold border-b-2 transition-all flex items-center justify-center gap-1 shrink-0",
+                    sidebarTab === "scorecard"
+                      ? "border-primary text-primary bg-background"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Star className="w-3 h-3" />
+                  التقييم 📝
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab("questions")}
+                  className={cn(
+                    "flex-1 py-2.5 px-2 text-[11px] font-bold border-b-2 transition-all flex items-center justify-center gap-1 shrink-0",
+                    sidebarTab === "questions"
+                      ? "border-primary text-primary bg-background"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <HelpCircle className="w-3 h-3" />
+                  الأسئلة ❓
                 </button>
                 <button
                   type="button"
                   onClick={() => setSidebarTab("ai")}
                   className={cn(
-                    "flex-1 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center justify-center gap-1.5",
+                    "flex-1 py-2.5 px-2 text-[11px] font-bold border-b-2 transition-all flex items-center justify-center gap-1 shrink-0",
                     sidebarTab === "ai"
                       ? "border-primary text-primary bg-background"
                       : "border-transparent text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Brain className="w-3.5 h-3.5" />
-                  التحليل الذكي ✨
+                  <Brain className="w-3 h-3" />
+                  الذكاء ✨
                 </button>
               </div>
 
-              {sidebarTab === "transcript" ? (
+              {/* 1. Live Transcript Tab */}
+              {sidebarTab === "transcript" && (
                 <>
                   <div className="p-3 border-b border-border flex items-center justify-between bg-card">
                     <h3 className="text-xs font-bold flex items-center gap-2">
@@ -542,7 +870,219 @@ ${aiReport.communication}`;
                     </div>
                   )}
                 </>
-              ) : (
+              )}
+
+              {/* 2. Live Scorecard Rubric Tab */}
+              {sidebarTab === "scorecard" && (
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs" dir="rtl">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <div>
+                      <h3 className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                        <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                        بطاقة التقييم اللحظية
+                      </h3>
+                      <p className="text-[10px] text-muted-foreground">قيّم المرشح أثناء حديثه لحساب النتيجة آلياً</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handlePrintEvaluationReport}
+                      className="h-7 text-[10px] font-bold gap-1 rounded-lg"
+                      title="طباعة تقرير المقابلة الشامل"
+                    >
+                      <Printer className="w-3 h-3" />
+                      طباعة
+                    </Button>
+                  </div>
+
+                  {/* Total Score Meter */}
+                  <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/60 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-muted-foreground font-bold block">الدرجة الكلية الموزونة</span>
+                      <span className="text-2xl font-black font-mono text-primary">{totalRubricScore}%</span>
+                    </div>
+                    <Badge className={cn(
+                      "font-bold text-xs py-1 px-3",
+                      scorecardRecommendation === "strong_hire" ? "bg-emerald-600 text-white" :
+                      scorecardRecommendation === "hire" ? "bg-green-600 text-white" :
+                      scorecardRecommendation === "maybe" ? "bg-amber-600 text-white" : "bg-red-600 text-white"
+                    )}>
+                      {scorecardRecommendation === "strong_hire" ? "موصى به بقوة ⭐" :
+                       scorecardRecommendation === "hire" ? "مقبول ✓" :
+                       scorecardRecommendation === "maybe" ? "قيد الانتظار ⏸️" : "غير ملائم ❌"}
+                    </Badge>
+                  </div>
+
+                  {/* Rubric Criteria with Star Selection */}
+                  <div className="space-y-3">
+                    {[
+                      { key: "technical", label: "المهارات الفنية والتخصصية", desc: "الإلمام بالمعرفة والخبرة العملية والأدوات" },
+                      { key: "communication", label: "التواصل والحضور والثقة", desc: "وضوح الحديث، لغة الجسد، والإقناع" },
+                      { key: "problemSolving", label: "حل المشكلات والتفكير النقدي", desc: "التعامل مع التحديات وإدارة الأزمات" },
+                      { key: "cultureFit", label: "التوافق الثقافي والدافعية", desc: "الشغف، الالتزام، والانسجام مع الفريق" },
+                    ].map((crit) => {
+                      const score = (rubricScores as any)[crit.key];
+                      return (
+                        <div key={crit.key} className="p-3 rounded-xl bg-card border border-border/50 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs text-foreground">{crit.label}</span>
+                            <span className="text-xs font-mono font-bold text-primary">{score} / 5</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">{crit.desc}</p>
+                          <div className="flex items-center gap-1 pt-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                type="button"
+                                onClick={() => setRubricScores((prev) => ({ ...prev, [crit.key]: star }))}
+                                className="p-1 hover:scale-110 transition-transform"
+                              >
+                                <Star className={cn("w-4 h-4", star <= score ? "fill-amber-400 text-amber-400" : "text-border")} />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Recommendation Selector */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-foreground">التوصية النهائية للمرشح:</label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {[
+                        { id: "strong_hire", label: "موصى به بقوة ⭐" },
+                        { id: "hire", label: "مقبول ✓" },
+                        { id: "maybe", label: "قيد الانتظار ⏸️" },
+                        { id: "no_hire", label: "غير ملائم ❌" },
+                      ].map((rec) => (
+                        <Button
+                          key={rec.id}
+                          type="button"
+                          variant={scorecardRecommendation === rec.id ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setScorecardRecommendation(rec.id as any)}
+                          className={cn(
+                            "h-8 text-[10px] font-bold rounded-xl",
+                            scorecardRecommendation === rec.id ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                          )}
+                        >
+                          {rec.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-foreground">ملاحظات المقيم الخاصة:</label>
+                    <Textarea
+                      value={scorecardNotes}
+                      onChange={(e) => setScorecardNotes(e.target.value)}
+                      placeholder="سجّل انطباعاتك وملاحظاتك أثناء إجابة المرشح..."
+                      rows={3}
+                      className="text-xs rounded-xl"
+                    />
+                  </div>
+
+                  {/* Save Button */}
+                  <Button
+                    type="button"
+                    onClick={handleSaveScorecard}
+                    disabled={scorecardSaving}
+                    className="w-full h-9 text-xs font-bold gap-1.5 rounded-xl bg-primary text-primary-foreground shadow-sm"
+                  >
+                    {scorecardSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    حفظ التقييم واعتماد النتيجة
+                  </Button>
+                </div>
+              )}
+
+              {/* 3. Live Question Bank Tab */}
+              {sidebarTab === "questions" && (
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs" dir="rtl">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <div>
+                      <h3 className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                        <HelpCircle className="w-4 h-4 text-primary" />
+                        أسئلة المقابلة المقترحة
+                      </h3>
+                      <p className="text-[10px] text-muted-foreground">
+                        {askedQuestions.length} من {questionsList.length} تم طرحها
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleGenerateAIQuestions}
+                      disabled={generatingCustomQs}
+                      className="h-7 text-[10px] font-bold gap-1 rounded-lg border-primary/30 text-primary hover:bg-primary/10"
+                    >
+                      {generatingCustomQs ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                      توليد AI
+                    </Button>
+                  </div>
+
+                  {/* Questions List */}
+                  <div className="space-y-2.5">
+                    {questionsList.map((q, idx) => {
+                      const isAsked = askedQuestions.includes(q.id);
+                      return (
+                        <div
+                          key={q.id}
+                          className={cn(
+                            "p-3 rounded-2xl border transition-all space-y-2",
+                            isAsked ? "bg-muted/50 border-border/40 opacity-70" : "bg-card border-border/70 hover:border-primary/30 shadow-xs"
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleQuestionAsked(q.id)}
+                              className="flex items-center gap-2 text-right flex-1"
+                            >
+                              <div className={cn(
+                                "w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors",
+                                isAsked ? "bg-primary border-primary text-primary-foreground" : "border-border"
+                              )}>
+                                {isAsked && <Check className="w-3 h-3" />}
+                              </div>
+                              <span className={cn(
+                                "text-xs font-bold leading-relaxed",
+                                isAsked ? "line-through text-muted-foreground" : "text-foreground"
+                              )}>
+                                {idx + 1}. {q.question}
+                              </span>
+                            </button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 text-muted-foreground hover:text-foreground shrink-0"
+                              onClick={() => {
+                                navigator.clipboard.writeText(q.question);
+                                toast({ title: "تم نسخ السؤال ✅" });
+                              }}
+                              title="نسخ نص السؤال"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </Button>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-1 pt-1 border-t border-border/40 text-[10px]">
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-border">
+                              {q.category}
+                            </Badge>
+                            <span className="text-muted-foreground truncate">{q.tip}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 4. AI Analyst Tab */}
+              {sidebarTab === "ai" && (
                 <div className="flex-1 overflow-y-auto p-4 space-y-4" dir="rtl">
                   {aiLoading ? (
                     <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
@@ -578,8 +1118,24 @@ ${aiReport.communication}`;
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="space-y-4"
+                      className="space-y-4 text-xs"
                     >
+                      <div className="flex items-center justify-between border-b pb-2">
+                        <h3 className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                          <Brain className="w-4 h-4 text-primary" />
+                          نتيجة التحليل الذكي
+                        </h3>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handlePrintEvaluationReport}
+                          className="h-7 text-[10px] font-bold gap-1 rounded-lg"
+                        >
+                          <Printer className="w-3 h-3" />
+                          طباعة التقرير
+                        </Button>
+                      </div>
+
                       {/* Score Card */}
                       <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 flex items-center justify-between">
                         <div>
