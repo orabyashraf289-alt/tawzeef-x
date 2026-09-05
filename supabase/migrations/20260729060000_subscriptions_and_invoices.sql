@@ -39,10 +39,10 @@ ALTER TABLE public.company_invoices ENABLE ROW LEVEL SECURITY;
 CREATE OR REPLACE FUNCTION public.is_super_admin_user()
 RETURNS BOOLEAN AS $$
 BEGIN
-  RETURN EXISTS (
+  RETURN COALESCE(public.is_super_admin(auth.uid()), false) OR EXISTS (
     SELECT 1 FROM public.user_roles
     WHERE user_id = auth.uid()
-    AND role = 'super_admin'
+    AND role = 'admin'::app_role
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
