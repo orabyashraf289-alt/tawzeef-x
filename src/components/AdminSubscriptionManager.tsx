@@ -121,13 +121,20 @@ export default function AdminSubscriptionManager() {
   const { data: invoices } = useCompanyInvoices();
   const updatePlan = useUpdatePlan();
   const customUpgrade = useAdminCustomUpgradeSubscription();
+  const rejectUpgrade = useRejectUpgradeRequest();
 
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
   const [editForm, setEditForm] = useState({ price: 0, job_posts_limit: 0, name_ar: "" });
   const [search, setSearch] = useState("");
   
   // Custom Upgrade Dialog State
-  const [upgradeDialog, setUpgradeDialog] = useState<{ companyId: string; name: string; ownerUserId: string | null; currentPlanId?: string } | null>(null);
+  const [upgradeDialog, setUpgradeDialog] = useState<{
+    companyId: string;
+    name: string;
+    ownerUserId: string | null;
+    currentPlanId?: string;
+    requestId?: string;
+  } | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [customLimit, setCustomLimit] = useState<number>(-1);
   const [customPrice, setCustomPrice] = useState<number>(0);
@@ -148,14 +155,20 @@ export default function AdminSubscriptionManager() {
     setEditingPlan(null);
   };
 
-  const openUpgradeModal = (company: { companyId: string; companyName: string; ownerUserId: string | null; plan?: any }) => {
+  const openUpgradeModal = (
+    company: { companyId: string; companyName: string; ownerUserId: string | null; plan?: any },
+    requestId?: string,
+    targetPlanId?: string
+  ) => {
     setUpgradeDialog({
       companyId: company.companyId,
       name: company.companyName,
       ownerUserId: company.ownerUserId,
       currentPlanId: company.plan?.id,
+      requestId,
     });
-    const defaultPlan = company.plan || (plans && plans[0]);
+    const targetPlan = targetPlanId ? (plans || []).find((p) => p.id === targetPlanId) : null;
+    const defaultPlan = targetPlan || company.plan || (plans && plans[0]);
     if (defaultPlan) {
       setSelectedPlanId(defaultPlan.id);
       setCustomLimit(defaultPlan.job_posts_limit);
@@ -188,11 +201,12 @@ export default function AdminSubscriptionManager() {
         startsAt: new Date(startsAtDate).toISOString(),
         expiresAt: expiresAtDate ? new Date(expiresAtDate).toISOString() : null,
         issueInvoice: shouldIssueInvoice,
+        requestId: upgradeDialog.requestId,
       });
 
       toast({
         title: "تمت ترقية باقة الشركة وإصدار الفاتورة بنجاح! 🚀✅",
-        description: `تم تعيين باقة ${targetPlan.name_ar} للشركة وتحديث حدود التوظيف.`,
+        description: `تم تعيين باقة ${targetPlan.name_ar} للشركة وتحديث حدود التوظيف وإشعار الشركة.`,
       });
       setUpgradeDialog(null);
     } catch (err: any) {
@@ -364,17 +378,37 @@ export default function AdminSubscriptionManager() {
                   </div>
 
                   {req.status === "pending" && (
-                    <Button
-                      size="sm"
-                      className="gap-1.5 font-bold bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
-                      onClick={() => {
-                        const co = (companies || []).find((c) => c.companyId === req.company_id);
-                        if (co) openUpgradeModal(co);
-                      }}
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      تفعيل الباقة وإصدار الفاتورة
-                    </Button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1 text-xs text-destructive hover:bg-destructive/10 border-destructive/20"
+                        onClick={() => {
+                          if (confirm(`هل أنت متأكد من رفض طلب ترقية الباقة لشركة "${req.company_name}"؟`)) {
+                            const co = (companies || []).find((c) => c.companyId === req.company_id);
+                            rejectUpgrade.mutate({
+                              requestId: req.id,
+                              ownerUserId: co?.ownerUserId,
+                            });
+                            toast({ title: "تم رفض طلب الترقية وإشعار العميل" });
+                          }
+                        }}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        رفض
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="gap-1.5 font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                        onClick={() => {
+                          const co = (companies || []).find((c) => c.companyId === req.company_id);
+                          if (co) openUpgradeModal(co, req.id, req.target_plan_id);
+                        }}
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        تفعيل الباقة وإصدار الفاتورة
+                      </Button>
+                    </div>
                   )}
                 </div>
               ))}

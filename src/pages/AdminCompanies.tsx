@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
+import AdminSubscriptionManager from "@/components/AdminSubscriptionManager";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Building2, Search, Trash2, ExternalLink, Power, Users as UsersIcon, X } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Building2, Search, Trash2, ExternalLink, Power, Users as UsersIcon, X, Bell, Clock, Crown, ShieldAlert } from "lucide-react";
 import {
   useAllCompanies,
   useCreateCompany,
@@ -17,11 +19,13 @@ import {
   useAddCompanyMember,
   useRemoveCompanyMember,
 } from "@/hooks/useCompanies";
+import { useUpgradeRequests } from "@/hooks/useSubscription";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 
 export default function AdminCompanies() {
   const { data: companies = [], isLoading } = useAllCompanies();
+  const { data: upgradeRequests = [] } = useUpgradeRequests();
   const createCompany = useCreateCompany();
   const deleteCompany = useDeleteCompany();
   const toggleStatus = useToggleCompanyStatus();
@@ -32,7 +36,9 @@ export default function AdminCompanies() {
   const [phone, setPhone] = useState("");
   const [industry, setIndustry] = useState("");
   const [membersFor, setMembersFor] = useState<{ id: string; name: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<"directory" | "subscriptions">("directory");
 
+  const pendingRequests = (upgradeRequests || []).filter((r) => r.status === "pending");
   const parentCompanies = companies.filter((c) => !c.parent_company_id);
   const branchesCount = companies.filter((c) => c.parent_company_id).length;
 
@@ -43,17 +49,25 @@ export default function AdminCompanies() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+      <div className="p-6 max-w-7xl mx-auto" dir="rtl">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-black">إدارة الشركات</h1>
+            <h1 className="text-2xl font-black flex items-center gap-2">
+              <span>إدارة الشركات والاشتراكات</span>
+              {pendingRequests.length > 0 && (
+                <Badge className="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full animate-pulse">
+                  {pendingRequests.length} طلب ترقية جديد
+                </Badge>
+              )}
+            </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              جميع الشركات العميلة في المنصة ({parentCompanies.length} شركات رئيسية، {branchesCount} فروع)
+              إدارة حسابات الشركات العميلة، الاشتراكات الشهرية والسنوية، وطلبات الترقية ({parentCompanies.length} شركات رئيسية، {branchesCount} فروع)
             </p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2"><Plus className="w-4 h-4" />شركة جديدة</Button>
+              <Button className="gap-2 shrink-0"><Plus className="w-4 h-4" />شركة جديدة</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>إضافة شركة جديدة</DialogTitle></DialogHeader>
@@ -85,12 +99,71 @@ export default function AdminCompanies() {
           </Dialog>
         </div>
 
-        <div className="relative mb-4">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="ابحث باسم أو بريد الشركة..." value={search} onChange={(e) => setSearch(e.target.value)} className="pr-10" />
-        </div>
+        {/* 🔔 Pending Upgrade Requests Alert Banner */}
+        {pendingRequests.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent border-2 border-amber-500/40 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg shadow-amber-500/5"
+          >
+            <div className="flex items-start md:items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/20 animate-bounce">
+                <Bell className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-sm text-foreground">
+                    تنبيه إداري عاجل: يوجد {pendingRequests.length} طلبات ترقية باقة معلقة بانتظار الاعتماد!
+                  </h3>
+                  <Badge className="bg-amber-500 text-white text-[10px] px-2 py-0.5 animate-pulse">
+                    عاجل
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  الشركات: {pendingRequests.map((r) => `${r.company_name} (طلب: ${r.target_plan_name})`).join(" · ")}
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setActiveTab("subscriptions")}
+              className="bg-amber-500 hover:bg-amber-600 text-white font-bold gap-1.5 shrink-0 shadow-sm"
+            >
+              <Clock className="w-4 h-4" />
+              مراجعة واعتماد الطلبات ({pendingRequests.length})
+            </Button>
+          </motion.div>
+        )}
 
-        {isLoading && <p className="text-sm text-muted-foreground">جارٍ التحميل...</p>}
+        {/* Main Tabs Navigation */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+          <TabsList className="mb-6 bg-muted/60 p-1 rounded-xl">
+            <TabsTrigger value="directory" className="gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Building2 className="w-4 h-4" />
+              دليل الشركات والفروع
+              <Badge variant="secondary" className="mr-1 text-[10px] px-1.5">
+                {parentCompanies.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="subscriptions" className="gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm relative">
+              <Crown className="w-4 h-4 text-amber-500" />
+              إدارة الاشتراكات والترقيات والخطط
+              {pendingRequests.length > 0 && (
+                <Badge className="mr-1 bg-amber-500 text-white text-[10px] px-1.5 py-0 rounded-full animate-pulse">
+                  {pendingRequests.length} طلب جديد
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Tab 1: Companies Directory */}
+          <TabsContent value="directory" className="space-y-4">
+            <div className="relative mb-4">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="ابحث باسم أو بريد الشركة..." value={search} onChange={(e) => setSearch(e.target.value)} className="pr-10" />
+            </div>
+
+            {isLoading && <p className="text-sm text-muted-foreground">جارٍ التحميل...</p>}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((c, i) => {
@@ -143,8 +216,17 @@ export default function AdminCompanies() {
                     )}
                   </div>
 
-                  <div className="mt-auto pt-2">
-                    <div className="grid grid-cols-2 gap-2 mb-2">
+                  <div className="mt-auto pt-2 space-y-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-1.5 text-xs font-bold text-primary border-primary/25 hover:bg-primary/5"
+                      onClick={() => setActiveTab("subscriptions")}
+                    >
+                      <Crown className="w-3.5 h-3.5 text-amber-500" />
+                      الاشتراك والباقة الحالية
+                    </Button>
+                    <div className="grid grid-cols-2 gap-2">
                       <Link to={`/admin/companies/${c.id}`}>
                         <Button variant="outline" size="sm" className="w-full gap-1.5">
                           <ExternalLink className="w-3.5 h-3.5" />فتح
@@ -190,6 +272,13 @@ export default function AdminCompanies() {
             <p className="text-muted-foreground">لا توجد شركات بعد</p>
           </Card>
         )}
+          </TabsContent>
+
+          {/* Tab 2: Subscriptions, Upgrades & Invoices */}
+          <TabsContent value="subscriptions" className="space-y-4">
+            <AdminSubscriptionManager />
+          </TabsContent>
+        </Tabs>
 
         {membersFor && (
           <ManageMembersDialog

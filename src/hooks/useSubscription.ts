@@ -208,6 +208,16 @@ export function useCreateUpgradeRequest() {
 
       const companyId = memberRows[0].company_id;
 
+      // Get company name for notifications
+      const { data: companyData } = await supabase
+        .from("companies")
+        .select("name")
+        .eq("id", companyId)
+        .maybeSingle();
+      const companyName = companyData?.name || "الشركة";
+
+      let insertedRecord: any = null;
+
       try {
         const { data, error } = await supabase
           .from("subscription_upgrade_requests" as any)
@@ -223,7 +233,7 @@ export function useCreateUpgradeRequest() {
           .single();
 
         if (error) throw error;
-        return data;
+        insertedRecord = data;
       } catch (err: any) {
         const isTableMissing =
           err?.code === "PGRST205" ||
@@ -233,20 +243,6 @@ export function useCreateUpgradeRequest() {
         if (isTableMissing) {
           console.warn("Table subscription_upgrade_requests is missing in Supabase. Using fallback notification and local storage queue.");
 
-          // 1. Send fallback notification
-          try {
-            await supabase.from("notifications").insert({
-              user_id: user.id,
-              title: `طلب ترقية باقة: ${targetPlanName}`,
-              description: `تم تسجيل طلب ترقية باقة إلى ${targetPlanName}. الملاحظات: ${notes || "لا توجد"}.`,
-              type: "upgrade_request",
-              read: false,
-            });
-          } catch (notifErr) {
-            console.warn("Could not insert fallback notification:", notifErr);
-          }
-
-          // 2. Save in localStorage queue
           const fallbackReq: UpgradeRequestRow = {
             id: `local-req-${Date.now()}`,
             company_id: companyId,
@@ -266,15 +262,79 @@ export function useCreateUpgradeRequest() {
             console.warn("Could not save to localStorage:", e);
           }
 
-          return fallbackReq;
+          insertedRecord = fallbackReq;
+        } else {
+          throw err;
+        }
+      }
+
+      // Dispatch notifications to all system administrators
+      try {
+        const adminUserIds = new Set<string>();
+
+        // 1. Check user_roles table for admins
+        const { data: adminRoles } = await supabase
+          .from("user_roles" as any)
+          .select("user_id")
+          .eq("role", "admin");
+        (adminRoles || []).forEach((r: any) => r.user_id && adminUserIds.add(r.user_id));
+
+        // 2. Check profiles table for admins / super_admins
+        const { data: adminProfiles } = await supabase
+          .from("profiles")
+          .select("id, user_id, email, role")
+          .or("role.eq.admin,role.eq.super_admin,email.eq.tx@tawzeefx.com,email.eq.ctraining801@gmail.com");
+        (adminProfiles || []).forEach((p: any) => {
+          const uid = p.user_id || p.id;
+          if (uid) adminUserIds.add(uid);
+        });
+
+        // Insert notification for each admin found
+        const notifsToInsert: any[] = [];
+        adminUserIds.forEach((adminId) => {
+          notifsToInsert.push({
+            user_id: adminId,
+            title: `طلب ترقية باقة جديد: ${companyName} 🚀`,
+            description: `طلبت شركة "${companyName}" الترقية إلى باقة "${targetPlanName}". ${notes ? `ملاحظات: "${notes}"` : ""}`,
+            type: "subscription_upgrade",
+            read: false,
+          });
+        });
+
+        // Also add notification for the requester himself
+        notifsToInsert.push({
+          user_id: user.id,
+          title: `تم إرسال طلب ترقية الباقة بنجاح 📋`,
+          description: `تم إرسال طلب ترقية باقة شركتك إلى "${targetPlanName}" لإدارة المنصة، وستتم المراجعة والتفعيل قريباً.`,
+          type: "subscription_upgrade",
+          read: false,
+        });
+
+        if (notifsToInsert.length > 0) {
+          await supabase.from("notifications").insert(notifsToInsert);
         }
 
-        throw err;
+        // Activity log
+        try {
+          await supabase.from("activity_log" as any).insert({
+            user_id: user.id,
+            action: "subscription.upgrade_requested",
+            entity_type: "company",
+            entity_id: companyId,
+            details: `طلب ترقية إلى باقة ${targetPlanName} من شركة ${companyName}`,
+          });
+        } catch {}
+      } catch (notifErr) {
+        console.warn("Could not dispatch admin notifications:", notifErr);
       }
+
+      return insertedRecord;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-upgrade-requests"] });
       queryClient.invalidateQueries({ queryKey: ["admin-upgrade-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["unread-notifications-count"] });
     },
   });
 }
@@ -351,6 +411,7 @@ export function useAdminCustomUpgradeSubscription() {
       startsAt,
       expiresAt,
       issueInvoice = true,
+      requestId,
     }: {
       companyId: string;
       ownerUserId?: string | null;
@@ -361,6 +422,7 @@ export function useAdminCustomUpgradeSubscription() {
       startsAt: string;
       expiresAt: string | null;
       issueInvoice?: boolean;
+      requestId?: string;
     }) => {
       if (!user) throw new Error("المستخدم غير مصرح له");
 
@@ -434,12 +496,99 @@ export function useAdminCustomUpgradeSubscription() {
           console.warn("Could not record invoice into company_invoices (table might need migration):", invErr);
         }
       }
+
+      // 3) If this upgrade resolves a specific request, mark it as approved
+      if (requestId) {
+        try {
+          await supabase
+            .from("subscription_upgrade_requests" as any)
+            .update({
+              status: "approved",
+              updated_at: new Date().toISOString(),
+            } as any)
+            .eq("id", requestId);
+        } catch (reqErr) {
+          console.warn("Could not mark request as approved in DB:", reqErr);
+        }
+
+        // Also update local storage fallback queue if present
+        try {
+          const local = JSON.parse(localStorage.getItem("tx_pending_upgrade_requests") || "[]");
+          const updated = local.map((r: any) => (r.id === requestId ? { ...r, status: "approved" } : r));
+          localStorage.setItem("tx_pending_upgrade_requests", JSON.stringify(updated));
+        } catch {}
+      }
+
+      // 4) Send approval notification to the company owner
+      if (ownerUserId) {
+        try {
+          await supabase.from("notifications").insert({
+            user_id: ownerUserId,
+            title: `تمت ترقية باقة شركتكم بنجاح! 🎉`,
+            description: `تم اعتماد وتفعيل باقة "${planNameAr}". استمتع بجميع المزايا والصلاحيات الجديدة.`,
+            type: "upgrade_approved",
+            read: false,
+          });
+        } catch (notifErr) {
+          console.warn("Could not send approval notification:", notifErr);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-companies-list"] });
       queryClient.invalidateQueries({ queryKey: ["my-subscription"] });
       queryClient.invalidateQueries({ queryKey: ["company-invoices"] });
       queryClient.invalidateQueries({ queryKey: ["admin-upgrade-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["unread-notifications-count"] });
+    },
+  });
+}
+
+export function useRejectUpgradeRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ requestId, ownerUserId, reason }: { requestId: string; ownerUserId?: string | null; reason?: string }) => {
+      // 1. Update in DB
+      try {
+        await supabase
+          .from("subscription_upgrade_requests" as any)
+          .update({
+            status: "rejected",
+            updated_at: new Date().toISOString(),
+          } as any)
+          .eq("id", requestId);
+      } catch (e) {
+        console.warn("Could not reject in DB:", e);
+      }
+
+      // 2. Update local storage
+      try {
+        const local = JSON.parse(localStorage.getItem("tx_pending_upgrade_requests") || "[]");
+        const updated = local.map((r: any) => (r.id === requestId ? { ...r, status: "rejected" } : r));
+        localStorage.setItem("tx_pending_upgrade_requests", JSON.stringify(updated));
+      } catch {}
+
+      // 3. Notify owner
+      if (ownerUserId) {
+        try {
+          await supabase.from("notifications").insert({
+            user_id: ownerUserId,
+            title: `بشأن طلب ترقية الباقة`,
+            description: reason
+              ? `تعذر قبول طلب الترقية حالياً: ${reason}`
+              : `تمت مراجعة طلب ترقية الباقة ولم تتم الموافقة عليه في الوقت الحالي. يمكنك التواصل مع فريق الدعم للمزيد من التفاصيل.`,
+            type: "upgrade_rejected",
+            read: false,
+          });
+        } catch {}
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-upgrade-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["unread-notifications-count"] });
     },
   });
 }
