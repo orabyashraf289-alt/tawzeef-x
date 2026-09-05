@@ -18,7 +18,6 @@ import {
   Archive, FileDown, Tag, StickyNote, X, Plus, Wifi, Loader2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import * as XLSX from "xlsx";
 import { getSignedResumeUrl } from "@/lib/resumeStorage";
 
 interface ResumeRecord {
@@ -272,7 +271,8 @@ export default function ResumeArchive() {
     window.open(signed, "_blank");
   };
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
+    const XLSX = await import("xlsx");
     const rows = filtered.map(r => ({
       [locale === "ar" ? "الاسم" : "Name"]: r.name,
       [locale === "ar" ? "البريد" : "Email"]: r.email || "",

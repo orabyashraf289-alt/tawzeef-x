@@ -19,6 +19,7 @@ const en: Record<string, string> = {
   "nav.auditLog": "Audit Log",
   "nav.qualityReport": "Code Quality",
   "nav.talentPool": "Talent Pool",
+  "nav.systemLibrary": "System Library",
   "nav.roadmap": "Roadmap",
   "nav.resumeArchive": "Resume Archive",
   "nav.company": "Company Portal",
@@ -797,9 +798,9 @@ const en: Record<string, string> = {
   "tour.restartTour": "Platform Tour",
 
   // Tutorial Page
-  "nav.tutorial": "Tutorial",
+  "nav.tutorial": "Complete System Guide",
   "nav.install": "Install App",
-  "tutorial.title": "Platform Guide",
+  "tutorial.title": "Complete System Guide",
   "tutorial.subtitle": "Learn all Tawzeef-X features step by step with detailed explanations and practical examples",
   "tutorial.videoPlaceholder": "Tutorial video will be available here soon",
   "tutorial.tab.overview": "Overview",

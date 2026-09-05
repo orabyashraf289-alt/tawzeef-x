@@ -25,7 +25,6 @@ import { PageHeader } from "@/components/ui/page-header";
 import { detectUserDevice } from "@/lib/deviceDetector";
 import { getCountryFlag } from "@/lib/locationService";
 import { formatExactArabicDuration } from "@/lib/sessionTracker";
-import * as XLSX from "xlsx";
 
 const PAGE_SIZE = 25;
 
@@ -398,7 +397,8 @@ export default function AuditLog() {
     setPage(0);
   };
 
-  const exportAuditLogToExcel = () => {
+  const exportAuditLogToExcel = async () => {
+    const XLSX = await import("xlsx");
     const rows = logs.map((l: any) => {
       const dev = parseDeviceDetails(l.details);
       const loc = parseLocationDetails(l.details, l.ip_address);

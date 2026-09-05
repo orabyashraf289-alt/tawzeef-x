@@ -16,8 +16,6 @@ import {
 } from "recharts";
 import { TrendingUp, Users, CheckCircle, BookOpen, FileSpreadsheet, FileText, AlertTriangle, Bell } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
@@ -271,7 +269,7 @@ export default function AssessmentAnalytics() {
     toast({ title: t("qbank.analytics.alertSent") });
   }, [user, alertThreshold, locale, t]);
 
-  const handleExportExcel = useCallback(() => {
+  const handleExportExcel = useCallback(async () => {
     const summaryData = stats.perAssessment.map(a => ({
       [t("qbank.analytics.assessment")]: a.fullName,
       [t("qbank.analytics.totalCandidates")]: a.total,
@@ -308,6 +306,7 @@ export default function AssessmentAnalytics() {
       [t("qbank.analytics.passRate")]: `${s.passRate}%`,
     }));
 
+    const XLSX = await import("xlsx");
     const wb = XLSX.utils.book_new();
     if (summaryData.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), locale === "ar" ? "ملخص الاختبارات" : "Summary");
     if (responsesData.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(responsesData), locale === "ar" ? "النتائج التفصيلية" : "Results");
@@ -318,7 +317,8 @@ export default function AssessmentAnalytics() {
     toast({ title: locale === "ar" ? "تم تصدير الملف بنجاح" : "File exported successfully" });
   }, [stats, allResponses, assessments, locale, t]);
 
-  const handleExportPdf = useCallback(() => {
+  const handleExportPdf = useCallback(async () => {
+    const { default: jsPDF } = await import("jspdf");
     const doc = new jsPDF({ orientation: "landscape" });
     const pageW = doc.internal.pageSize.getWidth();
     let y = 20;

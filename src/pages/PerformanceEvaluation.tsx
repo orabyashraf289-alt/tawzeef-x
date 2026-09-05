@@ -21,8 +21,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
 
 
 interface MemberEvaluation {
@@ -560,6 +558,11 @@ export default function PerformanceEvaluation() {
     });
 
     try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,

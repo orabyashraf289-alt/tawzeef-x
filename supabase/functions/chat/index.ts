@@ -1147,8 +1147,8 @@ ${userContext}
           const bodyObj = JSON.parse(opts.body || "{}");
           bodyObj.model = "google/gemini-2.5-flash";
           r = await fetch(url, { ...opts, body: JSON.stringify(bodyObj) });
-        } catch {
-          // ignore JSON parse error
+        } catch (err) {
+          console.warn("Could not apply fallback model for 429 response:", err);
         }
       }
       return r;

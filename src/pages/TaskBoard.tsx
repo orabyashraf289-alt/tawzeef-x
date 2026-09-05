@@ -22,9 +22,7 @@ import { DndContext, useDraggable, useDroppable, DragEndEvent } from "@dnd-kit/c
 import { cn } from "@/lib/utils";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
 import { PageHeader } from "@/components/ui/page-header";
-import { FlaticonAnimatedIcon, FlaticonCategoryIconCard } from "@/components/ui/animated-icons";
 import TaskDetailModal, { ExtendedTask } from "@/components/TaskDetailModal";
-import * as XLSX from "xlsx";
 import { useCandidates, useJobs } from "@/hooks/useJobs";
 
 export type Task = ExtendedTask;
@@ -655,7 +653,8 @@ export default function TaskBoard() {
                   {locale === "ar" ? "إنشاء مهام ذكية (AI) ✨" : "Generate AI Tasks ✨"}
                 </Button>
                 <Button
-                  onClick={() => {
+                  onClick={async () => {
+                    const XLSX = await import("xlsx");
                     const rows = tasks.map(t => ({
                       "عنوان المهمة": locale === "ar" ? t.title : t.titleEn,
                       "الحالة": COLUMNS.find(c => c.id === t.column)?.name || t.column,

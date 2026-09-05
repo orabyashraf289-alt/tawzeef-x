@@ -79,7 +79,7 @@ function AddCandidateModal({ isOpen, onClose, jobs, onCreated }: { isOpen: boole
       const selectedJob = jobs.find(j => j.id === formData.job_id);
       const skillsArray = formData.skills ? formData.skills.split(",").map(s => s.trim()).filter(Boolean) : [];
 
-      const { error } = await supabase.from("candidates").insert({
+      const { data: insertedCand, error } = await supabase.from("candidates").insert({
         name: formData.name,
         email: formData.email || null,
         phone: formData.phone || null,
@@ -93,9 +93,15 @@ function AddCandidateModal({ isOpen, onClose, jobs, onCreated }: { isOpen: boole
         skills: skillsArray.length > 0 ? skillsArray : null,
         summary: formData.summary || null,
         source: formData.source,
-      } as any);
+      } as any).select().single();
 
       if (error) throw error;
+
+      if (insertedCand?.id) {
+        supabase.functions.invoke("evaluate-candidate", {
+          body: { candidateId: insertedCand.id, jobId: formData.job_id }
+        }).catch(e => console.warn("Background AI evaluation warning:", e));
+      }
 
       toast({ title: "تم إضافة المرشح بنجاح ✅" });
       onCreated();

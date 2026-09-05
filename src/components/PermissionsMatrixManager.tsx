@@ -21,7 +21,6 @@ import {
   UserCheck, User, ShieldAlert, SlidersHorizontal, BookOpen, GitBranch, Award,
   CheckSquare, Code, ShieldCheck
 } from "lucide-react";
-import * as XLSX from "xlsx";
 
 export interface SystemModuleCategory {
   id: string;
@@ -325,7 +324,8 @@ export default function PermissionsMatrixManager() {
   };
 
   // Export Matrix to Excel
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
+    const XLSX = await import("xlsx");
     const rows: any[] = [];
     MODULE_CATEGORIES.forEach((cat) => {
       cat.pages.forEach((page) => {

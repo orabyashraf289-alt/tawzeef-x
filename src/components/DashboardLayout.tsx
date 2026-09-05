@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Briefcase, Users, Bot, Settings, Menu, Calendar, BarChart3, Bell, LogOut, X, Kanban, Crown, UserCog, FileText, Sun, Moon, Monitor, Target, Globe, GraduationCap, Shield, Star, Download, BookOpen, GitBranch, Map, Search, Archive, Building2, Handshake, ClipboardList, ShieldCheck, ChevronDown, CheckSquare, Plus, FileCheck2,
+  LayoutDashboard, Briefcase, Users, Bot, Settings, Menu, Calendar, BarChart3, Bell, LogOut, X, Kanban, Crown, UserCog, FileText, Sun, Moon, Monitor, Target, Globe, GraduationCap, Shield, Star, Download, BookOpen, GitBranch, Map, Search, Archive, Building2, Handshake, ClipboardList, ShieldCheck, ChevronDown, CheckSquare, Plus, FileCheck2, LibraryBig,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -32,6 +32,7 @@ const tourIdMap: Record<string, string> = {
   "/offers": "nav-offers",
   "/ai-assistant": "nav-ai-assistant",
   "/reports": "nav-reports",
+  "/tutorial": "nav-tutorial",
   "/settings": "nav-settings",
 };
 
@@ -58,6 +59,7 @@ const navGroups = [
     labelEn: "AI & Intelligence",
     items: [
       { icon: Bot, labelKey: "nav.aiAssistant", path: "/ai-assistant", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
+      { icon: LibraryBig, labelKey: "nav.systemLibrary", path: "/library", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment", "enterprise"] },
       { icon: Star, labelKey: "nav.talentPool", path: "/talent-pool", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
       { icon: Archive, labelKey: "nav.resumeArchive", path: "/resume-archive", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
       { icon: BookOpen, labelKey: "nav.questionBank", path: "/question-bank", roles: ["admin", "recruiter"], workspaces: ["recruitment", "enterprise"] },
@@ -82,6 +84,7 @@ const navGroups = [
       { icon: Shield, labelKey: "nav.auditLog", path: "/audit-log", roles: ["admin", "recruiter"], workspaces: ["enterprise"] },
       { icon: ShieldCheck, labelKey: "nav.qualityReport", path: "/admin/quality", roles: ["admin"], workspaces: ["enterprise"], superAdminOnly: true },
       { icon: Map, labelKey: "nav.roadmap", path: "/roadmap", roles: ["admin"], workspaces: ["enterprise"], superAdminOnly: true },
+      { icon: BookOpen, labelKey: "nav.tutorial", path: "/tutorial", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment", "enterprise"] },
       { icon: Settings, labelKey: "nav.settings", path: "/settings", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment", "enterprise"] },
     ]
   }
@@ -492,6 +495,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               )}
             </Link>
 
+            <Link
+              to="/tutorial"
+              className="px-3 py-1.5 rounded-md3-full bg-md-surface-container hover:bg-md-surface-container-high border border-md-outline-variant text-md-on-surface text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5"
+              title={locale === "en" ? "Complete System Guide" : "دليل النظام بالكامل"}
+            >
+              <BookOpen className="w-3.5 h-3.5 text-md-primary" />
+              <span>{locale === "en" ? "System Guide" : "دليل النظام"}</span>
+            </Link>
+
             <button
               onClick={startTour}
               className="px-3 py-1.5 rounded-md3-full bg-md-secondary-container text-md-on-secondary-container text-xs font-bold hover:bg-md-secondary-container/80 transition-colors"
@@ -508,6 +520,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <CompanySwitcher />
           </div>
           <div className="flex items-center gap-1.5">
+            <Link to="/tutorial" className="p-2 rounded-md3-md text-md-on-surface hover:bg-md-surface-variant" title="دليل النظام">
+              <BookOpen className="w-4 h-4 text-md-primary" />
+            </Link>
             <button onClick={() => setCmdOpen(true)} className="p-2 rounded-md3-md text-md-on-surface hover:bg-md-surface-variant">
               <Search className="w-4 h-4" />
             </button>

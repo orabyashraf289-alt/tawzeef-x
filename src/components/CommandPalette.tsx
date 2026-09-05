@@ -10,7 +10,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import {
-  LayoutDashboard, Briefcase, Users, Calendar, FileText, BarChart3, Bot, Settings, Bell, Kanban, Target, Star, BookOpen, GitBranch, Shield, UserCog, Search, Clock, X, History, User, Building2, Trash2,
+  LayoutDashboard, Briefcase, Users, Calendar, FileText, BarChart3, Bot, Settings, Bell, Kanban, Target, Star, BookOpen, GitBranch, Shield, UserCog, Search, Clock, X, History, User, Building2, Trash2, LibraryBig,
 } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
 import { useSearchHistory, useRecordSearch, useClearSearchHistory, useDeleteSearchEntry } from "@/hooks/useSearchHistory";
@@ -27,22 +27,27 @@ const commandItems = [
   { icon: BarChart3, labelKey: "nav.reports", path: "/reports", keywords: "reports تقارير" },
   { icon: Target, labelKey: "nav.hiringPlan", path: "/hiring-plan", keywords: "hiring plan خطة التوظيف" },
   { icon: Bot, labelKey: "nav.aiAssistant", path: "/ai-assistant", keywords: "ai assistant مساعد ذكي" },
+  { icon: LibraryBig, labelKey: "nav.systemLibrary", path: "/library", keywords: "library مكتبة النظام قوالب تصميم material" },
   { icon: Star, labelKey: "nav.talentPool", path: "/talent-pool", keywords: "talent pool مجمع مواهب" },
   { icon: BookOpen, labelKey: "nav.questionBank", path: "/question-bank", keywords: "questions أسئلة اختبارات" },
   { icon: GitBranch, labelKey: "nav.workflow", path: "/workflow", keywords: "workflow سير عمل" },
   { icon: Bell, labelKey: "nav.notifications", path: "/notifications", keywords: "notifications إشعارات" },
   { icon: UserCog, labelKey: "nav.team", path: "/team", keywords: "team فريق" },
   { icon: Shield, labelKey: "nav.auditLog", path: "/audit-log", keywords: "audit سجل أمني" },
+  { icon: BookOpen, labelKey: "nav.tutorial", path: "/tutorial", keywords: "tutorial guide help دليل النظام بالكامل الشامل شرح مساعدة توثيق" },
   { icon: Settings, labelKey: "nav.settings", path: "/settings", keywords: "settings إعدادات" },
 ];
 
 const slashCommands = [
+  { trigger: "/guide", labelAr: "دليل النظام بالكامل", labelEn: "System Guide", path: "/tutorial", icon: BookOpen },
   { trigger: "/job", labelAr: "إنشاء وظيفة", labelEn: "Create job", path: "/jobs?action=create", icon: Briefcase },
+  { trigger: "/library", labelAr: "مكتبة النظام", labelEn: "System Library", path: "/library", icon: LibraryBig },
   { trigger: "/candidate", labelAr: "بحث في المرشحين", labelEn: "Search candidates", path: "/candidates", icon: Users },
   { trigger: "/interview", labelAr: "جدولة مقابلة", labelEn: "Schedule interview", path: "/interviews?action=create", icon: Calendar },
   { trigger: "/offer", labelAr: "إنشاء عرض", labelEn: "Create offer", path: "/offers?action=create", icon: FileText },
   { trigger: "/ai", labelAr: "المساعد الذكي", labelEn: "AI Assistant", path: "/ai-assistant", icon: Bot },
   { trigger: "/report", labelAr: "التقارير", labelEn: "Reports", path: "/reports", icon: BarChart3 },
+  { trigger: "/help", labelAr: "المساعدة ودليل النظام", labelEn: "Help & Guide", path: "/tutorial", icon: BookOpen },
 ];
 
 export function useCommandPalette() {

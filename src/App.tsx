@@ -76,6 +76,7 @@ const TaskBoard = lazy(() => import("./pages/TaskBoard"));
 const PerformanceEvaluation = lazy(() => import("./pages/PerformanceEvaluation"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
+const SystemLibrary = lazy(() => import("./pages/SystemLibrary"));
 
 function PageLoader() {
   return <PageSkeleton />;
@@ -137,8 +138,10 @@ function AnimatedRoutes() {
         <Route path="/offers" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Offers /></RoleProtectedRoute>} />
         <Route path="/converted-orders" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><ConvertedOrders /></RoleProtectedRoute>} />
         <Route path="/settings" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Settings /></RoleProtectedRoute>} />
-        <Route path="/hiring-plan" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><HiringPlan /></RoleProtectedRoute>} />
         <Route path="/tutorial" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Tutorial /></RoleProtectedRoute>} />
+        <Route path="/guide" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Tutorial /></RoleProtectedRoute>} />
+        <Route path="/system-guide" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Tutorial /></RoleProtectedRoute>} />
+        <Route path="/help" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><Tutorial /></RoleProtectedRoute>} />
         <Route path="/talent-pool" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><TalentPool /></RoleProtectedRoute>} />
         <Route path="/tasks" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><TaskBoard /></RoleProtectedRoute>} />
         <Route path="/task-board" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><TaskBoard /></RoleProtectedRoute>} />
@@ -146,6 +149,8 @@ function AnimatedRoutes() {
         <Route path="/performance-evaluation" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><PerformanceEvaluation /></RoleProtectedRoute>} />
 
         <Route path="/question-bank" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><QuestionBank /></RoleProtectedRoute>} />
+        <Route path="/library" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><SystemLibrary /></RoleProtectedRoute>} />
+        <Route path="/system-library" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><SystemLibrary /></RoleProtectedRoute>} />
         <Route path="/resume-archive" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><ResumeArchive /></RoleProtectedRoute>} />
         <Route path="/workflow" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><WorkflowEditor /></RoleProtectedRoute>} />
         <Route path="/checklist-tracker" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter"]}><ChecklistTracker /></RoleProtectedRoute>} />

@@ -19,6 +19,7 @@ const ar: Record<string, string> = {
   "nav.auditLog": "سجل الأمان",
   "nav.qualityReport": "تقرير جودة الكود",
   "nav.talentPool": "قاعدة المواهب",
+  "nav.systemLibrary": "مكتبة النظام",
   "nav.roadmap": "خطة التطوير",
   "nav.resumeArchive": "أرشيف السير الذاتية",
   "nav.company": "بوابة الشركة",
@@ -798,9 +799,9 @@ const ar: Record<string, string> = {
   "tour.restartTour": "جولة تعريفية",
 
   // Tutorial Page
-  "nav.tutorial": "دليل الاستخدام",
+  "nav.tutorial": "دليل النظام بالكامل",
   "nav.install": "تثبيت التطبيق",
-  "tutorial.title": "دليل استخدام المنصة",
+  "tutorial.title": "دليل النظام بالكامل الشامل",
   "tutorial.subtitle": "تعرّف على جميع ميزات Tawzeef-X خطوة بخطوة مع شرح تفصيلي وأمثلة عملية",
   "tutorial.videoPlaceholder": "سيتم عرض الفيديو التعليمي هنا قريباً",
   "tutorial.tab.overview": "نظرة عامة",

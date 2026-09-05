@@ -26,6 +26,7 @@ dist-ssr
 # Sensitive files
 .env
 .env.*
+!.env.example
 .prewarm
 .lovable
 

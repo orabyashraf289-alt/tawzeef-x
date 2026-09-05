@@ -68,7 +68,6 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { useI18n } from "@/contexts/I18nContext";
 import { cn } from "@/lib/utils";
-import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { OffersSkeleton } from "@/components/Skeletons";
 
@@ -388,8 +387,9 @@ export default function OffersPage() {
     return new Intl.NumberFormat("ar-SA", { style: "currency", currency }).format(salary);
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (!offers || offers.length === 0) return;
+    const XLSX = await import("xlsx");
     const statusLabels: Record<string, string> = {
       draft: "مسودة", sent: "مرسل", viewed: "تم الاطلاع", accepted: "مقبول", rejected: "مرفوض", expired: "منتهي", withdrawn: "ملغي",
     };

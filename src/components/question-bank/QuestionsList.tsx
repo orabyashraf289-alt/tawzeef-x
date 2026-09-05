@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Plus, Trash2, Search, Code, CheckSquare, ToggleLeft, MessageSquare, Sparkles, Copy, LayoutGrid, List, Download, Upload, X, BookOpen, AlertCircle } from "lucide-react";
 import AddQuestionDialog from "./AddQuestionDialog";
 import AIGenerateDialog from "./AIGenerateDialog";
-import * as XLSX from "xlsx";
 import { toast } from "@/hooks/use-toast";
 import { useCreateQuestion } from "@/hooks/useQuestionBank";
 import {
@@ -81,7 +80,8 @@ export default function QuestionsList() {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    const XLSX = await import("xlsx");
     const rows = filtered.map(q => ({
       [locale === "ar" ? "نص السؤال" : "Question"]: q.question_text,
       [locale === "ar" ? "النوع" : "Type"]: typeLabels[locale]?.[q.question_type] || q.question_type,
@@ -102,6 +102,7 @@ export default function QuestionsList() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
+      const XLSX = await import("xlsx");
       const data = await file.arrayBuffer();
       const wb = XLSX.read(data);
       const ws = wb.Sheets[wb.SheetNames[0]];

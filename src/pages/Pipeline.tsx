@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useI18n } from "@/contexts/I18nContext";
 import { useCandidates, useJobs, useInterviews } from "@/hooks/useJobs";
@@ -63,16 +63,16 @@ import PipelineColumn from "@/components/pipeline/PipelineColumn";
 import PipelineBulkActionBar from "@/components/pipeline/PipelineBulkActionBar";
 import PipelineRejectionModal from "@/components/pipeline/PipelineRejectionModal";
 
-function CandidateCard(props: any) {
+const CandidateCard = memo(function CandidateCard(props: any) {
   return <PipelineCandidateCard {...props} />;
-}
+});
 
-function DroppableColumn(props: any) {
+const DroppableColumn = memo(function DroppableColumn(props: any) {
   return <PipelineColumn {...props} />;
-}
+});
 
 
-function DraggableCard({
+const DraggableCard = memo(function DraggableCard({
   candidate,
   response,
   isSelected,
@@ -122,7 +122,7 @@ function DraggableCard({
       />
     </motion.div>
   );
-}
+});
 
 export default function Pipeline() {
   const { t, dir, locale } = useI18n();
@@ -268,7 +268,7 @@ export default function Pipeline() {
     setActiveId(event.active.id as string);
   };
 
-  const checkTransitionRules = (candidate: any, targetStageName: string): { message: string; assessmentId?: string } | null => {
+  const checkTransitionRules = useCallback((candidate: any, targetStageName: string): { message: string; assessmentId?: string } | null => {
     // Find the target stage's transition rules
     const targetStageObj = (allStages || []).find(s => s.name === targetStageName);
     if (!targetStageObj) return null;
@@ -309,9 +309,9 @@ export default function Pipeline() {
     }
 
     return null;
-  };
+  }, [allStages, interviews, assessmentResponses]);
 
-  const handleTransitionBlock = (candidate: any, ruleViolation: { message: string; assessmentId?: string }) => {
+  const handleTransitionBlock = useCallback((candidate: any, ruleViolation: { message: string; assessmentId?: string }) => {
     if (ruleViolation.assessmentId) {
       const assessment = (assessments || []).find(a => a.id === ruleViolation.assessmentId);
       if (assessment) {
@@ -328,9 +328,9 @@ export default function Pipeline() {
       }
     }
     toast({ title: "⚠️ لا يمكن الانتقال", description: ruleViolation.message, variant: "destructive" });
-  };
+  }, [assessments]);
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     setActiveId(null);
     const { active, over } = event;
     if (!over) return;
@@ -375,9 +375,9 @@ export default function Pipeline() {
       toStageLabel: stageInfo?.label || newStage,
     });
     setTransitionNote("");
-  };
+  }, [STAGES, candidates, deferCandidate, checkTransitionRules, handleTransitionBlock]);
 
-  const executeTransition = async (candidateId: string, fromStage: string, toStage: string, note: string) => {
+  const executeTransition = useCallback(async (candidateId: string, fromStage: string, toStage: string, note: string) => {
     const candidate = (candidates || []).find(c => c.id === candidateId);
     if (!candidate) return;
 
@@ -457,16 +457,25 @@ export default function Pipeline() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ candidateId, jobId: candidate.job_id }),
-        }).then(res => {
+          body: JSON.stringify({
+            candidate_id: candidate.id,
+            candidate_name: candidate.name,
+            candidate_email: candidate.email,
+            resume_text: (candidate as any).notes || "",
+            skills: (candidate as any).skills || [],
+            experience_years: (candidate as any).experience_years || 0,
+            education: (candidate as any).education || "",
+            company_id: (candidate as any).company_id,
+          }),
+        }).then(async (res) => {
           if (res.ok) {
-            toast({ title: `✅ اكتمل التقييم التلقائي لـ ${candidate.name}` });
+            toast({ title: `✅ تم اكتمال تقييم AI لـ ${candidate.name}` });
             queryClient.invalidateQueries({ queryKey: ["candidates"] });
           }
         }).catch(console.error);
       }
 
-      // 2. Auto-send Assessment if configured and stage has linked assessment_id
+      // 2. Auto-send assessment if configured and not completed yet
       const stageAssessmentId = (targetStageObj as any)?.assessment_id;
       if (automationRules.auto_send_assessment !== false && stageAssessmentId && candidate.email) {
         // Find assessment token & title
@@ -503,23 +512,26 @@ export default function Pipeline() {
                   to: candidate.email,
                   subject: `مطلوب إكمال اختبار: ${assessment.title}`,
                   html: `
-                    <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                      <h2 style="color: #1a1a1a; margin-bottom: 16px;">مرحباً ${candidate.name}</h2>
-                      <p style="color: #555; font-size: 16px; line-height: 1.8;">
-                        يرجى إكمال الاختبار التالي كجزء من عملية التوظيف:
-                      </p>
-                      <p style="color: #555; font-size: 16px; font-weight: bold;">${assessment.title}</p>
-                      <div style="text-align: center; margin: 30px 0;">
-                        <a href="${assessmentLink}" 
-                           style="background-color: #16a34a; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: bold; display: inline-block;">
-                          ابدأ الاختبار الآن
-                        </a>
+                    <div dir="rtl" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
+                      <div style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); padding: 32px 24px; text-align: center; color: white;">
+                        <h1 style="margin: 0; font-size: 24px; font-weight: bold;">اختبار تقييم إلكتروني مطلوب</h1>
+                        <p style="margin: 8px 0 0 0; opacity: 0.9; font-size: 14px;">منصة Tawzeef-X للتوظيف الذكي</p>
                       </div>
-                      <p style="color: #999; font-size: 13px; margin-top: 30px;">
-                        أو انسخ الرابط التالي: <br/>
-                        <a href="${assessmentLink}" style="color: #16a34a;">${assessmentLink}</a>
-                      </p>
-                      <img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:none;" />
+                      <div style="padding: 32px 24px;">
+                        <p style="font-size: 16px; color: #1e293b; margin-top: 0;">مرحباً <strong>${candidate.name}</strong>،</p>
+                        <p style="font-size: 14px; color: #475569; line-height: 1.6;">
+                          كجزء من مرحلة <strong>${toStage}</strong>، يرجى التكرم بإكمال الاختبار التقييمي التالي:
+                        </p>
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 24px 0; text-align: center;">
+                          <h3 style="margin: 0 0 8px 0; color: #0f172a; font-size: 18px;">${assessment.title}</h3>
+                          <a href="${assessmentLink}" style="display: inline-block; background: #059669; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: bold; font-size: 14px; margin-top: 12px;">بدء الاختبار الآن</a>
+                        </div>
+                        <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-bottom: 0;">
+                          إذا لم يعمل الزر أعلاه، يمكنك نسخ الرابط التالي:<br/>
+                          <a href="${assessmentLink}" style="color: #059669; word-break: break-all;">${assessmentLink}</a>
+                        </p>
+                      </div>
+                      <img src="${trackingPixelUrl}" width="1" height="1" style="display:none;" alt="" />
                     </div>
                   `,
                   user_id: user?.id,
@@ -566,7 +578,7 @@ export default function Pipeline() {
         });
       }
     }
-  };
+  }, [candidates, queryClient, user, STAGES, recordTransition, t, allStages, assessments, assessmentResponses, refetchTracking]);
 
   const hasFilters = search || jobFilter !== "all" || scoreFilter !== "all";
 

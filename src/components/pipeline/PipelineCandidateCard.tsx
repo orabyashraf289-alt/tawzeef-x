@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -20,7 +21,7 @@ export interface CandidateCardProps {
 
 const getInitials = (name: string) => name ? name.split(" ").map(n => n[0]).join("") : "?";
 
-export default function PipelineCandidateCard({
+const PipelineCandidateCard = memo(function PipelineCandidateCard({
   candidate,
   isDragging = false,
   response,
@@ -228,4 +229,6 @@ export default function PipelineCandidateCard({
       </div>
     </motion.div>
   );
-}
+});
+
+export default PipelineCandidateCard;

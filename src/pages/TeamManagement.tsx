@@ -30,10 +30,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { toast } from "@/hooks/use-toast";
-import * as XLSX from "xlsx";
 
 function getTimeAgo(dateString: string): string {
   if (!dateString) return "—";
@@ -355,7 +353,8 @@ export default function TeamManagement() {
     }
   };
 
-  const handleExportTeam = useCallback(() => {
+  const handleExportTeam = useCallback(async () => {
+    const XLSX = await import("xlsx");
     const exportData = filteredRoles.map((r: any) => {
       const profile = getUserProfile(r.user_id);
       const stats = getMemberStats(r.user_id);

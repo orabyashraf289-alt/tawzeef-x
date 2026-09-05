@@ -1,5 +1,3 @@
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 
 interface OfferForPdf {
@@ -239,6 +237,11 @@ export async function generateOfferPdf(offer: OfferForPdf) {
   document.body.appendChild(container);
 
   try {
+    const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+      import("html2canvas"),
+      import("jspdf"),
+    ]);
+
     // Generate high-resolution canvas using html2canvas
     const canvas = await html2canvas(container, {
       scale: 2,

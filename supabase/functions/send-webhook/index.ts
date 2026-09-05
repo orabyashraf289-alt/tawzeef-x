@@ -56,14 +56,46 @@ Deno.serve(async (req) => {
       });
     }
 
+async function computeHmacSignature(secret: string, payload: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signatureBuffer = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
+  return Array.from(new Uint8Array(signatureBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
     // Send to regular webhook endpoints
     const regularResults = await Promise.allSettled(
       (endpoints || []).map(async (endpoint) => {
+        const timestamp = new Date().toISOString();
         const webhookPayload = {
           event: event_type,
-          timestamp: new Date().toISOString(),
+          timestamp,
           data: payload,
         };
+        const payloadStr = JSON.stringify(webhookPayload);
+
+        const requestHeaders: Record<string, string> = {
+          "Content-Type": "application/json",
+          "X-Tawzeef-Timestamp": timestamp,
+          "User-Agent": "TawzeefX-Webhook-Engine/1.0",
+        };
+
+        if (endpoint.secret) {
+          try {
+            const signature = await computeHmacSignature(endpoint.secret, payloadStr);
+            requestHeaders["X-Tawzeef-Signature"] = `sha256=${signature}`;
+          } catch (e) {
+            console.error("Failed to compute webhook signature:", e);
+          }
+        }
 
         let status = "failed";
         let statusCode: number | null = null;
@@ -73,8 +105,8 @@ Deno.serve(async (req) => {
         try {
           const response = await fetch(endpoint.url, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(webhookPayload),
+            headers: requestHeaders,
+            body: payloadStr,
           });
 
           statusCode = response.status;

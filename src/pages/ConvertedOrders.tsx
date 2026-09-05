@@ -88,7 +88,6 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import * as XLSX from "xlsx";
 
 const STATUS_BADGE_MAP: Record<OrderStatus, { label: string; class: string; dot: string }> = {
   draft: { label: "مسودة", class: "bg-slate-100 text-slate-700 border-slate-200", dot: "bg-slate-400" },
@@ -405,7 +404,8 @@ export default function ConvertedOrders() {
   };
 
   // Export to Excel
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
+    const XLSX = await import("xlsx");
     const dataToExport = filteredOrders.map((o) => ({
       "رقم الأمر": o.order_number,
       "اسم المرشح / الطلب": o.candidate_name,
@@ -427,7 +427,8 @@ export default function ConvertedOrders() {
   };
 
   // Export Standard ERP / Qiwa format
-  const handleExportErpFormat = () => {
+  const handleExportErpFormat = async () => {
+    const XLSX = await import("xlsx");
     const erpRows = orders.map((o, idx) => ({
       EMP_ID: `EMP-${2026000 + idx + 1}`,
       ORDER_REF: o.order_number,
