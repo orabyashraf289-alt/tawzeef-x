@@ -8,7 +8,7 @@ import {
   Briefcase, MapPin, Clock, Users, Calendar, DollarSign, Star, ChevronLeft, Share2, Edit,
   ExternalLink, ArrowLeft, Eye, Phone, Mail, Trash2, QrCode, Search, Linkedin, Brain, Loader2,
   ClipboardCheck, Copy, Check, BarChart3, Link2, Sparkles, UserPlus, GraduationCap, Building2,
-  BookOpen, ShieldCheck, Heart, Home, Bus, Award, Sparkle, Workflow
+  BookOpen, ShieldCheck, Heart, Home, Bus, Award, Sparkle, Workflow, FileText, Download, Video, RefreshCw, Hash
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { Button } from "@/components/ui/button";
@@ -86,17 +86,86 @@ export default function JobDetails() {
     }
   };
 
-  // Get candidates linked to this job
-  const jobCandidates = (allCandidates || []).filter(c => c.job_id === id);
-
-  const { data: applications } = useQuery({
-    queryKey: ["applications", id],
+  // Direct candidate query for this specific job with auto-polling
+  const { data: directCandidates, refetch: refetchCandidates, isFetching: isFetchingCandidates } = useQuery({
+    queryKey: ["job-candidates", id],
     queryFn: async () => {
-      const { data } = await supabase.from("applications").select("*").eq("job_id", id!).order("created_at", { ascending: false });
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from("candidates")
+        .select("*, candidate_scorecards(rating)")
+        .eq("job_id", id)
+        .order("created_at", { ascending: false });
+      if (error) {
+        console.warn("Could not fetch direct candidates for job:", error);
+        return [];
+      }
       return data || [];
     },
     enabled: !!id,
+    refetchInterval: 10000,
   });
+
+  const { data: applications, refetch: refetchApplications, isFetching: isFetchingApplications } = useQuery({
+    queryKey: ["applications", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("applications")
+        .select("*")
+        .eq("job_id", id!)
+        .order("created_at", { ascending: false });
+      if (error) {
+        console.warn("Could not fetch applications for job:", error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!id,
+    refetchInterval: 10000,
+  });
+
+  // Get candidates linked to this job (combines direct query, activeCompany query, and raw applications)
+  const jobCandidates = useMemo(() => {
+    const list: any[] = (directCandidates && directCandidates.length > 0)
+      ? [...directCandidates]
+      : (allCandidates || []).filter(c => c.job_id === id);
+
+    const candEmails = new Set(list.map(c => (c.email || "").toLowerCase().trim()).filter(Boolean));
+    const candPhones = new Set(list.map(c => (c.phone || "").replace(/\D/g, "")).filter(Boolean));
+
+    const extraFromApps = (applications || [])
+      .filter(a => {
+        const emailMatch = a.email && candEmails.has(a.email.toLowerCase().trim());
+        const cleanPhone = (a.phone || "").replace(/\D/g, "");
+        const phoneMatch = cleanPhone && candPhones.has(cleanPhone);
+        return !emailMatch && !phoneMatch;
+      })
+      .map(a => ({
+        id: a.id,
+        name: a.name,
+        email: a.email,
+        phone: a.phone,
+        job_id: a.job_id,
+        role: a.specialty || job?.title || "متقدم للشاغر",
+        stage: "تقديم الطلب",
+        status: a.status || "جديد",
+        experience: a.experience || null,
+        resume_url: a.resume_url || null,
+        skills: a.skills || null,
+        summary: a.cover_letter || null,
+        source: "رابط التقديم المباشر",
+        tracking_code: (a as any).tracking_code || null,
+        license_number: (a as any).license_number || null,
+        license_expiry: (a as any).license_expiry || null,
+        university_degree: (a as any).university_degree || null,
+        demo_video_url: (a as any).demo_video_url || null,
+        created_at: a.created_at,
+        candidate_scorecards: [],
+        ai_match_score: (a as any).match_score || null,
+      }));
+
+    return [...list, ...extraFromApps];
+  }, [directCandidates, allCandidates, id, applications, job?.title]);
 
   const handleAutoRank = async () => {
     if (!id || jobCandidates.length === 0) return;
@@ -286,17 +355,44 @@ export default function JobDetails() {
         {/* Tabs Section */}
         <Tabs defaultValue="candidates" dir="rtl">
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <TabsList className="bg-muted/70 backdrop-blur-sm rounded-2xl">
-              <TabsTrigger value="candidates">المعلمون المتقدمون ({jobCandidates.length})</TabsTrigger>
-              <TabsTrigger value="applications">الطلبات الرقمية ({(applications || []).length})</TabsTrigger>
-              <TabsTrigger value="details">الوصف ومتطلبات التدريس</TabsTrigger>
+            <TabsList className="bg-muted/70 backdrop-blur-sm rounded-2xl p-1">
+              <TabsTrigger value="candidates" className="gap-1.5 text-xs rounded-xl">
+                <Users className="w-3.5 h-3.5" />
+                المعلمون المتقدمون ({jobCandidates.length})
+              </TabsTrigger>
+              <TabsTrigger value="applications" className="gap-1.5 text-xs rounded-xl">
+                <FileText className="w-3.5 h-3.5" />
+                الطلبات الرقمية ({(applications || []).length})
+              </TabsTrigger>
+              <TabsTrigger value="details" className="gap-1.5 text-xs rounded-xl">
+                <Briefcase className="w-3.5 h-3.5" />
+                الوصف ومتطلبات التدريس
+              </TabsTrigger>
             </TabsList>
-            {jobCandidates.length > 0 && (
-              <Button variant="outline" size="sm" onClick={handleAutoRank} disabled={ranking} className="gap-2 border-primary/30 text-primary hover:bg-primary/5 rounded-xl">
-                {ranking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
-                {ranking ? "جاري الترتيب..." : "ترتيب المعلمين بالـ AI 🏆"}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  refetchCandidates();
+                  refetchApplications();
+                  toast({ title: "تم تحديث قائمة المتقدمين 🔄" });
+                }}
+                disabled={isFetchingCandidates || isFetchingApplications}
+                className="h-9 px-3 gap-1.5 text-xs text-muted-foreground hover:text-foreground rounded-xl"
+                title="تحديث القائمة الآن"
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5", (isFetchingCandidates || isFetchingApplications) && "animate-spin text-primary")} />
+                <span>تحديث</span>
               </Button>
-            )}
+
+              {jobCandidates.length > 0 && (
+                <Button variant="outline" size="sm" onClick={handleAutoRank} disabled={ranking} className="gap-2 border-primary/30 text-primary hover:bg-primary/5 rounded-xl text-xs h-9">
+                  {ranking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+                  {ranking ? "جاري الترتيب..." : "ترتيب المعلمين بالـ AI 🏆"}
+                </Button>
+              )}
+            </div>
           </div>
 
           <TabsContent value="candidates" className="mt-4 space-y-3">
@@ -304,25 +400,229 @@ export default function JobDetails() {
               <Card className="border-border/40 py-16 text-center rounded-3xl">
                 <Users className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
                 <p className="text-xs text-muted-foreground font-semibold">لا يوجد طلبات تقدم للمعلمين حتى الآن على هذا الشاغر.</p>
+                <div className="mt-4 flex justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 rounded-xl text-xs"
+                    onClick={() => setShareDialog({ open: true, jobId: job.id, jobTitle: job.title })}
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    مشاركة رابط التقديم لجلب المتقدمين
+                  </Button>
+                </div>
               </Card>
             ) : (
-              jobCandidates.map((c) => (
-                <div key={c.id} className="p-4 rounded-2xl bg-card border border-border/60 flex items-center justify-between shadow-xs">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-10 h-10 border border-border">
-                      <AvatarFallback className="bg-emerald-500/10 text-emerald-600 font-bold text-xs">
-                        {c.name.slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-bold text-xs text-foreground">{c.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{c.role} • {c.experience || "خبرة 3+ سنوات"}</p>
+              jobCandidates.map((c: any) => {
+                const scorecardRating = c.candidate_scorecards?.[0]?.rating || c.ai_match_score;
+                return (
+                  <div key={c.id} className="p-4 rounded-2xl bg-card border border-border/60 hover:border-border transition-all shadow-xs space-y-3">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-11 h-11 border border-border shadow-xs">
+                          <AvatarFallback className="bg-emerald-500/10 text-emerald-600 font-bold text-xs">
+                            {(c.name || "معلم").slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-bold text-sm text-foreground">{c.name}</p>
+                            {c.tracking_code && (
+                              <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0">
+                                {c.tracking_code}
+                              </Badge>
+                            )}
+                            {scorecardRating && (
+                              <Badge className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-[10px] gap-1">
+                                <Sparkles className="w-2.5 h-2.5" />
+                                {scorecardRating}% تطابق
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {c.role || "معلم شاغر"} • {c.experience || "خبرة 3+ سنوات"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="text-[10px] font-bold text-emerald-600 bg-emerald-50/30 border-emerald-200">
+                          مرحلة: {c.stage || "تقديم الطلب"}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-xs gap-1.5 rounded-xl hover:bg-emerald-500/10 hover:text-emerald-600"
+                          onClick={() => navigate(`/candidates?id=${c.id}`)}
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          عرض الملف
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Metadata row */}
+                    <div className="flex items-center gap-3 flex-wrap text-[11px] text-muted-foreground pt-2 border-t border-border/40">
+                      {c.university_degree && (
+                        <span className="inline-flex items-center gap-1 bg-muted/50 px-2 py-0.5 rounded-md text-foreground/80">
+                          <GraduationCap className="w-3 h-3 text-emerald-600" />
+                          {c.university_degree}
+                        </span>
+                      )}
+                      {c.license_number && (
+                        <span className="inline-flex items-center gap-1 bg-muted/50 px-2 py-0.5 rounded-md text-foreground/80">
+                          <Award className="w-3 h-3 text-amber-600" />
+                          رخصة مهنية: {c.license_number}
+                        </span>
+                      )}
+                      {c.email && (
+                        <a href={`mailto:${c.email}`} className="inline-flex items-center gap-1 hover:text-primary transition-colors">
+                          <Mail className="w-3 h-3 text-muted-foreground" />
+                          {c.email}
+                        </a>
+                      )}
+                      {c.phone && (
+                        <a href={`tel:${c.phone}`} className="inline-flex items-center gap-1 hover:text-primary transition-colors" dir="ltr">
+                          <Phone className="w-3 h-3 text-muted-foreground" />
+                          {c.phone}
+                        </a>
+                      )}
+
+                      <div className="mr-auto flex items-center gap-2">
+                        {c.resume_url && (
+                          <a
+                            href={c.resume_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-primary hover:underline font-medium text-xs bg-primary/5 px-2 py-0.5 rounded-md"
+                          >
+                            <Download className="w-3 h-3" />
+                            السيرة الذاتية
+                          </a>
+                        )}
+                        {c.demo_video_url && (
+                          <a
+                            href={c.demo_video_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-emerald-600 hover:underline font-medium text-xs bg-emerald-500/10 px-2 py-0.5 rounded-md"
+                          >
+                            <Video className="w-3 h-3" />
+                            فيديو الحصة
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-[10px] font-bold text-emerald-600">
-                    مرحلة: {c.stage || "تقديم الطلب"}
-                  </Badge>
+                );
+              })
+            )}
+          </TabsContent>
+
+          <TabsContent value="applications" className="mt-4 space-y-3">
+            {(!applications || applications.length === 0) ? (
+              <Card className="border-border/40 py-16 text-center rounded-3xl">
+                <FileText className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground font-semibold">لا يوجد طلبات تقديم رقمية مسجلة حتى الآن.</p>
+                <p className="text-[11px] text-muted-foreground/70 mt-1">عند قيام أي معلم بالتقديم عبر رابط الوظيفة، ستظهر كامل تفاصيل طلبه هنا فوراً.</p>
+                <div className="mt-4 flex justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 rounded-xl text-xs"
+                    onClick={() => setShareDialog({ open: true, jobId: job.id, jobTitle: job.title })}
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    مشاركة رابط التقديم المباشر
+                  </Button>
                 </div>
+              </Card>
+            ) : (
+              applications.map((app: any) => (
+                <Card key={app.id} className="border-border/60 rounded-2xl p-4 shadow-xs space-y-3">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-bold text-sm text-foreground">{app.name}</h4>
+                        {app.tracking_code && (
+                          <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0 gap-1 flex items-center">
+                            <Hash className="w-2.5 h-2.5" />
+                            {app.tracking_code}
+                          </Badge>
+                        )}
+                        <Badge variant="outline" className="text-[10px] font-bold text-emerald-600 bg-emerald-50/40">
+                          {app.status || "جديد"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {app.specialty || job.title} • {app.experience || "خبرة غير محددة"} • {new Date(app.created_at).toLocaleDateString("ar-SA", { year: "numeric", month: "short", day: "numeric" })}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {app.resume_url && (
+                        <a
+                          href={app.resume_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 rounded-xl border-primary/30 text-primary hover:bg-primary/5">
+                            <Download className="w-3.5 h-3.5" />
+                            السيرة الذاتية (CV)
+                          </Button>
+                        </a>
+                      )}
+                      {app.demo_video_url && (
+                        <a
+                          href={app.demo_video_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 rounded-xl border-emerald-500/30 text-emerald-600 hover:bg-emerald-50">
+                            <Video className="w-3.5 h-3.5" />
+                            فيديو الحصة التجريبية
+                          </Button>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Details Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-xs bg-muted/40 p-3 rounded-xl">
+                    <div className="flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <a href={`mailto:${app.email}`} className="text-foreground hover:text-primary truncate">
+                        {app.email || "غير محدد"}
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-1.5" dir="ltr">
+                      <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <a href={`tel:${app.phone}`} className="text-foreground hover:text-primary truncate">
+                        {app.phone || "غير محدد"}
+                      </a>
+                    </div>
+                    {app.university_degree && (
+                      <div className="flex items-center gap-1.5">
+                        <GraduationCap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span className="text-foreground truncate">{app.university_degree}</span>
+                      </div>
+                    )}
+                    {app.license_number && (
+                      <div className="flex items-center gap-1.5">
+                        <Award className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span className="text-foreground truncate">رخصة: {app.license_number}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Cover Letter if exists */}
+                  {app.cover_letter && (
+                    <div className="text-xs bg-muted/20 border border-border/40 p-2.5 rounded-xl text-muted-foreground leading-relaxed">
+                      <span className="font-semibold text-foreground block mb-0.5">رسالة التقديم / نبذة:</span>
+                      {app.cover_letter}
+                    </div>
+                  )}
+                </Card>
               ))
             )}
           </TabsContent>

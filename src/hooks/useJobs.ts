@@ -123,10 +123,16 @@ export function useJobs(specificCompanyId?: string | null) {
         .select("*")
         .order("created_at", { ascending: false });
 
+      const orParts: string[] = [];
       if (scopedCompanyIds.length > 0) {
-        query.in("company_id", scopedCompanyIds);
-      } else if (user?.id) {
-        query.eq("user_id", user.id);
+        orParts.push(`company_id.in.(${scopedCompanyIds.join(",")})`);
+      }
+      if (user?.id) {
+        orParts.push(`user_id.eq.${user.id}`);
+      }
+
+      if (orParts.length > 0) {
+        query.or(orParts.join(","));
       }
 
       const { data, error } = await query;
@@ -135,7 +141,7 @@ export function useJobs(specificCompanyId?: string | null) {
       return (data || []) as JobRow[];
     },
     enabled: !!user,
-    staleTime: 2 * 60 * 1000,
+    staleTime: 15 * 1000,
     gcTime: 15 * 60 * 1000,
   });
 }
@@ -312,18 +318,20 @@ export function useCandidates(specificCompanyId?: string | null) {
 
       // 2. Fetch scoped jobs for this tenant
       let scopedJobIds: string[] = [];
+      const jobOrConditions: string[] = [];
       if (scopedCompanyIds.length > 0) {
+        jobOrConditions.push(`company_id.in.(${scopedCompanyIds.join(",")})`);
+      }
+      if (user?.id) {
+        jobOrConditions.push(`user_id.eq.${user.id}`);
+      }
+
+      if (jobOrConditions.length > 0) {
         const { data: scopeJobs } = await supabase
           .from("jobs")
           .select("id")
-          .in("company_id", scopedCompanyIds);
+          .or(jobOrConditions.join(","));
         scopedJobIds = (scopeJobs || []).map((j: any) => j.id);
-      } else if (user?.id) {
-        const { data: ownJobs } = await supabase
-          .from("jobs")
-          .select("id")
-          .eq("user_id", user.id);
-        scopedJobIds = (ownJobs || []).map((j: any) => j.id);
       }
 
       // 3. Fetch candidates table strictly scoped to this tenant
@@ -334,16 +342,19 @@ export function useCandidates(specificCompanyId?: string | null) {
           .select("*, candidate_scorecards(rating)")
           .order("created_at", { ascending: false });
 
+        const orConditions: string[] = [];
         if (scopedCompanyIds.length > 0) {
-          if (scopedJobIds.length > 0) {
-            candQuery = candQuery.or(`company_id.in.(${scopedCompanyIds.join(",")}),job_id.in.(${scopedJobIds.join(",")})`);
-          } else {
-            candQuery = candQuery.in("company_id", scopedCompanyIds);
-          }
-        } else if (scopedJobIds.length > 0) {
-          candQuery = candQuery.in("job_id", scopedJobIds);
-        } else if (user?.id) {
-          candQuery = candQuery.eq("user_id", user.id);
+          orConditions.push(`company_id.in.(${scopedCompanyIds.join(",")})`);
+        }
+        if (scopedJobIds.length > 0) {
+          orConditions.push(`job_id.in.(${scopedJobIds.join(",")})`);
+        }
+        if (user?.id) {
+          orConditions.push(`user_id.eq.${user.id}`);
+        }
+
+        if (orConditions.length > 0) {
+          candQuery = candQuery.or(orConditions.join(","));
         }
 
         const { data, error: candError } = await candQuery;
@@ -410,7 +421,7 @@ export function useCandidates(specificCompanyId?: string | null) {
       return [...candidatesData, ...convertedApps];
     },
     enabled: !!user,
-    staleTime: 2 * 60 * 1000,
+    staleTime: 10 * 1000,
     gcTime: 15 * 60 * 1000,
   });
 }

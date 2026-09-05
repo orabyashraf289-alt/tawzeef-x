@@ -262,17 +262,20 @@ export default function ApplyJob() {
 
     const generatedTrackingCode = "TX-" + Math.floor(100000 + Math.random() * 900000);
 
+    const cleanEmail = form.email.trim().toLowerCase();
+    const cleanPhone = form.phone.trim();
+
     const payload: any = {
       job_id: id,
       company_id: job?.company_id || null,
-      name: form.name,
-      email: form.email,
-      phone: form.phone,
+      name: form.name.trim(),
+      email: cleanEmail,
+      phone: cleanPhone,
       experience: form.experience || null,
       cover_letter: form.coverLetter || null,
       resume_url: resumeUrl,
       skills: skills.length > 0 ? skills : null,
-      specialty: form.currentTitle || null,
+      specialty: form.currentTitle || job?.title || null,
       tracking_code: generatedTrackingCode,
       license_number: form.licenseNumber || null,
       license_expiry: form.licenseExpiry || null,
@@ -282,24 +285,30 @@ export default function ApplyJob() {
 
     let finalTrackingCode = generatedTrackingCode;
 
+    // 1. Insert into applications table
     try {
-      const { data: insertedApp, error } = await supabase.from("applications").insert(payload).select().single();
-      if (error) {
-        // Fallback for strict columns
-        delete payload.license_number;
-        delete payload.license_expiry;
-        delete payload.university_degree;
-        delete payload.demo_video_url;
-        const retry = await supabase.from("applications").insert(payload).select().single();
-        if (retry.data) finalTrackingCode = (retry.data as any).tracking_code || generatedTrackingCode;
-      } else if (insertedApp) {
-        finalTrackingCode = (insertedApp as any).tracking_code || generatedTrackingCode;
+      const { error: appErr } = await supabase.from("applications").insert(payload);
+      if (appErr) {
+        console.warn("Retrying application insert with basic payload:", appErr);
+        await supabase.from("applications").insert({
+          job_id: id,
+          company_id: job?.company_id || null,
+          name: form.name.trim(),
+          email: cleanEmail,
+          phone: cleanPhone,
+          experience: form.experience || null,
+          cover_letter: form.coverLetter || null,
+          resume_url: resumeUrl,
+          skills: skills.length > 0 ? skills : null,
+          specialty: form.currentTitle || job?.title || null,
+          tracking_code: generatedTrackingCode,
+        });
       }
     } catch (e) {
       console.warn("Applications insert notice:", e);
     }
 
-    // Insert into Candidates table for Kanban pipeline
+    // 2. Insert or update candidate in Candidates table
     let insertedCandidateId: string | null = null;
     try {
       const expNum = parseInt(form.experience || "0", 10) || 0;
@@ -326,52 +335,75 @@ export default function ApplyJob() {
         recommendation: calculatedScore >= 80 ? "موصى به بقوة للمقابلة" : "مناسب للفرز الأولي",
       };
 
-      const { data: insertedCand } = await supabase.from("candidates").insert({
-        name: form.name,
-        email: form.email,
-        phone: form.phone,
-        job_id: id,
-        user_id: job?.user_id || null,
-        company_id: job?.company_id || null,
-        role: job?.title || form.currentTitle || "مرشح جديد",
-        stage: "تقديم الطلب",
-        status: "جديد",
-        experience: form.experience || null,
-        resume_url: resumeUrl,
-        skills: skills.length > 0 ? skills : null,
-        summary: form.coverLetter || null,
-        source: "رابط التقديم المباشر",
-        tracking_code: finalTrackingCode,
-        license_number: form.licenseNumber || null,
-        license_expiry: form.licenseExpiry || null,
-        university_degree: form.universityDegree || null,
-        demo_video_url: form.demoVideoUrl || null,
-        ai_score: calculatedScore,
-        ai_evaluation: JSON.stringify(calculatedAiEvaluation),
-      } as any).select().single();
+      // Check if trigger already created the candidate
+      const { data: existingCands } = await supabase
+        .from("candidates")
+        .select("id")
+        .eq("job_id", id)
+        .eq("email", cleanEmail)
+        .order("created_at", { ascending: false })
+        .limit(1);
 
-      if (insertedCand) {
-        insertedCandidateId = insertedCand.id;
+      if (existingCands && existingCands.length > 0) {
+        insertedCandidateId = existingCands[0].id;
+        await supabase.from("candidates").update({
+          ai_score: calculatedScore,
+          ai_evaluation: JSON.stringify(calculatedAiEvaluation),
+          tracking_code: finalTrackingCode,
+          license_number: form.licenseNumber || null,
+          license_expiry: form.licenseExpiry || null,
+          university_degree: form.universityDegree || null,
+          demo_video_url: form.demoVideoUrl || null,
+          resume_url: resumeUrl || undefined,
+        } as any).eq("id", insertedCandidateId);
+      } else {
+        const { data: directCand } = await supabase.from("candidates").insert({
+          name: form.name.trim(),
+          email: cleanEmail,
+          phone: cleanPhone,
+          job_id: id,
+          user_id: job?.user_id || null,
+          company_id: job?.company_id || null,
+          role: job?.title || form.currentTitle || "مرشح جديد",
+          stage: "تقديم الطلب",
+          status: "قيد المراجعة",
+          experience: form.experience || null,
+          resume_url: resumeUrl,
+          skills: skills.length > 0 ? skills : null,
+          summary: form.coverLetter || null,
+          source: "رابط التقديم المباشر",
+          tracking_code: finalTrackingCode,
+          license_number: form.licenseNumber || null,
+          license_expiry: form.licenseExpiry || null,
+          university_degree: form.universityDegree || null,
+          demo_video_url: form.demoVideoUrl || null,
+          ai_score: calculatedScore,
+          ai_evaluation: JSON.stringify(calculatedAiEvaluation),
+        } as any).select("id").maybeSingle();
+
+        if (directCand) {
+          insertedCandidateId = directCand.id;
+        }
       }
     } catch (e) {
       console.warn("Direct candidate insert notice:", e);
     }
 
-    // Trigger Edge Functions in background
+    // 3. Always trigger account creation and AI evaluation
+    supabase.functions.invoke("auto-create-candidate-account", {
+      body: {
+        email: cleanEmail,
+        phone: cleanPhone,
+        name: form.name.trim(),
+        tracking_code: finalTrackingCode,
+        job_title: job?.title,
+      },
+    }).catch(err => console.warn("Auto account creation notice:", err));
+
     if (insertedCandidateId) {
       supabase.functions.invoke("evaluate-candidate", {
         body: { candidateId: insertedCandidateId, jobId: id },
       }).catch(err => console.warn("Background AI evaluation notice:", err));
-
-      supabase.functions.invoke("auto-create-candidate-account", {
-        body: {
-          email: form.email,
-          phone: form.phone,
-          name: form.name,
-          tracking_code: finalTrackingCode,
-          job_title: job?.title,
-        },
-      }).catch(err => console.warn("Auto account creation notice:", err));
     }
 
     setTrackingCode(finalTrackingCode);
