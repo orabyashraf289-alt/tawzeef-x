@@ -85,6 +85,7 @@ import {
   RefreshCw,
   Code,
   Check,
+  DollarSign,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
