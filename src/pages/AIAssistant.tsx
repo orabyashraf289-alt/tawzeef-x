@@ -49,7 +49,16 @@ import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { useAddJob } from "@/hooks/useJobs";
+import { useAddJob, useJobs, useCandidates, getActiveCompanyId, type JobRow, type CandidateRow } from "@/hooks/useJobs";
+import { useActiveStages, type PipelineStage } from "@/hooks/usePipelineStages";
+import CopilotActionCard from "@/components/ai-assistant/CopilotActionCard";
+import CopilotCommandBar from "@/components/ai-assistant/CopilotCommandBar";
+import type { CopilotActionData, CopilotActionType } from "@/types/copilotActions";
+import {
+  detectCopilotActionFromText,
+  executeCopilotAction,
+  rollbackCopilotAction,
+} from "@/lib/copilotActionEngine";
 import AddJobDialog from "@/components/AddJobDialog";
 import QRCodeDialog from "@/components/QRCodeDialog";
 import { QRCodeSVG } from "qrcode.react";
@@ -190,6 +199,7 @@ interface Message {
   interviewGuide?: InterviewGuideData;
   whatsappSms?: WhatsappSmsData;
   voiceBriefing?: VoiceBriefingData;
+  copilotAction?: CopilotActionData;
   isStreaming?: boolean;
 }
 
@@ -1213,6 +1223,9 @@ export default function AIAssistant() {
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { data: jobs = [] } = useJobs();
+  const { data: candidates = [] } = useCandidates();
+  const { data: activeStages = [] } = useActiveStages();
 
   // Fetch conversations
   const { data: conversations = [], refetch: refetchConversations } = useQuery({
@@ -1310,7 +1323,7 @@ export default function AIAssistant() {
     for (const msg of lastTwo) {
       if (msg.id) continue; // Skip if already saved and has an ID
 
-      const { id, jobCreated, jobUpdated, jobPreview, candidateMoved, interviewScheduled, offerCreated, statsReport, proactiveInsights, emailSent, bulkMoved, candidateComparison, interviewGuide, whatsappSms, voiceBriefing, isStreaming, ...rest } = msg;
+      const { id, jobCreated, jobUpdated, jobPreview, candidateMoved, interviewScheduled, offerCreated, statsReport, proactiveInsights, emailSent, bulkMoved, candidateComparison, interviewGuide, whatsappSms, voiceBriefing, copilotAction, isStreaming, ...rest } = msg;
       const metadata: any = {};
       if (jobCreated) metadata.jobCreated = jobCreated;
       if (jobUpdated) metadata.jobUpdated = jobUpdated;
@@ -1326,6 +1339,7 @@ export default function AIAssistant() {
       if (interviewGuide) metadata.interviewGuide = interviewGuide;
       if (whatsappSms) metadata.whatsappSms = whatsappSms;
       if (voiceBriefing) metadata.voiceBriefing = voiceBriefing;
+      if (copilotAction) metadata.copilotAction = copilotAction;
 
       const { data, error } = await supabase.from("chat_messages").insert({
         conversation_id: conversationId,
@@ -1538,6 +1552,14 @@ export default function AIAssistant() {
     const filesText = fileSummaries.join("\n\n");
     const fileLabels = attachedFiles.map(f => `📎 ${f.file.name}`).join(" ");
 
+    const userPromptRaw = input.trim();
+    const detectedCopilotAction = detectCopilotActionFromText(userPromptRaw, {
+      jobs,
+      candidates,
+      stages: activeStages,
+      currentUserId: user?.id,
+    });
+
     const userContent = input.trim() + (resumeFile ? ` 📎 ${resumeFile.name}` : "") + (fileLabels ? ` ${fileLabels}` : "");
     const userMsg: Message = { role: "user", content: userContent || "تحليل الملفات المرفقة" };
     setInput("");
@@ -1635,7 +1657,19 @@ export default function AIAssistant() {
                 if (action.type === "whatsapp_sms_template" && action.dispatcher) { msg.whatsappSms = action.dispatcher; }
                 if (action.type === "voice_briefing_generated" && action.briefing) { msg.voiceBriefing = action.briefing; }
               }
+              if (detectedCopilotAction && !msg.copilotAction) {
+                msg.copilotAction = detectedCopilotAction;
+              }
               updated[lastIdx] = msg;
+            }
+            return updated;
+          });
+        } else if (detectedCopilotAction) {
+          setMessages(prev => {
+            const updated = [...prev];
+            const lastIdx = updated.length - 1;
+            if (lastIdx >= 0 && updated[lastIdx].role === "assistant" && !updated[lastIdx].copilotAction) {
+              updated[lastIdx] = { ...updated[lastIdx], copilotAction: detectedCopilotAction };
             }
             return updated;
           });
@@ -1655,6 +1689,7 @@ export default function AIAssistant() {
         else if (data.type === "interview_guide_generated" && data.guide) { newMsg.interviewGuide = data.guide; }
         else if (data.type === "whatsapp_sms_template" && data.dispatcher) { newMsg.whatsappSms = data.dispatcher; }
         else if (data.type === "voice_briefing_generated" && data.briefing) { newMsg.voiceBriefing = data.briefing; }
+        if (detectedCopilotAction && !newMsg.copilotAction) { newMsg.copilotAction = detectedCopilotAction; }
         setMessages(prev => [...prev, newMsg]);
       }
 
@@ -1798,6 +1833,243 @@ export default function AIAssistant() {
       await supabase.from("chat_messages").update({ metadata }).eq("id", msg.id);
     }
     toast({ title: "تم حذف الوظيفة 🗑️" });
+  };
+
+  const handleExecuteCopilotAction = async (action: CopilotActionData) => {
+    try {
+      const res = await executeCopilotAction(action, user?.id, getActiveCompanyId());
+      
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["interviews"] });
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
+
+      setMessages(prev =>
+        prev.map(m => {
+          if (m.copilotAction && m.copilotAction.id === action.id) {
+            return {
+              ...m,
+              copilotAction: {
+                ...action,
+                status: "executed" as const,
+                resultDetails: res.details,
+                recordId: res.recordId,
+                executedAt: new Date().toISOString(),
+              },
+            };
+          }
+          return m;
+        })
+      );
+
+      toast({
+        title: "تم التنفيذ بنجاح ⚡",
+        description: res.details,
+      });
+    } catch (err: any) {
+      toast({
+        title: "خطأ في تنفيذ الأمر",
+        description: err?.message || "تعذر تنفيذ العملية",
+        variant: "destructive",
+      });
+      throw err;
+    }
+  };
+
+  const handleCancelCopilotAction = (actionId: string) => {
+    setMessages(prev =>
+      prev.map(m => {
+        if (m.copilotAction && m.copilotAction.id === actionId) {
+          return {
+            ...m,
+            copilotAction: {
+              ...m.copilotAction,
+              status: "cancelled" as const,
+              resultDetails: "تم إلغاء الأمر بناءً على طلبك.",
+            },
+          };
+        }
+        return m;
+      })
+    );
+    toast({
+      title: "تم إلغاء الأمر",
+      description: "تم إلغاء الإجراء التنفيذي.",
+    });
+  };
+
+  const handleRollbackCopilotAction = async (action: CopilotActionData) => {
+    try {
+      await rollbackCopilotAction(action);
+      queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["pipeline"] });
+
+      setMessages(prev =>
+        prev.map(m => {
+          if (m.copilotAction && m.copilotAction.id === action.id) {
+            return {
+              ...m,
+              copilotAction: {
+                ...action,
+                status: "pending_review" as const,
+                resultDetails: "تم التراجع عن النقل واستعادة المرحلة السابقة بنجاح.",
+              },
+            };
+          }
+          return m;
+        })
+      );
+
+      toast({
+        title: "تم التراجع بنجاح ↩️",
+        description: "تمت استعادة المرحلة السابقة للمرشح.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "خطأ في التراجع",
+        description: err?.message || "تعذر استعادة المرحلة",
+        variant: "destructive",
+      });
+      throw err;
+    }
+  };
+
+  const handleLaunchCopilotCommand = (type: CopilotActionType) => {
+    let action: CopilotActionData | null = null;
+    let introText = "";
+
+    switch (type) {
+      case "create_job": {
+        introText = "لقد جهزت لك مسودة طرح شاغر وظيفي جديد بناءً على المعايير المعتمدة. يمكنك مراجعة الشاغر وتأكيد نشره في النظام فوراً:";
+        action = {
+          id: `action_job_${Date.now()}`,
+          type: "create_job",
+          title: "طرح شاغر: مهندس حلول ذكاء اصطناعي",
+          description: "مراجعة وتأكيد نشر الوظيفة في النظام وتوليد رابط تقديم مباشر مع رمز QR.",
+          status: "pending_review",
+          jobPayload: {
+            title: "مهندس حلول ذكاء اصطناعي",
+            department: "التقنية والابتكار",
+            location: "الرياض",
+            type: "دوام كامل",
+            salary_min: 14000,
+            salary_max: 22000,
+            experience_level: "متوسط إلى خبير (3-6 سنوات)",
+            description: "نبحث عن مهندس ذكاء اصطناعي لقيادة مشاريع التعلم الآلي وأتمتة نماذج اللغة الكبيرة في بيئات الإنتاج.",
+            requirements: ["إتقان Python و PyTorch أو TensorFlow", "خبرة في نشر نماذج LLM و Vector DBs", "مهارات تطوير برمجيات احترافية"],
+          },
+        };
+        break;
+      }
+      case "schedule_interview": {
+        const topCand = candidates[0];
+        const candName = topCand ? topCand.name : "أحمد الشمري";
+        const candRole = topCand ? topCand.role : "مطور واجهات أمامية";
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const dateStr = tomorrow.toISOString().split("T")[0];
+        const roomId = `room-${Math.random().toString(36).substring(2, 10)}`;
+        const meetingUrl = `${window.location.origin}/video-room?room=${roomId}&role=recruiter`;
+
+        introText = `لقد قمت بإعداد أمر حجز مقابلة فيديو ذكية للمرشح "${candName}". يرجى تأكيد الموعد لتوليد الغرفة وحفظها في جدول المقابلات:`;
+        action = {
+          id: `action_interview_${Date.now()}`,
+          type: "schedule_interview",
+          title: `جدولة مقابلة مع: ${candName}`,
+          description: "حجز المقابلة في النظام وتوليد رابط غرفة المقابلة الذكية التفاعلية.",
+          status: "pending_review",
+          interviewPayload: {
+            candidate_id: topCand?.id,
+            candidate_name: candName,
+            position: candRole,
+            date: dateStr,
+            time: "11:00",
+            type: "فيديو أونلاين",
+            meeting_url: meetingUrl,
+            interviewer: "مدير التوظيف",
+          },
+        };
+        break;
+      }
+      case "move_candidate": {
+        const topCand = candidates[0];
+        const candName = topCand ? topCand.name : "سارة القحطاني";
+        const currentStg = topCand?.stage || "فرز أولي";
+        const targetStg = "مقابلة تقنية";
+
+        introText = `لقد جهزت أمر نقل المرشح "${candName}" إلى مرحلة جديدة. يمكنك تحديد المرحلة والنقر على تنفيذ فوري لتحديث خط الأنابيب:`;
+        action = {
+          id: `action_move_${Date.now()}`,
+          type: "move_candidate",
+          title: `نقل مرحلة المرشح: ${candName}`,
+          description: "تغيير حالة ومرحلة المرشح في خط أنابيب التوظيف وقاعدة البيانات مباشرة.",
+          status: "pending_review",
+          movePayload: {
+            candidate_id: topCand?.id || "cand-1",
+            candidate_name: candName,
+            current_stage: currentStg,
+            target_stage: targetStg,
+            previous_stage: currentStg,
+          },
+        };
+        break;
+      }
+      case "filter_candidates": {
+        introText = "إليك تحليل ترشيح ومطابقة المواهب الأعلى توافقاً مع شواغر الشركة الحالية بناءً على الذكاء الاصطناعي:";
+        const matched = candidates.slice(0, 5).map((c, i) => ({
+          id: c.id,
+          name: c.name,
+          role: c.role || "مرشح",
+          stage: c.stage || "تقديم جديد",
+          match_score: Math.max(78, 96 - i * 4),
+          phone: c.phone,
+          email: c.email,
+          skills: c.skills || [],
+        }));
+        action = {
+          id: `action_filter_${Date.now()}`,
+          type: "filter_candidates",
+          title: "ترشيح ومطابقة أفضل المواهب",
+          description: "فرز آلي للمرشحين حسب نسبة التطابق وتسهيل الانتقال المباشر للملفات.",
+          status: "pending_review",
+          filterPayload: {
+            job_title: jobs[0]?.title || "الوظائف المفتوحة",
+            matched_candidates: matched,
+          },
+        };
+        break;
+      }
+      case "whatsapp_dispatch": {
+        const topCand = candidates[0];
+        const candName = topCand ? topCand.name : "محمد الشهري";
+        const phone = topCand?.phone || "966501234567";
+
+        introText = `لقد جهزت قالب التواصل السريع عبر واتساب للمرشح "${candName}". انقر على تأكيد لتشغيل الإرسال الفوري:`;
+        action = {
+          id: `action_wa_${Date.now()}`,
+          type: "whatsapp_dispatch",
+          title: `تواصل واتساب مع: ${candName}`,
+          description: "فتح محادثة WhatsApp مباشرة مع المرشح برسالة ترحيبية مخصصة.",
+          status: "pending_review",
+          whatsappPayload: {
+            candidate_id: topCand?.id,
+            candidate_name: candName,
+            phone,
+            message: `السلام عليكم ${candName}، معكم فريق التوظيف في منصة Tawzeef-X. يسعدنا إبلاغكم باجتياز مرحلة الفرز الأولي، ونرغب في تحديد موعد للمقابلة القادمة.`,
+          },
+        };
+        break;
+      }
+    }
+
+    if (action) {
+      const newMsg: Message = {
+        role: "assistant",
+        content: introText,
+        copilotAction: action,
+      };
+      setMessages(prev => [...prev, newMsg]);
+    }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1960,58 +2232,18 @@ export default function AIAssistant() {
             <ModelSelector value={modelChoice} onChange={setModelChoice} />
           </AIChatHeader>
 
-          {/* AI Intelligence Ticker & Quick Playbook Toolbar */}
-          <div className="px-4 py-2 border-b border-border/20 bg-card/40 backdrop-blur-md flex items-center justify-between text-xs gap-3 overflow-x-auto no-scrollbar">
-            <div className="flex items-center gap-2 shrink-0">
+          {/* Executive AI Copilot Command Bar & Launcher Dock */}
+          <div className="px-4 py-2 border-b border-border/30 bg-card/60 backdrop-blur-md flex items-center justify-between text-xs gap-3 overflow-x-auto no-scrollbar">
+            <CopilotCommandBar onLaunch={handleLaunchCopilotCommand} disabled={isLoading} />
+
+            <div className="flex items-center gap-2 shrink-0 border-r border-border/40 pr-3 mr-1">
               <span className="flex h-2 w-2 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span className="font-bold text-foreground text-xs">
-                محرك الذكاء الاصطناعي:
-              </span>
               <Badge variant="outline" className="text-[10px] font-black rounded-md3-full bg-md-primary-container text-md-on-primary-container border-0 px-2.5 py-0.5">
-                {MODEL_OPTIONS.find(m => m.id === modelChoice)?.name || "Gemini 3.7 Flash"} ⚡
+                {MODEL_OPTIONS.find(m => m.id === modelChoice)?.name || "Gemini 3.7"} ⚡
               </Badge>
-            </div>
-
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 text-xs font-bold gap-1.5 rounded-md3-full bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20 px-3"
-                onClick={() => {
-                  setInput("أنشئ لي وصفاً وظيفياً متكاملاً لوظيفة معلم رياضيات بالرياض مع الإضافة المباشرة للنظام");
-                  setTimeout(() => handleSend(), 50);
-                }}
-              >
-                <Briefcase className="w-3.5 h-3.5" />
-                صياغة وظيفة وإضافتها للنظام 🚀
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 text-xs font-bold gap-1.5 rounded-md3-full bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 border border-indigo-500/20 px-3"
-                onClick={() => {
-                  setInput("قم بتحليل أداء التوظيف والوظائف الشاغرة اليوم واستخراج ملخص الإحصائيات");
-                  setTimeout(() => handleSend(), 50);
-                }}
-              >
-                <BarChart3 className="w-3.5 h-3.5" />
-                ملخص أداء التوظيف اليومي 📊
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 text-xs font-bold gap-1.5 rounded-md3-full bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/20 px-3"
-                onClick={() => {
-                  setInput("أنشئ دليل مقابلة وتقييم سلوكي مخصص لمرشح معلم لغة إنجليزية بخبرة 5 سنوات");
-                  setTimeout(() => handleSend(), 50);
-                }}
-              >
-                <CalendarCheck className="w-3.5 h-3.5" />
-                دليل وتقييم المقابلة السلوكية 🎯
-              </Button>
             </div>
           </div>
 
@@ -2287,6 +2519,19 @@ export default function AIAssistant() {
                               <BarChart3 className="w-3 h-3 ml-1" />عرض التقارير الكاملة
                             </Button>
                           </motion.div>
+                        )}
+
+                        {/* Copilot Action Card */}
+                        {msg.copilotAction && (
+                          <CopilotActionCard
+                            action={msg.copilotAction}
+                            onExecute={handleExecuteCopilotAction}
+                            onCancel={handleCancelCopilotAction}
+                            onRollback={handleRollbackCopilotAction}
+                            jobs={jobs}
+                            candidates={candidates}
+                            stages={activeStages}
+                          />
                         )}
                       </div>
                     ) : msg.content}
