@@ -79,13 +79,13 @@ export default function ScreenGuideHelper() {
     setSelectedGuideId(currentDetectedGuide.id);
   }, [currentDetectedGuide.id]);
 
-  // Stop voice speech when closing or changing screen
+  // Stop voice speech when closing, changing screen, or switching language
   useEffect(() => {
-    if (!isOpen && typeof window !== "undefined" && window.speechSynthesis) {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
     }
-  }, [isOpen, selectedGuideId]);
+  }, [isOpen, selectedGuideId, isEn]);
 
   // Listen to custom event to open guide from Header or elsewhere
   useEffect(() => {
@@ -236,7 +236,17 @@ export default function ScreenGuideHelper() {
     const fullScript = `${title}. ${summary}. ${stepsSpeech}`;
     const utterance = new SpeechSynthesisUtterance(fullScript);
     utterance.lang = isEn ? "en-US" : "ar-SA";
-    utterance.rate = 0.95;
+    utterance.rate = isEn ? 0.98 : 0.92;
+    utterance.pitch = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    if (isEn) {
+      const enVoice = voices.find(v => v.lang.toLowerCase().startsWith("en") || v.lang.toLowerCase().includes("en-"));
+      if (enVoice) utterance.voice = enVoice;
+    } else {
+      const arVoice = voices.find(v => v.lang.toLowerCase().startsWith("ar") || v.lang.toLowerCase().includes("ar-"));
+      if (arVoice) utterance.voice = arVoice;
+    }
 
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);

@@ -54,6 +54,28 @@ export default function ExecutiveAIBriefing({
   const [isExpanded, setIsExpanded] = useState(true);
   const [selectedPill, setSelectedPill] = useState<"interviews" | "offers" | "matches" | "jobs" | null>(null);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+
+  // Load available voices for proper Web Speech selection (Arabic vs English)
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+
+    const loadVoices = () => {
+      const available = window.speechSynthesis.getVoices();
+      if (available && available.length > 0) {
+        setVoices(available);
+      }
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    return () => {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, []);
 
   // Compute key daily metrics
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -103,48 +125,120 @@ export default function ExecutiveAIBriefing({
       ? "Good evening"
       : "مساء النور";
 
+  // Check if displayName represents an organization/company rather than an individual person
+  const isOrganization = useMemo(() => {
+    if (!displayName) return false;
+    const name = displayName.trim();
+    return /^(شركة|مؤسسة|مجموعة|مدارس|مدرسة|أكاديمية|جامعة|معهد|مركز|منظمة|مستشفى|مصنع|وكالة|مكتب|company|corp|inc|group|school|academy|university|hospital)/i.test(name);
+  }, [displayName]);
+
+  // Formatted greeting for display and speech
+  const personalizedGreeting = useMemo(() => {
+    const trimmed = displayName.trim();
+    if (locale === "en") {
+      if (isOrganization) {
+        return `${timeGreeting}, ${trimmed} team!`;
+      }
+      return `${timeGreeting}, ${trimmed || "Executive Leader"}!`;
+    } else {
+      if (isOrganization) {
+        return `${timeGreeting} فريق ${trimmed}!`;
+      }
+      return `${timeGreeting} ${trimmed ? `أ. ${trimmed}` : "عزيزي القائد التنفيذي"}!`;
+    }
+  }, [locale, timeGreeting, displayName, isOrganization]);
+
   // Synthesize executive AI narrative text
   const narrativeText = useMemo(() => {
     if (locale === "en") {
-      const parts = [`${timeGreeting}, ${displayName || "Executive"}!`];
+      const parts = [personalizedGreeting];
       if (todayInterviews.length > 0) {
         parts.push(`You have ${todayInterviews.length} interview${todayInterviews.length > 1 ? "s" : ""} scheduled today.`);
       } else {
         parts.push("No interviews scheduled for today.");
       }
+
       if (pendingOffers.length > 0) {
-        parts.push(`${pendingOffers.length} offer${pendingOffers.length > 1 ? "s" : ""} awaiting candidate response.`);
+        parts.push(`There ${pendingOffers.length === 1 ? "is" : "are"} ${pendingOffers.length} pending job offer${pendingOffers.length > 1 ? "s" : ""} awaiting candidate response.`);
       }
+
       if (highMatchCandidates.length > 0) {
-        parts.push(`${highMatchCandidates.length} high-match talent(s) (score ≥ 85%) recently evaluated.`);
+        parts.push(`${highMatchCandidates.length} high-match talent${highMatchCandidates.length > 1 ? "s" : ""} (score ≥ 85%) recently evaluated.`);
       }
+
       if (zeroApplicantJobs.length > 0) {
-        parts.push(`Attention: ${zeroApplicantJobs.length} active job(s) currently have 0 applicants.`);
+        parts.push(`Attention: ${zeroApplicantJobs.length} active job opening${zeroApplicantJobs.length > 1 ? "s" : ""} currently have 0 applicants.`);
       }
       return parts.join(" ");
     } else {
-      const parts = [`${timeGreeting} أ. ${displayName || "القائد التنفيذي"}!`];
-      if (todayInterviews.length > 0) {
-        parts.push(`لديك اليوم ${todayInterviews.length} مقابلات مجدولة تتطلب حضورك أو متابعتها.`);
+      const parts = [personalizedGreeting];
+      if (todayInterviews.length === 1) {
+        parts.push("لديك اليوم مقابلة مجدولة واحدة تتطلب متابعتك.");
+      } else if (todayInterviews.length === 2) {
+        parts.push("لديك اليوم مقابلتان مجدولتان تتطلبان متابعتك.");
+      } else if (todayInterviews.length > 2) {
+        parts.push(`لديك اليوم ${todayInterviews.length} مقابلات مجدولة تتطلب متابعتك.`);
       } else {
         parts.push("لا توجد مقابلات مجدولة لليوم حتى الآن.");
       }
-      if (pendingOffers.length > 0) {
-        parts.push(`يوجد ${pendingOffers.length} عرض وظيفي معلق بانتظار استجابة المرشحين.`);
+
+      if (pendingOffers.length === 1) {
+        parts.push("يوجد عرض وظيفي واحد معلق بانتظار استجابة المرشح.");
+      } else if (pendingOffers.length === 2) {
+        parts.push("يوجد عرضان وظيفيان معلقان بانتظار استجابة المرشحين.");
+      } else if (pendingOffers.length > 2) {
+        parts.push(`يوجد ${pendingOffers.length} عروض وظيفية معلقة بانتظار استجابة المرشحين.`);
       }
-      if (highMatchCandidates.length > 0) {
-        parts.push(`تم رصد ${highMatchCandidates.length} كفاءات استثنائية بتطابق ذكاء اصطناعي يفوق 85%.`);
+
+      if (highMatchCandidates.length === 1) {
+        parts.push("تم رصد مرشح واحد متميز بنسبة ملاءمة ذكاء اصطناعي تفوق 85%.");
+      } else if (highMatchCandidates.length === 2) {
+        parts.push("تم رصد كفاءتين استثنائيتين بنسبة ملاءمة ذكاء اصطناعي تفوق 85%.");
+      } else if (highMatchCandidates.length > 2) {
+        parts.push(`تم رصد ${highMatchCandidates.length} كفاءات استثنائية بنسبة ملاءمة ذكاء اصطناعي تفوق 85%.`);
       }
-      if (zeroApplicantJobs.length > 0) {
-        parts.push(`تنبيه: هناك ${zeroApplicantJobs.length} وظيفة نشطة لا تزال بدون أي متقدمين.`);
+
+      if (zeroApplicantJobs.length === 1) {
+        parts.push("تنبيه: هناك وظيفة نشطة واحدة لا تزال بدون أي متقدمين.");
+      } else if (zeroApplicantJobs.length === 2) {
+        parts.push("تنبيه: هناك وظيفتان نشطتان لا تزالان بدون أي متقدمين.");
+      } else if (zeroApplicantJobs.length > 2) {
+        parts.push(`تنبيه: هناك ${zeroApplicantJobs.length} وظائف نشطة لا تزال بدون أي متقدمين.`);
       }
+
       return parts.join(" ");
     }
-  }, [locale, timeGreeting, displayName, todayInterviews.length, pendingOffers.length, highMatchCandidates.length, zeroApplicantJobs.length]);
+  }, [
+    locale,
+    personalizedGreeting,
+    todayInterviews.length,
+    pendingOffers.length,
+    highMatchCandidates.length,
+    zeroApplicantJobs.length,
+  ]);
+
+  // Formatted text optimized for natural speech synthesis
+  const speechText = useMemo(() => {
+    if (locale === "ar") {
+      return narrativeText
+        .replace(/%/g, " في المئة")
+        .replace(/≥/g, " أكبر من أو يساوي ")
+        .replace(/!/g, "، ")
+        .replace(/✨/g, "")
+        .replace(/⏰/g, "");
+    } else {
+      return narrativeText
+        .replace(/%/g, " percent")
+        .replace(/≥/g, " greater than or equal to ")
+        .replace(/!/g, ", ")
+        .replace(/✨/g, "")
+        .replace(/⏰/g, "");
+    }
+  }, [locale, narrativeText]);
 
   // Audio Speech Reader
   const toggleSpeech = () => {
-    if (!("speechSynthesis" in window)) {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       toast({
         title: locale === "en" ? "Speech not supported" : "خاصية القراءة الصوتية غير مدعومة في هذا المتصفح",
         variant: "destructive",
@@ -159,21 +253,67 @@ export default function ExecutiveAIBriefing({
     }
 
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(narrativeText);
+    const utterance = new SpeechSynthesisUtterance(speechText);
     utterance.lang = locale === "en" ? "en-US" : "ar-SA";
-    utterance.rate = 0.95;
+    utterance.rate = locale === "en" ? 0.98 : 0.90;
+    utterance.pitch = 1.0;
 
+    // Load available voices and select proper language accent
+    const availableVoices = voices.length > 0 ? voices : window.speechSynthesis.getVoices();
+    if (locale === "ar") {
+      const arVoice = availableVoices.find(
+        (v) =>
+          v.lang.toLowerCase().startsWith("ar") ||
+          v.lang.toLowerCase().includes("ar-") ||
+          v.name.toLowerCase().includes("arabic") ||
+          v.name.toLowerCase().includes("maged") ||
+          v.name.toLowerCase().includes("tarik") ||
+          v.name.toLowerCase().includes("laila") ||
+          v.name.toLowerCase().includes("salma") ||
+          v.name.toLowerCase().includes("naayf") ||
+          v.name.toLowerCase().includes("zeina") ||
+          v.name.toLowerCase().includes("hoda")
+      );
+      if (arVoice) {
+        utterance.voice = arVoice;
+      }
+    } else {
+      const enVoice = availableVoices.find(
+        (v) =>
+          v.lang.toLowerCase().startsWith("en") ||
+          v.lang.toLowerCase().includes("en-") ||
+          v.name.toLowerCase().includes("english") ||
+          v.name.toLowerCase().includes("david") ||
+          v.name.toLowerCase().includes("mark") ||
+          v.name.toLowerCase().includes("zira")
+      );
+      if (enVoice) {
+        utterance.voice = enVoice;
+      }
+    }
+
+    utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
+    utterance.onerror = (e) => {
+      console.warn("Speech synthesis state:", e);
+      setIsSpeaking(false);
+    };
 
     speechRef.current = utterance;
     window.speechSynthesis.speak(utterance);
-    setIsSpeaking(true);
   };
+
+  // Automatically cancel speech narration when language changes
+  useEffect(() => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  }, [locale]);
 
   useEffect(() => {
     return () => {
-      if ("speechSynthesis" in window) {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
     };
@@ -203,7 +343,7 @@ export default function ExecutiveAIBriefing({
                 {locale === "en" ? "AI Executive Morning Briefing" : "موجز الصباح التنفيذي الذكي"}
               </span>
               <Badge className="bg-primary/15 text-primary border-primary/30 text-[10px] font-bold py-0.5 px-2">
-                Copilot Briefing ✨
+                {locale === "en" ? "Copilot Briefing ✨" : "موجز المساعد الذكي ✨"}
               </Badge>
               <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
@@ -417,10 +557,10 @@ export default function ExecutiveAIBriefing({
                           {todayInterviews.map((item) => (
                             <div key={item.id} className="p-3 rounded-xl bg-muted/40 border border-border/50 flex items-center justify-between gap-2">
                               <div className="min-w-0">
-                                <p className="text-xs font-bold text-foreground truncate">{item.candidate_name || "مرشح"}</p>
-                                <p className="text-[10px] text-muted-foreground truncate">{item.job_title || "وظيفة"}</p>
+                                <p className="text-xs font-bold text-foreground truncate">{item.candidate_name || (locale === "en" ? "Candidate" : "مرشح")}</p>
+                                <p className="text-[10px] text-muted-foreground truncate">{item.job_title || (locale === "en" ? "Position" : "وظيفة")}</p>
                                 <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 font-bold">
-                                  ⏰ {item.time || "غير محدد"}
+                                  ⏰ {item.time || (locale === "en" ? "Time not set" : "غير محدد")}
                                 </span>
                               </div>
                               <Link to={`/video-room/${item.video_room_id || item.id}`}>
@@ -459,10 +599,10 @@ export default function ExecutiveAIBriefing({
                           {pendingOffers.slice(0, 4).map((offer) => (
                             <div key={offer.id} className="p-3 rounded-xl bg-muted/40 border border-border/50 flex items-center justify-between gap-2">
                               <div className="min-w-0">
-                                <p className="text-xs font-bold text-foreground truncate">{offer.candidate_name || "مرشح"}</p>
-                                <p className="text-[10px] text-muted-foreground truncate">{offer.position || "المسمى"}</p>
+                                <p className="text-xs font-bold text-foreground truncate">{offer.candidate_name || (locale === "en" ? "Candidate" : "مرشح")}</p>
+                                <p className="text-[10px] text-muted-foreground truncate">{offer.position || (locale === "en" ? "Role" : "المسمى")}</p>
                                 <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400 font-bold">
-                                  {offer.salary ? `${offer.salary.toLocaleString()} ر.س` : "حزمة معتمدة"}
+                                  {offer.salary ? `${offer.salary.toLocaleString()} ${locale === "en" ? "SAR" : "ر.س"}` : (locale === "en" ? "Approved Package" : "حزمة معتمدة")}
                                 </span>
                               </div>
                               <Link to={`/offer/${offer.id}`}>
@@ -500,12 +640,12 @@ export default function ExecutiveAIBriefing({
                           {highMatchCandidates.map((c) => (
                             <div key={c.id} className="p-3 rounded-xl bg-muted/40 border border-border/50 space-y-1">
                               <div className="flex items-center justify-between">
-                                <p className="text-xs font-bold text-foreground truncate">{c.name}</p>
+                                <p className="text-xs font-bold text-foreground truncate">{c.name || (locale === "en" ? "Candidate" : "مرشح")}</p>
                                 <Badge className="bg-emerald-600 text-white text-[10px] font-mono">
                                   {c.ai_score}%
                                 </Badge>
                               </div>
-                              <p className="text-[10px] text-muted-foreground truncate">{c.role || "كادر"}</p>
+                              <p className="text-[10px] text-muted-foreground truncate">{c.role || (locale === "en" ? "Role" : "كادر")}</p>
                               <Link to={`/candidates/${c.id}`} className="text-[10px] text-primary font-bold hover:underline inline-block pt-1">
                                 {locale === "en" ? "Open Profile →" : "الملف الشخصي ←"}
                               </Link>
@@ -540,7 +680,7 @@ export default function ExecutiveAIBriefing({
                             <div key={j.id} className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2">
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-foreground truncate">{j.title}</p>
-                                <p className="text-[10px] text-muted-foreground truncate">{j.department}</p>
+                                <p className="text-[10px] text-muted-foreground truncate">{j.department || (locale === "en" ? "General Department" : "القسم العام")}</p>
                               </div>
                               <Link to={`/jobs/${j.id}`}>
                                 <Button size="sm" variant="outline" className="h-7 text-[10px] font-bold border-amber-500/30 text-amber-700 dark:text-amber-300">
