@@ -23,6 +23,8 @@ import KPIDetailsDialog from "@/components/KPIDetailsDialog";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
 import { PageHeader } from "@/components/ui/page-header";
 import { FlaticonAnimatedIcon, FlaticonCategoryIconCard } from "@/components/ui/animated-icons";
+import ExecutiveAIBriefing from "@/components/ExecutiveAIBriefing";
+import DashboardQuickActions from "@/components/DashboardQuickActions";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -477,6 +479,24 @@ export default function AdminDashboard() {
               </div>
             }
           />
+        </motion.div>
+
+        {/* AI Executive Morning Briefing */}
+        <motion.div variants={itemVariants}>
+          <ExecutiveAIBriefing
+            candidates={allCandidates}
+            interviews={allInterviews}
+            jobs={allJobs}
+            offers={allOffers}
+            displayName={displayName}
+            userRole="admin"
+            onRefreshData={() => queryClient.invalidateQueries()}
+          />
+        </motion.div>
+
+        {/* Quick Operations Launchpad */}
+        <motion.div variants={itemVariants}>
+          <DashboardQuickActions />
         </motion.div>
 
         {/* System Health Strip */}

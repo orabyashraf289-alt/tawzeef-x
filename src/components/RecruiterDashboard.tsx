@@ -20,8 +20,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
 import { PageHeader } from "@/components/ui/page-header";
 import { FlaticonAnimatedIcon, FlaticonCategoryIconCard } from "@/components/ui/animated-icons";
+import ExecutiveAIBriefing from "@/components/ExecutiveAIBriefing";
+import DashboardQuickActions from "@/components/DashboardQuickActions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { stagger, fadeUp, chartTooltipStyle } from "@/lib/motion";
 
@@ -76,6 +79,7 @@ const LiveClock = memo(function LiveClock() {
 export default function RecruiterDashboard() {
   const { t, locale } = useI18n();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"week" | "month">("month");
   const [selectedKpi, setSelectedKpi] = useState<"conversion" | "timeToHire" | "fillRate" | "offers" | null>(null);
 
@@ -323,6 +327,24 @@ export default function RecruiterDashboard() {
               </div>
             }
           />
+        </motion.div>
+
+        {/* AI Executive Morning Briefing */}
+        <motion.div variants={item}>
+          <ExecutiveAIBriefing
+            candidates={allCandidates}
+            interviews={allInterviews}
+            jobs={allJobs}
+            offers={allOffers}
+            displayName={displayName}
+            userRole="recruiter"
+            onRefreshData={() => queryClient.invalidateQueries()}
+          />
+        </motion.div>
+
+        {/* Quick Operations Launchpad */}
+        <motion.div variants={item}>
+          <DashboardQuickActions />
         </motion.div>
 
         {/* Today's Productivity Strip */}
