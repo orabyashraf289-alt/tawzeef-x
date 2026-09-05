@@ -25,7 +25,9 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
 
   const [activeCompanyIdState, setActiveCompanyIdState] = useState<string | null>(() => {
-    return localStorage.getItem(ACTIVE_COMPANY_STORAGE_KEY);
+    const raw = localStorage.getItem(ACTIVE_COMPANY_STORAGE_KEY);
+    if (!raw || raw === "undefined" || raw === "null" || raw.trim() === "") return null;
+    return raw.trim();
   });
 
   // Query all companies where current user is a registered member
@@ -85,12 +87,15 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
   const activeCompanyId = activeCompany?.id || null;
 
   // Query branches of active company if it is a parent company
+  const isValidTargetCompanyId = !!activeCompanyId && activeCompanyId !== "undefined" && activeCompanyId !== "null";
+
   const { data: companyBranches = [] } = useQuery({
     queryKey: ["company-branches", activeCompanyId],
     staleTime: 5 * 60 * 1000,
-    enabled: !!activeCompanyId,
+    enabled: isValidTargetCompanyId,
     queryFn: async () => {
       const targetId = activeCompany?.parent_company_id || activeCompanyId;
+      if (!targetId || targetId === "undefined" || targetId === "null") return [];
       const { data, error } = await supabase
         .from("companies" as any)
         .select("*")
@@ -107,6 +112,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
 
   const setActiveCompanyId = useCallback(
     (newCompanyId: string) => {
+      if (!newCompanyId || newCompanyId === "undefined" || newCompanyId === "null") return;
       if (newCompanyId === activeCompanyIdState) return;
       setActiveCompanyIdState(newCompanyId);
       localStorage.setItem(ACTIVE_COMPANY_STORAGE_KEY, newCompanyId);

@@ -58,16 +58,25 @@ function generateRoomId() {
 }
 
 interface StageActionsProps {
-  candidateId: string;
-  candidateName: string;
+  candidateId?: string;
+  candidateName?: string;
   candidateEmail?: string | null;
-  currentStage: string;
-  status: string;
+  currentStage?: string;
+  status?: string;
   jobId?: string | null;
   candidateRole?: string | null;
+  candidate?: any;
 }
 
-export default function StageActions({ candidateId, candidateName, candidateEmail, currentStage, status, jobId, candidateRole }: StageActionsProps) {
+export default function StageActions(props: StageActionsProps) {
+  const candidate = props.candidate;
+  const candidateId = props.candidateId || candidate?.id || "";
+  const candidateName = props.candidateName || candidate?.name || "مرشح";
+  const candidateEmail = props.candidateEmail ?? candidate?.email ?? null;
+  const currentStage = props.currentStage || candidate?.stage || "تقديم الطلب";
+  const status = props.status || candidate?.status || "جديد";
+  const jobId = props.jobId ?? candidate?.job_id ?? null;
+  const candidateRole = props.candidateRole ?? candidate?.role ?? null;
   const queryClient = useQueryClient();
   const activeStages = useActiveStages();
   const STAGES = activeStages.length > 0 ? activeStages.map(s => s.name) : FALLBACK_STAGES;

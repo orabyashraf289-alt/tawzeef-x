@@ -73,7 +73,9 @@ export interface RealtimePayload {
 
 export function getActiveCompanyId(): string | null {
   try {
-    return localStorage.getItem("tx_active_company_id");
+    const raw = localStorage.getItem("tx_active_company_id");
+    if (!raw || raw === "undefined" || raw === "null" || raw.trim() === "") return null;
+    return raw.trim();
   } catch {
     return null;
   }
@@ -81,27 +83,33 @@ export function getActiveCompanyId(): string | null {
 
 export async function resolveTenantCompanyScope(userId: string | undefined, specificCompanyId?: string | null): Promise<string[]> {
   const activeId = specificCompanyId !== undefined ? specificCompanyId : getActiveCompanyId();
-  if (activeId) {
+  const cleanActiveId = (activeId && activeId !== "undefined" && activeId !== "null" && activeId.trim() !== "") ? activeId.trim() : null;
+
+  if (cleanActiveId) {
     try {
       const { data: branches } = await supabase
         .from("companies" as any)
         .select("id")
-        .eq("parent_company_id", activeId);
-      const branchIds = (branches || []).map((b: any) => b.id);
-      return [activeId, ...branchIds];
+        .eq("parent_company_id", cleanActiveId);
+      const branchIds = (branches || [])
+        .map((b: any) => b.id)
+        .filter((bid: string) => bid && bid !== "undefined" && bid !== "null");
+      return [cleanActiveId, ...branchIds];
     } catch {
-      return [activeId];
+      return [cleanActiveId];
     }
   }
 
-  if (userId) {
+  if (userId && userId !== "undefined" && userId !== "null") {
     try {
       const { data: members } = await supabase
         .from("company_members")
         .select("company_id")
         .eq("user_id", userId);
       if (members && members.length > 0) {
-        return [members[0].company_id].filter(Boolean);
+        return members
+          .map((m: any) => m.company_id)
+          .filter((cid: string) => cid && cid !== "undefined" && cid !== "null");
       }
     } catch {}
   }
@@ -524,7 +532,9 @@ export function useInterviews(specificCompanyId?: string | null) {
           .from("candidates")
           .select("id")
           .in("company_id", scopedCompanyIds);
-        scopedCandidateIds = (cands || []).map((c: any) => c.id);
+        scopedCandidateIds = (cands || [])
+          .map((c: any) => c.id)
+          .filter((cid: string) => cid && cid !== "undefined" && cid !== "null");
       }
 
       const intQuery = supabase

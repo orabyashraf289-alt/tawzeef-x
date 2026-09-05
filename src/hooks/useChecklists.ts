@@ -57,11 +57,13 @@ export function useChecklistTemplates() {
 }
 
 export function useCandidateChecklists(candidateId: string | undefined) {
+  const isValidCandidateId = !!candidateId && candidateId !== "undefined" && candidateId !== "null" && candidateId.trim() !== "";
   return useQuery({
     queryKey: ["candidate-checklists", candidateId],
     staleTime: 3 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     queryFn: async () => {
+      if (!isValidCandidateId) return [] as CandidateChecklist[];
       const { data, error } = await supabase
         .from("candidate_checklists" as any)
         .select("*")
@@ -70,16 +72,18 @@ export function useCandidateChecklists(candidateId: string | undefined) {
       if (error) throw error;
       return data as unknown as CandidateChecklist[];
     },
-    enabled: !!candidateId,
+    enabled: isValidCandidateId,
   });
 }
 
 export function useChecklistItems(checklistId: string | undefined) {
+  const isValidChecklistId = !!checklistId && checklistId !== "undefined" && checklistId !== "null" && checklistId.trim() !== "";
   return useQuery({
     queryKey: ["checklist-items", checklistId],
     staleTime: 3 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     queryFn: async () => {
+      if (!isValidChecklistId) return [] as ChecklistItem[];
       const { data, error } = await supabase
         .from("candidate_checklist_items" as any)
         .select("*")
@@ -88,7 +92,7 @@ export function useChecklistItems(checklistId: string | undefined) {
       if (error) throw error;
       return data as unknown as ChecklistItem[];
     },
-    enabled: !!checklistId,
+    enabled: isValidChecklistId,
   });
 }
 

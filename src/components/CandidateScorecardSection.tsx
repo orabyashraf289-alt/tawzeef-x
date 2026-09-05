@@ -52,9 +52,13 @@ export default function CandidateScorecardSection({ candidateId }: CandidateScor
   });
 
   // 2) Fetch all scorecards for this candidate
+  const isValidCandidateId = !!candidateId && candidateId !== "undefined" && candidateId !== "null";
+
   const { data: scorecards = [], isLoading } = useQuery({
     queryKey: ["candidate-scorecards", candidateId],
+    enabled: isValidCandidateId,
     queryFn: async () => {
+      if (!isValidCandidateId) return [] as Scorecard[];
       try {
         const { data, error } = await supabase
           .from("candidate_scorecards" as any)

@@ -227,7 +227,9 @@ export function useQuestions(jobId?: string) {
           .from("question_bank")
           .select("*, jobs(title)")
           .order("created_at", { ascending: false });
-        if (jobId) query = query.eq("job_id", jobId);
+        if (jobId && jobId !== "undefined" && jobId !== "null" && jobId.trim() !== "") {
+          query = query.eq("job_id", jobId);
+        }
         const { data, error } = await query;
         if (error) throw error;
 
@@ -723,9 +725,11 @@ export function useDeleteAssessment() {
 }
 
 export function useAssessmentResponses(assessmentId: string) {
+  const isValidAssessmentId = !!assessmentId && assessmentId !== "undefined" && assessmentId !== "null" && assessmentId.trim() !== "";
   return useQuery({
     queryKey: ["assessment-responses", assessmentId],
     queryFn: async () => {
+      if (!isValidAssessmentId) return [];
       if (assessmentId.startsWith("mock-")) {
         return mockResponses.filter(r => r.assessment_id === assessmentId);
       }
@@ -742,6 +746,6 @@ export function useAssessmentResponses(assessmentId: string) {
         return mockResponses.filter(r => r.assessment_id === assessmentId);
       }
     },
-    enabled: !!assessmentId,
+    enabled: isValidAssessmentId,
   });
 }

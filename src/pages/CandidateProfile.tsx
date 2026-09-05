@@ -28,6 +28,7 @@ import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompanyContext } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Progress } from "@/components/ui/progress";
@@ -123,6 +124,7 @@ function PipelineTracker({ currentStage }: { currentStage: string }) {
 export default function CandidateProfile() {
   const { id } = useParams();
   const { user } = useAuth();
+  const { activeCompany } = useCompanyContext();
   const { locale } = useI18n();
   const queryClient = useQueryClient();
   const { data: candidates, isLoading: isCandidatesLoading } = useCandidates();
@@ -182,16 +184,27 @@ export default function CandidateProfile() {
 
   const isPageLoading = (isCandidatesLoading || isFetchingDirect) && !candidate;
 
+  const isValidCandidateId = !!candidate?.id && candidate.id !== "undefined" && candidate.id !== "null";
+
   const { data: talentEntry } = useQuery({
-    queryKey: ["talent-pool-check", id, user?.id],
-    enabled: !!id && !!user,
+    queryKey: ["talent-pool-check", candidate?.id, user?.id],
+    enabled: isValidCandidateId && !!user,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("talent_pool" as any)
-        .select("*")
-        .eq("candidate_id", candidate?.id)
-        .maybeSingle();
-      return data;
+      if (!isValidCandidateId) return null;
+      try {
+        const { data, error } = await supabase
+          .from("talent_pool" as any)
+          .select("*")
+          .eq("candidate_id", candidate.id)
+          .maybeSingle();
+        if (error) {
+          console.warn("Talent pool check notice:", error);
+          return null;
+        }
+        return data;
+      } catch {
+        return null;
+      }
     },
   });
 
@@ -449,13 +462,32 @@ export default function CandidateProfile() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-8 space-y-5">
             <AICandidateInsights data={{ candidateName: candidate.name, role: candidate.role, experienceYears: candidate.experience_years, skills: candidate.skills, location: candidate.location }} />
-            <AIEvaluationCard candidate={candidate} />
+            <AIEvaluationCard
+              candidate={candidate}
+              candidateId={candidate.id}
+              candidateName={candidate.name}
+              existingScore={candidate.ai_score}
+              existingEvaluation={candidate.ai_evaluation}
+              jobId={candidate.job_id}
+            />
             <CandidateScorecardSection candidateId={candidate.id} />
           </div>
 
           <div className="lg:col-span-4 space-y-5">
-            <StageActions candidate={candidate} />
-            <CandidateChecklistPanel candidateId={candidate.id} />
+            <StageActions
+              candidate={candidate}
+              candidateId={candidate.id}
+              candidateName={candidate.name}
+              candidateEmail={candidate.email}
+              currentStage={candidate.stage || "تقديم الطلب"}
+              status={candidate.status || "جديد"}
+              jobId={candidate.job_id}
+              candidateRole={candidate.role}
+            />
+            <CandidateChecklistPanel
+              candidateId={candidate.id}
+              companyId={candidate.company_id || (candidate as any).company?.id || activeCompany?.id}
+            />
           </div>
         </div>
       </div>

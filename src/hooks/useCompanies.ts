@@ -155,10 +155,12 @@ export function useAllCompanies() {
 }
 
 export function useCompany(id: string | undefined) {
+  const isValidId = !!id && id !== "undefined" && id !== "null" && id.trim() !== "";
   return useQuery({
     queryKey: ["company", id],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
+      if (!isValidId) return null;
       const { data, error } = await supabase
         .from("companies" as any)
         .select("*")
@@ -167,7 +169,7 @@ export function useCompany(id: string | undefined) {
       if (error) throw error;
       return data ? parseCompanyRow(data) : null;
     },
-    enabled: !!id,
+    enabled: isValidId,
   });
 }
 
@@ -194,15 +196,16 @@ export function useMyCompanies() {
 }
 
 export function useCompanyMembers(companyId: string | undefined) {
+  const isValidCompanyId = !!companyId && companyId !== "undefined" && companyId !== "null" && companyId.trim() !== "";
   return useQuery({
     queryKey: ["company-members", companyId],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      if (!companyId) return [];
+      if (!isValidCompanyId) return [];
       const { data, error } = await supabase
         .from("company_members" as any)
         .select("*")
-        .eq("company_id", companyId);
+        .eq("company_id", companyId!);
       if (error) throw error;
       if (!data || data.length === 0) return [];
 
@@ -220,26 +223,36 @@ export function useCompanyMembers(companyId: string | undefined) {
         };
       }) as CompanyMember[];
     },
-    enabled: !!companyId,
+    enabled: isValidCompanyId,
   });
 }
 
 // Current user's role inside a specific company
 export function useMyCompanyRole(companyId: string | null | undefined) {
   const { user } = useAuth();
+  const isValidCompanyId = !!companyId && companyId !== "undefined" && companyId !== "null" && companyId.trim() !== "";
   return useQuery({
     queryKey: ["my-company-role", companyId, user?.id],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("company_members" as any)
-        .select("member_role")
-        .eq("company_id", companyId!)
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      return ((data as CompanyMemberRow)?.member_role as "owner" | "hr" | "viewer" | undefined) || null;
+      if (!isValidCompanyId || !user?.id) return null;
+      try {
+        const { data, error } = await supabase
+          .from("company_members" as any)
+          .select("member_role")
+          .eq("company_id", companyId!)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (error) {
+          console.warn("useMyCompanyRole query error:", error);
+          return null;
+        }
+        return ((data as CompanyMemberRow)?.member_role as "owner" | "hr" | "viewer" | undefined) || null;
+      } catch {
+        return null;
+      }
     },
-    enabled: !!companyId && !!user,
+    enabled: isValidCompanyId && !!user,
   });
 }
 
@@ -391,11 +404,13 @@ export function useDeleteCompany() {
 
 // Stats for a single company
 export function useCompanyStats(companyId: string | undefined) {
+  const isValidCompanyId = !!companyId && companyId !== "undefined" && companyId !== "null" && companyId.trim() !== "";
   return useQuery({
     queryKey: ["company-stats", companyId],
     staleTime: 3 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     queryFn: async () => {
+      if (!isValidCompanyId) return { jobsTotal: 0, jobsActive: 0, candidatesTotal: 0, interviewsTotal: 0, offersTotal: 0, offersAccepted: 0 };
       const sb = supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> };
       const [jobs, candidates, interviews, offers] = await Promise.all([
         sb.from("jobs").select("id, status", { count: "exact" }).eq("company_id", companyId!),
@@ -412,25 +427,26 @@ export function useCompanyStats(companyId: string | undefined) {
         offersAccepted: (offers.data || []).filter((o: Record<string, unknown>) => o.status === "accepted").length,
       };
     },
-    enabled: !!companyId,
+    enabled: isValidCompanyId,
   });
 }
 
 // Fetch all branches of a parent company with assigned manager profiles
 // Uses server-side filtering on the real parent_company_id column for performance
 export function useCompanyBranches(parentId: string | undefined) {
+  const isValidParentId = !!parentId && parentId !== "undefined" && parentId !== "null" && parentId.trim() !== "";
   return useQuery({
     queryKey: ["company-branches", parentId],
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     queryFn: async () => {
-      if (!parentId) return [];
+      if (!isValidParentId) return [];
 
       // Server-side filter on the actual parent_company_id column (fast, indexed)
       const { data, error } = await supabase
         .from("companies" as any)
         .select("*")
-        .eq("parent_company_id", parentId)
+        .eq("parent_company_id", parentId!)
         .order("created_at", { ascending: false });
 
       if (error) throw error;

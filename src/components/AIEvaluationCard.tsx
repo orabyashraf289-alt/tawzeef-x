@@ -23,11 +23,12 @@ interface AIEvaluation {
 }
 
 interface AIEvaluationCardProps {
-  candidateId: string;
-  candidateName: string;
+  candidateId?: string;
+  candidateName?: string;
   existingScore?: number | null;
   existingEvaluation?: string | null;
   jobId?: string | null;
+  candidate?: any;
 }
 
 const EVAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/evaluate-candidate`;
@@ -56,13 +57,14 @@ function getProgressColor(score: number) {
   return "[&>div]:bg-rose-500";
 }
 
-export default function AIEvaluationCard({
-  candidateId,
-  candidateName,
-  existingScore,
-  existingEvaluation,
-  jobId,
-}: AIEvaluationCardProps) {
+export default function AIEvaluationCard(props: AIEvaluationCardProps) {
+  const candidate = props.candidate;
+  const candidateId = props.candidateId || candidate?.id || "";
+  const candidateName = props.candidateName || candidate?.name || "مرشح";
+  const existingScore = props.existingScore ?? candidate?.ai_score ?? null;
+  const existingEvaluation = props.existingEvaluation ?? candidate?.ai_evaluation ?? null;
+  const jobId = props.jobId ?? candidate?.job_id ?? null;
+
   const [isLoading, setIsLoading] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [evaluation, setEvaluation] = useState<AIEvaluation | null>(
