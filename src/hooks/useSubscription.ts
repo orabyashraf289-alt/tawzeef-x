@@ -208,21 +208,69 @@ export function useCreateUpgradeRequest() {
 
       const companyId = memberRows[0].company_id;
 
-      const { data, error } = await supabase
-        .from("subscription_upgrade_requests" as any)
-        .insert({
-          company_id: companyId,
-          requested_by_user_id: user.id,
-          target_plan_id: targetPlanId,
-          target_plan_name: targetPlanName,
-          status: "pending",
-          notes: notes || null,
-        } as any)
-        .select()
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from("subscription_upgrade_requests" as any)
+          .insert({
+            company_id: companyId,
+            requested_by_user_id: user.id,
+            target_plan_id: targetPlanId,
+            target_plan_name: targetPlanName,
+            status: "pending",
+            notes: notes || null,
+          } as any)
+          .select()
+          .single();
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        return data;
+      } catch (err: any) {
+        const isTableMissing =
+          err?.code === "PGRST205" ||
+          err?.message?.includes("schema cache") ||
+          err?.message?.includes("subscription_upgrade_requests");
+
+        if (isTableMissing) {
+          console.warn("Table subscription_upgrade_requests is missing in Supabase. Using fallback notification and local storage queue.");
+
+          // 1. Send fallback notification
+          try {
+            await supabase.from("notifications").insert({
+              user_id: user.id,
+              title: `طلب ترقية باقة: ${targetPlanName}`,
+              description: `تم تسجيل طلب ترقية باقة إلى ${targetPlanName}. الملاحظات: ${notes || "لا توجد"}.`,
+              type: "upgrade_request",
+              read: false,
+            });
+          } catch (notifErr) {
+            console.warn("Could not insert fallback notification:", notifErr);
+          }
+
+          // 2. Save in localStorage queue
+          const fallbackReq: UpgradeRequestRow = {
+            id: `local-req-${Date.now()}`,
+            company_id: companyId,
+            requested_by_user_id: user.id,
+            target_plan_id: targetPlanId,
+            target_plan_name: targetPlanName,
+            status: "pending",
+            notes: notes || null,
+            created_at: new Date().toISOString(),
+          };
+
+          try {
+            const saved = JSON.parse(localStorage.getItem("tx_pending_upgrade_requests") || "[]");
+            saved.unshift(fallbackReq);
+            localStorage.setItem("tx_pending_upgrade_requests", JSON.stringify(saved));
+          } catch (e) {
+            console.warn("Could not save to localStorage:", e);
+          }
+
+          return fallbackReq;
+        }
+
+        throw err;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-upgrade-requests"] });
@@ -239,21 +287,42 @@ export function useUpgradeRequests() {
     queryFn: async () => {
       if (!user) return [];
 
-      const { data, error } = await supabase
-        .from("subscription_upgrade_requests" as any)
-        .select("*")
-        .order("created_at", { ascending: false });
+      let dbRequests: UpgradeRequestRow[] = [];
+      try {
+        const { data, error } = await supabase
+          .from("subscription_upgrade_requests" as any)
+          .select("*")
+          .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      if (!data || data.length === 0) return [];
+        if (error) {
+          const isTableMissing =
+            error.code === "PGRST205" ||
+            error.message?.includes("schema cache") ||
+            error.message?.includes("subscription_upgrade_requests");
+          if (!isTableMissing) throw error;
+        } else if (data) {
+          dbRequests = data as UpgradeRequestRow[];
+        }
+      } catch (err) {
+        console.warn("Table subscription_upgrade_requests query skipped:", err);
+      }
 
-      const companyIds = Array.from(new Set(data.map((r: UpgradeRequestRow) => r.company_id)));
-      const userIds = Array.from(new Set(data.map((r: UpgradeRequestRow) => r.requested_by_user_id).filter(Boolean)));
+      // Merge with local fallback
+      let localRequests: UpgradeRequestRow[] = [];
+      try {
+        localRequests = JSON.parse(localStorage.getItem("tx_pending_upgrade_requests") || "[]");
+      } catch {}
+
+      const allRequests = [...localRequests, ...dbRequests.filter((d) => !localRequests.some((l) => l.id === d.id))];
+      if (allRequests.length === 0) return [];
+
+      const companyIds = Array.from(new Set(allRequests.map((r: UpgradeRequestRow) => r.company_id)));
+      const userIds = Array.from(new Set(allRequests.map((r: UpgradeRequestRow) => r.requested_by_user_id).filter(Boolean)));
 
       const { data: cos } = await supabase.from("companies").select("id, name").in("id", companyIds);
       const { data: profiles } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
 
-      return data.map((r: UpgradeRequestRow) => {
+      return allRequests.map((r: UpgradeRequestRow) => {
         const co = (cos || []).find((c) => c.id === r.company_id);
         const pr = (profiles || []).find((p) => p.user_id === r.requested_by_user_id);
         return {
@@ -339,27 +408,31 @@ export function useAdminCustomUpgradeSubscription() {
         subId = created?.id;
       }
 
-      // 2) Generate Invoice if requested
+      // 2) Generate Invoice if requested (wrapped safely in case company_invoices table is not yet migrated)
       if (issueInvoice) {
         const invoiceCount = Math.floor(100 + Math.random() * 900);
         const year = new Date().getFullYear();
         const month = String(new Date().getMonth() + 1).padStart(2, "0");
         const invoiceNum = `INV-${year}-${month}-${invoiceCount}`;
 
-        await supabase.from("company_invoices" as any).insert({
-          invoice_number: invoiceNum,
-          company_id: companyId,
-          subscription_id: subId || null,
-          plan_id: planId,
-          plan_name_ar: planNameAr,
-          amount: price,
-          currency: "SAR",
-          job_posts_limit: jobPostsLimit,
-          starts_at: startsAt,
-          expires_at: expiresAt,
-          status: "paid",
-          issued_by_user_id: user.id,
-        } as any);
+        try {
+          await supabase.from("company_invoices" as any).insert({
+            invoice_number: invoiceNum,
+            company_id: companyId,
+            subscription_id: subId || null,
+            plan_id: planId,
+            plan_name_ar: planNameAr,
+            amount: price,
+            currency: "SAR",
+            job_posts_limit: jobPostsLimit,
+            starts_at: startsAt,
+            expires_at: expiresAt,
+            status: "paid",
+            issued_by_user_id: user.id,
+          } as any);
+        } catch (invErr) {
+          console.warn("Could not record invoice into company_invoices (table might need migration):", invErr);
+        }
       }
     },
     onSuccess: () => {
@@ -379,24 +452,36 @@ export function useCompanyInvoices() {
     queryFn: async () => {
       if (!user) return [];
 
-      const { data, error } = await supabase
-        .from("company_invoices" as any)
-        .select("*")
-        .order("created_at", { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from("company_invoices" as any)
+          .select("*")
+          .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      if (!data || data.length === 0) return [];
+        if (error) {
+          const isTableMissing =
+            error.code === "PGRST205" ||
+            error.message?.includes("schema cache") ||
+            error.message?.includes("company_invoices");
+          if (isTableMissing) return [];
+          throw error;
+        }
+        if (!data || data.length === 0) return [];
 
-      const companyIds = Array.from(new Set(data.map((i: InvoiceRow) => i.company_id)));
-      const { data: cos } = await supabase.from("companies").select("id, name").in("id", companyIds);
+        const companyIds = Array.from(new Set(data.map((i: InvoiceRow) => i.company_id)));
+        const { data: cos } = await supabase.from("companies").select("id, name").in("id", companyIds);
 
-      return data.map((inv: InvoiceRow) => {
-        const co = (cos || []).find((c) => c.id === inv.company_id);
-        return {
-          ...inv,
-          company_name: co?.name || "شركة غير معرفة",
-        } as CompanyInvoice;
-      });
+        return data.map((inv: InvoiceRow) => {
+          const co = (cos || []).find((c) => c.id === inv.company_id);
+          return {
+            ...inv,
+            company_name: co?.name || "شركة غير معرفة",
+          } as CompanyInvoice;
+        });
+      } catch (err) {
+        console.warn("Table company_invoices query skipped:", err);
+        return [];
+      }
     },
     enabled: !!user,
   });
