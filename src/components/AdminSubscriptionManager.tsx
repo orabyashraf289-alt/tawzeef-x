@@ -4,6 +4,7 @@ import {
   useUpgradeRequests,
   useAdminCustomUpgradeSubscription,
   useCompanyInvoices,
+  useRejectUpgradeRequest,
   type SubscriptionPlan,
 } from "@/hooks/useSubscription";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
