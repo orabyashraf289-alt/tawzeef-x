@@ -5,6 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Building, Trash2, Link2, X, Users, CheckCircle2, TrendingUp } from "lucide-react";
 import {
@@ -39,6 +49,7 @@ export default function AdminAgencies() {
   const [linkCompany, setLinkCompany] = useState("");
   const [linkScope, setLinkScope] = useState<"company" | "candidate">("company");
   const [linkCandidate, setLinkCandidate] = useState("");
+  const [agencyToDelete, setAgencyToDelete] = useState<{ id: string; name: string } | null>(null);
 
   // candidates of selected company (for candidate-scoped link)
   const { data: companyCandidates = [] } = useQuery({
@@ -289,8 +300,8 @@ export default function AdminAgencies() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-destructive"
-                      onClick={() => { if (confirm(`حذف مكتب "${a.name}"؟`)) deleteAgency.mutate(a.id); }}
+                      className="text-destructive hover:bg-destructive/10 border-destructive/20"
+                      onClick={() => setAgencyToDelete({ id: a.id, name: a.name })}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
@@ -362,6 +373,43 @@ export default function AdminAgencies() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* ─── Delete Agency Confirmation Modal (Centered & Modern) ─── */}
+        <AlertDialog open={!!agencyToDelete} onOpenChange={(open) => !open && setAgencyToDelete(null)}>
+          <AlertDialogContent className="sm:max-w-[460px] p-6 text-right rounded-2xl border border-border/80 shadow-2xl bg-card" dir="rtl">
+            <AlertDialogHeader className="space-y-3 text-right">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-600 flex items-center justify-center border border-red-500/20 shadow-sm">
+                <Trash2 className="w-6 h-6 animate-pulse" />
+              </div>
+              <AlertDialogTitle className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                تأكيد حذف مكتب التوظيف
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                هل أنت متأكد من رغبتك في حذف مكتب التوظيف <strong className="text-foreground">"{agencyToDelete?.name}"</strong> نهائياً؟
+                <span className="text-xs text-red-600 dark:text-red-400 font-medium block mt-3 bg-red-50 dark:bg-red-950/40 p-2.5 rounded-xl border border-red-200 dark:border-red-900/40">
+                  ⚠️ سيتم إلغاء ارتباط هذا المكتب بجميع الشركات والمرشحين المرتبطين به.
+                </span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="mt-6 flex flex-row gap-2 justify-end sm:space-x-0" dir="rtl">
+              <AlertDialogCancel className="font-bold text-xs rounded-xl px-5 h-10 border-border hover:bg-muted">
+                إلغاء
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (agencyToDelete) {
+                    deleteAgency.mutate(agencyToDelete.id);
+                    setAgencyToDelete(null);
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl px-5 h-10 gap-1.5 shadow-md shadow-red-600/20"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                تأكيد حذف المكتب
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );

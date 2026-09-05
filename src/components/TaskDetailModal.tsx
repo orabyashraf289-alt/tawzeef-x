@@ -1,5 +1,15 @@
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,6 +84,7 @@ export default function TaskDetailModal({
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [newTagText, setNewTagText] = useState("");
   const [newCommentText, setNewCommentText] = useState("");
+  const [confirmDeleteTask, setConfirmDeleteTask] = useState(false);
 
   const subtasks = task.subtasks || [];
   const tags = task.tags || [];
@@ -158,12 +169,7 @@ export default function TaskDetailModal({
               variant="outline"
               size="sm"
               className="text-destructive border-destructive/20 hover:bg-destructive/10 gap-1.5 text-xs font-bold rounded-xl"
-              onClick={() => {
-                if (confirm("هل أنت تأكد من حذف هذه المهمة نهائياً؟")) {
-                  onDeleteTask(task.id);
-                  onClose();
-                }
-              }}
+              onClick={() => setConfirmDeleteTask(true)}
             >
               <Trash2 className="w-3.5 h-3.5" />حذف المهمة
             </Button>
@@ -326,6 +332,42 @@ export default function TaskDetailModal({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* ─── Delete Task Confirmation Modal (Centered & Modern) ─── */}
+      <AlertDialog open={confirmDeleteTask} onOpenChange={setConfirmDeleteTask}>
+        <AlertDialogContent className="sm:max-w-[440px] p-6 text-right rounded-2xl border border-border/80 shadow-2xl bg-card" dir="rtl">
+          <AlertDialogHeader className="space-y-3 text-right">
+            <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-600 flex items-center justify-center border border-red-500/20 shadow-sm">
+              <Trash2 className="w-6 h-6 animate-pulse" />
+            </div>
+            <AlertDialogTitle className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              تأكيد حذف المهمة
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              هل أنت متأكد من حذف مهمة <strong className="text-foreground">"{task.title}"</strong> نهائياً؟
+              <span className="text-xs text-red-600 dark:text-red-400 font-medium block mt-3 bg-red-50 dark:bg-red-950/40 p-2.5 rounded-xl border border-red-200 dark:border-red-900/40">
+                ⚠️ سيتم حذف المهمة وجميع المهام الفرعية والتعليقات المرتبطة بها نهائياً.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 flex flex-row gap-2 justify-end sm:space-x-0" dir="rtl">
+            <AlertDialogCancel className="font-bold text-xs rounded-xl px-5 h-10 border-border hover:bg-muted">
+              إلغاء
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                onDeleteTask(task.id);
+                setConfirmDeleteTask(false);
+                onClose();
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl px-5 h-10 gap-1.5 shadow-md shadow-red-600/20"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              تأكيد حذف المهمة
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

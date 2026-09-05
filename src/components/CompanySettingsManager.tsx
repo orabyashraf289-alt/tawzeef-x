@@ -18,6 +18,16 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { saveBrandSettings } from "@/lib/posterBrandSettings";
 import {
   Building2, Camera, Trash2, Check, Globe, MapPin, Shield, Lock, Palette,
@@ -124,12 +134,15 @@ export default function CompanySettingsManager() {
     toast({ title: "تم تحديث كافة بيانات الفرع والمسؤول بنجاح ✅" });
   };
 
+  const [branchToDelete, setBranchToDelete] = useState<{ id: string; name: string } | null>(null);
+
   const handleDeleteBranch = async (branchId: string) => {
-    if (!confirm("هل أنت تأكد من رغبتك في حذف هذا الفرع؟")) return;
     await deleteCompany.mutateAsync(branchId);
     queryClient.invalidateQueries({ queryKey: ["company-branches", companyId] });
     queryClient.invalidateQueries({ queryKey: ["my-companies"] });
     setEditingBranchData(null);
+    setBranchToDelete(null);
+    toast({ title: "تم حذف الفرع بنجاح 🗑️" });
   };
 
 
@@ -1138,7 +1151,7 @@ export default function CompanySettingsManager() {
                   type="button"
                   variant="ghost"
                   className="text-destructive hover:bg-destructive/10 text-xs gap-1.5 font-bold rounded-xl"
-                  onClick={() => handleDeleteBranch(editingBranchData.id)}
+                  onClick={() => setBranchToDelete({ id: editingBranchData.id, name: editingBranchData.name })}
                 >
                   <Trash2 className="w-4 h-4" />
                   حذف الفرع
@@ -1167,6 +1180,42 @@ export default function CompanySettingsManager() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ─── Delete Branch Confirmation Modal (Centered & Modern) ─── */}
+      <AlertDialog open={!!branchToDelete} onOpenChange={(open) => !open && setBranchToDelete(null)}>
+        <AlertDialogContent className="sm:max-w-[460px] p-6 text-right rounded-2xl border border-border/80 shadow-2xl bg-card" dir="rtl">
+          <AlertDialogHeader className="space-y-3 text-right">
+            <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-600 flex items-center justify-center border border-red-500/20 shadow-sm">
+              <Trash2 className="w-6 h-6 animate-pulse" />
+            </div>
+            <AlertDialogTitle className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              تأكيد حذف الفرع
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              هل أنت متأكد من رغبتك في حذف فرع <strong className="text-foreground">"{branchToDelete?.name}"</strong>؟
+              <span className="text-xs text-red-600 dark:text-red-400 font-medium block mt-3 bg-red-50 dark:bg-red-950/40 p-2.5 rounded-xl border border-red-200 dark:border-red-900/40">
+                ⚠️ سيؤدي حذف هذا الفرع إلى إلغاء ربطه بالموظفين والوظائف المرتبطة به.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 flex flex-row gap-2 justify-end sm:space-x-0" dir="rtl">
+            <AlertDialogCancel className="font-bold text-xs rounded-xl px-5 h-10 border-border hover:bg-muted">
+              إلغاء
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (branchToDelete) {
+                  handleDeleteBranch(branchToDelete.id);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl px-5 h-10 gap-1.5 shadow-md shadow-red-600/20"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              تأكيد حذف الفرع
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

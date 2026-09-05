@@ -4,6 +4,16 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Bell, UserPlus, Briefcase, Calendar, CheckCircle, Trash2, BellOff, FileText, Send, ArrowLeftRight, XCircle, Eye, EyeOff, MailOpen, Search, SlidersHorizontal, RefreshCw } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -66,6 +76,7 @@ export default function Notifications() {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+  const [openClearAllDialog, setOpenClearAllDialog] = useState(false);
 
   const allNotifications = notifications || [];
   const unreadCount = allNotifications.filter(n => !n.read).length;
@@ -126,11 +137,11 @@ export default function Notifications() {
     toast({ title: "تم حذف الإشعار 🗑️" });
   };
 
-  const clearAll = async () => {
-    if (!window.confirm("هل أنت متأكد من حذف جميع الإشعارات؟")) return;
+  const handleClearAllConfirm = async () => {
     await supabase.from("notifications").delete().neq("id", "");
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
     toast({ title: "تم مسح جميع الإشعارات 🗑️" });
+    setOpenClearAllDialog(false);
   };
 
   const formatTime = (dateStr: string) => {
@@ -197,7 +208,7 @@ export default function Notifications() {
               </Button>
             )}
             {totalCount > 0 && (
-              <Button variant="outline" size="sm" onClick={clearAll} className="text-destructive hover:text-destructive gap-1.5">
+              <Button variant="outline" size="sm" onClick={() => setOpenClearAllDialog(true)} className="text-destructive hover:text-destructive gap-1.5">
                 <Trash2 className="w-3.5 h-3.5" />مسح الكل
               </Button>
             )}
@@ -394,6 +405,38 @@ export default function Notifications() {
             ))}
           </motion.div>
         )}
+
+        {/* ─── Clear All Notifications Confirmation Modal (Centered & Modern) ─── */}
+        <AlertDialog open={openClearAllDialog} onOpenChange={setOpenClearAllDialog}>
+          <AlertDialogContent className="sm:max-w-[460px] p-6 text-right rounded-2xl border border-border/80 shadow-2xl bg-card" dir="rtl">
+            <AlertDialogHeader className="space-y-3 text-right">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-600 flex items-center justify-center border border-red-500/20 shadow-sm">
+                <Trash2 className="w-6 h-6 animate-pulse" />
+              </div>
+              <AlertDialogTitle className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                مسح جميع الإشعارات
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                هل أنت متأكد من رغبتك في مسح كافة الإشعارات في النظام نهائياً؟
+                <span className="text-xs text-red-600 dark:text-red-400 font-medium block mt-3 bg-red-50 dark:bg-red-950/40 p-2.5 rounded-xl border border-red-200 dark:border-red-900/40">
+                  ⚠️ لن تتمكن من استرجاع أي إشعار تم حذفه بعد تأكيد هذا الإجراء.
+                </span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="mt-6 flex flex-row gap-2 justify-end sm:space-x-0" dir="rtl">
+              <AlertDialogCancel className="font-bold text-xs rounded-xl px-5 h-10 border-border hover:bg-muted">
+                إلغاء
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleClearAllConfirm}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl px-5 h-10 gap-1.5 shadow-md shadow-red-600/20"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                تأكيد مسح الكل
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );

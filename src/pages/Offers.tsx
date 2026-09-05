@@ -28,6 +28,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -113,6 +123,8 @@ export default function OffersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [generatingAiOfferTerms, setGeneratingAiOfferTerms] = useState(false);
+  const [withdrawOfferId, setWithdrawOfferId] = useState<string | null>(null);
+  const [offerToDelete, setOfferToDelete] = useState<JobOffer | null>(null);
 
   const filteredOffers = useMemo(() => {
     let list = offers || [];
@@ -1066,11 +1078,7 @@ export default function OffersPage() {
                             size="icon"
                             variant="ghost"
                             className="text-amber-600 hover:text-amber-700"
-                            onClick={() => {
-                              if (confirm("هل أنت متأكد من سحب هذا العرض؟ سيتم إشعار المرشح.")) {
-                                withdrawOffer.mutate({ id: offer.id });
-                              }
-                            }}
+                            onClick={() => setWithdrawOfferId(offer.id)}
                             disabled={withdrawOffer.isPending}
                             title="سحب العرض"
                           >
@@ -1100,7 +1108,7 @@ export default function OffersPage() {
                           size="icon"
                           variant="ghost"
                           className="text-destructive hover:text-destructive"
-                          onClick={() => deleteOffer.mutate(offer.id)}
+                          onClick={() => setOfferToDelete(offer)}
                           title={t("common.delete")}
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1397,6 +1405,80 @@ export default function OffersPage() {
             ) : null}
           </DialogContent>
         </Dialog>
+
+        {/* ─── Withdraw Offer Confirmation Modal (Centered & Modern) ─── */}
+        <AlertDialog open={!!withdrawOfferId} onOpenChange={(open) => !open && setWithdrawOfferId(null)}>
+          <AlertDialogContent className="sm:max-w-[460px] p-6 text-right rounded-2xl border border-border/80 shadow-2xl bg-card" dir="rtl">
+            <AlertDialogHeader className="space-y-3 text-right">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center border border-amber-500/20 shadow-sm">
+                <Undo2 className="w-6 h-6 animate-pulse" />
+              </div>
+              <AlertDialogTitle className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                تأكيد سحب العرض الوظيفي
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                هل أنت متأكد من رغبتك في سحب هذا العرض الوظيفي؟
+                <span className="text-xs text-amber-700 dark:text-amber-400 font-medium block mt-3 bg-amber-50 dark:bg-amber-950/40 p-2.5 rounded-xl border border-amber-200 dark:border-amber-900/40">
+                  ⚠️ سيتم تغيير حالة العرض إلى "مسحوب" ولن يتمكن المرشح من قبوله أو التوقيع عليه، وسيتم إشعاره بهذا الإجراء.
+                </span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="mt-6 flex flex-row gap-2 justify-end sm:space-x-0" dir="rtl">
+              <AlertDialogCancel className="font-bold text-xs rounded-xl px-5 h-10 border-border hover:bg-muted">
+                إلغاء
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (withdrawOfferId) {
+                    withdrawOffer.mutate({ id: withdrawOfferId });
+                    setWithdrawOfferId(null);
+                  }
+                }}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl px-5 h-10 gap-1.5 shadow-md shadow-amber-600/20"
+              >
+                <Undo2 className="w-3.5 h-3.5" />
+                تأكيد السحب
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* ─── Delete Offer Confirmation Modal (Centered & Modern) ─── */}
+        <AlertDialog open={!!offerToDelete} onOpenChange={(open) => !open && setOfferToDelete(null)}>
+          <AlertDialogContent className="sm:max-w-[460px] p-6 text-right rounded-2xl border border-border/80 shadow-2xl bg-card" dir="rtl">
+            <AlertDialogHeader className="space-y-3 text-right">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-600 flex items-center justify-center border border-red-500/20 shadow-sm">
+                <Trash2 className="w-6 h-6 animate-pulse" />
+              </div>
+              <AlertDialogTitle className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                تأكيد حذف العرض الوظيفي
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                هل أنت متأكد من حذف العرض الوظيفي لوظيفة <strong className="text-foreground">"{offerToDelete?.position}"</strong>؟
+                <span className="text-xs text-red-600 dark:text-red-400 font-medium block mt-3 bg-red-50 dark:bg-red-950/40 p-2.5 rounded-xl border border-red-200 dark:border-red-900/40">
+                  ⚠️ سيتم حذف العرض وتفاصيله نهائياً من سجلات التوظيف.
+                </span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="mt-6 flex flex-row gap-2 justify-end sm:space-x-0" dir="rtl">
+              <AlertDialogCancel className="font-bold text-xs rounded-xl px-5 h-10 border-border hover:bg-muted">
+                إلغاء
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (offerToDelete) {
+                    deleteOffer.mutate(offerToDelete.id);
+                    setOfferToDelete(null);
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl px-5 h-10 gap-1.5 shadow-md shadow-red-600/20"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                تأكيد الحذف
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );

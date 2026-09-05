@@ -35,6 +35,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -153,6 +163,7 @@ export default function ConvertedOrders() {
   const [openAiMatcherDialog, setOpenAiMatcherDialog] = useState(false);
   const [openErpSyncDialog, setOpenErpSyncDialog] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<ConvertedOrder | null>(null);
+  const [orderToDelete, setOrderToDelete] = useState<ConvertedOrder | null>(null);
 
   // Webhook / ERP settings
   const [webhookUrl, setWebhookUrl] = useState("https://api.alandalus.edu.sa/hr/v1/onboarding-sync");
@@ -940,13 +951,9 @@ export default function ConvertedOrders() {
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                onClick={() => {
-                                  if (confirm(`هل أنت متأكد من حذف أمر التحويل ${order.order_number}؟`)) {
-                                    deleteOrder.mutate(order.id);
-                                  }
-                                }}
-                                className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-700 rounded-lg"
-                                title="حذف"
+                                onClick={() => setOrderToDelete(order)}
+                                className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-700 rounded-lg transition-colors"
+                                title="حذف أمر التحويل"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </Button>
@@ -1657,6 +1664,47 @@ export default function ConvertedOrders() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* ─── Delete Confirmation Modal (Centered & Modern Luxury Design) ─── */}
+        <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
+          <AlertDialogContent className="sm:max-w-[460px] p-6 text-right rounded-2xl border border-border/80 shadow-2xl bg-card" dir="rtl">
+            <AlertDialogHeader className="space-y-3 text-right">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-600 flex items-center justify-center border border-red-500/20 shadow-sm">
+                <AlertCircle className="w-6 h-6 animate-pulse" />
+              </div>
+              <AlertDialogTitle className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                تأكيد حذف أمر التحويل
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                هل أنت متأكد من رغبتك في حذف أمر التحويل رقم{" "}
+                <span className="font-bold text-foreground underline decoration-red-500/40">{orderToDelete?.order_number}</span>
+                {orderToDelete?.candidate_name ? (
+                  <> الخاص بالمرشح <strong className="text-foreground">"{orderToDelete.candidate_name}"</strong>؟</>
+                ) : "؟"}
+                <span className="text-xs text-red-600 dark:text-red-400 font-medium block mt-3 bg-red-50 dark:bg-red-950/40 p-2.5 rounded-xl border border-red-200 dark:border-red-900/40">
+                  ⚠️ تنبيه: سيتم حذف أمر التحويل نهائياً من سجلات الشركة ولن يمكن استعادته.
+                </span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="mt-6 flex flex-row gap-2 justify-end sm:space-x-0" dir="rtl">
+              <AlertDialogCancel className="font-bold text-xs rounded-xl px-5 h-10 border-border hover:bg-muted">
+                إلغاء
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (orderToDelete) {
+                    deleteOrder.mutate(orderToDelete.id);
+                    setOrderToDelete(null);
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl px-5 h-10 gap-1.5 shadow-md shadow-red-600/20"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                تأكيد الحذف
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );

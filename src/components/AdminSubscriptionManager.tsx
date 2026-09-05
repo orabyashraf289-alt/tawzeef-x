@@ -22,6 +22,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import SARSymbol, { formatSAR } from "@/components/SARSymbol";
@@ -148,6 +158,11 @@ export default function AdminSubscriptionManager() {
     new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
   );
   const [shouldIssueInvoice, setShouldIssueInvoice] = useState<boolean>(true);
+  const [rejectDialog, setRejectDialog] = useState<{
+    requestId: string;
+    companyName: string;
+    ownerUserId: string | null;
+  } | null>(null);
 
   const startEdit = (plan: SubscriptionPlan) => {
     setEditingPlan(plan);
@@ -391,14 +406,12 @@ export default function AdminSubscriptionManager() {
                         variant="outline"
                         className="gap-1 text-xs text-destructive hover:bg-destructive/10 border-destructive/20"
                         onClick={() => {
-                          if (confirm(`هل أنت متأكد من رفض طلب ترقية الباقة لشركة "${req.company_name}"؟`)) {
-                            const co = (companies || []).find((c) => c.companyId === req.company_id);
-                            rejectUpgrade.mutate({
-                              requestId: req.id,
-                              ownerUserId: co?.ownerUserId || req.requested_by_user_id,
-                            });
-                            toast({ title: "تم رفض طلب الترقية وإشعار العميل" });
-                          }
+                          const co = (companies || []).find((c) => c.companyId === req.company_id);
+                          setRejectDialog({
+                            requestId: req.id,
+                            companyName: req.company_name || "الشركة",
+                            ownerUserId: co?.ownerUserId || req.requested_by_user_id || null,
+                          });
                         }}
                       >
                         <X className="w-3.5 h-3.5" />
@@ -623,6 +636,47 @@ export default function AdminSubscriptionManager() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ─── Reject Upgrade Confirmation Modal (Centered & Modern) ─── */}
+      <AlertDialog open={!!rejectDialog} onOpenChange={(open) => !open && setRejectDialog(null)}>
+        <AlertDialogContent className="sm:max-w-[460px] p-6 text-right rounded-2xl border border-border/80 shadow-2xl bg-card" dir="rtl">
+          <AlertDialogHeader className="space-y-3 text-right">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center border border-amber-500/20 shadow-sm">
+              <X className="w-6 h-6 animate-pulse" />
+            </div>
+            <AlertDialogTitle className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              تأكيد رفض طلب ترقية الباقة
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              هل أنت متأكد من رغبتك في رفض طلب ترقية الباقة المقدم من شركة <strong className="text-foreground">"{rejectDialog?.companyName}"</strong>؟
+              <span className="text-xs text-amber-700 dark:text-amber-400 font-medium block mt-3 bg-amber-50 dark:bg-amber-950/40 p-2.5 rounded-xl border border-amber-200 dark:border-amber-900/40">
+                ⚠️ سيتم تحديث حالة الطلب إلى "مرفوض" وإشعار مسؤولي الشركة عبر الإشعارات الفورية في النظام.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 flex flex-row gap-2 justify-end sm:space-x-0" dir="rtl">
+            <AlertDialogCancel className="font-bold text-xs rounded-xl px-5 h-10 border-border hover:bg-muted">
+              تراجع
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (rejectDialog) {
+                  rejectUpgrade.mutate({
+                    requestId: rejectDialog.requestId,
+                    ownerUserId: rejectDialog.ownerUserId,
+                  });
+                  toast({ title: "تم رفض طلب الترقية وإشعار العميل" });
+                  setRejectDialog(null);
+                }
+              }}
+              className="bg-destructive hover:bg-destructive/90 text-white font-bold text-xs rounded-xl px-5 h-10 gap-1.5 shadow-md shadow-destructive/20"
+            >
+              <X className="w-3.5 h-3.5" />
+              تأكيد الرفض
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Tabs>
   );
 }
