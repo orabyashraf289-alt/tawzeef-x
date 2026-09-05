@@ -62,6 +62,8 @@ import PipelineCandidateCard from "@/components/pipeline/PipelineCandidateCard";
 import PipelineColumn from "@/components/pipeline/PipelineColumn";
 import PipelineBulkActionBar from "@/components/pipeline/PipelineBulkActionBar";
 import PipelineRejectionModal from "@/components/pipeline/PipelineRejectionModal";
+import CandidateQuickPeekDrawer from "@/components/pipeline/CandidateQuickPeekDrawer";
+import PipelineCompareModal from "@/components/pipeline/PipelineCompareModal";
 
 const CandidateCard = memo(function CandidateCard(props: any) {
   return <PipelineCandidateCard {...props} />;
@@ -80,6 +82,8 @@ const DraggableCard = memo(function DraggableCard({
   onReject,
   onDefer,
   onRestore,
+  onQuickPeek,
+  onWhatsAppDirect,
   stageSlaHours
 }: {
   candidate: any;
@@ -89,6 +93,8 @@ const DraggableCard = memo(function DraggableCard({
   onReject?: (id: string, name: string) => void;
   onDefer?: (id: string) => void;
   onRestore?: (id: string, originalStage: string) => void;
+  onQuickPeek?: (candidate: any) => void;
+  onWhatsAppDirect?: (candidate: any) => void;
   stageSlaHours?: number;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -118,6 +124,8 @@ const DraggableCard = memo(function DraggableCard({
         onReject={onReject}
         onDefer={onDefer}
         onRestore={onRestore}
+        onQuickPeek={onQuickPeek}
+        onWhatsAppDirect={onWhatsAppDirect}
         stageSlaHours={stageSlaHours}
       />
     </motion.div>
@@ -175,6 +183,10 @@ export default function Pipeline() {
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
   const [rejectionTarget, setRejectionTarget] = useState<{ candidateId: string; candidateName: string } | null>(null);
   const [rejectionReasonText, setRejectionReasonText] = useState("");
+  const [quickPeekCandidate, setQuickPeekCandidate] = useState<any | null>(null);
+  const [isCompareOpen, setIsCompareOpen] = useState(false);
+  const [bulkTargetStage, setBulkTargetStage] = useState("");
+  const [isBulkPending, setIsBulkPending] = useState(false);
 
   const [viewMode, setViewMode] = useState<"kanban" | "timeline" | "analytics">("kanban");
   const [timelineSort, setTimelineSort] = useState<"newest" | "oldest" | "ai_score">("newest");
@@ -580,6 +592,163 @@ export default function Pipeline() {
     }
   }, [candidates, queryClient, user, STAGES, recordTransition, t, allStages, assessments, assessmentResponses, refetchTracking]);
 
+  // Bulk Selection and Direct Action Handlers
+  const handleToggleSelect = useCallback((id: string) => {
+    setSelectedCandidateIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  }, []);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedCandidateIds([]);
+    setBulkTargetStage("");
+  }, []);
+
+  const handleMoveCandidate = useCallback((candidateId: string, newStage: string) => {
+    const candidate = (candidates || []).find((c) => c.id === candidateId);
+    if (!candidate || candidate.stage === newStage) return;
+
+    if (newStage === "مرفوض") {
+      setRejectionTarget({ candidateId, candidateName: candidate.name });
+      setRejectionReasonText("");
+      return;
+    }
+
+    if (newStage === "مؤجل") {
+      deferCandidate.mutate({ candidateId });
+      toast({ title: `تم نقل ${candidate.name} إلى المؤجلين ⏸️` });
+      return;
+    }
+
+    const oldStage = candidate.stage || "تقديم الطلب";
+    const stageInfo = STAGES.find((s) => s.id === newStage);
+
+    setTransitionDialog({
+      open: true,
+      candidateId,
+      candidateName: candidate.name,
+      fromStage: oldStage,
+      toStage: newStage,
+      toStageLabel: stageInfo?.label || newStage,
+    });
+    setTransitionNote("");
+  }, [STAGES, candidates, deferCandidate]);
+
+  const handleBulkMove = useCallback(async () => {
+    if (!bulkTargetStage || selectedCandidateIds.length === 0) return;
+    setIsBulkPending(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const { error } = await supabase
+        .from("candidates")
+        .update({ stage: bulkTargetStage, stage_entered_at: nowIso, updated_at: nowIso })
+        .in("id", selectedCandidateIds);
+
+      if (error) throw error;
+
+      for (const id of selectedCandidateIds) {
+        const cand = candidates?.find((c) => c.id === id);
+        if (cand) {
+          await recordTransition.mutateAsync({
+            candidateId: id,
+            fromStage: cand.stage || "تقديم الطلب",
+            toStage: bulkTargetStage,
+            notes: "نقل جماعي عبر مسار التوظيف",
+          }).catch(() => {});
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
+      toast({
+        title: `✅ تم نقل ${selectedCandidateIds.length} مرشحين إلى مرحلة (${bulkTargetStage}) بنجاح`,
+      });
+      handleClearSelection();
+    } catch (err: any) {
+      toast({
+        title: "❌ حدث خطأ أثناء النقل الجماعي",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkPending(false);
+    }
+  }, [bulkTargetStage, selectedCandidateIds, candidates, queryClient, recordTransition, handleClearSelection]);
+
+  const handleBulkReject = useCallback(async () => {
+    if (selectedCandidateIds.length === 0) return;
+    setIsBulkPending(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const { error } = await supabase
+        .from("candidates")
+        .update({ status: "مرفوض", stage: "مرفوض", updated_at: nowIso })
+        .in("id", selectedCandidateIds);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      toast({
+        title: `تم رفض ${selectedCandidateIds.length} مرشحين`,
+      });
+      handleClearSelection();
+    } catch (err: any) {
+      toast({
+        title: "❌ حدث خطأ أثناء الرفض الجماعي",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkPending(false);
+    }
+  }, [selectedCandidateIds, queryClient, handleClearSelection]);
+
+  const handleBulkWhatsApp = useCallback(() => {
+    const selectedCands = (candidates || []).filter((c) => selectedCandidateIds.includes(c.id));
+    const phones = selectedCands
+      .map((c) => (c.phone || "").replace(/[^0-9]/g, ""))
+      .filter(Boolean);
+
+    if (phones.length === 0) {
+      toast({
+        title: "لا توجد أرقام هواتف مسجلة للمرشحين المحددين",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    window.open(`https://wa.me/${phones[0]}`, "_blank");
+    toast({
+      title: `تم فتح محادثة WhatsApp للمرشح الأول (${selectedCands[0]?.name})`,
+      description: `يوجد ${phones.length} أرقام مسجلة من أصل ${selectedCands.length} محددين`,
+    });
+  }, [candidates, selectedCandidateIds]);
+
+  const selectedForCompare = useMemo(() => {
+    return (candidates || []).filter((c) => selectedCandidateIds.includes(c.id));
+  }, [candidates, selectedCandidateIds]);
+
+  const handlePromoteCandidate = useCallback((candidateId: string) => {
+    const candidate = candidates?.find((c) => c.id === candidateId);
+    if (!candidate) return;
+
+    const currentStageIndex = STAGES.findIndex((s) => s.id === candidate.stage);
+    const nextStage = currentStageIndex >= 0 && currentStageIndex < STAGES.length - 1
+      ? STAGES[currentStageIndex + 1].id
+      : null;
+
+    if (!nextStage) {
+      toast({ title: "المرشح وصل بالفعل إلى المرحلة الأخيرة أو غير محدد" });
+      return;
+    }
+
+    handleMoveCandidate(candidateId, nextStage);
+    confetti({ particleCount: 60, spread: 70, origin: { y: 0.7 } });
+    toast({
+      title: `🚀 تم ترقية ${candidate.name} إلى مرحلة (${nextStage})`,
+    });
+  }, [candidates, STAGES, handleMoveCandidate]);
+
   const hasFilters = search || jobFilter !== "all" || scoreFilter !== "all";
 
   return (
@@ -731,7 +900,28 @@ export default function Pipeline() {
                   ) : (
                     grouped[stage.id]?.map((candidate) => {
                       const response = (assessmentResponses || []).find(r => r.candidate_email === candidate.email);
-                      return <DraggableCard key={candidate.id} candidate={candidate} response={response} />;
+                      return (
+                        <DraggableCard
+                          key={candidate.id}
+                          candidate={candidate}
+                          response={response}
+                          isSelected={selectedCandidateIds.includes(candidate.id)}
+                          onToggleSelect={() => handleToggleSelect(candidate.id)}
+                          onQuickPeek={(c) => setQuickPeekCandidate(c)}
+                          onWhatsAppDirect={(c) => {
+                            const cleanPhone = (c.phone || "").replace(/[^0-9]/g, "");
+                            if (!cleanPhone) {
+                              toast({ title: "لا يوجد رقم هاتف مسجل للمرشح", variant: "destructive" });
+                              return;
+                            }
+                            window.open(`https://wa.me/${cleanPhone}`, "_blank");
+                          }}
+                          onReject={(id, name) => setRejectionTarget({ candidateId: id, candidateName: name })}
+                          onDefer={(id) => deferCandidate.mutate({ candidateId: id })}
+                          onRestore={(id, orig) => restoreCandidate.mutate({ candidateId: id, originalStage: orig })}
+                          stageSlaHours={stage.sla_hours}
+                        />
+                      );
                     })
                   )}
                 </DroppableColumn>
@@ -823,10 +1013,20 @@ export default function Pipeline() {
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <Link to={`/candidates/${candidate.id}`}
-                            className="text-sm font-semibold text-foreground hover:text-primary transition-colors block truncate">
-                            {candidate.name}
-                          </Link>
+                          <div className="flex items-center gap-1.5">
+                            <Link to={`/candidates/${candidate.id}`}
+                              className="text-sm font-semibold text-foreground hover:text-primary transition-colors block truncate">
+                              {candidate.name}
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => setQuickPeekCandidate(candidate)}
+                              className="text-muted-foreground hover:text-primary transition-colors p-0.5"
+                              title="معاينة سريعة"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                           <p className="text-xs text-muted-foreground truncate">
                             {candidate.role || "—"}
                             {candidate.ai_score != null && (
@@ -1149,6 +1349,37 @@ export default function Pipeline() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Enhanced Floating Bulk Action Bar */}
+      <PipelineBulkActionBar
+        selectedCount={selectedCandidateIds.length}
+        stages={STAGES.map((s) => ({ id: s.id, label: s.label }))}
+        targetStage={bulkTargetStage}
+        setTargetStage={setBulkTargetStage}
+        onBulkMove={handleBulkMove}
+        onBulkReject={handleBulkReject}
+        onClearSelection={handleClearSelection}
+        onCompareCandidates={() => setIsCompareOpen(true)}
+        onSendBulkWhatsApp={handleBulkWhatsApp}
+        isPending={isBulkPending}
+      />
+
+      {/* Candidate Quick Peek Drawer */}
+      <CandidateQuickPeekDrawer
+        candidate={quickPeekCandidate}
+        isOpen={!!quickPeekCandidate}
+        onClose={() => setQuickPeekCandidate(null)}
+        stages={STAGES.map((s) => ({ id: s.id, label: s.label }))}
+        onMoveStage={(id, stage) => handleMoveCandidate(id, stage)}
+      />
+
+      {/* Side-by-Side Candidate Comparison Modal */}
+      <PipelineCompareModal
+        isOpen={isCompareOpen}
+        onClose={() => setIsCompareOpen(false)}
+        candidates={selectedForCompare}
+        onPromoteCandidate={(id) => handlePromoteCandidate(id)}
+      />
     </DashboardLayout>
   );
 }
