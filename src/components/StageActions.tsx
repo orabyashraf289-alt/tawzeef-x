@@ -138,7 +138,9 @@ export default function StageActions(props: StageActionsProps) {
   const candidateRole = props.candidateRole ?? candidate?.role ?? null;
   const queryClient = useQueryClient();
   const activeStages = useActiveStages();
-  const STAGES = activeStages.length > 0 ? activeStages.map(s => s.name) : FALLBACK_STAGES;
+  const STAGES: string[] = activeStages.length > 0
+    ? activeStages.map(s => s.name)
+    : FALLBACK_STAGES.map(s => (typeof s === "string" ? s : (s as any).name || (s as any).id || String(s)));
   const [loading, setLoading] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
@@ -619,8 +621,10 @@ export default function StageActions(props: StageActionsProps) {
   const interviewRequired = isCurrentAnInterviewStage && (currentStageObj?.transition_rules?.require_interview ?? true) && !hasCompletedInterview;
 
   const handleApprove = async (targetStageOverride?: string) => {
-    const target = targetStageOverride || nextStage;
-    if (!target) return;
+    // Guard: ensure we never receive a DOM Event or object as the override
+    const safeOverride = typeof targetStageOverride === "string" ? targetStageOverride : undefined;
+    const target = safeOverride || nextStage;
+    if (!target || typeof target !== "string") return;
 
     // Gate: ONLY real interview stages require a completed interview
     if (interviewRequired) {
@@ -1496,7 +1500,7 @@ export default function StageActions(props: StageActionsProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row-reverse gap-2">
-            <AlertDialogAction onClick={handleApprove} className="gradient-primary border-0 text-primary-foreground">
+            <AlertDialogAction onClick={() => handleApprove()} className="gradient-primary border-0 text-primary-foreground">
               تأكيد النقل
             </AlertDialogAction>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
