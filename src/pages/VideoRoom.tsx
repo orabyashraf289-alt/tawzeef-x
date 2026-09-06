@@ -146,7 +146,8 @@ export default function VideoRoom() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const jitsiContainerRef = useRef<HTMLDivElement>(null);
+  const jitsiApiRef = useRef<any>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -555,12 +556,86 @@ ${aiReport.communication}`;
 
   // Auto-scroll transcript
   useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
+transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [speech.transcript, speech.interimTranscript]);
 
   const jitsiDomain = "meet.jit.si";
   const roomName = roomId || `tawzeef-x-interview-${Date.now()}`;
-  const jitsiUrl = `https://${jitsiDomain}/${roomName}#config.prejoinConfig.enabled=true&config.startWithAudioMuted=false&config.startWithVideoMuted=false&config.disableDeepLinking=true&interfaceConfig.SHOW_JITSI_WATERMARK=false&interfaceConfig.SHOW_WATERMARK_FOR_GUESTS=false&interfaceConfig.DEFAULT_BACKGROUND="#1a1a2e"`;
+
+  // ——— Jitsi IFrame API initialization ———
+  useEffect(() => {
+    if (!jitsiContainerRef.current) return;
+
+    const initJitsi = () => {
+      if (!jitsiContainerRef.current) return;
+      // Destroy any previous instance
+      if (jitsiApiRef.current) {
+        try { jitsiApiRef.current.dispose(); } catch {}
+        jitsiApiRef.current = null;
+      }
+
+      const api = new (window as any).JitsiMeetExternalAPI(jitsiDomain, {
+        roomName,
+        parentNode: jitsiContainerRef.current,
+        width: "100%",
+        height: "100%",
+        lang: "ar",
+        userInfo: {
+          displayName: candidateName || "مشارك",
+        },
+        configOverwrite: {
+          prejoinConfig: { enabled: false },
+          startWithAudioMuted: false,
+          startWithVideoMuted: false,
+          disableDeepLinking: true,
+          enableWelcomePage: false,
+          toolbarButtons: [
+            "microphone", "camera", "closedcaptions", "desktop",
+            "fullscreen", "fodeviceselection", "hangup", "chat",
+            "raisehand", "videoquality", "filmstrip", "tileview", "settings",
+          ],
+        },
+        interfaceConfigOverwrite: {
+          SHOW_JITSI_WATERMARK: false,
+          SHOW_WATERMARK_FOR_GUESTS: false,
+          DEFAULT_BACKGROUND: "#1a1a2e",
+          TOOLBAR_ALWAYS_VISIBLE: true,
+        },
+      });
+
+      api.addEventListener("videoConferenceJoined", () => setIsLoaded(true));
+      api.addEventListener("readyToClose", () => navigate("/interviews"));
+      jitsiApiRef.current = api;
+    };
+
+    // Load the external_api.js script if not already loaded
+    if ((window as any).JitsiMeetExternalAPI) {
+      initJitsi();
+    } else {
+      const existingScript = document.getElementById("jitsi-external-api");
+      if (existingScript) {
+        existingScript.addEventListener("load", initJitsi);
+      } else {
+        const script = document.createElement("script");
+        script.id = "jitsi-external-api";
+        script.src = `https://${jitsiDomain}/external_api.js`;
+        script.async = true;
+        script.onload = initJitsi;
+        script.onerror = () => {
+          toast({ title: "فشل تحميل غرفة المقابلة", description: "تعذّر الاتصال بخادم Jitsi", variant: "destructive" });
+        };
+        document.head.appendChild(script);
+      }
+    }
+
+    return () => {
+      if (jitsiApiRef.current) {
+        try { jitsiApiRef.current.dispose(); } catch {}
+        jitsiApiRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomName]);
 
   const shareLink = `${window.location.origin}/meeting/${roomName}${candidateName ? `?name=${encodeURIComponent(candidateName)}&position=${encodeURIComponent(position)}` : ""}`;
 
@@ -725,12 +800,10 @@ ${aiReport.communication}`;
               <p className="text-sm text-muted-foreground">جاري تحميل غرفة المقابلة...</p>
             </div>
           )}
-          <iframe
-            ref={iframeRef}
-            src={jitsiUrl}
-            className="w-full h-full border-0"
-            allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write"
-            onLoad={() => setIsLoaded(true)}
+          <div
+            ref={jitsiContainerRef}
+            className="w-full h-full"
+            style={{ backgroundColor: "#1a1a2e" }}
           />
 
           {/* Live caption overlay */}
