@@ -1,6 +1,18 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
+import { getErrorMessage } from "../_shared/errorMessage.ts";
+
+// A tool call in the OpenAI-compatible function-calling format used by the AI provider here.
+interface ToolCall {
+  id: string;
+  function: { name: string; arguments: string };
+}
+
+// Actions returned to the frontend describe a UI side-effect (a card to render, etc.).
+// The exact payload varies by `type`, so beyond that discriminator we keep it as a
+// loosely-typed record rather than `any` — every field is read defensively downstream anyway.
+type ChatAction = { type: string } & Record<string, unknown>;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -390,7 +402,7 @@ async function buildUserContext(userId: string): Promise<string> {
 // ============================================================================
 // TOOL HANDLERS
 // ============================================================================
-async function handleToolCall(tc: any, userId: string): Promise<{ result: string; action?: any }> {
+async function handleToolCall(tc: ToolCall, userId: string): Promise<{ result: string; action?: ChatAction }> {
   const admin = getAdminClient();
   const args = JSON.parse(tc.function.arguments);
 
@@ -411,7 +423,7 @@ async function handleToolCall(tc: any, userId: string): Promise<{ result: string
     case "update_job": {
       const { data: jobs } = await admin.from("jobs").select("*").eq("user_id", userId).ilike("title", `%${args.job_title_search}%`).limit(1);
       if (!jobs?.length) return { result: JSON.stringify({ error: `لم يتم العثور على وظيفة "${args.job_title_search}"` }) };
-      const updates: any = {};
+      const updates: Record<string, unknown> = {};
       for (const k of ["title", "department", "location", "type", "description", "requirements", "experience_level", "status"]) { if (args[k]) updates[k] = args[k]; }
       if (args.salary_min !== undefined) updates.salary_min = args.salary_min;
       if (args.salary_max !== undefined) updates.salary_max = args.salary_max;
@@ -459,7 +471,7 @@ async function handleToolCall(tc: any, userId: string): Promise<{ result: string
     }
 
     case "bulk_move_candidates": {
-      const moved: any[] = [];
+      const moved: { name: string; old_stage: string; new_stage: string }[] = [];
       const failed: string[] = [];
       for (const name of args.candidate_names) {
         const { data: candidates } = await admin.from("candidates").select("id, name, stage").eq("user_id", userId).ilike("name", `%${name}%`).limit(1);
@@ -606,7 +618,7 @@ async function handleToolCall(tc: any, userId: string): Promise<{ result: string
       const allInterviews = interviews || [];
       const allOffers = offers || [];
 
-      let stats: any = {};
+      let stats: Record<string, unknown> = {};
       if (reportType === "overview" || reportType === "pipeline") {
         const stages: Record<string, number> = {};
         allCandidates.forEach(c => { const s = c.stage || "تقديم الطلب"; stages[s] = (stages[s] || 0) + 1; });
@@ -680,8 +692,8 @@ async function handleToolCall(tc: any, userId: string): Promise<{ result: string
           result: JSON.stringify({ success: sent, candidate_name: candidate.name, email: candidate.email, subject: args.subject }),
           action: { type: "email_sent", email: { candidate_name: candidate.name, to: candidate.email, subject: args.subject, success: sent } },
         };
-      } catch (e: any) {
-        return { result: JSON.stringify({ error: "فشل إرسال البريد: " + (e.message || "غير معروف") }) };
+      } catch (e) {
+        return { result: JSON.stringify({ error: "فشل إرسال البريد: " + getErrorMessage(e, "غير معروف") }) };
       }
     }
 
@@ -817,7 +829,7 @@ async function handleToolCall(tc: any, userId: string): Promise<{ result: string
       ];
 
       // Build tailored list
-      const selectedQuestions: any[] = [];
+      const selectedQuestions: { matchKeyword?: string; question: string; expectedAnswer: string; category: string; difficulty: string }[] = [];
       const lowerJob = jobTitle.toLowerCase();
       const matchedTech = techPool.filter(q => 
         lowerJob.includes(q.matchKeyword) || 
@@ -931,7 +943,7 @@ async function handleToolCall(tc: any, userId: string): Promise<{ result: string
 // ============================================================================
 // SMART FALLBACK RESPONSE GENERATOR
 // ============================================================================
-function generateSmartFallbackResponse(prompt: string, user?: any): { content: string; actions: any[] } {
+function generateSmartFallbackResponse(prompt: string, user?: unknown): { content: string; actions: ChatAction[] } {
   const p = (prompt || "").toLowerCase();
   
   // 1. Create Job Intent
@@ -1133,7 +1145,7 @@ ${userContext}
      - الراتب المتوقع: [الحد الأدنى - الحد الأقصى ر.س]`;
 
 
-    async function fetchWithRetry(url: string, opts: any, retries = 3, delayMs = 800): Promise<Response> {
+    async function fetchWithRetry(url: string, opts: RequestInit, retries = 3, delayMs = 800): Promise<Response> {
       let r = await fetch(url, opts);
       let attempt = 0;
       while (r.status === 429 && attempt < retries) {
@@ -1254,16 +1266,16 @@ ${userContext}
       return new Response(JSON.stringify({ type: "text", content: "يجب تسجيل الدخول أولاً." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const toolResults: any[] = [];
-    const actions: any[] = [];
+    const toolResults: { tool_call_id: string; role: "tool"; content: string }[] = [];
+    const actions: ChatAction[] = [];
     for (const tc of toolCalls) {
       try {
         const { result, action } = await handleToolCall(tc, user.id);
         toolResults.push({ tool_call_id: tc.id, role: "tool", content: result });
         if (action) actions.push(action);
-      } catch (e: any) {
+      } catch (e) {
         console.error("Tool call error:", tc.function.name, e);
-        toolResults.push({ tool_call_id: tc.id, role: "tool", content: JSON.stringify({ error: "فشل تنفيذ الأداة: " + (e.message || "خطأ غير معروف") }) });
+        toolResults.push({ tool_call_id: tc.id, role: "tool", content: JSON.stringify({ error: "فشل تنفيذ الأداة: " + getErrorMessage(e, "خطأ غير معروف") }) });
       }
     }
 
@@ -1314,8 +1326,8 @@ ${userContext}
   }
 });
 
-function buildNonStreamResponse(content: string, actions: any[]): any {
-  const responseData: any = { type: "text", content };
+function buildNonStreamResponse(content: string, actions: ChatAction[]): Record<string, unknown> {
+  const responseData: Record<string, unknown> = { type: "text", content };
   for (const a of actions) {
     if (a.type === "job_preview") { responseData.type = "job_preview"; responseData.job_data = a.job_data; }
     else if (a.type === "job_created") { responseData.type = "job_created"; responseData.job = a.job; }
