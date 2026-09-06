@@ -153,6 +153,46 @@ export default function CandidateProfile() {
 
       const { data: app } = await appQuery.maybeSingle();
       if (app) {
+        // Check if there is already a candidate record in candidates table with the same email and job_id!
+        if (app.email && app.job_id) {
+          const { data: linkedCand } = await supabase
+            .from("candidates")
+            .select("*, candidate_scorecards(rating), jobs(title)")
+            .eq("job_id", app.job_id)
+            .ilike("email", app.email.trim())
+            .maybeSingle();
+          if (linkedCand) return linkedCand;
+        }
+
+        // If no candidate record exists in candidates, auto-seed one so stage changes persist permanently
+        try {
+          const { data: newCand, error: seedErr } = await supabase
+            .from("candidates")
+            .upsert({
+              id: app.id,
+              name: app.name,
+              email: app.email,
+              phone: app.phone,
+              job_id: app.job_id,
+              company_id: (app as any).company_id || null,
+              role: (app as any).jobs?.title || app.specialty || "متقدم جديد",
+              stage: "تقديم الطلب",
+              status: app.status || "قيد المراجعة",
+              experience: app.experience || null,
+              resume_url: app.resume_url || null,
+              skills: app.skills || null,
+              summary: app.cover_letter || null,
+              source: "رابط التقديم المباشر",
+              tracking_code: (app as any).tracking_code || null,
+            })
+            .select("*, candidate_scorecards(rating), jobs(title)")
+            .maybeSingle();
+
+          if (newCand && !seedErr) return newCand;
+        } catch (e) {
+          console.warn("Auto-seed candidate notice:", e);
+        }
+
         return {
           id: app.id,
           name: app.name,

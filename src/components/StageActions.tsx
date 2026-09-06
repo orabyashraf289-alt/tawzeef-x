@@ -653,23 +653,67 @@ export default function StageActions(props: StageActionsProps) {
       const nowIso = new Date().toISOString();
 
       // 1. Direct PostgreSQL DB stage update for candidates
-      const { error: dbErr } = await supabase
+      const newStatus = target === "العرض الوظيفي" ? "مقبول" : status === "مرفوض" ? "مرفوض" : "قيد المراجعة";
+      const { data: updatedRows, error: dbErr } = await supabase
         .from("candidates")
         .update({
           stage: target,
           stage_entered_at: nowIso,
-          updated_at: nowIso
+          updated_at: nowIso,
+          status: newStatus,
         })
-        .eq("id", candidateId);
+        .eq("id", candidateId)
+        .select("id");
 
       if (dbErr) throw dbErr;
+
+      // If no candidate row was updated by candidateId, update by email/job_id or upsert
+      if (!updatedRows || updatedRows.length === 0) {
+        let updatedByEmail = false;
+        if (candidateEmail && jobId) {
+          const { data: emailRows } = await supabase
+            .from("candidates")
+            .update({
+              stage: target,
+              stage_entered_at: nowIso,
+              updated_at: nowIso,
+              status: newStatus,
+            })
+            .eq("job_id", jobId)
+            .ilike("email", candidateEmail.trim())
+            .select("id");
+          if (emailRows && emailRows.length > 0) {
+            updatedByEmail = true;
+          }
+        }
+
+        if (!updatedByEmail) {
+          await supabase.from("candidates").upsert({
+            id: candidateId,
+            name: candidateName,
+            email: candidateEmail,
+            phone: candidate?.phone || null,
+            job_id: jobId,
+            company_id: candidate?.company_id || null,
+            role: candidateRole || candidate?.role || "مرشح",
+            stage: target,
+            status: newStatus,
+            tracking_code: candidate?.tracking_code || null,
+            resume_url: candidate?.resume_url || null,
+            skills: candidate?.skills || null,
+            experience: candidate?.experience || null,
+            source: candidate?.source || "رابط التقديم المباشر",
+            updated_at: nowIso,
+          });
+        }
+      }
 
       // Also sync applications table status if applicable
       try {
         await supabase
           .from("applications")
           .update({
-            status: target === "العرض الوظيفي" ? "مقبول" : "قيد المراجعة",
+            status: newStatus,
             updated_at: nowIso
           })
           .eq("id", candidateId);
@@ -751,9 +795,9 @@ export default function StageActions(props: StageActionsProps) {
 
       // Invalidate all candidate and stage queries so UI updates immediately
       await queryClient.invalidateQueries({ queryKey: ["candidates"] });
-      // Force immediate refetch of the direct candidate detail (staleTime=0 so invalidation alone is enough)
-      await queryClient.refetchQueries({ queryKey: ["candidate-detail-direct", candidateId] });
-      await queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
+      await queryClient.invalidateQueries({ queryKey: ["candidate-detail-direct"] });
+      await queryClient.refetchQueries({ queryKey: ["candidate-detail-direct"] });
+      await queryClient.invalidateQueries({ queryKey: ["candidate"] });
       await queryClient.invalidateQueries({ queryKey: ["interviews"] });
       await queryClient.invalidateQueries({ queryKey: ["applications"] });
       await queryClient.invalidateQueries({ queryKey: ["pipeline_stages"] });
@@ -783,16 +827,43 @@ export default function StageActions(props: StageActionsProps) {
       const nowIso = new Date().toISOString();
 
       // 1. Direct PostgreSQL DB status update
-      const { error: dbErr } = await supabase
+      const { data: updatedRows, error: dbErr } = await supabase
         .from("candidates")
         .update({
           status: "مرفوض",
           notes: rejectionReason ? `سبب الرفض: ${rejectionReason}` : undefined,
           updated_at: nowIso
         })
-        .eq("id", candidateId);
+        .eq("id", candidateId)
+        .select("id");
 
       if (dbErr) throw dbErr;
+
+      if (!updatedRows || updatedRows.length === 0) {
+        if (candidateEmail && jobId) {
+          await supabase
+            .from("candidates")
+            .update({
+              status: "مرفوض",
+              notes: rejectionReason ? `سبب الرفض: ${rejectionReason}` : undefined,
+              updated_at: nowIso
+            })
+            .eq("job_id", jobId)
+            .ilike("email", candidateEmail.trim());
+        }
+      }
+
+      // Also update applications table
+      try {
+        await supabase
+          .from("applications")
+          .update({
+            status: "مرفوض",
+          })
+          .eq("id", candidateId);
+      } catch {
+        // ignore
+      }
 
       const { data: { user } } = await supabase.auth.getUser();
       try {
@@ -832,7 +903,9 @@ export default function StageActions(props: StageActionsProps) {
       }
 
       await queryClient.invalidateQueries({ queryKey: ["candidates"] });
-      await queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
+      await queryClient.invalidateQueries({ queryKey: ["candidate-detail-direct"] });
+      await queryClient.refetchQueries({ queryKey: ["candidate-detail-direct"] });
+      await queryClient.invalidateQueries({ queryKey: ["candidate"] });
 
       toast({
         title: `تم رفض ${candidateName}`,

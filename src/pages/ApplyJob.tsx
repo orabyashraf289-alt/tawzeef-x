@@ -308,8 +308,7 @@ export default function ApplyJob() {
       console.warn("Applications insert notice:", e);
     }
 
-    // 2. Insert or update candidate in Candidates table
-    let insertedCandidateId: string | null = null;
+    // 2. Insert or update candidate in Candidates table (non-blocking)
     try {
       const expNum = parseInt(form.experience || "0", 10) || 0;
       let calculatedScore = 74;
@@ -335,58 +334,19 @@ export default function ApplyJob() {
         recommendation: calculatedScore >= 80 ? "موصى به بقوة للمقابلة" : "مناسب للفرز الأولي",
       };
 
-      // Check if trigger already created the candidate
-      const { data: existingCands } = await supabase
-        .from("candidates")
-        .select("id")
-        .eq("job_id", id)
-        .eq("email", cleanEmail)
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      if (existingCands && existingCands.length > 0) {
-        insertedCandidateId = existingCands[0].id;
-        await supabase.from("candidates").update({
-          ai_score: calculatedScore,
-          ai_evaluation: JSON.stringify(calculatedAiEvaluation),
-          tracking_code: finalTrackingCode,
-          license_number: form.licenseNumber || null,
-          license_expiry: form.licenseExpiry || null,
-          university_degree: form.universityDegree || null,
-          demo_video_url: form.demoVideoUrl || null,
-          resume_url: resumeUrl || undefined,
-        } as any).eq("id", insertedCandidateId);
-      } else {
-        const { data: directCand } = await supabase.from("candidates").insert({
-          name: form.name.trim(),
-          email: cleanEmail,
-          phone: cleanPhone,
-          job_id: id,
-          user_id: job?.user_id || null,
-          company_id: job?.company_id || null,
-          role: job?.title || form.currentTitle || "مرشح جديد",
-          stage: "تقديم الطلب",
-          status: "قيد المراجعة",
-          experience: form.experience || null,
-          resume_url: resumeUrl,
-          skills: skills.length > 0 ? skills : null,
-          summary: form.coverLetter || null,
-          source: "رابط التقديم المباشر",
-          tracking_code: finalTrackingCode,
-          license_number: form.licenseNumber || null,
-          license_expiry: form.licenseExpiry || null,
-          university_degree: form.universityDegree || null,
-          demo_video_url: form.demoVideoUrl || null,
-          ai_score: calculatedScore,
-          ai_evaluation: JSON.stringify(calculatedAiEvaluation),
-        } as any).select("id").maybeSingle();
-
-        if (directCand) {
-          insertedCandidateId = directCand.id;
-        }
-      }
+      // Ensure candidates table has the tracking code, score, and credentials
+      await supabase.from("candidates").update({
+        ai_score: calculatedScore,
+        ai_evaluation: JSON.stringify(calculatedAiEvaluation),
+        tracking_code: finalTrackingCode,
+        license_number: form.licenseNumber || null,
+        license_expiry: form.licenseExpiry || null,
+        university_degree: form.universityDegree || null,
+        demo_video_url: form.demoVideoUrl || null,
+        resume_url: resumeUrl || undefined,
+      } as any).eq("job_id", id).ilike("email", cleanEmail);
     } catch (e) {
-      console.warn("Direct candidate insert notice:", e);
+      console.warn("Direct candidate update notice:", e);
     }
 
     // 3. Always trigger account creation and AI evaluation
@@ -399,12 +359,6 @@ export default function ApplyJob() {
         job_title: job?.title,
       },
     }).catch(err => console.warn("Auto account creation notice:", err));
-
-    if (insertedCandidateId) {
-      supabase.functions.invoke("evaluate-candidate", {
-        body: { candidateId: insertedCandidateId, jobId: id },
-      }).catch(err => console.warn("Background AI evaluation notice:", err));
-    }
 
     setTrackingCode(finalTrackingCode);
     setSubmitted(true);
