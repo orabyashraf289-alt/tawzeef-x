@@ -125,10 +125,12 @@ interface StageActionsProps {
   jobId?: string | null;
   candidateRole?: string | null;
   candidate?: any;
+  onStageChange?: (newStage: string, newStatus: string) => void;
 }
 
 export default function StageActions(props: StageActionsProps) {
   const candidate = props.candidate;
+  const onStageChange = props.onStageChange;
   const candidateId = props.candidateId || candidate?.id || "";
   const candidateName = props.candidateName || candidate?.name || "مرشح";
   const candidateEmail = props.candidateEmail ?? candidate?.email ?? null;
@@ -618,9 +620,13 @@ export default function StageActions(props: StageActionsProps) {
 
   const handleFinalApproval = async () => {
     setLoading(true);
+    onStageChange?.("العرض الوظيفي", "مقبول");
     try {
       const nowIso = new Date().toISOString();
-      const { error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // 1. Direct update candidates by id
+      await supabase
         .from("candidates")
         .update({
           stage: "العرض الوظيفي",
@@ -630,22 +636,65 @@ export default function StageActions(props: StageActionsProps) {
         })
         .eq("id", candidateId);
 
-      if (error) throw error;
+      // 2. Also update candidates by email and jobId
+      if (candidateEmail && jobId) {
+        await supabase
+          .from("candidates")
+          .update({
+            stage: "العرض الوظيفي",
+            status: "مقبول",
+            stage_entered_at: nowIso,
+            updated_at: nowIso,
+          })
+          .eq("job_id", jobId)
+          .ilike("email", candidateEmail.trim());
+      }
 
+      // 3. Upsert candidates with user_id to ensure row exists and satisfies RLS
+      await supabase.from("candidates").upsert({
+        id: candidateId,
+        user_id: user?.id || (candidate as any)?.user_id || null,
+        company_id: (candidate as any)?.company_id || null,
+        job_id: jobId || (candidate as any)?.job_id || null,
+        name: candidateName,
+        email: candidateEmail || (candidate as any)?.email || null,
+        phone: (candidate as any)?.phone || null,
+        role: candidateRole || (candidate as any)?.role || "مرشح",
+        stage: "العرض الوظيفي",
+        status: "مقبول",
+        stage_entered_at: nowIso,
+        updated_at: nowIso,
+        tracking_code: (candidate as any)?.tracking_code || null,
+        license_number: (candidate as any)?.license_number || null,
+        license_expiry: (candidate as any)?.license_expiry || null,
+        university_degree: (candidate as any)?.university_degree || null,
+        demo_video_url: (candidate as any)?.demo_video_url || null,
+        resume_url: (candidate as any)?.resume_url || null,
+        skills: (candidate as any)?.skills || null,
+        experience: (candidate as any)?.experience || null,
+        source: (candidate as any)?.source || "رابط التقديم المباشر",
+      });
+
+      // 4. Update applications table status
       try {
         await supabase
           .from("applications")
           .update({
             status: "مقبول",
-            updated_at: nowIso,
           })
           .eq("id", candidateId);
+        if (candidateEmail && jobId) {
+          await supabase
+            .from("applications")
+            .update({ status: "مقبول" })
+            .eq("job_id", jobId)
+            .ilike("email", candidateEmail.trim());
+        }
       } catch {
         // ignore
       }
 
-      // Record stage transition
-      const { data: { user } } = await supabase.auth.getUser();
+      // 5. Record stage transition
       try {
         await supabase.from("candidate_stage_transitions").insert({
           candidate_id: candidateId,
@@ -658,8 +707,19 @@ export default function StageActions(props: StageActionsProps) {
         console.warn("Failed saving transition history:", err);
       }
 
+      // Direct React Query cache updates
+      queryClient.setQueryData(["candidate-detail-direct", candidateId], (old: any) => {
+        if (!old) return old;
+        return { ...old, stage: "العرض الوظيفي", status: "مقبول" };
+      });
+      queryClient.setQueryData(["candidate", candidateId], (old: any) => {
+        if (!old) return old;
+        return { ...old, stage: "العرض الوظيفي", status: "مقبول" };
+      });
+
       await queryClient.invalidateQueries({ queryKey: ["candidates"] });
       await queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
+      await queryClient.invalidateQueries({ queryKey: ["candidate-detail-direct"] });
       await queryClient.invalidateQueries({ queryKey: ["applications"] });
 
       triggerAIEvaluation();
@@ -685,6 +745,11 @@ export default function StageActions(props: StageActionsProps) {
     const target = safeOverride || nextStage;
     if (!target || typeof target !== "string") return;
 
+    const newStatus = target === "العرض الوظيفي" ? "مقبول" : status === "مرفوض" ? "مرفوض" : "قيد المراجعة";
+
+    // 0. Immediate optimistic callback to parent UI
+    onStageChange?.(target, newStatus);
+
     // If moving forward from an interview stage with a scheduled interview, auto-mark it completed
     if (hasScheduledInterview) {
       try {
@@ -704,10 +769,10 @@ export default function StageActions(props: StageActionsProps) {
 
     try {
       const nowIso = new Date().toISOString();
+      const { data: { user } } = await supabase.auth.getUser();
 
-      // 1. Direct PostgreSQL DB stage update for candidates
-      const newStatus = target === "العرض الوظيفي" ? "مقبول" : status === "مرفوض" ? "مرفوض" : "قيد المراجعة";
-      const { data: updatedRows, error: dbErr } = await supabase
+      // 1. Direct PostgreSQL DB stage update for candidates by id
+      await supabase
         .from("candidates")
         .update({
           stage: target,
@@ -715,66 +780,67 @@ export default function StageActions(props: StageActionsProps) {
           updated_at: nowIso,
           status: newStatus,
         })
-        .eq("id", candidateId)
-        .select("id");
+        .eq("id", candidateId);
 
-      if (dbErr) throw dbErr;
-
-      // If no candidate row was updated by candidateId, update by email/job_id or upsert
-      if (!updatedRows || updatedRows.length === 0) {
-        let updatedByEmail = false;
-        if (candidateEmail && jobId) {
-          const { data: emailRows } = await supabase
-            .from("candidates")
-            .update({
-              stage: target,
-              stage_entered_at: nowIso,
-              updated_at: nowIso,
-              status: newStatus,
-            })
-            .eq("job_id", jobId)
-            .ilike("email", candidateEmail.trim())
-            .select("id");
-          if (emailRows && emailRows.length > 0) {
-            updatedByEmail = true;
-          }
-        }
-
-        if (!updatedByEmail) {
-          await supabase.from("candidates").upsert({
-            id: candidateId,
-            name: candidateName,
-            email: candidateEmail,
-            phone: candidate?.phone || null,
-            job_id: jobId,
-            company_id: candidate?.company_id || null,
-            role: candidateRole || candidate?.role || "مرشح",
+      // 2. Also update by email/job_id if candidate exists under matching email
+      if (candidateEmail && jobId) {
+        await supabase
+          .from("candidates")
+          .update({
             stage: target,
-            status: newStatus,
-            tracking_code: candidate?.tracking_code || null,
-            resume_url: candidate?.resume_url || null,
-            skills: candidate?.skills || null,
-            experience: candidate?.experience || null,
-            source: candidate?.source || "رابط التقديم المباشر",
+            stage_entered_at: nowIso,
             updated_at: nowIso,
-          });
-        }
+            status: newStatus,
+          })
+          .eq("job_id", jobId)
+          .ilike("email", candidateEmail.trim());
       }
 
-      // Also sync applications table status if applicable
+      // 3. Upsert into candidates to guarantee the row exists with user_id and company_id
+      await supabase.from("candidates").upsert({
+        id: candidateId,
+        user_id: user?.id || (candidate as any)?.user_id || null,
+        company_id: (candidate as any)?.company_id || null,
+        job_id: jobId || (candidate as any)?.job_id || null,
+        name: candidateName,
+        email: candidateEmail || (candidate as any)?.email || null,
+        phone: (candidate as any)?.phone || null,
+        role: candidateRole || (candidate as any)?.role || "مرشح",
+        stage: target,
+        status: newStatus,
+        stage_entered_at: nowIso,
+        updated_at: nowIso,
+        tracking_code: (candidate as any)?.tracking_code || null,
+        license_number: (candidate as any)?.license_number || null,
+        license_expiry: (candidate as any)?.license_expiry || null,
+        university_degree: (candidate as any)?.university_degree || null,
+        demo_video_url: (candidate as any)?.demo_video_url || null,
+        resume_url: (candidate as any)?.resume_url || null,
+        skills: (candidate as any)?.skills || null,
+        experience: (candidate as any)?.experience || null,
+        source: (candidate as any)?.source || "رابط التقديم المباشر",
+      });
+
+      // 4. Also sync applications table status if applicable
       try {
         await supabase
           .from("applications")
           .update({
             status: newStatus,
-            updated_at: nowIso
           })
           .eq("id", candidateId);
+        if (candidateEmail && jobId) {
+          await supabase
+            .from("applications")
+            .update({ status: newStatus })
+            .eq("job_id", jobId)
+            .ilike("email", candidateEmail.trim());
+        }
       } catch {
         // ignore if application does not match candidateId
       }
 
-      // 2. Auto-generate Jitsi interview room ONLY if advancing to an ACTUAL interview stage
+      // 5. Auto-generate Jitsi interview room ONLY if advancing to an ACTUAL interview stage
       const targetStageObj = activeStages.find(s => s.name === target);
       const isNextInterviewStage = isRealInterviewStage(target, targetStageObj);
 
@@ -812,8 +878,7 @@ export default function StageActions(props: StageActionsProps) {
         }
       }
 
-      // 3. Record stage transition history
-      const { data: { user } } = await supabase.auth.getUser();
+      // 6. Record stage transition history
       try {
         await supabase.from("candidate_stage_transitions").insert({
           candidate_id: candidateId,
@@ -826,7 +891,7 @@ export default function StageActions(props: StageActionsProps) {
         console.warn("Failed saving transition history:", err);
       }
 
-      // 4. Trigger email notification via notify-stage-change
+      // 7. Trigger email notification via notify-stage-change
       const { data: sessionData } = await supabase.auth.getSession();
       const authToken = sessionData.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
@@ -846,11 +911,20 @@ export default function StageActions(props: StageActionsProps) {
         console.warn("notify-stage-change edge function warning:", e);
       }
 
+      // Direct React Query cache update
+      queryClient.setQueryData(["candidate-detail-direct", candidateId], (old: any) => {
+        if (!old) return old;
+        return { ...old, stage: target, status: newStatus };
+      });
+      queryClient.setQueryData(["candidate", candidateId], (old: any) => {
+        if (!old) return old;
+        return { ...old, stage: target, status: newStatus };
+      });
+
       // Invalidate all candidate and stage queries so UI updates immediately
       await queryClient.invalidateQueries({ queryKey: ["candidates"] });
       await queryClient.invalidateQueries({ queryKey: ["candidate-detail-direct"] });
-      await queryClient.refetchQueries({ queryKey: ["candidate-detail-direct"] });
-      await queryClient.invalidateQueries({ queryKey: ["candidate"] });
+      await queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
       await queryClient.invalidateQueries({ queryKey: ["interviews"] });
       await queryClient.invalidateQueries({ queryKey: ["applications"] });
       await queryClient.invalidateQueries({ queryKey: ["pipeline_stages"] });

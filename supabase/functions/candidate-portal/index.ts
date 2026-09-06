@@ -175,25 +175,55 @@ serve(async (req) => {
         name: c.name,
         role: c.role || "متقدم للوظيفة",
         stage: c.stage || "تقديم الطلب",
-        status: c.status || "جديد",
+        status: c.status || "قيد المراجعة",
         skills: c.skills,
         trackingCode: c.tracking_code || formattedTxCode || c.id?.slice(0, 8).toUpperCase(),
         appliedAt: c.created_at,
         jobId: c.job_id
       })),
       ...matchedApps
-        .filter(a => !matchedCands.some(c => c.id === a.id || c.tracking_code === a.tracking_code))
-        .map(a => ({
-          id: a.id,
-          name: a.name,
-          role: a.specialty || "متقدم للوظيفة",
-          stage: "تقديم الطلب",
-          status: a.status || "جديد",
-          skills: a.skills,
-          trackingCode: a.tracking_code || formattedTxCode || a.id?.slice(0, 8).toUpperCase(),
-          appliedAt: a.created_at,
-          jobId: a.job_id
-        }))
+        .filter(a => !matchedCands.some(c => 
+          c.id === a.id || 
+          (c.tracking_code && a.tracking_code && c.tracking_code.toLowerCase() === a.tracking_code.toLowerCase()) ||
+          (c.email && a.email && c.email.toLowerCase() === a.email.toLowerCase() && c.job_id === a.job_id)
+        ))
+        .map(a => {
+          const linkedCand = (allCands || []).find(c => 
+            c.id === a.id || 
+            (c.email && a.email && c.email.toLowerCase() === a.email.toLowerCase() && c.job_id === a.job_id)
+          );
+          const resolvedStage = linkedCand?.stage || (a.status === "مقبول" ? "العرض الوظيفي" : "تقديم الطلب");
+          const resolvedStatus = linkedCand?.status || a.status || "قيد المراجعة";
+
+          // Auto-seed into candidates if missing so future updates have a record
+          if (!linkedCand) {
+            supabase.from("candidates").upsert({
+              id: a.id,
+              name: a.name,
+              email: a.email,
+              phone: a.phone,
+              job_id: a.job_id,
+              role: a.specialty || "متقدم جديد",
+              stage: resolvedStage,
+              status: resolvedStatus,
+              tracking_code: a.tracking_code || formattedTxCode,
+              skills: a.skills,
+              source: "رابط التقديم المباشر"
+            }, { onConflict: "id", ignoreDuplicates: true }).catch((e: any) => console.warn("Auto-seed cand notice:", e));
+          }
+
+          return {
+            id: a.id,
+            name: a.name,
+            role: a.specialty || "متقدم للوظيفة",
+            stage: resolvedStage,
+            status: resolvedStatus,
+            skills: a.skills,
+            trackingCode: a.tracking_code || formattedTxCode || a.id?.slice(0, 8).toUpperCase(),
+            appliedAt: a.created_at,
+            jobId: a.job_id
+          };
+        })
     ];
 
     if (mergedList.length === 0) {

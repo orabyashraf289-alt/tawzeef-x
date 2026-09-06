@@ -52,15 +52,19 @@ function PipelineProgress({ currentStage, stages }: { currentStage: string; stag
   // Use semantic matching: if exact match fails, try partial keyword match
   let currentIdx = stages.findIndex(s => s.id === currentStage);
   if (currentIdx === -1) {
-    currentIdx = stages.findIndex(s => {
-      const a = s.id.toLowerCase(); const b = (currentStage || "").toLowerCase();
-      if (/سيرة|cv|resume|screening/.test(b) && /سيرة|cv|resume|screening/.test(a)) return true;
-      if (/اختبار|assessment|test/.test(b) && /اختبار|assessment|test/.test(a)) return true;
-      if (/مقابلة.*(نهائية|أخيرة|final)/.test(b) && /مقابلة.*(نهائية|أخيرة|final)/.test(a)) return true;
-      if (/مقابلة|interview/.test(b) && /مقابلة|interview/.test(a)) return true;
-      if (/عرض|offer/.test(b) && /عرض|offer/.test(a)) return true;
-      return false;
-    });
+    if (/مقبول|معتمد|تعيين/.test((currentStage || "").toLowerCase())) {
+      currentIdx = stages.length - 1;
+    } else {
+      currentIdx = stages.findIndex(s => {
+        const a = s.id.toLowerCase(); const b = (currentStage || "").toLowerCase();
+        if (/سيرة|cv|resume|screening/.test(b) && /سيرة|cv|resume|screening/.test(a)) return true;
+        if (/اختبار|assessment|test/.test(b) && /اختبار|assessment|test/.test(a)) return true;
+        if (/مقابلة.*(نهائية|أخيرة|final)/.test(b) && /مقابلة.*(نهائية|أخيرة|final)/.test(a)) return true;
+        if (/مقابلة|interview/.test(b) && /مقابلة|interview/.test(a)) return true;
+        if (/عرض|offer|مقبول|تعيين/.test(b) && /عرض|offer/.test(a)) return true;
+        return false;
+      });
+    }
   }
 
   return (
@@ -234,23 +238,28 @@ export default function CandidatePortal() {
         }));
 
         const mappedApps: CandidateResult[] = (appsData || [])
-          .filter(a => !mappedCands.some(mc => mc.id === a.id || (a.tracking_code && mc.trackingCode === a.tracking_code)))
-          .map((a: any) => ({
-            id: a.id,
-            name: a.name,
-            role: a.specialty || a.jobs?.title || "متقدم للوظيفة",
-            stage: (a as any).stage || "تقديم الطلب",
-            status: a.status || "جديد",
-            skills: a.skills || null,
-            trackingCode: a.tracking_code || a.id?.slice(0, 8).toUpperCase(),
-            appliedAt: a.created_at,
-            jobTitle: a.jobs?.title || a.specialty || null,
-            aiScore: null,
-            licenseNumber: null,
-            licenseExpiry: null,
-            universityDegree: null,
-            demoVideoUrl: "",
-          }));
+          .filter(a => !mappedCands.some(mc => mc.id === a.id || (a.tracking_code && mc.trackingCode.toLowerCase() === a.tracking_code.toLowerCase())))
+          .map((a: any) => {
+            const correspondingCand = (candsData || []).find((c: any) => c.id === a.id || (c.email && a.email && c.email.toLowerCase() === a.email.toLowerCase() && c.job_id === a.job_id));
+            const resolvedStage = correspondingCand?.stage || (a.status === "مقبول" ? "العرض الوظيفي" : "تقديم الطلب");
+            const resolvedStatus = correspondingCand?.status || a.status || "قيد المراجعة";
+            return {
+              id: a.id,
+              name: a.name,
+              role: a.specialty || a.jobs?.title || "متقدم للوظيفة",
+              stage: resolvedStage,
+              status: resolvedStatus,
+              skills: a.skills || null,
+              trackingCode: a.tracking_code || a.id?.slice(0, 8).toUpperCase(),
+              appliedAt: a.created_at,
+              jobTitle: a.jobs?.title || a.specialty || null,
+              aiScore: null,
+              licenseNumber: a.license_number || null,
+              licenseExpiry: a.license_expiry || null,
+              universityDegree: a.university_degree || null,
+              demoVideoUrl: a.demo_video_url || "",
+            };
+          });
 
         const dbResults = [...mappedCands, ...mappedApps];
         if (dbResults.length > 0) {

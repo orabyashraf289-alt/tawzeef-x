@@ -97,15 +97,57 @@ Deno.serve(async (req) => {
       console.warn("Profiles upsert warning:", profileErr);
     }
 
-    // Update candidate record to associate user_id
+    // Ensure candidate row exists in candidates table
     if (cleanEmail) {
       try {
-        await supabaseAdmin
+        const { data: existingCand } = await supabaseAdmin
           .from("candidates")
-          .update({ user_id: userId, tracking_code: tracking_code || undefined })
-          .eq("email", cleanEmail);
+          .select("id")
+          .eq("email", cleanEmail)
+          .maybeSingle();
+
+        if (existingCand) {
+          await supabaseAdmin
+            .from("candidates")
+            .update({ user_id: userId, tracking_code: tracking_code || undefined })
+            .eq("id", existingCand.id);
+        } else {
+          // Look up latest application
+          const { data: latestApp } = await supabaseAdmin
+            .from("applications")
+            .select("*, jobs(title, user_id, company_id)")
+            .eq("email", cleanEmail)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (latestApp) {
+            await supabaseAdmin.from("candidates").insert({
+              id: latestApp.id,
+              user_id: latestApp.jobs?.user_id || userId,
+              company_id: latestApp.company_id || latestApp.jobs?.company_id || null,
+              job_id: latestApp.job_id,
+              name: latestApp.name || name,
+              email: cleanEmail,
+              phone: phone || latestApp.phone,
+              role: latestApp.jobs?.title || job_title || latestApp.specialty || "متقدم جديد",
+              stage: "تقديم الطلب",
+              status: "قيد المراجعة",
+              tracking_code: tracking_code || latestApp.tracking_code || null,
+              experience: latestApp.experience || null,
+              resume_url: latestApp.resume_url || null,
+              skills: latestApp.skills || null,
+              summary: latestApp.cover_letter || null,
+              source: "رابط التقديم المباشر",
+              license_number: latestApp.license_number || null,
+              license_expiry: latestApp.license_expiry || null,
+              university_degree: latestApp.university_degree || null,
+              demo_video_url: latestApp.demo_video_url || null,
+            });
+          }
+        }
       } catch (candErr) {
-        console.warn("Candidates update user_id warning:", candErr);
+        console.warn("Candidates sync in auto-create-account notice:", candErr);
       }
     }
 

@@ -158,6 +158,13 @@ export default function CandidateProfile() {
   const { locale } = useI18n();
   const queryClient = useQueryClient();
   const { data: candidates, isLoading: isCandidatesLoading } = useCandidates();
+  const [overrideStage, setOverrideStage] = useState<string | null>(null);
+  const [overrideStatus, setOverrideStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOverrideStage(null);
+    setOverrideStatus(null);
+  }, [id]);
 
   const { data: fetchedCandidate, isLoading: isFetchingDirect } = useQuery({
     queryKey: ["candidate-detail-direct", id],
@@ -170,7 +177,7 @@ export default function CandidateProfile() {
       const cleanId = id.trim();
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
 
-      let candQuery = supabase.from("candidates").select("*, candidate_scorecards(rating), jobs(title)");
+      let candQuery = supabase.from("candidates").select("*, jobs(title)");
       if (isUuid) candQuery = candQuery.or(`id.eq.${cleanId},tracking_code.ilike.${cleanId}`);
       else candQuery = candQuery.or(`tracking_code.ilike.${cleanId},email.ilike.${cleanId}`);
 
@@ -183,11 +190,11 @@ export default function CandidateProfile() {
 
       const { data: app } = await appQuery.maybeSingle();
       if (app) {
-        // Check if there is already a candidate record in candidates table with the same email and job_id!
+        // Check if there is already a candidate record in candidates table with the same email and job_id
         if (app.email && app.job_id) {
           const { data: linkedCand } = await supabase
             .from("candidates")
-            .select("*, candidate_scorecards(rating), jobs(title)")
+            .select("*, jobs(title)")
             .eq("job_id", app.job_id)
             .ilike("email", app.email.trim())
             .maybeSingle();
@@ -196,26 +203,32 @@ export default function CandidateProfile() {
 
         // If no candidate record exists in candidates, auto-seed one so stage changes persist permanently
         try {
+          const seedData = {
+            id: app.id,
+            user_id: user?.id || (app as any).user_id || null,
+            company_id: activeCompany?.id || (app as any).company_id || null,
+            job_id: app.job_id,
+            name: app.name,
+            email: app.email,
+            phone: app.phone,
+            role: (app as any).jobs?.title || app.specialty || "متقدم جديد",
+            stage: "تقديم الطلب",
+            status: app.status || "قيد المراجعة",
+            experience: app.experience || null,
+            resume_url: app.resume_url || null,
+            skills: app.skills || null,
+            summary: app.cover_letter || null,
+            source: "رابط التقديم المباشر",
+            tracking_code: (app as any).tracking_code || null,
+            license_number: (app as any).license_number || null,
+            license_expiry: (app as any).license_expiry || null,
+            university_degree: (app as any).university_degree || null,
+            demo_video_url: (app as any).demo_video_url || null,
+          };
           const { data: newCand, error: seedErr } = await supabase
             .from("candidates")
-            .upsert({
-              id: app.id,
-              name: app.name,
-              email: app.email,
-              phone: app.phone,
-              job_id: app.job_id,
-              company_id: (app as any).company_id || null,
-              role: (app as any).jobs?.title || app.specialty || "متقدم جديد",
-              stage: "تقديم الطلب",
-              status: app.status || "قيد المراجعة",
-              experience: app.experience || null,
-              resume_url: app.resume_url || null,
-              skills: app.skills || null,
-              summary: app.cover_letter || null,
-              source: "رابط التقديم المباشر",
-              tracking_code: (app as any).tracking_code || null,
-            })
-            .select("*, candidate_scorecards(rating), jobs(title)")
+            .upsert(seedData, { onConflict: "id", ignoreDuplicates: true })
+            .select("*, jobs(title)")
             .maybeSingle();
 
           if (newCand && !seedErr) return newCand;
@@ -229,16 +242,21 @@ export default function CandidateProfile() {
           email: app.email,
           phone: app.phone,
           job_id: app.job_id,
-          user_id: app.user_id || null,
+          user_id: user?.id || (app as any).user_id || null,
+          company_id: activeCompany?.id || (app as any).company_id || null,
           role: (app as any).jobs?.title || app.specialty || "متقدم جديد",
           stage: "تقديم الطلب",
-          status: app.status || "جديد",
+          status: app.status || "قيد المراجعة",
           experience: app.experience,
           resume_url: app.resume_url,
           skills: app.skills,
           summary: app.cover_letter,
           source: "رابط التقديم المباشر",
           tracking_code: (app as any).tracking_code || null,
+          license_number: (app as any).license_number || null,
+          license_expiry: (app as any).license_expiry || null,
+          university_degree: (app as any).university_degree || null,
+          demo_video_url: (app as any).demo_video_url || null,
           created_at: app.created_at,
           candidate_scorecards: [],
         };
@@ -249,12 +267,18 @@ export default function CandidateProfile() {
   });
 
   const targetId = (id || "").trim().toLowerCase();
-  // fetchedCandidate (direct DB hit) takes priority so stage updates are immediately visible
-  const candidate = fetchedCandidate || (candidates || []).find(c =>
+  // fetchedCandidate (direct DB hit) takes priority, with overrideStage taking precedence for instant feedback
+  const rawCandidate = fetchedCandidate || (candidates || []).find(c =>
     (c.id || "").toLowerCase() === targetId ||
     ((c as any).tracking_code || "").toLowerCase() === targetId ||
     ((c as any).email || "").toLowerCase() === targetId
   );
+
+  const candidate = rawCandidate ? {
+    ...rawCandidate,
+    stage: overrideStage || rawCandidate.stage || "تقديم الطلب",
+    status: overrideStatus || rawCandidate.status || "قيد المراجعة",
+  } : null;
 
   const isPageLoading = (isCandidatesLoading || isFetchingDirect) && !candidate;
 
@@ -352,36 +376,72 @@ export default function CandidateProfile() {
 
   const handleStageDirectMove = async (targetStage: string) => {
     if (!candidate || targetStage === candidate.stage) return;
+    const nowIso = new Date().toISOString();
+    const newStatus = targetStage === "العرض الوظيفي" ? "مقبول" : candidate.status === "مرفوض" ? "مرفوض" : "قيد المراجعة";
+
+    // Instant optimistic update for immediate feedback
+    setOverrideStage(targetStage);
+    setOverrideStatus(newStatus);
     setIsChangingStage(true);
+
     try {
-      const nowIso = new Date().toISOString();
-      const newStatus = targetStage === "العرض الوظيفي" ? "مقبول" : candidate.status === "مرفوض" ? "مرفوض" : "قيد المراجعة";
+      // 1. Direct update and upsert in candidates table
+      await supabase.from("candidates").upsert({
+        id: candidate.id,
+        user_id: user?.id || (candidate as any).user_id || null,
+        company_id: activeCompany?.id || (candidate as any).company_id || null,
+        job_id: candidate.job_id || null,
+        name: candidate.name,
+        email: candidate.email || null,
+        phone: candidate.phone || null,
+        role: candidate.role || "مرشح",
+        stage: targetStage,
+        status: newStatus,
+        stage_entered_at: nowIso,
+        updated_at: nowIso,
+        tracking_code: (candidate as any).tracking_code || null,
+        license_number: (candidate as any).license_number || null,
+        license_expiry: (candidate as any).license_expiry || null,
+        university_degree: (candidate as any).university_degree || null,
+        demo_video_url: (candidate as any).demo_video_url || null,
+        resume_url: (candidate as any).resume_url || null,
+        skills: (candidate as any).skills || null,
+        experience: (candidate as any).experience || null,
+        source: (candidate as any).source || "رابط التقديم المباشر",
+      });
 
-      const { error } = await supabase
-        .from("candidates")
-        .update({
-          stage: targetStage,
-          status: newStatus,
-          stage_entered_at: nowIso,
-          updated_at: nowIso,
-        })
-        .eq("id", candidate.id);
+      // 2. Also update by email and job_id if applicable
+      if (candidate.email && candidate.job_id) {
+        await supabase
+          .from("candidates")
+          .update({
+            stage: targetStage,
+            status: newStatus,
+            stage_entered_at: nowIso,
+            updated_at: nowIso,
+          })
+          .eq("job_id", candidate.job_id)
+          .ilike("email", candidate.email.trim());
+      }
 
-      if (error) throw error;
-
+      // 3. Sync applications table status (NO updated_at column in applications!)
       try {
         await supabase
           .from("applications")
-          .update({
-            status: newStatus,
-            updated_at: nowIso,
-          })
+          .update({ status: newStatus })
           .eq("id", candidate.id);
-      } catch {
-        // ignore
+        if (candidate.email && candidate.job_id) {
+          await supabase
+            .from("applications")
+            .update({ status: newStatus })
+            .eq("job_id", candidate.job_id)
+            .ilike("email", candidate.email.trim());
+        }
+      } catch (appErr) {
+        console.warn("Application status sync notice:", appErr);
       }
 
-      // Record stage transition
+      // 4. Record stage transition history
       try {
         await supabase.from("candidate_stage_transitions").insert({
           candidate_id: candidate.id,
@@ -393,6 +453,16 @@ export default function CandidateProfile() {
       } catch {
         // ignore
       }
+
+      // 5. Direct cache updates
+      queryClient.setQueryData(["candidate-detail-direct", id], (old: any) => {
+        if (!old) return old;
+        return { ...old, stage: targetStage, status: newStatus };
+      });
+      queryClient.setQueryData(["candidate", id], (old: any) => {
+        if (!old) return old;
+        return { ...old, stage: targetStage, status: newStatus };
+      });
 
       await queryClient.invalidateQueries({ queryKey: ["candidates"] });
       await queryClient.invalidateQueries({ queryKey: ["candidate", id] });
@@ -627,6 +697,10 @@ export default function CandidateProfile() {
               status={candidate.status || "جديد"}
               jobId={candidate.job_id}
               candidateRole={candidate.role}
+              onStageChange={(newStage, newStatus) => {
+                setOverrideStage(newStage);
+                setOverrideStatus(newStatus);
+              }}
             />
             <CandidateChecklistPanel
               candidateId={candidate.id}

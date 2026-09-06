@@ -189,13 +189,53 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const { data: candidate, error } = await supabase
+    let candidate: any = null;
+    const { data: candData } = await supabase
       .from("candidates")
       .select("*, jobs(title, user_id)")
       .eq("id", candidateId)
-      .single();
+      .maybeSingle();
 
-    if (error || !candidate) {
+    if (candData) {
+      candidate = candData;
+    } else {
+      // Look up in applications table
+      const { data: appData } = await supabase
+        .from("applications")
+        .select("*, jobs(title, user_id)")
+        .eq("id", candidateId)
+        .maybeSingle();
+
+      if (appData) {
+        // Auto-seed into candidates table using service role key
+        const { data: createdCand } = await supabase
+          .from("candidates")
+          .upsert({
+            id: appData.id,
+            user_id: appData.jobs?.user_id || callerId || null,
+            company_id: appData.company_id || null,
+            job_id: appData.job_id,
+            name: appData.name,
+            email: appData.email,
+            phone: appData.phone,
+            role: appData.jobs?.title || appData.specialty || "مرشح",
+            stage: newStage || "تقديم الطلب",
+            status: newStage === "العرض الوظيفي" ? "مقبول" : "قيد المراجعة",
+            tracking_code: appData.tracking_code || null,
+            experience: appData.experience || null,
+            resume_url: appData.resume_url || null,
+            skills: appData.skills || null,
+            summary: appData.cover_letter || null,
+            source: "رابط التقديم المباشر",
+          }, { onConflict: "id" })
+          .select("*, jobs(title, user_id)")
+          .maybeSingle();
+
+        candidate = createdCand;
+      }
+    }
+
+    if (!candidate) {
       return new Response(JSON.stringify({ error: "Candidate not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

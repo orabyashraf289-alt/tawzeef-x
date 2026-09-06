@@ -347,7 +347,7 @@ export function useCandidates(specificCompanyId?: string | null) {
       try {
         let candQuery = supabase
           .from("candidates")
-          .select("*, candidate_scorecards(rating)")
+          .select("*, jobs(title, department, location, type)")
           .order("created_at", { ascending: false });
 
         const orConditions: string[] = [];
@@ -463,7 +463,7 @@ export function usePaginatedCandidates(page = 0, pageSize = 50) {
 
       const { data: candidatesData, error, count } = await supabase
         .from("candidates")
-        .select("*, candidate_scorecards(rating)", { count: "exact" })
+        .select("*, jobs(title, department, location, type)", { count: "exact" })
         .order("created_at", { ascending: false })
         .range(from, to);
 

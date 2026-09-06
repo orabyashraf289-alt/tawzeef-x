@@ -93,7 +93,7 @@ export default function JobDetails() {
       if (!id) return [];
       const { data, error } = await supabase
         .from("candidates")
-        .select("*, candidate_scorecards(rating)")
+        .select("*")
         .eq("job_id", id)
         .order("created_at", { ascending: false });
       if (error) {
