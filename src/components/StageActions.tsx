@@ -42,16 +42,75 @@ import { Link } from "react-router-dom";
 import { useActiveStages } from "@/hooks/usePipelineStages";
 import { useAssessments } from "@/hooks/useQuestionBank";
 
-const FALLBACK_STAGES = [
+export const DEFAULT_PIPELINE_STAGES = [
   "تقديم الطلب",
-  "مراجعة السيرة",
-  "فحص هاتفي",
+  "فحص السيرة",
+  "اختبار تحريري",
   "مقابلة تقنية",
   "مقابلة نهائية",
   "العرض الوظيفي",
 ];
 
-const INTERVIEW_STAGES = ["مقابلة تقنية", "مقابلة نهائية"];
+const FALLBACK_STAGES = DEFAULT_PIPELINE_STAGES;
+
+export const INTERVIEW_STAGES = ["مقابلة تقنية", "مقابلة نهائية", "مقابلة شخصية", "مقابلة هاتفية", "المقابلة الفنية"];
+
+export function isRealInterviewStage(stageName?: string | null, stageObj?: any): boolean {
+  if (!stageName) return false;
+  const name = stageName.trim();
+
+  // If the stage explicitly has require_interview enabled in DB transition rules
+  if (stageObj?.transition_rules?.require_interview) return true;
+
+  // Exclude non-interview stages explicitly (CV screening, file checks, initial sorting, tests, coding tasks, offers)
+  if (/سيرة|ملف|مستند|وثائق|أوراق|cv|resume|screening|تصفية|فرز|اختبار|امتحان|task|كود|عرض|offer|عقد/i.test(name)) {
+    return false;
+  }
+
+  // Check for interview keywords
+  return /مقابلة|interview|محادثة|انترفيو/i.test(name);
+}
+
+export function findStageIndex(stages: string[], stageName: string): number {
+  if (!stageName || stages.length === 0) return 0;
+  const clean = stageName.trim().toLowerCase();
+
+  // 1. Exact match
+  const exact = stages.findIndex(s => s.trim().toLowerCase() === clean);
+  if (exact !== -1) return exact;
+
+  // 2. Semantic matching for common recruitment stages
+  if (/سيرة|cv|resume|screening/i.test(clean)) {
+    const idx = stages.findIndex(s => /سيرة|cv|resume|screening/i.test(s));
+    if (idx !== -1) return idx;
+  }
+  if (/تقديم|applied|طلب|جديد|تسجيل/i.test(clean)) {
+    const idx = stages.findIndex(s => /تقديم|applied|طلب|جديد|تسجيل/i.test(s));
+    if (idx !== -1) return idx;
+  }
+  if (/اختبار|امتحان|task|assessment|test|كود/i.test(clean)) {
+    const idx = stages.findIndex(s => /اختبار|امتحان|task|assessment|test|كود/i.test(s));
+    if (idx !== -1) return idx;
+  }
+  if (/مقابلة.*(أولى|مبدئية|هاتفية)|phone/i.test(clean)) {
+    const idx = stages.findIndex(s => /مقابلة.*(أولى|مبدئية|هاتفية)|phone/i.test(s));
+    if (idx !== -1) return idx;
+  }
+  if (/مقابلة.*(نهائية|أخيرة)|final/i.test(clean)) {
+    const idx = stages.findIndex(s => /مقابلة.*(نهائية|أخيرة)|final/i.test(s));
+    if (idx !== -1) return idx;
+  }
+  if (/مقابلة|interview/i.test(clean)) {
+    const idx = stages.findIndex(s => /مقابلة|interview/i.test(s));
+    if (idx !== -1) return idx;
+  }
+  if (/عرض|offer|عقد|توظيف|قوى/i.test(clean)) {
+    const idx = stages.findIndex(s => /عرض|offer|عقد|توظيف|قوى/i.test(s));
+    if (idx !== -1) return idx;
+  }
+
+  return 0;
+}
 
 function generateRoomId() {
   return `tawzeef-x-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -84,6 +143,7 @@ export default function StageActions(props: StageActionsProps) {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [showAssessmentSection, setShowAssessmentSection] = useState(false);
 
   // Interview scheduling
   const [showInterviewDialog, setShowInterviewDialog] = useState(false);
@@ -114,6 +174,11 @@ export default function StageActions(props: StageActionsProps) {
   const currentStageObj = activeStages.find(s => s.name === currentStage);
   const stageAssessmentId = (currentStageObj as any)?.assessment_id;
 
+  const isAssessmentStage =
+    /اختبار|امتحان|assessment|test|كود|مهمة/i.test(currentStage) ||
+    !!stageAssessmentId ||
+    !!(currentStageObj?.transition_rules?.require_assessment);
+
   const activeStageAssessment =
     selectedAssessmentOverride ||
     (allAssessments || []).find(a => a.id === stageAssessmentId) ||
@@ -139,16 +204,16 @@ export default function StageActions(props: StageActionsProps) {
     i => i.candidate_id === candidateId
   );
 
-  const currentIdx = STAGES.indexOf(currentStage);
-  const nextStage = currentIdx < STAGES.length - 1 ? STAGES[currentIdx + 1] : null;
+  const currentIdx = findStageIndex(STAGES, currentStage);
+  const nextStage = currentIdx >= 0 && currentIdx < STAGES.length - 1 ? STAGES[currentIdx + 1] : null;
+  const prevStage = currentIdx > 0 ? STAGES[currentIdx - 1] : null;
   const isRejected = status === "مرفوض";
   const isAccepted = status === "مقبول";
   const isLastStage = currentIdx === STAGES.length - 1;
-  const isInterviewStage =
-    INTERVIEW_STAGES.includes(currentStage) ||
-    /مقابلة|interview|فحص|فنية|فني|شخصية|تقنية|مبدئي/i.test(currentStage) ||
-    !!(activeStages.find(s => s.name === currentStage)?.transition_rules?.require_interview) ||
-    !!candidateInterview;
+
+  // Real interview stage check - CV screening (فحص السيرة) is NEVER an interview stage
+  const isCurrentAnInterviewStage = isRealInterviewStage(currentStage, currentStageObj);
+  const isInterviewStage = isCurrentAnInterviewStage;
 
   const STATUS_LABELS: Record<string, { label: string; color: string }> = {
     draft: { label: "مسودة", color: "bg-muted text-muted-foreground" },
@@ -545,21 +610,24 @@ export default function StageActions(props: StageActionsProps) {
     );
   };
 
-  // Check if interview stage requires a completed/scheduled interview before advancing
+  // Check if current stage is a real interview stage that requires a completed interview
   const allCandidateInterviews = (interviews || []).filter(i => i.candidate_id === candidateId);
   const hasCompletedInterview = allCandidateInterviews.some(i => i.status === "مكتملة");
   const hasScheduledInterview = allCandidateInterviews.some(i => i.status === "مجدولة");
-  const interviewRequired = isInterviewStage && !hasCompletedInterview;
 
-  const handleApprove = async () => {
-    if (!nextStage) return;
+  // Gate check: ONLY actual interview stages require an interview before advancing
+  const interviewRequired = isCurrentAnInterviewStage && (currentStageObj?.transition_rules?.require_interview ?? true) && !hasCompletedInterview;
 
-    // Gate: interview stages require a completed interview
+  const handleApprove = async (targetStageOverride?: string) => {
+    const target = targetStageOverride || nextStage;
+    if (!target) return;
+
+    // Gate: ONLY real interview stages require a completed interview
     if (interviewRequired) {
       if (!hasScheduledInterview && !candidateInterview) {
         toast({
           title: "يجب جدولة مقابلة أولاً",
-          description: "لا يمكن الانتقال للمرحلة التالية بدون إجراء مقابلة",
+          description: "هذه مرحلة مقابلة وتتطلب إجراء المقابلة وتقييمها قبل المتابعة",
           variant: "destructive",
         });
         return;
@@ -567,7 +635,7 @@ export default function StageActions(props: StageActionsProps) {
       if (hasScheduledInterview || candidateInterview) {
         toast({
           title: "المقابلة لم تكتمل بعد",
-          description: "يجب إكمال المقابلة وتقييمها قبل الانتقال للمرحلة التالية",
+          description: "يرجى تسجيل إكمال المقابلة وتقييمها للانتقال للمرحلة التالية",
           variant: "destructive",
         });
         return;
@@ -580,11 +648,11 @@ export default function StageActions(props: StageActionsProps) {
     try {
       const nowIso = new Date().toISOString();
 
-      // 1. Direct PostgreSQL DB stage update
+      // 1. Direct PostgreSQL DB stage update for candidates
       const { error: dbErr } = await supabase
         .from("candidates")
         .update({
-          stage: nextStage,
+          stage: target,
           stage_entered_at: nowIso,
           updated_at: nowIso
         })
@@ -592,8 +660,23 @@ export default function StageActions(props: StageActionsProps) {
 
       if (dbErr) throw dbErr;
 
-      // 2. Auto-generate Jitsi interview room if advancing to an interview stage
-      const isNextInterviewStage = /مقابلة|interview|فحص|فنية|فني|شخصية|تقنية|مبدئي/i.test(nextStage);
+      // Also sync applications table status if applicable
+      try {
+        await supabase
+          .from("applications")
+          .update({
+            status: target === "العرض الوظيفي" ? "مقبول" : "قيد المراجعة",
+            updated_at: nowIso
+          })
+          .eq("id", candidateId);
+      } catch {
+        // ignore if application does not match candidateId
+      }
+
+      // 2. Auto-generate Jitsi interview room ONLY if advancing to an ACTUAL interview stage
+      const targetStageObj = activeStages.find(s => s.name === target);
+      const isNextInterviewStage = isRealInterviewStage(target, targetStageObj);
+
       if (isNextInterviewStage) {
         const { data: existingInt } = await supabase
           .from("interviews")
@@ -634,7 +717,7 @@ export default function StageActions(props: StageActionsProps) {
         await supabase.from("candidate_stage_transitions").insert({
           candidate_id: candidateId,
           from_stage: currentStage,
-          to_stage: nextStage,
+          to_stage: target,
           moved_by: user?.id,
           moved_by_name: user?.email,
         });
@@ -655,24 +738,28 @@ export default function StageActions(props: StageActionsProps) {
               "Content-Type": "application/json",
               Authorization: `Bearer ${authToken}`,
             },
-            body: JSON.stringify({ candidateId, newStage: nextStage, action: "approve" }),
+            body: JSON.stringify({ candidateId, newStage: target, action: "approve" }),
           }
         );
       } catch (e) {
         console.warn("notify-stage-change edge function warning:", e);
       }
 
+      // Invalidate all candidate and stage queries so UI updates immediately
       await queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      await queryClient.invalidateQueries({ queryKey: ["candidate-detail-direct"] });
       await queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
       await queryClient.invalidateQueries({ queryKey: ["interviews"] });
+      await queryClient.invalidateQueries({ queryKey: ["applications"] });
+      await queryClient.invalidateQueries({ queryKey: ["pipeline_stages"] });
 
       toast({
-        title: isNextInterviewStage ? `تم نقل المرشح وتجهيز رابط مقابلة Jitsi تلقائياً 🎥` : `تم نقل ${candidateName} إلى "${nextStage}" ✅`,
-        description: isNextInterviewStage ? `تم إنشاء رابط الاجتماع المباشر وتمكين دخولك أنت والمرشح` : "تم تحديث مرحلة المرشح بنجاح",
+        title: isNextInterviewStage ? `تم نقل المرشح وتجهيز رابط مقابلة Jitsi تلقائياً 🎥` : `تم نقل ${candidateName} إلى "${target}" بنجاح ✅`,
+        description: isNextInterviewStage ? `تم إنشاء رابط الاجتماع المباشر وتمكين دخولك أنت والمرشح` : "تم تحديث مرحلة المرشح في المسار بنجاح",
       });
 
       // If advanced to offer stage, open offer creation dialog
-      if (nextStage === "العرض الوظيفي") {
+      if (target === "العرض الوظيفي") {
         setOfferForm(prev => ({ ...prev, position: candidateRole || "" }));
         setShowOfferCreateDialog(true);
       }
@@ -1019,13 +1106,30 @@ export default function StageActions(props: StageActionsProps) {
         </h3>
 
         <div className="bg-muted/30 rounded-lg p-3">
-          <p className="text-xs text-muted-foreground mb-1">المرحلة الحالية</p>
-          <p className="text-sm font-semibold text-foreground">{currentStage}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">المرحلة الحالية</p>
+              <p className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                {currentStage}
+              </p>
+            </div>
+            <Badge variant="outline" className="text-[10px] font-mono">
+              {currentIdx + 1} من {STAGES.length}
+            </Badge>
+          </div>
           {nextStage && (
-            <>
-              <p className="text-xs text-muted-foreground mt-2 mb-1">المرحلة التالية</p>
-              <p className="text-sm font-semibold text-primary">{nextStage}</p>
-            </>
+            <div className="mt-2.5 pt-2 border-t border-border/40 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">المرحلة التالية المعتمدة</p>
+                <p className="text-sm font-bold text-primary flex items-center gap-1">
+                  {nextStage}
+                </p>
+              </div>
+              <span className="text-[11px] text-muted-foreground font-mono">
+                المرحلة #{currentIdx + 2}
+              </span>
+            </div>
           )}
         </div>
 
@@ -1082,109 +1186,113 @@ export default function StageActions(props: StageActionsProps) {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="flex-1 gap-1.5 text-xs h-9 border-info/30 hover:bg-info/5"
+                        className="flex-1 gap-1.5 text-xs h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow"
                         onClick={() => {
-                          navigator.clipboard.writeText(candidateInterview.meeting_url!);
-                          toast({ title: "تم نسخ رابط المقابلة ✅" });
+                          const url = candidateInterview.meeting_url;
+                          if (url.startsWith("http")) window.open(url, "_blank");
+                          else window.open(`${window.location.origin}${url}`, "_blank");
                         }}
                       >
-                        <Copy className="w-3.5 h-3.5 text-info" />
-                        نسخ الرابط
+                        <Video className="w-3.5 h-3.5" />
+                        دخول غرفة المقابلة
                       </Button>
                       <Button
                         size="sm"
-                        className="flex-1 gap-1.5 text-xs h-9 gradient-primary border-0 text-primary-foreground font-bold shadow"
-                        asChild
+                        variant="outline"
+                        className="gap-1.5 text-xs h-9 px-3"
+                        onClick={() => {
+                          const fullUrl = candidateInterview.meeting_url.startsWith("http")
+                            ? candidateInterview.meeting_url
+                            : `${window.location.origin}${candidateInterview.meeting_url}`;
+                          navigator.clipboard.writeText(fullUrl);
+                          toast({ title: "تم نسخ رابط المقابلة ✅", description: "يمكنك إرساله للمرشح مباشرة" });
+                        }}
                       >
-                        <a href={candidateInterview.meeting_url} target="_blank" rel="noopener noreferrer">
-                          <Video className="w-3.5 h-3.5" />
-                          دخول المقابلة 🎥
-                        </a>
+                        <Copy className="w-3.5 h-3.5" />
+                        نسخ
                       </Button>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 pt-1">
+                      {candidateEmail && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 gap-1 text-[11px] h-7 text-primary border-primary/20 hover:bg-primary/5 font-semibold"
+                          onClick={() => sendInterviewEmail(candidateEmail, candidateInterview.meeting_url, candidateInterview.date, candidateInterview.time)}
+                        >
+                          <Mail className="w-3 h-3" />
+                          إرسال بالبريد ✉️
+                        </Button>
+                      )}
+
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex-1 gap-1 text-[11px] h-7 text-green-600 border-green-200 hover:bg-green-50 dark:border-green-900/40 dark:hover:bg-green-950/30"
+                        className="flex-1 gap-1 text-[11px] h-7 text-green-600 border-green-200 hover:bg-green-50 dark:border-green-900/40 dark:hover:bg-green-950/30 font-semibold"
                         onClick={() => {
-                          const text = `مرحباً ${candidateName}، تم تحديث موعد المقابلة بتاريخ ${new Date(candidateInterview.date).toLocaleDateString("ar-SA")} الساعة ${candidateInterview.time}.\nرابط الاجتماع: ${candidateInterview.meeting_url}`;
+                          const fullUrl = candidateInterview.meeting_url.startsWith("http")
+                            ? candidateInterview.meeting_url
+                            : `${window.location.origin}${candidateInterview.meeting_url}`;
+                          const text = `مرحباً ${candidateName}، موعد مقابلتك الوظيفية بتاريخ ${candidateInterview.date} الساعة ${candidateInterview.time}.\nرابط المقابلة:\n${fullUrl}`;
                           window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
                         }}
                       >
                         <MessageCircle className="w-3 h-3" />
-                        واتساب
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 gap-1 text-[11px] h-7 text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900/40 dark:hover:bg-blue-950/30"
-                        onClick={() => {
-                          const subject = `دعوة اجتماع مقابلة — ${candidateRole || ""}`;
-                          const body = `مرحباً ${candidateName}،\n\nنود تذكيرك بموعد المقابلة بتاريخ ${new Date(candidateInterview.date).toLocaleDateString("ar-SA")} الساعة ${candidateInterview.time}.\n\nرابط الاجتماع المباشر:\n${candidateInterview.meeting_url}\n\nتحياتنا،`;
-                          window.open(`mailto:${candidateEmail || ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, "_blank");
-                        }}
-                      >
-                        <Mail className="w-3 h-3" />
-                        بريد إلكتروني
+                        واتساب 💬
                       </Button>
                     </div>
                   </div>
                 )}
 
-                {/* Complete Interview button */}
-                {candidateInterview.status !== "مكتملة" ? (
-                  <Button
-                    size="sm"
-                    className="w-full gap-1.5 text-xs h-9 bg-success hover:bg-success/90 text-success-foreground font-bold shadow-sm"
-                    onClick={async () => {
-                      await supabase
-                        .from("interviews")
-                        .update({ status: "مكتملة", updated_at: new Date().toISOString() })
-                        .eq("id", candidateInterview.id);
-                      await queryClient.invalidateQueries({ queryKey: ["interviews"] });
-                      toast({ title: "تم تسجيل إكمال المقابلة ✅", description: "يمكنك الآن نقل المرشح للمرحلة التالية" });
-                    }}
-                  >
-                    <Check className="w-4 h-4" />
-                    تأكيد إكمال المقابلة
-                  </Button>
-                ) : (
-                  <div className="bg-success/10 border border-success/20 rounded-lg p-2 text-center text-xs font-semibold text-success flex items-center justify-center gap-1.5">
-                    <Check className="w-4 h-4" />
-                    تمت المقابلة بنجاح
+                <div className="flex items-center justify-between pt-1 border-t border-border/30 text-xs">
+                  <div className="flex gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-[11px] text-muted-foreground hover:text-foreground gap-1 px-2"
+                      onClick={() => {
+                        setRescheduleForm({
+                          date: candidateInterview.date,
+                          time: candidateInterview.time,
+                          interviewer: candidateInterview.interviewer || "",
+                        });
+                        setShowRescheduleDialog(true);
+                      }}
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      إعادة جدولة
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-[11px] text-destructive hover:bg-destructive/10 gap-1 px-2"
+                      onClick={() => setShowCancelConfirm(true)}
+                    >
+                      <XCircle className="w-3 h-3" />
+                      إلغاء
+                    </Button>
                   </div>
-                )}
 
-                {/* Reschedule & Cancel buttons */}
-                <div className="flex gap-2 pt-1">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 gap-1.5 text-xs h-8 border-warning/30 text-warning hover:bg-warning/5"
-                    onClick={() => {
-                      setRescheduleForm({
-                        date: candidateInterview.date,
-                        time: candidateInterview.time,
-                        interviewer: candidateInterview.interviewer || "",
-                      });
-                      setShowRescheduleDialog(true);
-                    }}
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                    إعادة جدولة
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 gap-1.5 text-xs h-8 border-destructive/30 text-destructive hover:bg-destructive/5"
-                    onClick={() => setShowCancelConfirm(true)}
-                  >
-                    <XCircle className="w-3 h-3" />
-                    إلغاء المقابلة
-                  </Button>
+                  {candidateInterview.status !== "مكتملة" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[11px] text-success border-success/30 hover:bg-success/10 font-bold"
+                      onClick={async () => {
+                        await updateInterview.mutateAsync({
+                          id: candidateInterview.id,
+                          status: "مكتملة",
+                          notes: "تم إكمال المقابلة بنجاح",
+                        });
+                        toast({ title: "تم تسجيل إكمال المقابلة بنجاح ✅" });
+                        queryClient.invalidateQueries({ queryKey: ["interviews"] });
+                      }}
+                    >
+                      <Check className="w-3 h-3 ml-1" />
+                      اكتمال المقابلة
+                    </Button>
+                  )}
                 </div>
               </div>
             ) : (
@@ -1200,110 +1308,123 @@ export default function StageActions(props: StageActionsProps) {
           </motion.div>
         )}
 
-        {/* Written Assessment Section */}
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          className="bg-gradient-to-br from-indigo-500/10 via-background to-purple-500/5 border border-indigo-500/30 rounded-xl p-4 space-y-3 shadow-sm"
-        >
-          <div className="flex items-center justify-between gap-2 border-b border-indigo-500/10 pb-2">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                <ClipboardCheck className="w-4 h-4" />
+        {/* Written Assessment Section - only shown if stage is assessment-related or explicitly requested */}
+        {isAssessmentStage || showAssessmentSection || selectedAssessmentOverride ? (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            className="bg-gradient-to-br from-indigo-500/10 via-background to-purple-500/5 border border-indigo-500/30 rounded-xl p-4 space-y-3 shadow-sm"
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-indigo-500/10 pb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                  <ClipboardCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-sm font-bold text-foreground block">
+                    {activeStageAssessment ? "الاختبار التحريري المربوط" : "إرسال اختبار تحريري"}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {activeStageAssessment ? activeStageAssessment.title : "اختر اختباراً لإرساله للمرشح"}
+                  </span>
+                </div>
               </div>
-              <div>
-                <span className="text-sm font-bold text-foreground block">
-                  {activeStageAssessment ? "الاختبار التحريري المربوط" : "إرسال اختبار تحريري"}
-                </span>
-                <span className="text-[11px] text-muted-foreground">
-                  {activeStageAssessment ? activeStageAssessment.title : "اختر اختباراً لإرساله للمرشح"}
-                </span>
-              </div>
+              {activeStageAssessment && (
+                <Badge className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 text-[10px]">
+                  {activeStageAssessment.duration_minutes} دقيقة | نجاح {activeStageAssessment.passing_score}%
+                </Badge>
+              )}
             </div>
-            {activeStageAssessment && (
-              <Badge className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 text-[10px]">
-                {activeStageAssessment.duration_minutes} دقيقة | نجاح {activeStageAssessment.passing_score}%
-              </Badge>
-            )}
-          </div>
 
-          {activeStageAssessment ? (
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 gap-1.5 text-xs h-9 border-indigo-500/30 hover:bg-indigo-500/5 font-bold"
-                  onClick={() => {
-                    const url = `${window.location.origin}/assessment/${activeStageAssessment.token}`;
-                    navigator.clipboard.writeText(url);
-                    toast({ title: "تم نسخ رابط الاختبار التحريري ✅", description: "يمكنك إرساله للمرشح مباشرة" });
-                  }}
-                >
-                  <Copy className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                  نسخ رابط الاختبار
-                </Button>
-
-                <Button
-                  size="sm"
-                  className="flex-1 gap-1.5 text-xs h-9 bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow"
-                  onClick={() => {
-                    window.open(`/assessment/${activeStageAssessment.token}`, "_blank");
-                  }}
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  معاينة الاختبار
-                </Button>
-              </div>
-
-              <div className="flex gap-2">
-                {candidateEmail && (
+            {activeStageAssessment ? (
+              <div className="space-y-2">
+                <div className="flex gap-2">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="flex-1 gap-1 text-[11px] h-7 text-indigo-600 border-indigo-200 hover:bg-indigo-50 dark:border-indigo-900/40 dark:hover:bg-indigo-950/30 font-semibold"
-                    onClick={() => sendAssessmentEmail(candidateEmail, activeStageAssessment.title, activeStageAssessment.token)}
+                    className="flex-1 gap-1.5 text-xs h-9 border-indigo-500/30 hover:bg-indigo-500/5 font-bold"
+                    onClick={() => {
+                      const url = `${window.location.origin}/assessment/${activeStageAssessment.token}`;
+                      navigator.clipboard.writeText(url);
+                      toast({ title: "تم نسخ رابط الاختبار التحريري ✅", description: "يمكنك إرساله للمرشح مباشرة" });
+                    }}
                   >
-                    <Mail className="w-3 h-3" />
-                    إرسال بالبريد ✉️
+                    <Copy className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    نسخ رابط الاختبار
                   </Button>
-                )}
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 gap-1 text-[11px] h-7 text-green-600 border-green-200 hover:bg-green-50 dark:border-green-900/40 dark:hover:bg-green-950/30 font-semibold"
-                  onClick={() => {
-                    const url = `${window.location.origin}/assessment/${activeStageAssessment.token}`;
-                    const text = `مرحباً ${candidateName}، يرجى التكرم باستكمال الاختبار التحريري المرفق (${activeStageAssessment.title}) عبر الرابط التالي:\n${url}`;
-                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-                  }}
-                >
-                  <MessageCircle className="w-3 h-3" />
-                  واتساب 💬
-                </Button>
+                  <Button
+                    size="sm"
+                    className="flex-1 gap-1.5 text-xs h-9 bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow"
+                    onClick={() => {
+                      window.open(`/assessment/${activeStageAssessment.token}`, "_blank");
+                    }}
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    معاينة الاختبار
+                  </Button>
+                </div>
+
+                <div className="flex gap-2">
+                  {candidateEmail && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 gap-1 text-[11px] h-7 text-indigo-600 border-indigo-200 hover:bg-indigo-50 dark:border-indigo-900/40 dark:hover:bg-indigo-950/30 font-semibold"
+                      onClick={() => sendAssessmentEmail(candidateEmail, activeStageAssessment.title, activeStageAssessment.token)}
+                    >
+                      <Mail className="w-3 h-3" />
+                      إرسال بالبريد ✉️
+                    </Button>
+                  )}
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 gap-1 text-[11px] h-7 text-green-600 border-green-200 hover:bg-green-50 dark:border-green-900/40 dark:hover:bg-green-950/30 font-semibold"
+                    onClick={() => {
+                      const url = `${window.location.origin}/assessment/${activeStageAssessment.token}`;
+                      const text = `مرحباً ${candidateName}، يرجى التكرم باستكمال الاختبار التحريري المرفق (${activeStageAssessment.title}) عبر الرابط التالي:\n${url}`;
+                      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+                    }}
+                  >
+                    <MessageCircle className="w-3 h-3" />
+                    واتساب 💬
+                  </Button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Select onValueChange={(val) => {
-                const selected = allAssessments.find(a => a.id === val);
-                if (selected) setSelectedAssessmentOverride(selected);
-              }}>
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue placeholder="اختر اختباراً من بنك الأسئلة..." />
-                </SelectTrigger>
-                <SelectContent dir="rtl">
-                  {allAssessments.filter(a => a.is_active).map((a) => (
-                    <SelectItem key={a.id} value={a.id} className="text-xs">
-                      {a.title} ({a.duration_minutes} دقيقة)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </motion.div>
+            ) : (
+              <div className="space-y-2">
+                <Select onValueChange={(val) => {
+                  const selected = allAssessments.find(a => a.id === val);
+                  if (selected) setSelectedAssessmentOverride(selected);
+                }}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="اختر اختباراً من بنك الأسئلة..." />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    {allAssessments.filter(a => a.is_active).map((a) => (
+                      <SelectItem key={a.id} value={a.id} className="text-xs">
+                        {a.title} ({a.duration_minutes} دقيقة)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </motion.div>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowAssessmentSection(true)}
+            className="w-full h-8 text-[11px] text-muted-foreground hover:text-foreground gap-1.5 border border-dashed border-border/60 rounded-xl"
+          >
+            <ClipboardCheck className="w-3.5 h-3.5 text-indigo-500" />
+            إرسال اختبار تحريري مبكر (اختياري)
+          </Button>
+        )}
 
         {/* Interview gate warning */}
         {isInterviewStage && interviewRequired && (
@@ -1316,6 +1437,26 @@ export default function StageActions(props: StageActionsProps) {
             </p>
           </div>
         )}
+
+        {/* Quick jump to specific stage option */}
+        <div className="pt-1">
+          <Select onValueChange={(val) => {
+            if (val && val !== currentStage) {
+              handleApprove(val);
+            }
+          }}>
+            <SelectTrigger className="h-8 text-[11px] text-muted-foreground border-dashed bg-muted/20 rounded-xl">
+              <SelectValue placeholder="تخطي أو نقل لمرحلة محددة في المسار..." />
+            </SelectTrigger>
+            <SelectContent dir="rtl">
+              {STAGES.map((stg, i) => (
+                <SelectItem key={stg} value={stg} className="text-xs">
+                  {i + 1}. {stg} {stg === currentStage ? "(الحالية)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <div className="flex gap-2">
           {nextStage && (

@@ -41,8 +41,8 @@ import {
 // Fallback stages if DB hasn't loaded yet
 const FALLBACK_STAGES = [
   { id: "تقديم الطلب", label: "تقديم الطلب", color: "#6366f1" },
-  { id: "مراجعة السيرة", label: "مراجعة السيرة", color: "#8b5cf6" },
-  { id: "فحص هاتفي", label: "فحص هاتفي", color: "#0ea5e9" },
+  { id: "فحص السيرة", label: "فحص السيرة", color: "#8b5cf6" },
+  { id: "اختبار تحريري", label: "اختبار تحريري", color: "#0ea5e9" },
   { id: "مقابلة تقنية", label: "مقابلة تقنية", color: "#f59e0b" },
   { id: "مقابلة نهائية", label: "مقابلة نهائية", color: "#10b981" },
   { id: "العرض الوظيفي", label: "العرض الوظيفي", color: "#059669" },
@@ -255,12 +255,29 @@ export default function Pipeline() {
     const map: Record<string, any[]> = {};
     STAGES.forEach(s => { map[s.id] = []; });
     filteredCandidates.forEach(c => {
-      const stage = c.stage || "تقديم الطلب";
-      if (map[stage]) map[stage].push(c);
-      else map["تقديم الطلب"].push(c);
+      const rawStage = c.stage || "تقديم الطلب";
+      if (map[rawStage]) {
+        map[rawStage].push(c);
+      } else {
+        const matched = STAGES.find(s => {
+          if (s.id === rawStage) return true;
+          if (/سيرة|cv|resume|screening/i.test(rawStage) && /سيرة|cv|resume|screening/i.test(s.id)) return true;
+          if (/تقديم|applied|طلب|جديد/i.test(rawStage) && /تقديم|applied|طلب|جديد/i.test(s.id)) return true;
+          if (/اختبار|assessment|test|task/i.test(rawStage) && /اختبار|assessment|test|task/i.test(s.id)) return true;
+          return false;
+        });
+        if (matched && map[matched.id]) {
+          map[matched.id].push(c);
+        } else if (map["تقديم الطلب"]) {
+          map["تقديم الطلب"].push(c);
+        } else {
+          const firstStage = STAGES[0]?.id;
+          if (firstStage && map[firstStage]) map[firstStage].push(c);
+        }
+      }
     });
     return map;
-  }, [filteredCandidates]);
+  }, [filteredCandidates, STAGES]);
 
   // Avg days in stage (based on updated_at - created_at approximation)
   const getAvgDays = (stageId: string) => {

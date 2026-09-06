@@ -22,7 +22,7 @@ import { useActiveStages } from "@/hooks/usePipelineStages";
 import AIEvaluationCard from "@/components/AIEvaluationCard";
 import AICandidateInsights from "@/components/AICandidateInsights";
 import CandidateScorecardSection from "@/components/CandidateScorecardSection";
-import StageActions from "@/components/StageActions";
+import StageActions, { findStageIndex, DEFAULT_PIPELINE_STAGES } from "@/components/StageActions";
 import { SingleResponseProctoringDialog } from "@/components/question-bank/AssessmentResponsesDialog";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
@@ -47,7 +47,7 @@ const statusConfig: Record<string, { label: string; bg: string; dot: string }> =
 
 const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").slice(0, 2);
 
-const DEFAULT_STAGE_ORDER = ["تقديم الطلب", "مراجعة السيرة", "فحص هاتفي", "مقابلة تقنية", "مقابلة نهائية", "العرض الوظيفي"];
+const DEFAULT_STAGE_ORDER = DEFAULT_PIPELINE_STAGES;
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -57,7 +57,7 @@ const fadeUp = {
 function PipelineTracker({ currentStage }: { currentStage: string }) {
   const activeStages = useActiveStages();
   const stageOrder = activeStages.length > 0 ? activeStages.map(s => s.name) : DEFAULT_STAGE_ORDER;
-  const currentIdx = stageOrder.indexOf(currentStage);
+  const currentIdx = findStageIndex(stageOrder, currentStage);
 
   return (
     <motion.div custom={2} variants={fadeUp} initial="hidden" animate="show" className="bg-card rounded-2xl border border-border/50 p-6 shadow-sm">
