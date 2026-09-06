@@ -9,11 +9,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowRight, Mail, Phone, MapPin, Calendar, Star, Download, 
   MessageSquare, FileText, Briefcase, GraduationCap, Check, Clock, 
   Circle, CalendarPlus, User, Activity, Hash, Layers, Globe, 
   Copy, ChevronLeft, Sparkles, Eye, StarOff, GitBranch, ClipboardCheck,
-  Lock, Shield, Award, CheckCircle2, Video, BookOpen, Heart, Home, Bus, ExternalLink, FileCheck2
+  Lock, Shield, Award, CheckCircle2, Video, BookOpen, Heart, Home, Bus, ExternalLink, FileCheck2, Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCandidates } from "@/hooks/useJobs";
@@ -54,7 +64,13 @@ const fadeUp = {
   show: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.06, duration: 0.5, ease: [0.16, 1, 0.3, 1] } }),
 };
 
-function PipelineTracker({ currentStage }: { currentStage: string }) {
+function PipelineTracker({ 
+  currentStage,
+  onSelectStage,
+}: { 
+  currentStage: string;
+  onSelectStage?: (stage: string) => void;
+}) {
   const activeStages = useActiveStages();
   const stageOrder = activeStages.length > 0 ? activeStages.map(s => s.name) : DEFAULT_STAGE_ORDER;
   const currentIdx = findStageIndex(stageOrder, currentStage);
@@ -62,11 +78,14 @@ function PipelineTracker({ currentStage }: { currentStage: string }) {
   return (
     <motion.div custom={2} variants={fadeUp} initial="hidden" animate="show" className="bg-card rounded-2xl border border-border/50 p-6 shadow-sm">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="font-bold text-sm flex items-center gap-2.5">
-          <div className="w-1 h-5 rounded-full bg-primary" />
-          مراحل التوظيف
-        </h3>
-        <span className="text-xs text-muted-foreground bg-muted/60 px-2.5 py-1 rounded-full">
+        <div>
+          <h3 className="font-bold text-sm flex items-center gap-2.5">
+            <div className="w-1 h-5 rounded-full bg-primary" />
+            مسار التوظيف والاعتماد التفاعلي
+          </h3>
+          <p className="text-[11px] text-muted-foreground mt-0.5">انقر على أي مرحلة للنقل المباشر وتحديث حالة المرشح</p>
+        </div>
+        <span className="text-xs text-muted-foreground bg-muted/60 px-2.5 py-1 rounded-full font-bold font-mono">
           {Math.max(0, currentIdx + 1)} / {stageOrder.length}
         </span>
       </div>
@@ -81,19 +100,28 @@ function PipelineTracker({ currentStage }: { currentStage: string }) {
         />
         {stageOrder.map((stage, i) => {
           const status = i < currentIdx ? "completed" : i === currentIdx ? "current" : "upcoming";
+          const isClickable = !!onSelectStage && stage !== currentStage;
           return (
             <Tooltip key={stage}>
               <TooltipTrigger asChild>
-                <div className="relative flex flex-col items-center z-10 group cursor-default">
+                <button
+                  type="button"
+                  onClick={() => isClickable && onSelectStage(stage)}
+                  disabled={!isClickable}
+                  className={cn(
+                    "relative flex flex-col items-center z-10 group transition-all duration-200 focus:outline-none bg-transparent border-0 p-0",
+                    isClickable ? "cursor-pointer hover:scale-105 active:scale-95" : "cursor-default"
+                  )}
+                >
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ delay: 0.2 + i * 0.08, type: "spring", stiffness: 400, damping: 20 }}
                     className={cn(
                       "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300",
-                      status === "completed" && "bg-primary border-primary shadow-sm",
+                      status === "completed" && "bg-primary border-primary shadow-sm group-hover:ring-2 group-hover:ring-primary/40",
                       status === "current" && "bg-card border-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.1)] border-[3px]",
-                      status === "upcoming" && "bg-muted/60 border-muted-foreground/20"
+                      status === "upcoming" && "bg-muted/60 border-muted-foreground/20 group-hover:border-primary/50 group-hover:bg-primary/5"
                     )}
                   >
                     {status === "completed" ? (
@@ -101,18 +129,20 @@ function PipelineTracker({ currentStage }: { currentStage: string }) {
                     ) : status === "current" ? (
                       <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
                     ) : (
-                      <span className="text-xs text-muted-foreground font-semibold">{i + 1}</span>
+                      <span className="text-xs text-muted-foreground font-semibold group-hover:text-primary">{i + 1}</span>
                     )}
                   </motion.div>
                   <span className={cn(
                     "text-[11px] mt-2 font-medium max-w-[80px] text-center truncate transition-colors",
-                    status === "current" ? "text-primary font-bold" : status === "completed" ? "text-foreground font-semibold" : "text-muted-foreground"
+                    status === "current" ? "text-primary font-bold" : status === "completed" ? "text-foreground font-semibold" : "text-muted-foreground group-hover:text-foreground"
                   )}>
                     {stage}
                   </span>
-                </div>
+                </button>
               </TooltipTrigger>
-              <TooltipContent>{stage}</TooltipContent>
+              <TooltipContent>
+                {status === "current" ? `المرحلة الحالية: ${stage}` : `انقر للنقل إلى: ${stage}`}
+              </TooltipContent>
             </Tooltip>
           );
         })}
@@ -317,6 +347,73 @@ export default function CandidateProfile() {
   const preferredCities = (candidate as any).preferred_cities || ["الرياض", "جدة", "الخبر"];
   const relocationVisa = (candidate as any).relocation || "جاهز للانتقال فوراً • نقل كفالة جاهز / تأشيرة استقدام";
   const demoLessonUrl = (candidate as any).demo_video_url || "https://youtube.com/watch?v=demo-lesson-preview";
+  const [stageToConfirm, setStageToConfirm] = useState<string | null>(null);
+  const [isChangingStage, setIsChangingStage] = useState(false);
+
+  const handleStageDirectMove = async (targetStage: string) => {
+    if (!candidate || targetStage === candidate.stage) return;
+    setIsChangingStage(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const newStatus = targetStage === "العرض الوظيفي" ? "مقبول" : candidate.status === "مرفوض" ? "مرفوض" : "قيد المراجعة";
+
+      const { error } = await supabase
+        .from("candidates")
+        .update({
+          stage: targetStage,
+          status: newStatus,
+          stage_entered_at: nowIso,
+          updated_at: nowIso,
+        })
+        .eq("id", candidate.id);
+
+      if (error) throw error;
+
+      try {
+        await supabase
+          .from("applications")
+          .update({
+            status: newStatus,
+            updated_at: nowIso,
+          })
+          .eq("id", candidate.id);
+      } catch {
+        // ignore
+      }
+
+      // Record stage transition
+      try {
+        await supabase.from("candidate_stage_transitions").insert({
+          candidate_id: candidate.id,
+          from_stage: candidate.stage,
+          to_stage: targetStage,
+          moved_by: user?.id,
+          moved_by_name: user?.email,
+        });
+      } catch {
+        // ignore
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      await queryClient.invalidateQueries({ queryKey: ["candidate", id] });
+      await queryClient.invalidateQueries({ queryKey: ["candidate-detail-direct", id] });
+      await queryClient.invalidateQueries({ queryKey: ["applications"] });
+
+      toast({
+        title: targetStage === "العرض الوظيفي" ? "تم اعتماد المرشح وقبوله رسمياً! 🏅" : `تم نقل المرشح إلى: ${targetStage} بنجاح ✅`,
+        description: targetStage === "العرض الوظيفي" ? "تم تحديث حالة المرشح إلى مقبول." : undefined,
+      });
+    } catch (err: any) {
+      toast({
+        title: "خطأ في تحديث المرحلة",
+        description: err?.message || "تعذر نقل المرشح للمرحلة المحددة",
+        variant: "destructive",
+      });
+    } finally {
+      setIsChangingStage(false);
+      setStageToConfirm(null);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -417,7 +514,10 @@ export default function CandidateProfile() {
         </motion.div>
 
         {/* Pipeline Tracker */}
-        <PipelineTracker currentStage={candidate.stage || "تقديم الطلب"} />
+        <PipelineTracker
+          currentStage={candidate.stage || "تقديم الطلب"}
+          onSelectStage={(stg) => setStageToConfirm(stg)}
+        />
 
         {/* Full Teacher Professional Specification Profile Card */}
         <Card className="border-border/60 rounded-3xl p-6 bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-transparent space-y-6 shadow-xs">
@@ -534,6 +634,34 @@ export default function CandidateProfile() {
             />
           </div>
         </div>
+
+        {/* Quick Stage Move Confirmation Dialog */}
+        <AlertDialog open={!!stageToConfirm} onOpenChange={(open) => !open && setStageToConfirm(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد نقل المرشح في مسار التوظيف</AlertDialogTitle>
+              <AlertDialogDescription>
+                هل تريد نقل <strong>{candidate.name}</strong> من مرحلة "{candidate.stage || "تقديم الطلب"}" إلى مرحلة "<strong>{stageToConfirm}</strong>"؟
+                {stageToConfirm === "العرض الوظيفي" && (
+                  <span className="block mt-2 text-emerald-600 font-bold">
+                    سيتم اعتماد المرشح وتحديث حالته إلى "مقبول" تلقائياً في النظام 🏅
+                  </span>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogAction
+                disabled={isChangingStage}
+                onClick={() => stageToConfirm && handleStageDirectMove(stageToConfirm)}
+                className="gradient-primary border-0 text-primary-foreground"
+              >
+                {isChangingStage ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : null}
+                تأكيد النقل
+              </AlertDialogAction>
+              <AlertDialogCancel disabled={isChangingStage}>إلغاء</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );

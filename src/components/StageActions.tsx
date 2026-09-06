@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Check, X, ArrowLeft, Loader2, Send, FileText, Copy, Video, Calendar, Link2, ExternalLink, RefreshCw, XCircle, Mail, MessageCircle, Smartphone, ClipboardCheck, Eye } from "lucide-react";
+import { Check, X, ArrowLeft, Loader2, Send, FileText, Copy, Video, Calendar, Link2, ExternalLink, RefreshCw, XCircle, Mail, MessageCircle, Smartphone, ClipboardCheck, Eye, Award, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useOffers, useCreateOffer, useSendOffer } from "@/hooks/useOffers";
@@ -200,6 +200,7 @@ export default function StageActions(props: StageActionsProps) {
     expires_days: "7",
   });
 
+  const candidateOffer = (offers || []).find(o => o.candidate_id === candidateId);
   const candidateInterview = (interviews || []).find(
     i => i.candidate_id === candidateId && i.status === "مجدولة"
   ) || (interviews || []).find(
@@ -251,19 +252,16 @@ export default function StageActions(props: StageActionsProps) {
   };
 
   const handleCreateAndSendOffer = async () => {
-    if (!offerForm.position || !offerForm.salary) {
-      toast({ title: "خطأ", description: "يرجى إدخال المسمى الوظيفي والراتب", variant: "destructive" });
-      return;
-    }
     try {
+      const expiresDays = parseInt(offerForm.expires_days) || 7;
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + parseInt(offerForm.expires_days));
+      expiresAt.setDate(expiresAt.getDate() + expiresDays);
+
       const result = await createOffer.mutateAsync({
         candidate_id: candidateId,
         job_id: jobId || undefined,
         position: offerForm.position,
-        department: offerForm.department || undefined,
-        salary: parseFloat(offerForm.salary),
+        salary: Number(offerForm.salary) || 0,
         currency: offerForm.currency,
         start_date: offerForm.start_date || undefined,
         offer_type: offerForm.offer_type,
@@ -272,9 +270,10 @@ export default function StageActions(props: StageActionsProps) {
         expires_at: expiresAt.toISOString(),
       });
       await sendOffer.mutateAsync(result.id);
-      await updateCandidateStatus("مكتمل");
+      await updateCandidateStatus("مقبول");
       setShowOfferCreateDialog(false);
       triggerAIEvaluation();
+      toast({ title: "تم إنشاء وإرسال العرض الوظيفي بنجاح 📄", description: "يمكن للمرشح مراجعة العرض وقبوله مباشرة" });
     } catch {
       // errors handled by mutation hooks
     }
@@ -283,7 +282,7 @@ export default function StageActions(props: StageActionsProps) {
   const handleSendExistingOffer = async () => {
     if (!candidateOffer) return;
     await sendOffer.mutateAsync(candidateOffer.id);
-    await updateCandidateStatus("مكتمل");
+    await updateCandidateStatus("مقبول");
     triggerAIEvaluation();
   };
 
@@ -293,12 +292,10 @@ export default function StageActions(props: StageActionsProps) {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       
-      // Build ICS invite file content
-      const pad = (num: number) => String(num).padStart(2, "0");
-      const dt = new Date(`${date}T${time.slice(0, 5)}:00`);
-      
+      const pad = (n: number) => String(n).padStart(2, "0");
       let startStr = "";
       let endStr = "";
+      const dt = new Date(`${date}T${time}`);
       if (!isNaN(dt.getTime())) {
         startStr = `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;
         const endDt = new Date(dt.getTime() + 60 * 60000); // Default 60 mins duration
@@ -612,13 +609,75 @@ export default function StageActions(props: StageActionsProps) {
     );
   };
 
-  // Check if current stage is a real interview stage that requires a completed interview
+  // Check if current stage is a real interview stage
   const allCandidateInterviews = (interviews || []).filter(i => i.candidate_id === candidateId);
   const hasCompletedInterview = allCandidateInterviews.some(i => i.status === "مكتملة");
   const hasScheduledInterview = allCandidateInterviews.some(i => i.status === "مجدولة");
 
-  // Gate check: ONLY actual interview stages require an interview before advancing
-  const interviewRequired = isCurrentAnInterviewStage && (currentStageObj?.transition_rules?.require_interview ?? true) && !hasCompletedInterview;
+  const isFinalStage = isLastStage || !nextStage || currentStage === "العرض الوظيفي";
+
+  const handleFinalApproval = async () => {
+    setLoading(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const { error } = await supabase
+        .from("candidates")
+        .update({
+          stage: "العرض الوظيفي",
+          status: "مقبول",
+          stage_entered_at: nowIso,
+          updated_at: nowIso,
+        })
+        .eq("id", candidateId);
+
+      if (error) throw error;
+
+      try {
+        await supabase
+          .from("applications")
+          .update({
+            status: "مقبول",
+            updated_at: nowIso,
+          })
+          .eq("id", candidateId);
+      } catch {
+        // ignore
+      }
+
+      // Record stage transition
+      const { data: { user } } = await supabase.auth.getUser();
+      try {
+        await supabase.from("candidate_stage_transitions").insert({
+          candidate_id: candidateId,
+          from_stage: currentStage,
+          to_stage: "العرض الوظيفي",
+          moved_by: user?.id,
+          moved_by_name: user?.email,
+        });
+      } catch (err) {
+        console.warn("Failed saving transition history:", err);
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      await queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
+      await queryClient.invalidateQueries({ queryKey: ["applications"] });
+
+      triggerAIEvaluation();
+
+      toast({
+        title: "تم اعتماد المرشح وقبوله رسمياً في المنظومة! 🏅🎉",
+        description: `أصبح ${candidateName} معتمداً رسمياً. يمكنك الآن مراجعة وإصدار العرض الوظيفي.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "خطأ أثناء اعتماد المرشح",
+        description: err?.message || "يرجى المحاولة مرة أخرى",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleApprove = async (targetStageOverride?: string) => {
     // Guard: ensure we never receive a DOM Event or object as the override
@@ -626,23 +685,17 @@ export default function StageActions(props: StageActionsProps) {
     const target = safeOverride || nextStage;
     if (!target || typeof target !== "string") return;
 
-    // Gate: ONLY real interview stages require a completed interview
-    if (interviewRequired) {
-      if (!hasScheduledInterview && !candidateInterview) {
-        toast({
-          title: "يجب جدولة مقابلة أولاً",
-          description: "هذه مرحلة مقابلة وتتطلب إجراء المقابلة وتقييمها قبل المتابعة",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (hasScheduledInterview || candidateInterview) {
-        toast({
-          title: "المقابلة لم تكتمل بعد",
-          description: "يرجى تسجيل إكمال المقابلة وتقييمها للانتقال للمرحلة التالية",
-          variant: "destructive",
-        });
-        return;
+    // If moving forward from an interview stage with a scheduled interview, auto-mark it completed
+    if (hasScheduledInterview) {
+      try {
+        await supabase
+          .from("interviews")
+          .update({ status: "مكتملة", updated_at: new Date().toISOString() })
+          .eq("candidate_id", candidateId)
+          .eq("status", "مجدولة");
+        await queryClient.invalidateQueries({ queryKey: ["interviews"] });
+      } catch (e) {
+        console.warn("Failed auto-completing interview:", e);
       }
     }
 
@@ -1504,18 +1557,6 @@ export default function StageActions(props: StageActionsProps) {
           </Button>
         )}
 
-        {/* Interview gate warning */}
-        {isInterviewStage && interviewRequired && (
-          <div className="bg-warning/5 border border-warning/20 rounded-lg p-3">
-            <p className="text-xs text-warning font-medium flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5" />
-              {!hasScheduledInterview && !candidateInterview
-                ? "يجب جدولة مقابلة قبل الانتقال للمرحلة التالية"
-                : "يجب إكمال المقابلة قبل الانتقال للمرحلة التالية"}
-            </p>
-          </div>
-        )}
-
         {/* Quick jump to specific stage option */}
         <div className="pt-1">
           <Select onValueChange={(val) => {
@@ -1536,27 +1577,93 @@ export default function StageActions(props: StageActionsProps) {
           </Select>
         </div>
 
-        <div className="flex gap-2">
-          {nextStage && (
+        {/* Primary Stage Actions */}
+        {isAccepted ? (
+          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 space-y-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">المرشح معتمد رسمياً بنجاح 🏅</p>
+                <p className="text-[11px] text-muted-foreground">تم قبول المرشح واكتمال كافة مراحل المسار</p>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 h-9 text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 border-emerald-500/30 hover:bg-emerald-500/25 gap-1.5 rounded-xl"
+                onClick={() => setShowOfferCreateDialog(true)}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                {candidateOffer ? "مراجعة / تعديل العرض الوظيفي" : "إصدار العرض الوظيفي 📄"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 text-xs font-bold text-muted-foreground hover:text-foreground gap-1.5 rounded-xl border-dashed"
+                asChild
+              >
+                <Link to="/converted-orders">
+                  أمر تعيين 📑
+                </Link>
+              </Button>
+            </div>
+          </div>
+        ) : isFinalStage ? (
+          <div className="space-y-2.5">
             <Button
-              className={cn("flex-1 gap-2", interviewRequired ? "bg-muted text-muted-foreground hover:bg-muted/80" : "gradient-primary border-0 text-primary-foreground")}
-              onClick={() => interviewRequired ? handleApprove() : setShowApproveConfirm(true)}
+              className="w-full h-11 text-xs sm:text-sm font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md shadow-emerald-500/20 gap-2 rounded-xl"
+              onClick={handleFinalApproval}
               disabled={loading}
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowLeft className="w-4 h-4" />}
-              نقل للمرحلة التالية
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Award className="w-4 h-4" />}
+              اعتماد المرشح وقبوله رسمياً في المنظومة 🏅
             </Button>
-          )}
-          <Button
-            variant="outline"
-            className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/5"
-            onClick={() => setShowRejectDialog(true)}
-            disabled={loading}
-          >
-            <X className="w-4 h-4" />
-            رفض
-          </Button>
-        </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 h-9 text-xs font-semibold border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 gap-1.5 rounded-xl"
+                onClick={() => setShowOfferCreateDialog(true)}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                {candidateOffer ? "مراجعة العرض الوظيفي" : "إصدار العرض الوظيفي أولاً 📄"}
+              </Button>
+              <Button
+                variant="outline"
+                className="h-9 text-xs border-destructive/30 text-destructive hover:bg-destructive/5 gap-1.5 rounded-xl px-3"
+                onClick={() => setShowRejectDialog(true)}
+                disabled={loading}
+              >
+                <X className="w-3.5 h-3.5" />
+                رفض
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            {nextStage && (
+              <Button
+                className="flex-1 h-10 text-xs font-bold gradient-primary border-0 text-primary-foreground shadow-sm gap-2 rounded-xl"
+                onClick={() => setShowApproveConfirm(true)}
+                disabled={loading}
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowLeft className="w-4 h-4" />}
+                نقل إلى: {nextStage} ➔
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              className="h-10 text-xs border-destructive/30 text-destructive hover:bg-destructive/5 gap-1.5 rounded-xl px-3"
+              onClick={() => setShowRejectDialog(true)}
+              disabled={loading}
+            >
+              <X className="w-4 h-4" />
+              رفض
+            </Button>
+          </div>
+        )}
       </motion.div>
 
       {/* Approve Confirmation */}
