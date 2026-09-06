@@ -358,19 +358,46 @@ export default function CandidateProfile() {
   const daysAgo = Math.floor((Date.now() - new Date(candidate.created_at).getTime()) / (1000 * 60 * 60 * 24));
   const statusCfg = statusConfig[candidate.status] || { label: candidate.status, bg: "bg-muted text-muted-foreground", dot: "bg-muted-foreground" };
 
-  // Educational teacher attributes
-  const isSaudiLicenseValid = (candidate as any).license_status === "valid" || true;
-  const licenseNumber = (candidate as any).license_number || "ETEC-9842145-SA";
-  const licenseExpiry = (candidate as any).license_expiry || "30 ديسمبر 2028";
-  const universityDegree = (candidate as any).university_degree || "بكالوريوس علوم وتربية (فيزياء وكيمياء)";
-  const universityName = (candidate as any).university_name || "جامعة الملك سعود - الرياض (2018)";
-  const teachingCurricula = (candidate as any).curricula || ["المنهج الأمريكي NGSS", "المنهج البريطاني IGCSE", "المنهج السعودي"];
-  const teachingLevels = (candidate as any).teaching_levels || ["المرحلة المتوسطة (الصفوف 7-9)", "المرحلة الثانوية (الصفوف 10-12)"];
-  const ieltsScore = (candidate as any).ielts_score || "7.5 (C1 Advanced)";
-  const intCertificates = (candidate as any).certificates || ["CELTA (Cambridge)", "PGCE International"];
-  const preferredCities = (candidate as any).preferred_cities || ["الرياض", "جدة", "الخبر"];
-  const relocationVisa = (candidate as any).relocation || "جاهز للانتقال فوراً • نقل كفالة جاهز / تأشيرة استقدام";
-  const demoLessonUrl = (candidate as any).demo_video_url || "https://youtube.com/watch?v=demo-lesson-preview";
+  // Helper: safely convert a value to a string (avoid rendering objects as React children)
+  const safeStr = (val: any, fallback = ""): string => {
+    if (val === null || val === undefined) return fallback;
+    if (typeof val === "string") return val;
+    if (typeof val === "number" || typeof val === "boolean") return String(val);
+    if (typeof val === "object" && val.title) return String(val.title); // Supabase join: {title: "..."}
+    return fallback;
+  };
+
+  // Helper: safely convert a value to an array of strings
+  const safeArr = (val: any, fallback: string[]): string[] => {
+    if (!val) return fallback;
+    if (Array.isArray(val)) return val.map(v => safeStr(v, "")).filter(Boolean);
+    if (typeof val === "string") {
+      try { const parsed = JSON.parse(val); if (Array.isArray(parsed)) return parsed.map(String); } catch {}
+      return val.split(",").map(s => s.trim()).filter(Boolean);
+    }
+    return fallback;
+  };
+
+  // Educational teacher attributes — safely coerced
+  const licenseNumber = safeStr((candidate as any).license_number, "ETEC-9842145-SA");
+  const licenseExpiry = safeStr((candidate as any).license_expiry, "30 ديسمبر 2028");
+  const universityDegree = safeStr((candidate as any).university_degree, "بكالوريوس علوم وتربية (فيزياء وكيمياء)");
+  const universityName = safeStr((candidate as any).university_name, "جامعة الملك سعود - الرياض (2018)");
+  const teachingCurricula = safeArr((candidate as any).curricula, ["المنهج الأمريكي NGSS", "المنهج البريطاني IGCSE", "المنهج السعودي"]);
+  const teachingLevels = safeArr((candidate as any).teaching_levels, ["المرحلة المتوسطة (الصفوف 7-9)", "المرحلة الثانوية (الصفوف 10-12)"]);
+  const ieltsScore = safeStr((candidate as any).ielts_score, "7.5 (C1 Advanced)");
+  const intCertificates = safeArr((candidate as any).certificates, ["CELTA (Cambridge)", "PGCE International"]);
+  const preferredCities = safeArr((candidate as any).preferred_cities, ["الرياض", "جدة", "الخبر"]);
+  const relocationVisa = safeStr((candidate as any).relocation, "جاهز للانتقال فوراً • نقل كفالة جاهز / تأشيرة استقدام");
+  const demoLessonUrl = safeStr((candidate as any).demo_video_url, "https://youtube.com/watch?v=demo-lesson-preview");
+
+  // Safe rendered strings — prevent React Error #31 (objects as children)
+  const candidateName = safeStr(candidate.name, "—");
+  const candidateRole = safeStr((candidate as any).role, "معلم علوم وفيزياء");
+  const candidateEmail = safeStr((candidate as any).email, "");
+  const candidatePhone = safeStr((candidate as any).phone, "");
+  const candidateStatus = safeStr(candidate.status, "قيد المراجعة");
+
   const [stageToConfirm, setStageToConfirm] = useState<string | null>(null);
   const [isChangingStage, setIsChangingStage] = useState(false);
 
@@ -506,7 +533,7 @@ export default function CandidateProfile() {
               <div className="shrink-0 -mt-10">
                 <Avatar className="w-20 h-20 border-[4px] border-card shadow-xl ring-2 ring-emerald-500/20">
                   <AvatarFallback className="bg-emerald-500/10 text-emerald-600 font-bold text-xl">
-                    {getInitials(candidate.name)}
+                    {getInitials(candidateName)}
                   </AvatarFallback>
                 </Avatar>
               </div>
@@ -514,7 +541,7 @@ export default function CandidateProfile() {
               {/* Details */}
               <div className="flex-1 pt-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                  <h1 className="text-xl lg:text-2xl font-bold text-foreground truncate">{candidate.name}</h1>
+                  <h1 className="text-xl lg:text-2xl font-bold text-foreground truncate">{candidateName}</h1>
                   <Badge className="bg-emerald-600 text-white text-[11px] font-bold gap-1 px-3">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     ملف معلم موثق ومعتمد 🏅
@@ -525,18 +552,18 @@ export default function CandidateProfile() {
                   </Badge>
                 </div>
 
-                <p className="text-sm font-bold text-emerald-600 mb-3">{candidate.role || "معلم علوم وفيزياء"}</p>
+                <p className="text-sm font-bold text-emerald-600 mb-3">{candidateRole}</p>
 
                 {/* Contact & Saudi License Info */}
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  {candidate.email && (
+                  {candidateEmail && (
                     <span className="inline-flex items-center gap-1.5 bg-muted/40 px-3 py-1 rounded-xl border border-border/40 font-mono">
-                      <Mail className="w-3.5 h-3.5 text-emerald-600" />{candidate.email}
+                      <Mail className="w-3.5 h-3.5 text-emerald-600" />{candidateEmail}
                     </span>
                   )}
-                  {candidate.phone && (
+                  {candidatePhone && (
                     <span className="inline-flex items-center gap-1.5 bg-muted/40 px-3 py-1 rounded-xl border border-border/40 font-mono" dir="ltr">
-                      <Phone className="w-3.5 h-3.5 text-emerald-600" />{candidate.phone}
+                      <Phone className="w-3.5 h-3.5 text-emerald-600" />{candidatePhone}
                     </span>
                   )}
                   <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold px-3 py-1 rounded-xl border border-emerald-500/20">
@@ -715,7 +742,7 @@ export default function CandidateProfile() {
             <AlertDialogHeader>
               <AlertDialogTitle>تأكيد نقل المرشح في مسار التوظيف</AlertDialogTitle>
               <AlertDialogDescription>
-                هل تريد نقل <strong>{candidate.name}</strong> من مرحلة "{candidate.stage || "تقديم الطلب"}" إلى مرحلة "<strong>{stageToConfirm}</strong>"؟
+                هل تريد نقل <strong>{candidateName}</strong> من مرحلة "{candidate.stage || "تقديم الطلب"}" إلى مرحلة "<strong>{stageToConfirm}</strong>"؟
                 {stageToConfirm === "العرض الوظيفي" && (
                   <span className="block mt-2 text-emerald-600 font-bold">
                     سيتم اعتماد المرشح وتحديث حالته إلى "مقبول" تلقائياً في النظام 🏅
