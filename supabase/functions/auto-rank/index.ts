@@ -21,7 +21,7 @@ function buildCandidateText(c: any): string {
 
 function hashEmbed(text: string, dim = 128): number[] {
   const v = new Array(dim).fill(0);
-  const tokens = text.toLowerCase().split(/[\s,/|.;:!?()\[\]{}"'`-]+/).filter(Boolean);
+  const tokens = text.toLowerCase().split(/[\s,/|.;:!?()[\]{}"'`-]+/).filter(Boolean);
   for (const tok of tokens) {
     let h = 5381;
     for (let i = 0; i < tok.length; i++) h = ((h << 5) + h) ^ tok.charCodeAt(i);

@@ -269,7 +269,7 @@ const TawzeefXSystemShowcase = memo(function TawzeefXSystemShowcase() {
 
   useEffect(() => {
     let frame: number;
-    let start = performance.now();
+    const start = performance.now();
     const duration = 1500;
     const animate = (now: number) => {
       const elapsed = now - start;

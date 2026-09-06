@@ -457,7 +457,7 @@ export function useCompanyBranches(parentId: string | undefined) {
       const managerUserIds = Array.from(
         new Set(branchCompanies.map((c) => c.manager_user_id).filter(Boolean))
       ) as string[];
-      let profilesMap: Record<string, unknown> = {};
+      const profilesMap: Record<string, unknown> = {};
 
       if (managerUserIds.length > 0) {
         const { data: profs } = await supabase

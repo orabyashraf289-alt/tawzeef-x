@@ -142,7 +142,7 @@ export default function TalentPool() {
 
   // Filter & sort
   const entries = useMemo(() => {
-    let filtered = (poolEntries || []).filter(e => {
+    const filtered = (poolEntries || []).filter(e => {
       const c = e.candidates;
       if (!c) return false;
       const matchSearch = !search.trim() || c.name?.includes(search) || c.email?.includes(search) || c.role?.includes(search) || c.skills?.some((s: string) => s.includes(search));

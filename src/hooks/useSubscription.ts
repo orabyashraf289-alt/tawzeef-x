@@ -157,11 +157,12 @@ export function useMySubscription() {
       const targetCompanyId = activeCompany.parent_company_id || activeCompany.id;
 
       // 2) Get company subscription by company_id OR fallback to user_id
-      let { data: subRow, error } = await supabase
+      const { data: subRowInitial, error } = await supabase
         .from("company_subscriptions" as any)
         .select("*")
         .eq("company_id", targetCompanyId)
         .maybeSingle();
+      let subRow = subRowInitial;
 
       if (!subRow) {
         const { data: userSub } = await supabase

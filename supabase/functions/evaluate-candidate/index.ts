@@ -22,7 +22,7 @@ function generateSmartFallbackEvaluation(candidate: any, job: any) {
     ).length;
   }
 
-  let skillsMatchScore = candidateSkills.length > 0 ? Math.min(95, Math.max(50, matchedSkillsCount * 20 + 40)) : 60;
+  const skillsMatchScore = candidateSkills.length > 0 ? Math.min(95, Math.max(50, matchedSkillsCount * 20 + 40)) : 60;
   let experienceMatchScore = 70;
   if (candidate.experience) {
     const expYears = parseInt(candidate.experience, 10);
@@ -33,8 +33,8 @@ function generateSmartFallbackEvaluation(candidate: any, job: any) {
     }
   }
 
-  let educationMatchScore = candidate.education ? 85 : 65;
-  let culturalFitScore = 80;
+  const educationMatchScore = candidate.education ? 85 : 65;
+  const culturalFitScore = 80;
 
   const score = Math.round(skillsMatchScore * 0.35 + experienceMatchScore * 0.30 + educationMatchScore * 0.20 + culturalFitScore * 0.15);
 

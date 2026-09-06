@@ -378,7 +378,7 @@ export default function TaskBoard() {
   }, [dbTasks]);
 
   const filteredTasks = useMemo(() => {
-    let result = tasks.filter(t => {
+    const result = tasks.filter(t => {
       const matchTitle = locale === "ar" ? t.title : t.titleEn;
       const matchDesc = locale === "ar" ? t.description : t.descriptionEn;
       const matchesSearch = (

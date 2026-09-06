@@ -949,7 +949,7 @@ function generateSmartFallbackResponse(prompt: string, user?: any): { content: s
     else if (p.includes("محاسب")) title = "محاسب مالي";
     else if (p.includes("موارد بشرية") || p.includes("hr")) title = "أخصائي موارد بشرية";
     else {
-      const match = prompt.match(/(?:وظيفة|شاغر|مسمى|لوظيفة)\s+([^،,\.\n]+)/i);
+      const match = prompt.match(/(?:وظيفة|شاغر|مسمى|لوظيفة)\s+([^،,.\n]+)/i);
       if (match) title = match[1].trim();
     }
 
