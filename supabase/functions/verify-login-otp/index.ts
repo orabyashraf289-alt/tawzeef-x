@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "../_shared/rateLimiter.ts";
+import { getErrorMessage } from "../_shared/errorMessage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -103,8 +104,8 @@ Deno.serve(async (req) => {
     if (updateError) throw updateError;
 
     return json({ success: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error("verify-login-otp error:", error);
-    return json({ success: false, error: error.message || "تعذر التحقق من الرمز" }, 500);
+    return json({ success: false, error: getErrorMessage(error, "تعذر التحقق من الرمز") }, 500);
   }
 });

@@ -2,6 +2,7 @@ import nodemailer from "npm:nodemailer@6.9.16";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { getErrorMessage } from "../_shared/errorMessage.ts";
 
 const ALGO = "AES-GCM";
 
@@ -285,8 +286,8 @@ Deno.serve(async (req) => {
         });
         emailSent = true;
         console.log(`Password reset email sent to ${normalizedEmail} via custom SMTP: ${smtpHost}`);
-      } catch (err: any) {
-        console.warn(`Custom SMTP failed for password reset (${err.message}). Falling back to default system SMTP...`);
+      } catch (err) {
+        console.warn(`Custom SMTP failed for password reset (${getErrorMessage(err)}). Falling back to default system SMTP...`);
       }
     }
 
@@ -316,8 +317,8 @@ Deno.serve(async (req) => {
     }
 
     return json({ success: true, message: "إذا كان البريد الإلكتروني مسجلاً لدينا، فستتلقى رابطاً لإعادة تعيين كلمة المرور." });
-  } catch (error: any) {
+  } catch (error) {
     console.error("request-password-reset error:", error);
-    return json({ error: error.message || "حدث خطأ أثناء معالجة الطلب" }, 500);
+    return json({ error: getErrorMessage(error, "حدث خطأ أثناء معالجة الطلب") }, 500);
   }
 });

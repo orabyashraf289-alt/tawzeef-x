@@ -1,6 +1,7 @@
 import nodemailer from "npm:nodemailer@6.9.16";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { getErrorMessage } from "../_shared/errorMessage.ts";
 
 const ALGO = "AES-GCM";
 
@@ -110,7 +111,7 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceKey);
 
     // Find user by email with fail-safe fallback
-    let targetUser: any = null;
+    let targetUser: { id: string } | null = null;
     try {
       const { data: dbUsers, error: findError } = await adminClient.rpc("get_user_by_email_v1", {
         email_input: normalizedEmail,
@@ -369,8 +370,8 @@ function htmlToPlainText(htmlStr: string): string {
           const errText = await resendResp.text();
           console.warn(`Resend API OTP failed (${resendResp.status}: ${errText}). Falling back to internal SMTP...`);
         }
-      } catch (err: any) {
-        console.warn(`Resend API OTP exception (${err.message}). Falling back to internal SMTP...`);
+      } catch (err) {
+        console.warn(`Resend API OTP exception (${getErrorMessage(err)}). Falling back to internal SMTP...`);
       }
     }
 
@@ -408,8 +409,8 @@ function htmlToPlainText(htmlStr: string): string {
         });
         emailSent = true;
         console.log(`OTP sent to ${normalizedEmail} via system SMTP settings (${smtpHost})`);
-      } catch (err: any) {
-        console.warn(`System SMTP OTP failed (${err.message}). Falling back to default system SMTP...`);
+      } catch (err) {
+        console.warn(`System SMTP OTP failed (${getErrorMessage(err)}). Falling back to default system SMTP...`);
       }
     }
 
@@ -454,8 +455,8 @@ function htmlToPlainText(htmlStr: string): string {
     }
 
     return json({ success: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error("request-login-otp error:", error);
-    return json({ error: error.message || "حدث خطأ أثناء إرسال الرمز" }, 500);
+    return json({ error: getErrorMessage(error, "حدث خطأ أثناء إرسال الرمز") }, 500);
   }
 });

@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
+import { getErrorMessage } from "../_shared/errorMessage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -83,8 +84,8 @@ Deno.serve(async (req) => {
 
     console.log(`Password successfully reset for user: ${normalizedEmail}`);
     return json({ success: true, message: "تم تغيير كلمة المرور بنجاح." });
-  } catch (error: any) {
+  } catch (error) {
     console.error("execute-password-reset error:", error);
-    return json({ error: error.message || "حدث خطأ أثناء معالجة الطلب" }, 500);
+    return json({ error: getErrorMessage(error, "حدث خطأ أثناء معالجة الطلب") }, 500);
   }
 });
