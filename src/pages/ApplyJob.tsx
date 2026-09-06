@@ -3,7 +3,6 @@ import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import { validateFile } from "@/lib/fileValidation";
-import { extractTextFromPDF, extractTextFromDocx } from "@/lib/fileParser";
 import { parseJobCustomSpecs } from "@/lib/jobSpecsHelper";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -164,8 +163,10 @@ export default function ApplyJob() {
       let extractedText = "";
       const ext = (file.name.split(".").pop() || "").toLowerCase();
       if (ext === "pdf") {
+        const { extractTextFromPDF } = await import("@/lib/fileParser");
         extractedText = await extractTextFromPDF(file);
       } else if (ext === "docx" || ext === "doc") {
+        const { extractTextFromDocx } = await import("@/lib/fileParser");
         extractedText = await extractTextFromDocx(file);
       }
 
@@ -283,7 +284,7 @@ export default function ApplyJob() {
       demo_video_url: form.demoVideoUrl || null,
     };
 
-    let finalTrackingCode = generatedTrackingCode;
+    const finalTrackingCode = generatedTrackingCode;
 
     // 1. Insert into applications table
     try {

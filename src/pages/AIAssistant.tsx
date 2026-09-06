@@ -87,7 +87,6 @@ import ModelSelector, { getStoredModelChoice, MODEL_OPTIONS, type ModelChoice } 
 import ModelCompareDialog from "@/components/ai-assistant/ModelCompareDialog";
 import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
 import SpeakButton from "@/components/ai-assistant/SpeakButton";
-import { extractTextFromPDF, extractTextFromDocx } from "@/lib/fileParser";
 import { cleanAIMessageContent } from "@/lib/cleanAiMessage";
 
 const messageAnimation = {
@@ -1498,8 +1497,10 @@ export default function AIAssistant() {
     const name = file.name.toLowerCase();
     try {
       if (name.endsWith(".pdf")) {
+        const { extractTextFromPDF } = await import("@/lib/fileParser");
         return await extractTextFromPDF(file);
       } else if (name.endsWith(".docx")) {
+        const { extractTextFromDocx } = await import("@/lib/fileParser");
         return await extractTextFromDocx(file);
       } else if (name.endsWith(".doc")) {
         toast({ 
