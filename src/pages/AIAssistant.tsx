@@ -1625,7 +1625,9 @@ export default function AIAssistant() {
           try {
             const txt = await resp.text();
             if (txt) errorMessage = txt.slice(0, 150);
-          } catch {}
+          } catch (error) {
+            console.warn("Failed to read error response body as text:", error);
+          }
         }
         throw new Error(errorMessage);
       }

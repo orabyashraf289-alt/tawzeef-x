@@ -111,7 +111,9 @@ export async function resolveTenantCompanyScope(userId: string | undefined, spec
           .map((m: any) => m.company_id)
           .filter((cid: string) => cid && cid !== "undefined" && cid !== "null");
       }
-    } catch {}
+    } catch (error) {
+      console.warn("Failed to fetch user's company memberships:", error);
+    }
   }
 
   return [];

@@ -44,7 +44,9 @@ export function getStoredModelChoice(): ModelChoice {
   try {
     const v = localStorage.getItem(STORAGE_KEY);
     if (v && MODEL_OPTIONS.some((o) => o.value === v)) return v as ModelChoice;
-  } catch {}
+  } catch (error) {
+    console.warn("Failed to read saved AI model choice:", error);
+  }
   return "auto";
 }
 
@@ -61,7 +63,9 @@ export default function ModelSelector({ value, onChange, size = "sm" }: Props) {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, value);
-    } catch {}
+    } catch (error) {
+      console.warn("Failed to save AI model choice:", error);
+    }
   }, [value]);
 
   const Icon = current.icon;

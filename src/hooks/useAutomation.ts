@@ -29,7 +29,8 @@ function getLocalRules(): AutomationRule[] {
   try {
     const raw = localStorage.getItem(LOCAL_KEY);
     return raw ? JSON.parse(raw) : [];
-  } catch {
+  } catch (error) {
+    console.warn("Failed to read automation rules from localStorage:", error);
     return [];
   }
 }
@@ -40,7 +41,7 @@ function saveLocalRule(rule: AutomationRule) {
     const existing = getLocalRules();
     const updated = [rule, ...existing.filter((r) => r.id !== rule.id)];
     localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
-  } catch {}
+  } catch (error) { console.warn("Failed to persist automation rules to localStorage:", error); }
 }
 
 function removeLocalRule(id: string) {
@@ -49,7 +50,7 @@ function removeLocalRule(id: string) {
     const existing = getLocalRules();
     const updated = existing.filter((r) => r.id !== id);
     localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
-  } catch {}
+  } catch (error) { console.warn("Failed to persist automation rules to localStorage:", error); }
 }
 
 function toggleLocalRule(id: string, is_active: boolean) {
@@ -58,7 +59,7 @@ function toggleLocalRule(id: string, is_active: boolean) {
     const existing = getLocalRules();
     const updated = existing.map((r) => (r.id === id ? { ...r, is_active } : r));
     localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
-  } catch {}
+  } catch (error) { console.warn("Failed to persist automation rules to localStorage:", error); }
 }
 
 async function resolveActiveCompanyId(userId: string): Promise<string> {
@@ -115,7 +116,8 @@ export function useAutomationRules() {
           }
         }
         return merged;
-      } catch {
+      } catch (error) {
+        console.warn("Failed to fetch automation rules from server, falling back to local:", error);
         return localRules;
       }
     },
@@ -177,7 +179,7 @@ export function useAutomationRules() {
             .from("automation_rules" as any)
             .update({ is_active })
             .eq("id", id);
-        } catch {}
+        } catch (error) { console.warn("Failed to persist automation rules to localStorage:", error); }
       }
     },
     onSuccess: () => {
@@ -195,7 +197,7 @@ export function useAutomationRules() {
             .from("automation_rules" as any)
             .delete()
             .eq("id", id);
-        } catch {}
+        } catch (error) { console.warn("Failed to persist automation rules to localStorage:", error); }
       }
     },
     onSuccess: () => {

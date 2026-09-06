@@ -106,7 +106,9 @@ export function useOffers(specificCompanyId?: string | null) {
           if (cands) {
             scopedCandidateIds = cands.map((c: any) => c.id);
           }
-        } catch (e) {}
+        } catch (e) {
+          console.warn("Failed to fetch scoped candidate IDs:", e);
+        }
       }
 
       const { data, error } = await supabase

@@ -73,7 +73,9 @@ export default function OrderOnboardingPortal() {
             found = match;
             break;
           }
-        } catch {}
+        } catch (error) {
+          console.warn("Failed to parse stored order data for key", key, error);
+        }
       }
     }
 
@@ -220,7 +222,9 @@ export default function OrderOnboardingPortal() {
                   : o
               );
               localStorage.setItem(key, JSON.stringify(updated));
-            } catch {}
+            } catch (error) {
+              console.warn("Failed to persist updated order to localStorage:", error);
+            }
           }
         }
       }

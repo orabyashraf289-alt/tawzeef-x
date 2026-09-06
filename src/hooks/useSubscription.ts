@@ -384,7 +384,7 @@ export function useCreateUpgradeRequest() {
             entity_id: companyId,
             details: `طلب ترقية إلى باقة ${targetPlanName} من شركة ${companyName}`,
           });
-        } catch {}
+        } catch (error) { console.warn("Non-critical subscription sync step failed:", error); }
       } catch (notifErr) {
         console.warn("Could not dispatch admin notifications:", notifErr);
       }
@@ -518,7 +518,7 @@ export function useUpgradeRequests() {
       let localRequests: UpgradeRequestRow[] = [];
       try {
         localRequests = JSON.parse(localStorage.getItem("tx_pending_upgrade_requests") || "[]");
-      } catch {}
+      } catch (error) { console.warn("Non-critical subscription sync step failed:", error); }
 
       const allRequests = [...localRequests, ...dbRequests.filter((d) => !localRequests.some((l) => l.id === d.id))];
       if (allRequests.length === 0) return [];
@@ -634,7 +634,7 @@ export function useAdminCustomUpgradeSubscription() {
             .update({ company_id: companyId, plan_id: planId, job_posts_limit: jobPostsLimit, status: "active" } as any)
             .eq("user_id", activeUserId)
             .is("company_id", null);
-        } catch {}
+        } catch (error) { console.warn("Non-critical subscription sync step failed:", error); }
       }
 
       // 2) Generate Invoice if requested
@@ -684,7 +684,7 @@ export function useAdminCustomUpgradeSubscription() {
           const local = JSON.parse(localStorage.getItem("tx_pending_upgrade_requests") || "[]");
           const updated = local.map((r: any) => (r.id === requestId ? { ...r, status: "approved" } : r));
           localStorage.setItem("tx_pending_upgrade_requests", JSON.stringify(updated));
-        } catch {}
+        } catch (error) { console.warn("Non-critical subscription sync step failed:", error); }
       }
 
       // 4) Send approval in-app notification to the company owner
@@ -850,7 +850,7 @@ export function useRejectUpgradeRequest() {
         const local = JSON.parse(localStorage.getItem("tx_pending_upgrade_requests") || "[]");
         const updated = local.map((r: any) => (r.id === requestId ? { ...r, status: "rejected" } : r));
         localStorage.setItem("tx_pending_upgrade_requests", JSON.stringify(updated));
-      } catch {}
+      } catch (error) { console.warn("Non-critical subscription sync step failed:", error); }
 
       // 3. Notify owner in-app
       if (ownerUserId) {
@@ -864,7 +864,7 @@ export function useRejectUpgradeRequest() {
             type: "upgrade_rejected",
             read: false,
           });
-        } catch {}
+        } catch (error) { console.warn("Non-critical subscription sync step failed:", error); }
       }
 
       // 4. Send email notification to owner if email exists

@@ -28,12 +28,14 @@ function loadVoicePref(): VoicePreference {
   try {
     const raw = localStorage.getItem(VOICE_PREF_KEY);
     if (raw) return { voiceURI: null, rate: 0.95, lang: "ar-SA", ...JSON.parse(raw) };
-  } catch {}
+  } catch (error) {
+    console.warn("Failed to read voice preference from localStorage:", error);
+  }
   return { voiceURI: null, rate: 0.95, lang: "ar-SA" };
 }
 
 function saveVoicePref(p: VoicePreference) {
-  try { localStorage.setItem(VOICE_PREF_KEY, JSON.stringify(p)); } catch {}
+  try { localStorage.setItem(VOICE_PREF_KEY, JSON.stringify(p)); } catch (error) { console.warn("Failed to save voice preference to localStorage:", error); }
 }
 
 export function detectLanguage(text: string): "ar" | "en" {
@@ -120,7 +122,7 @@ class SpeechService {
     this.currentId = null;
     if (this.currentAbort) { this.currentAbort.abort(); this.currentAbort = null; }
     if (this.currentAudio) {
-      try { this.currentAudio.pause(); } catch {}
+      try { this.currentAudio.pause(); } catch (error) { console.warn("Failed to pause current audio:", error); }
       this.currentAudio = null;
     }
     if (typeof window !== "undefined" && "speechSynthesis" in window) {

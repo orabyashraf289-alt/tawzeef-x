@@ -121,7 +121,8 @@ export function useCompanyTaxonomy() {
     try {
       const saved = localStorage.getItem("company_departments");
       return saved ? JSON.parse(saved) : DEFAULT_DEPARTMENTS;
-    } catch {
+    } catch (error) {
+      console.warn("Failed to read from localStorage, using default:", error);
       return DEFAULT_DEPARTMENTS;
     }
   });
@@ -135,11 +136,12 @@ export function useCompanyTaxonomy() {
       const missingDefault = DEFAULT_LOCATIONS.filter(l => !existingIds.has(l.id));
       if (missingDefault.length > 0) {
         const merged = [...parsed, ...missingDefault];
-        try { localStorage.setItem("company_locations", JSON.stringify(merged)); } catch {}
+        try { localStorage.setItem("company_locations", JSON.stringify(merged)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
         return merged;
       }
       return parsed;
-    } catch {
+    } catch (error) {
+      console.warn("Failed to read from localStorage, using default:", error);
       return DEFAULT_LOCATIONS;
     }
   });
@@ -148,7 +150,8 @@ export function useCompanyTaxonomy() {
     try {
       const saved = localStorage.getItem("company_experience_levels");
       return saved ? JSON.parse(saved) : DEFAULT_EXPERIENCE_LEVELS;
-    } catch {
+    } catch (error) {
+      console.warn("Failed to read from localStorage, using default:", error);
       return DEFAULT_EXPERIENCE_LEVELS;
     }
   });
@@ -157,7 +160,8 @@ export function useCompanyTaxonomy() {
     try {
       const saved = localStorage.getItem("company_approval_chains");
       return saved ? JSON.parse(saved) : DEFAULT_APPROVAL_CHAINS;
-    } catch {
+    } catch (error) {
+      console.warn("Failed to read from localStorage, using default:", error);
       return DEFAULT_APPROVAL_CHAINS;
     }
   });
@@ -167,7 +171,8 @@ export function useCompanyTaxonomy() {
     try {
       const saved = localStorage.getItem("company_school_types");
       return saved ? JSON.parse(saved) : DEFAULT_SCHOOL_TYPES;
-    } catch {
+    } catch (error) {
+      console.warn("Failed to read from localStorage, using default:", error);
       return DEFAULT_SCHOOL_TYPES;
     }
   });
@@ -176,7 +181,8 @@ export function useCompanyTaxonomy() {
     try {
       const saved = localStorage.getItem("company_curricula");
       return saved ? JSON.parse(saved) : DEFAULT_CURRICULA;
-    } catch {
+    } catch (error) {
+      console.warn("Failed to read from localStorage, using default:", error);
       return DEFAULT_CURRICULA;
     }
   });
@@ -185,7 +191,8 @@ export function useCompanyTaxonomy() {
     try {
       const saved = localStorage.getItem("company_grade_levels");
       return saved ? JSON.parse(saved) : DEFAULT_GRADE_LEVELS;
-    } catch {
+    } catch (error) {
+      console.warn("Failed to read from localStorage, using default:", error);
       return DEFAULT_GRADE_LEVELS;
     }
   });
@@ -194,7 +201,8 @@ export function useCompanyTaxonomy() {
     try {
       const saved = localStorage.getItem("company_teaching_loads");
       return saved ? JSON.parse(saved) : DEFAULT_TEACHING_LOADS;
-    } catch {
+    } catch (error) {
+      console.warn("Failed to read from localStorage, using default:", error);
       return DEFAULT_TEACHING_LOADS;
     }
   });
@@ -203,7 +211,8 @@ export function useCompanyTaxonomy() {
     try {
       const saved = localStorage.getItem("company_working_hours");
       return saved ? JSON.parse(saved) : DEFAULT_WORKING_HOURS;
-    } catch {
+    } catch (error) {
+      console.warn("Failed to read from localStorage, using default:", error);
       return DEFAULT_WORKING_HOURS;
     }
   });
@@ -212,7 +221,8 @@ export function useCompanyTaxonomy() {
     try {
       const saved = localStorage.getItem("company_benefits_list");
       return saved ? JSON.parse(saved) : DEFAULT_BENEFITS_OPTIONS;
-    } catch {
+    } catch (error) {
+      console.warn("Failed to read from localStorage, using default:", error);
       return DEFAULT_BENEFITS_OPTIONS;
     }
   });
@@ -250,7 +260,7 @@ export function useCompanyTaxonomy() {
 
         const savedBenefits = localStorage.getItem("company_benefits_list");
         if (savedBenefits) setBenefitsList(JSON.parse(savedBenefits));
-      } catch {}
+      } catch (error) { console.warn("Failed to persist to localStorage:", error); }
     };
 
     window.addEventListener("storage", handleStorageChange);
@@ -268,7 +278,7 @@ export function useCompanyTaxonomy() {
     };
     setDepartments(prev => {
       const updated = [...prev, newDept];
-      try { localStorage.setItem("company_departments", JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem("company_departments", JSON.stringify(updated)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
       return updated;
     });
     return newDept.name;
@@ -285,7 +295,7 @@ export function useCompanyTaxonomy() {
     };
     setLocations(prev => {
       const updated = [...prev, newLoc];
-      try { localStorage.setItem("company_locations", JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem("company_locations", JSON.stringify(updated)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
       return updated;
     });
     return newLoc.name;
@@ -300,7 +310,7 @@ export function useCompanyTaxonomy() {
     };
     setExperienceLevels(prev => {
       const updated = [...prev, newExp];
-      try { localStorage.setItem("company_experience_levels", JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem("company_experience_levels", JSON.stringify(updated)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
       return updated;
     });
     return newExp.name;
@@ -318,7 +328,7 @@ export function useCompanyTaxonomy() {
     };
     setApprovalChains(prev => {
       const updated = [...prev, newChain];
-      try { localStorage.setItem("company_approval_chains", JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem("company_approval_chains", JSON.stringify(updated)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
       return updated;
     });
     return newChain.name;
@@ -329,7 +339,7 @@ export function useCompanyTaxonomy() {
     setSchoolTypes(prev => {
       if (prev.includes(name.trim())) return prev;
       const updated = [...prev, name.trim()];
-      try { localStorage.setItem("company_school_types", JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem("company_school_types", JSON.stringify(updated)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
       return updated;
     });
     return name.trim();
@@ -340,7 +350,7 @@ export function useCompanyTaxonomy() {
     setCurricula(prev => {
       if (prev.includes(name.trim())) return prev;
       const updated = [...prev, name.trim()];
-      try { localStorage.setItem("company_curricula", JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem("company_curricula", JSON.stringify(updated)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
       return updated;
     });
     return name.trim();
@@ -351,7 +361,7 @@ export function useCompanyTaxonomy() {
     setGradeLevels(prev => {
       if (prev.includes(name.trim())) return prev;
       const updated = [...prev, name.trim()];
-      try { localStorage.setItem("company_grade_levels", JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem("company_grade_levels", JSON.stringify(updated)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
       return updated;
     });
     return name.trim();
@@ -362,7 +372,7 @@ export function useCompanyTaxonomy() {
     setTeachingLoads(prev => {
       if (prev.includes(name.trim())) return prev;
       const updated = [...prev, name.trim()];
-      try { localStorage.setItem("company_teaching_loads", JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem("company_teaching_loads", JSON.stringify(updated)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
       return updated;
     });
     return name.trim();
@@ -373,7 +383,7 @@ export function useCompanyTaxonomy() {
     setBenefitsList(prev => {
       if (prev.includes(name.trim())) return prev;
       const updated = [...prev, name.trim()];
-      try { localStorage.setItem("company_benefits_list", JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem("company_benefits_list", JSON.stringify(updated)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
       return updated;
     });
     return name.trim();

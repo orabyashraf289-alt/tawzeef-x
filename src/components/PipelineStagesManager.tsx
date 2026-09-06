@@ -116,7 +116,9 @@ function TemplatesSection({ onApply }: { onApply: (stages: { name: string; color
     setCustomSavedTemplates(updated);
     try {
       localStorage.setItem("custom_pipeline_templates", JSON.stringify(updated));
-    } catch {}
+    } catch (error) {
+      console.warn("Failed to save custom pipeline template:", error);
+    }
     toast({ title: `تم حفظ قالب "${newTemplate.name}" في قوالبك المخصصة 💾` });
   };
 
@@ -125,7 +127,9 @@ function TemplatesSection({ onApply }: { onApply: (stages: { name: string; color
     setCustomSavedTemplates(updated);
     try {
       localStorage.setItem("custom_pipeline_templates", JSON.stringify(updated));
-    } catch {}
+    } catch (error) {
+      console.warn("Failed to persist pipeline templates after deletion:", error);
+    }
     toast({ title: "تم حذف القالب المخصص" });
   };
 

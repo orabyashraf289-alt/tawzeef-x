@@ -118,7 +118,9 @@ export function parseCompanyRow(c: Record<string, any>): Company {
     try {
       meta = JSON.parse(c.notes);
       isJsonNotes = typeof meta === "object" && meta !== null;
-    } catch {}
+    } catch (error) {
+      console.warn("Failed to parse company notes as JSON metadata:", error);
+    }
   }
 
   const cleanNotes = isJsonNotes
