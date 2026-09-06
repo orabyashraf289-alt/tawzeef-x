@@ -18,8 +18,8 @@ const PORTAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/candidate-
 
 const DEFAULT_STAGES = [
   { id: "تقديم الطلب", label: "تقديم الطلب" },
-  { id: "مراجعة السيرة", label: "مراجعة السيرة" },
-  { id: "فحص هاتفي", label: "فحص هاتفي" },
+  { id: "فحص السيرة", label: "فحص السيرة" },
+  { id: "اختبار تحريري", label: "اختبار تحريري" },
   { id: "مقابلة تقنية", label: "مقابلة تقنية" },
   { id: "مقابلة نهائية", label: "مقابلة نهائية" },
   { id: "العرض الوظيفي", label: "العرض الوظيفي" },
@@ -49,7 +49,19 @@ interface CandidateResult {
 }
 
 function PipelineProgress({ currentStage, stages }: { currentStage: string; stages: typeof DEFAULT_STAGES }) {
-  const currentIdx = stages.findIndex(s => s.id === currentStage);
+  // Use semantic matching: if exact match fails, try partial keyword match
+  let currentIdx = stages.findIndex(s => s.id === currentStage);
+  if (currentIdx === -1) {
+    currentIdx = stages.findIndex(s => {
+      const a = s.id.toLowerCase(); const b = (currentStage || "").toLowerCase();
+      if (/سيرة|cv|resume|screening/.test(b) && /سيرة|cv|resume|screening/.test(a)) return true;
+      if (/اختبار|assessment|test/.test(b) && /اختبار|assessment|test/.test(a)) return true;
+      if (/مقابلة.*(نهائية|أخيرة|final)/.test(b) && /مقابلة.*(نهائية|أخيرة|final)/.test(a)) return true;
+      if (/مقابلة|interview/.test(b) && /مقابلة|interview/.test(a)) return true;
+      if (/عرض|offer/.test(b) && /عرض|offer/.test(a)) return true;
+      return false;
+    });
+  }
 
   return (
     <div className="w-full">
@@ -143,6 +155,7 @@ export default function CandidatePortal() {
 
     let foundCandidates: CandidateResult[] = [];
 
+    // Try edge function first (optional, non-blocking)
     try {
       const resp = await fetch(PORTAL_URL, {
         method: "POST",
@@ -159,82 +172,93 @@ export default function CandidatePortal() {
       console.warn("Edge function fetch failed, falling back to direct DB search:", edgeErr);
     }
 
-    if (foundCandidates.length === 0) {
-      try {
-        const cleanInput = queryInput.trim();
-        let candQuery = supabase.from("candidates").select("*, jobs(title)");
-        let appQuery = supabase.from("applications").select("*, jobs(title)");
+    // ALWAYS run direct DB search (edge function may fail or return empty due to auth/token issues)
+    try {
+      const cleanInput = queryInput.trim();
+      let candQuery = supabase.from("candidates").select("*, jobs(title)");
+      let appQuery = supabase.from("applications").select("*, jobs(title)");
 
-        if (queryType === "tracking") {
-          const codeDigits = cleanInput.replace(/[^a-zA-Z0-9]/g, "");
-          if (codeDigits.length >= 4) {
-            const formattedTxCode = codeDigits.startsWith("TX") ? codeDigits : `TX-${codeDigits}`;
-            candQuery = candQuery.or(`tracking_code.ilike.${cleanInput},tracking_code.ilike.${formattedTxCode},tracking_code.ilike.%${codeDigits}%,id.ilike.%${codeDigits}%`);
-            appQuery = appQuery.or(`tracking_code.ilike.${cleanInput},tracking_code.ilike.${formattedTxCode},tracking_code.ilike.%${codeDigits}%,id.ilike.%${codeDigits}%`);
-          } else {
-            candQuery = candQuery.ilike("tracking_code", `%${cleanInput}%`);
-            appQuery = appQuery.ilike("tracking_code", `%${cleanInput}%`);
-          }
+      if (queryType === "tracking") {
+        const codeDigits = cleanInput.replace(/[^a-zA-Z0-9]/g, "");
+        if (codeDigits.length >= 4) {
+          // Try multiple formats: exact, TX- prefix, partial digits
+          const txFormatted = codeDigits.toLowerCase().startsWith("tx") ? codeDigits : `TX-${codeDigits}`;
+          // Use individual ilike filters combined with or
+          candQuery = (candQuery as any).or(
+            `tracking_code.ilike.${cleanInput},tracking_code.ilike.${txFormatted},tracking_code.ilike.%${codeDigits}%`
+          );
+          appQuery = (appQuery as any).or(
+            `tracking_code.ilike.${cleanInput},tracking_code.ilike.${txFormatted},tracking_code.ilike.%${codeDigits}%`
+          );
         } else {
-          candQuery = candQuery.ilike("email", cleanInput);
-          appQuery = appQuery.ilike("email", cleanInput);
+          candQuery = candQuery.ilike("tracking_code", `%${cleanInput}%`);
+          appQuery = appQuery.ilike("tracking_code", `%${cleanInput}%`);
         }
+      } else {
+        candQuery = candQuery.ilike("email", cleanInput);
+        appQuery = appQuery.ilike("email", cleanInput);
+      }
 
-        const [{ data: candsData }, { data: appsData }] = await Promise.all([candQuery, appQuery]);
+      const [{ data: candsData }, { data: appsData }] = await Promise.all([candQuery, appQuery]);
 
-        const mappedCands: CandidateResult[] = (candsData || []).map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          role: c.role || c.jobs?.title || "متقدم للوظيفة",
-          stage: c.stage || "تقديم الطلب",
-          status: c.status || "جديد",
-          skills: c.skills || null,
-          trackingCode: c.tracking_code || c.id?.slice(0, 8).toUpperCase(),
-          appliedAt: c.created_at,
-          jobTitle: c.jobs?.title || c.role || null,
+      const mappedCands: CandidateResult[] = (candsData || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        role: c.role || c.jobs?.title || "متقدم للوظيفة",
+        stage: c.stage || "تقديم الطلب",
+        status: c.status || "جديد",
+        skills: c.skills || null,
+        trackingCode: c.tracking_code || c.id?.slice(0, 8).toUpperCase(),
+        appliedAt: c.created_at,
+        jobTitle: c.jobs?.title || c.role || null,
+        aiScore: null,
+        licenseNumber: c.license_number || null,
+        licenseExpiry: c.license_expiry || null,
+        universityDegree: c.university_degree || null,
+        demoVideoUrl: c.demo_video_url || "",
+      }));
+
+      const mappedApps: CandidateResult[] = (appsData || [])
+        .filter(a => !mappedCands.some(mc => mc.id === a.id || (a.tracking_code && mc.trackingCode === a.tracking_code)))
+        .map((a: any) => ({
+          id: a.id,
+          name: a.name,
+          role: a.specialty || a.jobs?.title || "متقدم للوظيفة",
+          stage: (a as any).stage || "تقديم الطلب",
+          status: a.status || "جديد",
+          skills: a.skills || null,
+          trackingCode: a.tracking_code || a.id?.slice(0, 8).toUpperCase(),
+          appliedAt: a.created_at,
+          jobTitle: a.jobs?.title || a.specialty || null,
           aiScore: null,
-          licenseNumber: c.license_number || "ETEC-9842145-SA",
-          licenseExpiry: c.license_expiry || "2028-12-30",
-          universityDegree: c.university_degree || "بكالوريوس علوم وتربية",
-          demoVideoUrl: c.demo_video_url || "",
+          licenseNumber: null,
+          licenseExpiry: null,
+          universityDegree: null,
+          demoVideoUrl: "",
         }));
 
-        const mappedApps: CandidateResult[] = (appsData || [])
-          .filter(a => !mappedCands.some(mc => mc.id === a.id || (mc.trackingCode && mc.trackingCode === a.tracking_code)))
-          .map((a: any) => ({
-            id: a.id,
-            name: a.name,
-            role: a.specialty || a.jobs?.title || "متقدم للوظيفة",
-            stage: "تقديم الطلب",
-            status: a.status || "جديد",
-            skills: a.skills || null,
-            trackingCode: a.tracking_code || a.id?.slice(0, 8).toUpperCase(),
-            appliedAt: a.created_at,
-            jobTitle: a.jobs?.title || a.specialty || null,
-            aiScore: null,
-            licenseNumber: "ETEC-9842145-SA",
-            licenseExpiry: "2028-12-30",
-            universityDegree: "بكالوريوس علوم وتربية",
-            demoVideoUrl: "",
-          }));
-
-        foundCandidates = [...mappedCands, ...mappedApps];
-      } catch (dbErr) {
-        console.error("Direct candidate database query exception:", dbErr);
+      // Merge DB results with edge function results, preferring DB (fresher)
+      const dbResults = [...mappedCands, ...mappedApps];
+      if (dbResults.length > 0) {
+        // DB results override edge function results (always fresher)
+        foundCandidates = dbResults;
       }
+    } catch (dbErr) {
+      console.error("Direct candidate database query exception:", dbErr);
     }
 
     if (foundCandidates.length > 0) {
       setCandidates(foundCandidates);
     } else {
       setCandidates([]);
-      if (searchType === "tracking") {
-        toast({ title: "خطأ", description: "لم يتم العثور على طلبات. تأكد من رمز التتبع أو البريد الإلكتروني.", variant: "destructive" });
+      if (queryType === "tracking") {
+        toast({ title: "لم يتم العثور على نتائج", description: "تأكد من رمز التتبع أو استخدم البريد الإلكتروني للبحث.", variant: "destructive" });
       }
     }
 
     setIsLoading(false);
   };
+
 
   const handleSaveTeacherCredentials = async () => {
     if (!editTeacherModal) return;

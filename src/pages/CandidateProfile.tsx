@@ -132,6 +132,9 @@ export default function CandidateProfile() {
   const { data: fetchedCandidate, isLoading: isFetchingDirect } = useQuery({
     queryKey: ["candidate-detail-direct", id],
     enabled: !!id,
+    staleTime: 0,           // Always re-fetch after invalidation
+    gcTime: 0,              // Don't cache between navigations
+    refetchOnMount: "always",
     queryFn: async () => {
       if (!id) return null;
       const cleanId = id.trim();
@@ -176,11 +179,12 @@ export default function CandidateProfile() {
   });
 
   const targetId = (id || "").trim().toLowerCase();
-  const candidate = (candidates || []).find(c => 
-    (c.id || "").toLowerCase() === targetId || 
+  // fetchedCandidate (direct DB hit) takes priority so stage updates are immediately visible
+  const candidate = fetchedCandidate || (candidates || []).find(c =>
+    (c.id || "").toLowerCase() === targetId ||
     ((c as any).tracking_code || "").toLowerCase() === targetId ||
     ((c as any).email || "").toLowerCase() === targetId
-  ) || fetchedCandidate;
+  );
 
   const isPageLoading = (isCandidatesLoading || isFetchingDirect) && !candidate;
 

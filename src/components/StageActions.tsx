@@ -751,7 +751,8 @@ export default function StageActions(props: StageActionsProps) {
 
       // Invalidate all candidate and stage queries so UI updates immediately
       await queryClient.invalidateQueries({ queryKey: ["candidates"] });
-      await queryClient.invalidateQueries({ queryKey: ["candidate-detail-direct"] });
+      // Force immediate refetch of the direct candidate detail (staleTime=0 so invalidation alone is enough)
+      await queryClient.refetchQueries({ queryKey: ["candidate-detail-direct", candidateId] });
       await queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
       await queryClient.invalidateQueries({ queryKey: ["interviews"] });
       await queryClient.invalidateQueries({ queryKey: ["applications"] });
