@@ -42,6 +42,50 @@ function generateRoomId() {
   return `tawzeef-x-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// Inline calendar button — generates a Google Calendar link without any external package
+function AddToCalendarButton({
+  title,
+  description,
+  location,
+  date,
+  time,
+}: {
+  title: string;
+  description: string;
+  location: string;
+  date: string;
+  time?: string | null;
+}) {
+  const buildGoogleUrl = () => {
+    // Build a datetime string like "20261231T090000"
+    const dateStr = date ? date.replace(/-/g, "") : "";
+    const timeStr = time ? time.replace(":", "") + "00" : "000000";
+    const dtStart = dateStr && `${dateStr}T${timeStr}`;
+    const dtEnd = dateStr && `${dateStr}T${(parseInt(timeStr.slice(0, 2), 10) + 1).toString().padStart(2, "0")}${timeStr.slice(2)}`;
+    const params = new URLSearchParams({
+      action: "TEMPLATE",
+      text: title,
+      details: description,
+      location,
+      ...(dtStart ? { dates: `${dtStart}/${dtEnd}` } : {}),
+    });
+    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  };
+
+  return (
+    <a
+      href={buildGoogleUrl()}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 text-xs px-3 h-7 rounded-lg border border-border/60 bg-background hover:bg-muted transition-colors font-medium text-muted-foreground hover:text-foreground"
+    >
+      <Calendar className="w-3 h-3" />
+      أضف للتقويم
+    </a>
+  );
+}
+
+
 function parseAIInterviewReport(notes: string | null) {
   if (!notes || !notes.includes("--- تقييم الذكاء الاصطناعي للمقابلة ---")) return null;
   
