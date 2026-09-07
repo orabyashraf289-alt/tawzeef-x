@@ -1,6 +1,5 @@
 // Centralized speech service: throttles requests, queues playback, logs everything,
 // and gracefully falls back to the browser's SpeechSynthesis API.
-import { supabase } from "@/integrations/supabase/client";
 
 export type TTSProvider = "elevenlabs" | "browser";
 export type TTSStatus = "idle" | "loading" | "speaking" | "error" | "blocked";
@@ -180,71 +179,61 @@ class SpeechService {
 
     try {
       const isArabic = detectLanguage(next.text) === "ar";
-      // Arabic: use "Omar" (multilingual, supports Arabic) or "Aria" multilingual
-      // English: use "Sarah" (EXAVITQu4vr4xnSDxMaL)
       const autoVoiceId = isArabic
         ? "IKne3meq5aSn9XLyUdCD"   // Charlie - ElevenLabs multilingual voice that handles Arabic
         : "EXAVITQu4vr4xnSDxMaL";  // Sarah - English
-      const { data, error } = await supabase.functions.invoke("elevenlabs-tts", {
-        body: {
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://rlfewneisuezsamhosct.supabase.co";
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+
+      // Direct binary fetch prevents Supabase-js from decoding binary MP3 into UTF-8 text with \uFFFD replacement chars
+      const response = await fetch(`${supabaseUrl}/functions/v1/elevenlabs-tts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": supabaseKey,
+          "Authorization": `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({
           text: next.text,
           voiceId: next.voiceId || autoVoiceId,
           modelId: "eleven_multilingual_v2",
-        },
+        }),
+        signal: abort.signal,
       });
+
       // Stale request — newer one took over
       if (seq !== this.fetchSeq) return;
 
-      if (error) throw error;
-
-      // Detect fallback JSON
-      let fallback = false;
-      let errMsg = "";
-      let details = "";
-      if (data instanceof Blob && data.type.includes("application/json")) {
-        const j = JSON.parse(await data.text());
-        fallback = !!j?.fallback;
-        errMsg = j?.error || "";
-        details = j?.details || "";
-      } else if (data && typeof data === "object" && !(data instanceof Blob) && (data as any).fallback) {
-        fallback = true;
-        errMsg = (data as any).error || "";
-        details = (data as any).details || "";
+      if (!response.ok) {
+        throw new Error(`TTS edge function HTTP error: ${response.status}`);
       }
 
-      if (fallback) {
-        this.elevenLabsBlocked = true;
-        this.activeProvider = "browser";
-        this.addLog({
-          textPreview: next.text.slice(0, 60),
-          provider: "browser",
-          outcome: "fallback",
-          durationMs: Date.now() - started,
-          error: errMsg,
-          details,
-        });
-        this.emit();
-        await this.playBrowser(next.text);
-        this.afterPlayback();
-        return;
-      }
-
-      let blob: Blob;
-      if (data instanceof Blob) {
-        blob = data;
-      } else if (data instanceof ArrayBuffer) {
-        blob = new Blob([data], { type: "audio/mpeg" });
-      } else if (typeof data === "string") {
-        const bytes = new Uint8Array(data.length);
-        for (let i = 0; i < data.length; i++) {
-          bytes[i] = data.charCodeAt(i) & 0xff;
+      const contentType = response.headers.get("Content-Type") || "";
+      if (contentType.includes("application/json")) {
+        const json = await response.json();
+        if (json?.fallback) {
+          this.elevenLabsBlocked = true;
+          this.activeProvider = "browser";
+          this.addLog({
+            textPreview: next.text.slice(0, 60),
+            provider: "browser",
+            outcome: "fallback",
+            durationMs: Date.now() - started,
+            error: json?.error || "ElevenLabs fallback returned",
+            details: json?.details || "",
+          });
+          this.emit();
+          await this.playBrowser(next.text);
+          this.afterPlayback();
+          return;
         }
-        blob = new Blob([bytes], { type: "audio/mpeg" });
-      } else {
-        blob = new Blob([data as any], { type: "audio/mpeg" });
       }
 
-      if (!blob.type.includes("audio") || blob.size < 100) {
+      const blob = await response.blob();
+      if (seq !== this.fetchSeq) return;
+
+      if (!blob || blob.size < 100) {
         // Unexpected content — fallback
         this.activeProvider = "browser";
         this.addLog({
@@ -252,7 +241,7 @@ class SpeechService {
           provider: "browser",
           outcome: "fallback",
           durationMs: Date.now() - started,
-          error: "Unexpected content type",
+          error: "Unexpected audio response size",
         });
         this.emit();
         await this.playBrowser(next.text);
