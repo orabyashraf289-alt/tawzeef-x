@@ -42,3 +42,4 @@ check-*.ts
 
 
 .vercel
+*.tsbuildinfo
