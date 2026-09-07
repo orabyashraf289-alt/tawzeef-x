@@ -29,6 +29,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useI18n } from "@/contexts/I18nContext";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { speechService, cleanForTTS } from "@/lib/speechService";
 
 interface ExecutiveAIBriefingProps {
   candidates?: any[];
@@ -50,32 +51,18 @@ export default function ExecutiveAIBriefing({
   onRefreshData,
 }: ExecutiveAIBriefingProps) {
   const { locale, dir } = useI18n();
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
   const [selectedPill, setSelectedPill] = useState<"interviews" | "offers" | "matches" | "jobs" | null>(null);
-  const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
-  // Load available voices for proper Web Speech selection (Arabic vs English)
+  // Track speaking state from centralized speechService
+  const [isSpeaking, setIsSpeaking] = useState(false);
   useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-
-    const loadVoices = () => {
-      const available = window.speechSynthesis.getVoices();
-      if (available && available.length > 0) {
-        setVoices(available);
-      }
-    };
-
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-
-    return () => {
-      if ("speechSynthesis" in window) {
-        window.speechSynthesis.onvoiceschanged = null;
-      }
-    };
+    const unsub = speechService.subscribe(() => {
+      setIsSpeaking(speechService.status === "speaking" || speechService.status === "loading");
+    });
+    return unsub;
   }, []);
+
 
   // Compute key daily metrics
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -236,87 +223,27 @@ export default function ExecutiveAIBriefing({
     }
   }, [locale, narrativeText]);
 
-  // Audio Speech Reader
+  // Audio Speech Reader — uses centralized speechService (ElevenLabs → browser Arabic fallback)
   const toggleSpeech = () => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      toast({
-        title: locale === "en" ? "Speech not supported" : "خاصية القراءة الصوتية غير مدعومة في هذا المتصفح",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
+      speechService.cancelAll();
       return;
     }
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(speechText);
-    utterance.lang = locale === "en" ? "en-US" : "ar-SA";
-    utterance.rate = locale === "en" ? 0.98 : 0.90;
-    utterance.pitch = 1.0;
-
-    // Load available voices and select proper language accent
-    const availableVoices = voices.length > 0 ? voices : window.speechSynthesis.getVoices();
-    if (locale === "ar") {
-      const arVoice = availableVoices.find(
-        (v) =>
-          v.lang.toLowerCase().startsWith("ar") ||
-          v.lang.toLowerCase().includes("ar-") ||
-          v.name.toLowerCase().includes("arabic") ||
-          v.name.toLowerCase().includes("maged") ||
-          v.name.toLowerCase().includes("tarik") ||
-          v.name.toLowerCase().includes("laila") ||
-          v.name.toLowerCase().includes("salma") ||
-          v.name.toLowerCase().includes("naayf") ||
-          v.name.toLowerCase().includes("zeina") ||
-          v.name.toLowerCase().includes("hoda")
-      );
-      if (arVoice) {
-        utterance.voice = arVoice;
-      }
-    } else {
-      const enVoice = availableVoices.find(
-        (v) =>
-          v.lang.toLowerCase().startsWith("en") ||
-          v.lang.toLowerCase().includes("en-") ||
-          v.name.toLowerCase().includes("english") ||
-          v.name.toLowerCase().includes("david") ||
-          v.name.toLowerCase().includes("mark") ||
-          v.name.toLowerCase().includes("zira")
-      );
-      if (enVoice) {
-        utterance.voice = enVoice;
-      }
-    }
-
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = (e) => {
-      console.warn("Speech synthesis state:", e);
-      setIsSpeaking(false);
-    };
-
-    speechRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
+    const text = cleanForTTS(speechText);
+    if (!text) return;
+    speechService.speak(
+      { id: `briefing-${Date.now()}`, text },
+      { overrideLatest: true }
+    );
   };
 
-  // Automatically cancel speech narration when language changes
+  // Cancel when locale changes or component unmounts
   useEffect(() => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-    }
+    speechService.cancelAll();
   }, [locale]);
 
   useEffect(() => {
-    return () => {
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
+    return () => { speechService.cancelAll(); };
   }, []);
 
   return (
