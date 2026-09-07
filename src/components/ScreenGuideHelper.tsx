@@ -27,13 +27,27 @@ import {
   PanelRightClose,
   Trophy,
   RotateCcw,
-  CheckCheck
+  CheckCheck,
+  Compass,
+  Briefcase,
+  Bot,
+  BarChart3,
+  Shield,
+  Filter
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { useI18n } from "@/contexts/I18nContext";
 import { useToast } from "@/hooks/use-toast";
 import { SCREEN_GUIDES, getGuideForPath, ScreenGuideItem } from "@/data/screenGuidesData";
 import { cn } from "@/lib/utils";
+
+export const GUIDE_CATEGORIES = [
+  { id: "all", labelAr: "كافة الشاشات", labelEn: "All Screens", icon: Layers },
+  { id: "core", labelAr: "الأساسية والتوظيف", labelEn: "Core Hiring", icon: Briefcase },
+  { id: "ai", labelAr: "الذكاء الاصطناعي", labelEn: "AI Engines", icon: Bot },
+  { id: "performance", labelAr: "التقييم والتقارير", labelEn: "Performance", icon: BarChart3 },
+  { id: "admin", labelAr: "الإدارة والنظام", labelEn: "Admin & Settings", icon: Shield },
+] as const;
 
 export default function ScreenGuideHelper() {
   const location = useLocation();
@@ -71,6 +85,7 @@ export default function ScreenGuideHelper() {
     }
   });
 
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [copied, setCopied] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -257,18 +272,50 @@ export default function ScreenGuideHelper() {
     window.speechSynthesis.speak(utterance);
   };
 
+  // Category counts
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: SCREEN_GUIDES.length };
+    SCREEN_GUIDES.forEach(g => {
+      counts[g.category] = (counts[g.category] || 0) + 1;
+    });
+    return counts;
+  }, []);
+
   // Filtered guides for the "All Screens" tab
   const filteredAllGuides = useMemo(() => {
-    if (!searchQuery.trim()) return SCREEN_GUIDES;
-    const q = searchQuery.toLowerCase();
-    return SCREEN_GUIDES.filter(
-      g =>
+    return SCREEN_GUIDES.filter(g => {
+      const matchesCategory = selectedCategory === "all" || g.category === selectedCategory;
+      if (!matchesCategory) return false;
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
         g.titleAr.toLowerCase().includes(q) ||
         g.titleEn.toLowerCase().includes(q) ||
         g.summaryAr.toLowerCase().includes(q) ||
-        g.summaryEn.toLowerCase().includes(q)
-    );
-  }, [searchQuery]);
+        g.summaryEn.toLowerCase().includes(q) ||
+        g.badgeAr.toLowerCase().includes(q) ||
+        g.badgeEn.toLowerCase().includes(q) ||
+        g.targetAudienceAr.toLowerCase().includes(q) ||
+        g.targetAudienceEn.toLowerCase().includes(q)
+      );
+    });
+  }, [searchQuery, selectedCategory]);
+
+  // Navigate to screen and dock guide to drawer mode
+  const handleOpenScreen = (path: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    navigate(path);
+    if (viewMode === "modal") {
+      setViewMode("drawer");
+      localStorage.setItem("tx_guide_view_mode", "drawer");
+    }
+    toast({
+      title: isEn ? "Navigated to Screen 🚀" : "تم الانتقال إلى الشاشة بنجاح 🚀",
+      description: isEn
+        ? "Guide docked to the side panel so you can follow along."
+        : "تم تثبيت المرشد الذكي في الجانب لمساعدتك أثناء تنفيذ المهام."
+    });
+  };
 
   const ActiveIcon = activeGuide.icon;
 
@@ -521,21 +568,26 @@ export default function ScreenGuideHelper() {
                     )}
                   </button>
 
-                  {/* Quick Screen Switcher Dropdown */}
-                  <div className="relative">
-                    <select
-                      value={activeGuide.id}
-                      onChange={e => setSelectedGuideId(e.target.value)}
-                      className="bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold py-1.5 px-2.5 rounded-xl border border-border/60 outline-none cursor-pointer transition-colors max-w-[120px] sm:max-w-[160px] truncate"
-                      title={isEn ? "Switch screen guide" : "تبديل الشاشة"}
-                    >
-                      {SCREEN_GUIDES.map(g => (
-                        <option key={g.id} value={g.id}>
-                          {isEn ? g.titleEn : g.titleAr}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {/* Screen Directory Switcher Button */}
+                  <button
+                    onClick={() => setActiveTab("all")}
+                    className={cn(
+                      "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-2xs",
+                      activeTab === "all"
+                        ? "bg-emerald-500 text-white border-emerald-600 shadow-emerald-500/20"
+                        : "bg-muted/80 hover:bg-muted text-foreground border-border/60 hover:border-emerald-500/40"
+                    )}
+                    title={isEn ? "Open Screen Directory (25 Screens)" : "فتح فهرس ودليل الشاشات (25 شاشة)"}
+                  >
+                    <Compass className={cn("w-3.5 h-3.5", activeTab === "all" ? "text-white" : "text-emerald-500")} />
+                    <span className="hidden sm:inline">{isEn ? "Screens Directory" : "فهرس الشاشات"}</span>
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.5 rounded-full font-black",
+                      activeTab === "all" ? "bg-white/20 text-white" : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    )}>
+                      {SCREEN_GUIDES.length}
+                    </span>
+                  </button>
 
                   {/* Close Button */}
                   <button
@@ -584,65 +636,79 @@ export default function ScreenGuideHelper() {
                 </div>
               )}
 
-              {/* Tab Navigation */}
-              <div className="flex items-center gap-1.5 px-4 sm:px-5 border-b border-border/50 bg-background/50 overflow-x-auto no-scrollbar">
-                <button
-                  onClick={() => setActiveTab("steps")}
-                  className={cn(
-                    "flex items-center gap-1.5 py-2.5 px-3 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap",
-                    activeTab === "steps"
-                      ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <MousePointerClick className="w-3.5 h-3.5" />
-                  <span>{isEn ? "Action Steps" : "خطوات العمل"}</span>
-                  <span className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] px-1.5 py-0.2 rounded-full">
-                    {activeGuide.steps.length}
-                  </span>
-                </button>
+              {/* Tab Navigation Segmented Control */}
+              <div className="px-4 sm:px-5 pt-3 pb-2 border-b border-border/40 bg-muted/20">
+                <div className="p-1 bg-muted/70 dark:bg-slate-800/80 rounded-2xl border border-border/50 grid grid-cols-4 gap-1">
+                  <button
+                    onClick={() => setActiveTab("steps")}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 py-2 px-1.5 rounded-xl text-xs font-bold transition-all",
+                      activeTab === "steps"
+                        ? "bg-background text-foreground shadow-xs border border-border/50 font-black"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <MousePointerClick className={cn("w-3.5 h-3.5 shrink-0", activeTab === "steps" ? "text-emerald-500" : "")} />
+                    <span className="truncate">{isEn ? "Steps" : "خطوات العمل"}</span>
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.2 rounded-full hidden sm:inline-block font-black",
+                      activeTab === "steps" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-background/40 text-muted-foreground"
+                    )}>
+                      {activeGuide.steps.length}
+                    </span>
+                  </button>
 
-                <button
-                  onClick={() => setActiveTab("buttons")}
-                  className={cn(
-                    "flex items-center gap-1.5 py-2.5 px-3 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap",
-                    activeTab === "buttons"
-                      ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>{isEn ? "Key Buttons" : "خريطة الأزرار"}</span>
-                  <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.2 rounded-full">
-                    {activeGuide.keyButtons.length}
-                  </span>
-                </button>
+                  <button
+                    onClick={() => setActiveTab("buttons")}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 py-2 px-1.5 rounded-xl text-xs font-bold transition-all",
+                      activeTab === "buttons"
+                        ? "bg-background text-foreground shadow-xs border border-border/50 font-black"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Layers className={cn("w-3.5 h-3.5 shrink-0", activeTab === "buttons" ? "text-emerald-500" : "")} />
+                    <span className="truncate">{isEn ? "Buttons" : "خريطة الأزرار"}</span>
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.2 rounded-full hidden sm:inline-block font-black",
+                      activeTab === "buttons" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-background/40 text-muted-foreground"
+                    )}>
+                      {activeGuide.keyButtons.length}
+                    </span>
+                  </button>
 
-                <button
-                  onClick={() => setActiveTab("tips")}
-                  className={cn(
-                    "flex items-center gap-1.5 py-2.5 px-3 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap",
-                    activeTab === "tips"
-                      ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <QuestionIcon className="w-3.5 h-3.5" />
-                  <span>{isEn ? "Tips & FAQs" : "نصائح وحلول"}</span>
-                </button>
+                  <button
+                    onClick={() => setActiveTab("tips")}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 py-2 px-1.5 rounded-xl text-xs font-bold transition-all",
+                      activeTab === "tips"
+                        ? "bg-background text-foreground shadow-xs border border-border/50 font-black"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Lightbulb className={cn("w-3.5 h-3.5 shrink-0", activeTab === "tips" ? "text-amber-500" : "")} />
+                    <span className="truncate">{isEn ? "Tips & FAQs" : "نصائح وحلول"}</span>
+                  </button>
 
-                <button
-                  onClick={() => setActiveTab("all")}
-                  className={cn(
-                    "flex items-center gap-1.5 py-2.5 px-3 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap",
-                    activeTab === "all"
-                      ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  <span>{isEn ? "All Screens" : "كافة الشاشات"}</span>
-                </button>
+                  <button
+                    onClick={() => setActiveTab("all")}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 py-2 px-1.5 rounded-xl text-xs font-bold transition-all",
+                      activeTab === "all"
+                        ? "bg-background text-foreground shadow-xs border border-border/50 font-black"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Compass className={cn("w-3.5 h-3.5 shrink-0", activeTab === "all" ? "text-emerald-500" : "")} />
+                    <span className="truncate">{isEn ? "All Screens" : "كافة الشاشات"}</span>
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.2 rounded-full hidden sm:inline-block font-black",
+                      activeTab === "all" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-background/40 text-muted-foreground"
+                    )}>
+                      {SCREEN_GUIDES.length}
+                    </span>
+                  </button>
+                </div>
               </div>
 
               {/* Scrollable Body Content */}
@@ -792,34 +858,58 @@ export default function ScreenGuideHelper() {
                 {/* TAB 2: BUTTONS & ACTIONABLE CONTROLS */}
                 {activeTab === "buttons" && (
                   <div className="space-y-4">
-                    <p className="text-xs font-semibold text-muted-foreground">
-                      {isEn
-                        ? "Guide to all major buttons and actionable controls on this screen:"
-                        : "شرح شامل لكافة الأزرار والأدوات التفاعلية المتاحة في هذه الشاشة وماذا تفعل:"}
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        {isEn
+                          ? "Guide to all major buttons and actionable controls on this screen:"
+                          : "شرح شامل لكافة الأزرار والأدوات التفاعلية المتاحة في هذه الشاشة وماذا تفعل:"}
+                      </p>
+                      <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
+                        {activeGuide.keyButtons.length} {isEn ? "Controls" : "عنصر تحكم"}
+                      </span>
+                    </div>
 
-                    <div className="grid grid-cols-1 gap-2.5">
+                    <div className={cn(
+                      "grid gap-3",
+                      viewMode === "modal" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
+                    )}>
                       {activeGuide.keyButtons.map((btn, idx) => (
                         <div
                           key={idx}
-                          className="p-3.5 rounded-2xl bg-card border border-border/70 hover:border-emerald-500/40 transition-all flex flex-col justify-between space-y-1.5 shadow-2xs"
+                          className="p-3.5 rounded-2xl bg-card border border-border/70 hover:border-emerald-500/40 hover:shadow-xs transition-all flex flex-col justify-between space-y-2.5"
                         >
-                          <div className="flex items-center gap-2">
-                            <span
+                          <div className="flex items-center justify-between gap-2">
+                            <div
                               className={cn(
-                                "w-2.5 h-2.5 rounded-full shrink-0",
+                                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black shadow-2xs",
                                 btn.actionType === "primary"
-                                  ? "bg-emerald-500"
+                                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-emerald-500/20"
                                   : btn.actionType === "action"
-                                  ? "bg-blue-500"
-                                  : "bg-amber-500"
+                                  ? "bg-blue-600 text-white shadow-blue-500/20"
+                                  : "bg-muted text-foreground border border-border/80"
                               )}
-                            />
-                            <h4 className="text-xs sm:text-sm font-bold text-foreground">
-                              {isEn ? btn.nameEn : btn.nameAr}
-                            </h4>
+                            >
+                              <span
+                                className={cn(
+                                  "w-1.5 h-1.5 rounded-full",
+                                  btn.actionType === "primary" || btn.actionType === "action"
+                                    ? "bg-white"
+                                    : "bg-amber-500"
+                                )}
+                              />
+                              <span>{isEn ? btn.nameEn : btn.nameAr}</span>
+                            </div>
+
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-2 py-0.5 rounded-md bg-muted/60 border border-border/40">
+                              {btn.actionType === "primary"
+                                ? (isEn ? "Primary" : "إجراء رئيسي")
+                                : btn.actionType === "action"
+                                ? (isEn ? "Action" : "إجراء تشغيلي")
+                                : (isEn ? "Control" : "أداة تحكم")}
+                            </span>
                           </div>
-                          <p className="text-xs text-muted-foreground leading-relaxed">
+
+                          <p className="text-xs text-foreground/85 leading-relaxed">
                             {isEn ? btn.descriptionEn : btn.descriptionAr}
                           </p>
                         </div>
@@ -827,9 +917,10 @@ export default function ScreenGuideHelper() {
                     </div>
 
                     {activeGuide.quickLinks && activeGuide.quickLinks.length > 0 && (
-                      <div className="mt-4 p-3.5 rounded-2xl bg-muted/40 border border-border/50">
-                        <p className="text-xs font-bold text-foreground mb-2">
-                          {isEn ? "🔗 Related Quick Screens:" : "🔗 شاشات مرتبطة يمكنك الانتقال إليها فوراً:"}
+                      <div className="mt-4 p-4 rounded-2xl bg-muted/40 border border-border/50 space-y-2.5">
+                        <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                          <span className="text-emerald-500 font-black">🔗</span>
+                          <span>{isEn ? "Related Quick Screens:" : "شاشات مرتبطة يمكنك الانتقال إليها فوراً:"}</span>
                         </p>
                         <div className="flex items-center gap-2 flex-wrap">
                           {activeGuide.quickLinks.map((link, idx) => (
@@ -839,10 +930,10 @@ export default function ScreenGuideHelper() {
                               onClick={() => {
                                 if (viewMode === "modal") setIsOpen(false);
                               }}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-card border border-border/70 text-xs font-bold text-foreground hover:text-emerald-500 hover:border-emerald-500/40 transition-all"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-card border border-border/70 text-xs font-bold text-foreground hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-500/40 hover:shadow-xs transition-all group"
                             >
                               <span>{isEn ? link.labelEn : link.labelAr}</span>
-                              <ArrowRight className="w-3 h-3 text-emerald-500" />
+                              <ExternalLink className="w-3 h-3 text-emerald-500 group-hover:translate-x-0.5 transition-transform" />
                             </Link>
                           ))}
                         </div>
@@ -904,63 +995,220 @@ export default function ScreenGuideHelper() {
 
                 {/* TAB 4: ALL SYSTEM SCREENS DIRECTORY */}
                 {activeTab === "all" && (
-                  <div className="space-y-3">
-                    <div className="relative">
-                      <Search className="w-4 h-4 absolute top-1/2 -translate-y-1/2 right-3 text-muted-foreground" />
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        placeholder={isEn ? "Search screens..." : "ابحث عن أي شاشة في النظام..."}
-                        className="w-full h-9 pr-9 pl-3 rounded-xl bg-muted/60 border border-border/70 text-xs focus:outline-none focus:border-emerald-500/60"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-2 pt-1">
-                      {filteredAllGuides.map(item => {
-                        const ItemIcon = item.icon;
-                        const isSelected = item.id === activeGuide.id;
-                        return (
-                          <div
-                            key={item.id}
-                            onClick={() => {
-                              setSelectedGuideId(item.id);
-                              setActiveTab("steps");
-                            }}
-                            className={cn(
-                              "p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2.5",
-                              isSelected
-                                ? "bg-emerald-500/10 border-emerald-500 shadow-2xs"
-                                : "bg-card border-border/70 hover:border-emerald-500/40 hover:bg-muted/30"
-                            )}
+                  <div className="space-y-4">
+                    {/* Search & Category Filter Toolbar */}
+                    <div className="space-y-2.5">
+                      {/* Search Bar */}
+                      <div className="relative">
+                        <Search className={cn("w-4 h-4 absolute top-1/2 -translate-y-1/2 text-muted-foreground", dir === "rtl" ? "right-3.5" : "left-3.5")} />
+                        <input
+                          type="text"
+                          value={searchQuery}
+                          onChange={e => setSearchQuery(e.target.value)}
+                          placeholder={isEn ? "Search across 25 system screens by name, category, or workflow..." : "ابحث في 25 شاشة نظام حسب الاسم، الموديول، أو المهام..."}
+                          className={cn(
+                            "w-full h-10 rounded-2xl bg-muted/50 border border-border/70 text-xs font-medium text-foreground",
+                            "focus:outline-none focus:border-emerald-500/60 focus:bg-background transition-all placeholder:text-muted-foreground/60",
+                            dir === "rtl" ? "pr-10 pl-10" : "pl-10 pr-10"
+                          )}
+                        />
+                        {searchQuery && (
+                          <button
+                            onClick={() => setSearchQuery("")}
+                            className={cn("absolute top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-lg", dir === "rtl" ? "left-2.5" : "right-2.5")}
+                            title={isEn ? "Clear search" : "مسح البحث"}
                           >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Category Filter Chips */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                        {GUIDE_CATEGORIES.map(cat => {
+                          const CatIcon = cat.icon;
+                          const isActive = selectedCategory === cat.id;
+                          const count = categoryCounts[cat.id] || 0;
+                          return (
+                            <button
+                              key={cat.id}
+                              onClick={() => setSelectedCategory(cat.id)}
+                              className={cn(
+                                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border shrink-0",
+                                isActive
+                                  ? "bg-emerald-600 text-white border-emerald-700 shadow-xs"
+                                  : "bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground border-border/60"
+                              )}
+                            >
+                              <CatIcon className={cn("w-3.5 h-3.5", isActive ? "text-white" : "text-muted-foreground")} />
+                              <span>{isEn ? cat.labelEn : cat.labelAr}</span>
+                              <span
                                 className={cn(
-                                  "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border",
-                                  item.bg,
-                                  item.border
+                                  "text-[10px] px-1.5 py-0.2 rounded-full font-black",
+                                  isActive ? "bg-white/20 text-white" : "bg-muted text-foreground/70"
                                 )}
                               >
-                                <ItemIcon className={cn("w-3.5 h-3.5", item.color)} />
+                                {count}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Results Count Banner */}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                      <span>
+                        {isEn
+                          ? `Showing ${filteredAllGuides.length} of ${SCREEN_GUIDES.length} screens`
+                          : `يتم عرض ${filteredAllGuides.length} من أصل ${SCREEN_GUIDES.length} شاشة`}
+                      </span>
+                      {(searchQuery || selectedCategory !== "all") && (
+                        <button
+                          onClick={() => {
+                            setSearchQuery("");
+                            setSelectedCategory("all");
+                          }}
+                          className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
+                        >
+                          {isEn ? "Reset filters" : "إلغاء التصفية"}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* 2-Column Responsive Visual Cards Grid */}
+                    {filteredAllGuides.length > 0 ? (
+                      <div className={cn(
+                        "grid gap-3.5 pt-1",
+                        viewMode === "modal" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
+                      )}>
+                        {filteredAllGuides.map(item => {
+                          const ItemIcon = item.icon;
+                          const isCurrentActive = item.id === currentDetectedGuide.id;
+                          const isCurrentlySelected = item.id === activeGuide.id;
+
+                          return (
+                            <div
+                              key={item.id}
+                              className={cn(
+                                "p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 group relative",
+                                isCurrentlySelected
+                                  ? "bg-emerald-500/[0.07] border-emerald-500/60 shadow-xs ring-1 ring-emerald-500/30"
+                                  : "bg-card border-border/70 hover:border-emerald-500/40 hover:bg-muted/20 hover:shadow-xs"
+                              )}
+                            >
+                              {/* Top Bar: Icon + Titles + Badges */}
+                              <div>
+                                <div className="flex items-start justify-between gap-2.5">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div
+                                      className={cn(
+                                        "w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border shadow-2xs group-hover:scale-105 transition-transform",
+                                        item.bg,
+                                        item.border
+                                      )}
+                                    >
+                                      <ItemIcon className={cn("w-5 h-5", item.color)} />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <h4 className="text-sm font-black text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
+                                          {isEn ? item.titleEn : item.titleAr}
+                                        </h4>
+                                        {isCurrentActive && (
+                                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-500 text-white shadow-2xs animate-pulse">
+                                            {isEn ? "Current Screen" : "شاشتك الحالية"}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span
+                                        className={cn(
+                                          "inline-block text-[10px] font-bold px-2 py-0.5 rounded-md border mt-1",
+                                          item.bg,
+                                          item.color,
+                                          item.border
+                                        )}
+                                      >
+                                        {isEn ? item.badgeEn : item.badgeAr}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Summary */}
+                                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed mt-2.5">
+                                  {isEn ? item.summaryEn : item.summaryAr}
+                                </p>
+
+                                {/* Meta Chips */}
+                                <div className="flex items-center gap-1.5 flex-wrap mt-3 pt-2.5 border-t border-border/40 text-[11px]">
+                                  <span className="px-2 py-0.5 rounded-md bg-muted/60 text-muted-foreground font-semibold flex items-center gap-1">
+                                    <MousePointerClick className="w-3 h-3 text-emerald-500" />
+                                    <span>{item.steps.length} {isEn ? "steps" : "خطوات"}</span>
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded-md bg-muted/60 text-muted-foreground font-semibold flex items-center gap-1">
+                                    <Layers className="w-3 h-3 text-blue-500" />
+                                    <span>{item.keyButtons.length} {isEn ? "controls" : "أزرار"}</span>
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded-md bg-muted/40 text-muted-foreground/80 font-medium truncate max-w-[160px]">
+                                    {isEn ? item.targetAudienceEn : item.targetAudienceAr}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="min-w-0">
-                                <p className="text-xs font-bold text-foreground truncate">
-                                  {isEn ? item.titleEn : item.titleAr}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground truncate">
-                                  {isEn ? item.badgeEn : item.badgeAr}
-                                </p>
+
+                              {/* Card Action Buttons: View Guide + Open Screen Directly */}
+                              <div className="flex items-center gap-2 pt-1">
+                                <button
+                                  onClick={() => {
+                                    setSelectedGuideId(item.id);
+                                    setActiveTab("steps");
+                                  }}
+                                  className="flex-1 py-1.5 px-3 rounded-xl bg-muted/80 hover:bg-emerald-500 hover:text-white text-foreground text-xs font-bold transition-all border border-border/60 hover:border-emerald-600 flex items-center justify-center gap-1.5 shadow-2xs"
+                                >
+                                  <MousePointerClick className="w-3.5 h-3.5" />
+                                  <span>{isEn ? "View Guide" : "عرض الدليل"}</span>
+                                </button>
+
+                                {item.matchPaths && item.matchPaths[0] && (
+                                  <button
+                                    onClick={e => handleOpenScreen(item.matchPaths[0], e)}
+                                    className="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs hover:scale-[1.02] active:scale-[0.98]"
+                                    title={isEn ? "Open screen directly" : "الانتقال للشاشة فوراً"}
+                                  >
+                                    <span>{isEn ? "Open" : "فتح"}</span>
+                                    <ExternalLink className="w-3 h-3" />
+                                  </button>
+                                )}
                               </div>
                             </div>
-
-                            <button className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold shrink-0 hover:underline">
-                              {isEn ? "View Guide" : "عرض الدليل"}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      /* Empty State */
+                      <div className="py-12 text-center rounded-2xl bg-muted/20 border border-dashed border-border/70 space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto text-muted-foreground">
+                          <Search className="w-6 h-6" />
+                        </div>
+                        <p className="text-sm font-bold text-foreground">
+                          {isEn ? "No screens match your search" : "لم يتم العثور على أي شاشات مطابقة لبحثك"}
+                        </p>
+                        <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                          {isEn
+                            ? "Try searching with a different term or clear filters to view all 25 screens."
+                            : "جرّب كتابة كلمة بحث مختلفة أو اضغط أدناه لاستعراض كافة شاشات النظام."}
+                        </p>
+                        <button
+                          onClick={() => {
+                            setSearchQuery("");
+                            setSelectedCategory("all");
+                          }}
+                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition-all"
+                        >
+                          {isEn ? "View All Screens" : "عرض كافة الشاشات"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
