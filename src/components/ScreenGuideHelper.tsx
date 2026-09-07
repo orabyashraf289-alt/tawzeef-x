@@ -6,6 +6,7 @@ import {
   X,
   Sparkles,
   ChevronDown,
+  ChevronLeft,
   CheckCircle2,
   Copy,
   Check,
@@ -285,50 +286,73 @@ export default function ScreenGuideHelper() {
           {!isMinimized ? (
             <motion.div
               key="expanded-pill"
-              initial={{ opacity: 0, scale: 0.8, y: 15 }}
+              initial={{ opacity: 0, scale: 0.85, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: 15 }}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              className="relative group flex items-center"
+              exit={{ opacity: 0, scale: 0.85, y: 15 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="relative group flex items-center select-none"
             >
-              {/* Subtle Pulsing Ping Ring */}
-              <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500" />
-              </span>
+              {/* Ambient Breathing Glow Aura */}
+              <div className="absolute -inset-1 rounded-2xl sm:rounded-full bg-gradient-to-r from-emerald-500/25 via-teal-500/15 to-emerald-500/25 blur-md opacity-70 group-hover:opacity-100 transition-opacity duration-500 -z-10" />
 
               {/* Main Pill Button */}
               <button
                 onClick={() => setIsOpen(true)}
                 className={cn(
-                  "flex items-center gap-2.5 px-4 py-2.5 rounded-full shadow-lg transition-all",
-                  "bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white",
-                  "hover:shadow-emerald-500/25 hover:shadow-xl border border-white/20",
-                  "backdrop-blur-md"
+                  "flex items-center gap-3 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl sm:rounded-full transition-all duration-300",
+                  "bg-white/95 dark:bg-slate-900/90 backdrop-blur-2xl",
+                  "border border-slate-200/90 dark:border-emerald-500/30",
+                  "hover:border-emerald-500/60 dark:hover:border-emerald-400/60",
+                  "shadow-[0_10px_35px_-5px_rgba(5,150,105,0.18)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.6)]",
+                  "hover:shadow-[0_14px_42px_-5px_rgba(5,150,105,0.28)]"
                 )}
                 title={isEn ? "Open Screen Guide (Shift + ?)" : "افتح دليل هذه الشاشة (Shift + ?)"}
               >
-                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-                  <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
+                {/* AI Sparkle Gradient Tile */}
+                <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 flex items-center justify-center text-white shadow-md shadow-emerald-600/30 shrink-0 group-hover:scale-105 transition-transform duration-300">
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white animate-pulse" />
+                  {/* Active Radar Pulse Dot */}
+                  <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+                  </span>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs font-black tracking-wide leading-none flex items-center gap-1.5">
-                    <span>{isEn ? "Screen Copilot" : "مرشد الشاشة الذكي"}</span>
+
+                {/* Text Content */}
+                <div className={cn("flex flex-col", dir === "rtl" ? "text-right" : "text-left")}>
+                  <div className="flex items-center gap-1.5 leading-none">
+                    <span className="text-xs sm:text-[13px] font-black text-slate-800 dark:text-white tracking-tight">
+                      {isEn ? "Screen Copilot" : "مرشد الشاشة الذكي"}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 tracking-wider">
+                      AI
+                    </span>
                     {progressPercent === 100 && (
-                      <CheckCircle2 className="w-3 h-3 text-emerald-200 inline" />
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 inline" />
                     )}
-                  </p>
-                  <p className="text-[10px] text-emerald-100/90 font-medium leading-tight max-w-[130px] truncate">
-                    {isEn ? currentDetectedGuide.titleEn : currentDetectedGuide.titleAr}
-                  </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold leading-tight max-w-[130px] sm:max-w-[170px] truncate">
+                      {isEn ? currentDetectedGuide.titleEn : currentDetectedGuide.titleAr}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Desktop Shortcut & Chevron */}
+                <div className="hidden md:flex items-center gap-1.5 pr-2 mr-1 border-r border-slate-200/80 dark:border-white/10">
+                  <kbd className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/90 text-slate-400 dark:text-slate-500 border border-slate-200/80 dark:border-slate-700 shadow-2xs">
+                    Shift + ?
+                  </kbd>
+                  <ChevronLeft className={cn("w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400", dir === "rtl" ? "group-hover:-translate-x-0.5" : "group-hover:translate-x-0.5 rotate-180")} />
                 </div>
               </button>
 
               {/* Minimize action button */}
               <button
                 onClick={toggleMinimize}
-                className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-card border border-border text-muted-foreground hover:text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-800 dark:hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm hover:scale-110"
                 title={isEn ? "Minimize button" : "تصغير الزر"}
               >
                 <Minimize2 className="w-3 h-3" />
@@ -337,23 +361,32 @@ export default function ScreenGuideHelper() {
           ) : (
             <motion.div
               key="minimized-bubble"
-              initial={{ opacity: 0, scale: 0.5 }}
+              initial={{ opacity: 0, scale: 0.6 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.5 }}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              className="relative group"
+              exit={{ opacity: 0, scale: 0.6 }}
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.94 }}
+              className="relative group select-none"
             >
+              {/* Glowing Aura */}
+              <div className="absolute -inset-1 rounded-2xl bg-emerald-500/25 blur-md opacity-70 group-hover:opacity-100 transition-opacity -z-10" />
+
               <button
                 onClick={() => setIsOpen(true)}
-                className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-lg border border-white/25 flex items-center justify-center hover:shadow-emerald-500/30 hover:shadow-xl transition-all"
+                className="w-12 h-12 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-emerald-500/35 hover:border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-xl shadow-emerald-500/15 flex items-center justify-center transition-all"
                 title={isEn ? "Open Screen Guide" : "افتح دليل الشاشة"}
               >
-                <Sparkles className="w-5 h-5 text-white" />
+                <div className="relative">
+                  <Sparkles className="w-5 h-5 animate-pulse text-emerald-600 dark:text-emerald-400" />
+                  <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  </span>
+                </div>
               </button>
               <button
                 onClick={toggleMinimize}
-                className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-card border border-border text-muted-foreground hover:text-foreground flex items-center justify-center shadow-xs"
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-800 dark:hover:text-white flex items-center justify-center shadow-xs hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
                 title={isEn ? "Expand button" : "تكبير الزر"}
               >
                 <Maximize2 className="w-2.5 h-2.5" />
