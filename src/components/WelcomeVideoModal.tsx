@@ -17,14 +17,14 @@ import {
   ShieldCheck,
   GraduationCap,
   Layers,
-  ChevronRight,
+  Award,
   ChevronLeft,
   X,
-  Maximize2
+  Radio,
+  FileCheck2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { speechService, cleanForTTS } from "@/lib/speechService";
@@ -37,70 +37,74 @@ interface Scene {
   title: string;
   badge: string;
   description: string;
+  subtitle: string;
   highlights: string[];
 }
 
 const SCENES: Scene[] = [
   {
     id: 0,
-    title: "مرحباً بك في توظيف إكس (Tawzeef-X)",
-    badge: "الجيل الأذكى في التوظيف 🌟",
-    description: "المنصة السحابية المتكاملة لإدارة واستقطاب الكفاءات التعليمية والمهنية بالذكاء الاصطناعي وفق أعلى المعايير.",
-    highlights: ["بوابة موحدة للتوظيف والأوامر", "أتمتة ذكية متكاملة 100%", "معتمد وفق المعايير السعودية 🇸🇦"]
+    title: "مرحباً بك في منصة توظيف إكس",
+    badge: "الجيل الأذكى في التوظيف 🇸🇦",
+    description: "المنصة السحابية المتقدمة لإدارة واستقطاب الكفاءات التعليمية والمهنية بالذكاء الاصطناعي وفق أرقى المعايير.",
+    subtitle: "أهلاً ومرحباً بك في منصة توظيف إكس، شريكك التنفيذي الذكي...",
+    highlights: ["بوابة موحدة للتوظيف وأوامر التعيين", "أتمتة شاملة لمسارات العمل", "معتمد ومتوافق مع المعايير السعودية"]
   },
   {
     id: 1,
     title: "محرك الفرز والتقييم الذكي بالـ AI",
-    badge: "تقييم استثنائي بدقة 98% ⚡",
-    description: "فحص وتدقيق تلقائي للسير الذاتية، استخلاص فوري للمهارات والخبرات ومطابقتها مع معايير الوظيفة الشاغرة.",
-    highlights: ["مطابقة فورية بنقرة واحدة", "استخراج وتحليل الرخص المهنية", "توفير أكثر من 80% من وقت الفرز"]
+    badge: "مطابقة فورية بدقة 98% ⚡",
+    description: "فحص وتدقيق فوري للسير الذاتية، استخلاص المهارات والخبرات ومطابقة الرخص المهنية المعتمدة.",
+    subtitle: "تم تجهيز بيئة عملك بأحدث تقنيات الذكاء الاصطناعي لأتمتة التوظيف...",
+    highlights: ["مطابقة المؤهلات والرخص المهنية", "تحليل الرغبات والتفضيلات الجغرافية", "توفير 80% من الجهد اليدوي"]
   },
   {
     id: 2,
-    title: "مسار التوظيف المتكامل وغرف المقابلات",
-    badge: "من التقديم إلى التعيين 🎯",
-    description: "لوحة Kanban تفاعلية لتتبع المرشحين، غرف فيديو مدمجة بميزة التسجيل والتفريغ النصي التلقائي، وإصدار العروض الوظيفية الرقمية.",
-    highlights: ["مقابلات أونلاين مدمجة وعالية الدقة", "تفريغ وتحليل مشاعر المحادثة", "عقود وعروض وظيفية إلكترونية"]
+    title: "مسار توظيف متكامل وغرف مقابلات ذكية",
+    badge: "من التقديم إلى الاعتماد 🎥",
+    description: "لوحة Kanban تفاعلية لتتبع المرشحين مع غرف فيديو مدمجة تدعم التسجيل والتفريغ النصي التلقائي.",
+    subtitle: "فحص وتدقيق السير الذاتية، وإدارة المقابلات الرقمية باحترافية...",
+    highlights: ["مقابلات أونلاين فائقة الدقة", "تفريغ صوتي وتحليل مشاعر المحادثة", "عروض وظيفية رقمية وتوقيع إلكتروني"]
   },
   {
     id: 3,
     title: "مساحة عملك جاهزة للانطلاق!",
-    badge: "ابدأ تجربة التوظيف الآن 🚀",
-    description: "تم ضبط كافة الإعدادات والبيانات في لوحة التحكم الخاصة بك. يمكنك البدء فوراً في نشر الوظائف ومتابعة أفضل الكوادر.",
-    highlights: ["تقارير وتحليلات أداء حية", "تصدير وطباعة القرارات الرسمية", "دعم فني استشاري مدار الساعة"]
+    badge: "جاهزية كاملة 100% 🚀",
+    description: "تم ضبط إعداداتك ومؤشراتك الحيوية. يمكنك الآن البدء مباشرة في نشر الوظائف واستقطاب أفضل الكوادر.",
+    subtitle: "لوحة تحكمك جاهزة الآن، نتمنى لك تجربة توظيف استثنائية...",
+    highlights: ["تقارير وتحليلات أداء لحظية", "تصدير القرارات وطباعتها بنقرة واحدة", "دعم فني استشاري مدار الساعة"]
   }
 ];
-
-const SCENE_DURATION = 8.5; // seconds per scene if running on timer
 
 export default function WelcomeVideoModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [currentScene, setCurrentScene] = useState(0);
   const [progress, setProgress] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [hasAudioStarted, setHasAudioStarted] = useState(false);
-  const [audioDuration, setAudioDuration] = useState(34);
-  const [elapsedTime, setElapsedTime] = useState(0);
+  const [audioLoaded, setAudioLoaded] = useState(false);
+  const [needsUserGesture, setNeedsUserGesture] = useState(false);
+  const [duration, setDuration] = useState(23);
+  const [currentTime, setCurrentTime] = useState(0);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const timerRef = useRef<number | null>(null);
   const audioBlobUrlRef = useRef<string | null>(null);
+  const timerFallbackRef = useRef<number | null>(null);
 
-  // Check on mount whether this is a new login session requiring the welcome video
+  // Check on mount if welcome video should show
   useEffect(() => {
     const shouldShow = sessionStorage.getItem("tx_show_welcome_video") === "true";
     if (shouldShow) {
       setIsOpen(true);
     }
 
-    // Allow manual replay from anywhere in the app
     const handleManualOpen = () => {
       setIsOpen(true);
       setCurrentScene(0);
       setProgress(0);
-      setElapsedTime(0);
-      setIsPlaying(true);
+      setCurrentTime(0);
+      setIsPlaying(false);
+      setNeedsUserGesture(false);
     };
 
     window.addEventListener("open-welcome-video", handleManualOpen);
@@ -109,10 +113,9 @@ export default function WelcomeVideoModal() {
     };
   }, []);
 
-  // Fetch ElevenLabs audio as soon as the modal opens
+  // Fetch ElevenLabs audio as soon as modal opens
   useEffect(() => {
     if (!isOpen) {
-      // Clean up audio
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
@@ -121,145 +124,155 @@ export default function WelcomeVideoModal() {
         URL.revokeObjectURL(audioBlobUrlRef.current);
         audioBlobUrlRef.current = null;
       }
-      if (timerRef.current) {
-        window.clearInterval(timerRef.current);
-        timerRef.current = null;
+      if (timerFallbackRef.current) {
+        clearInterval(timerFallbackRef.current);
+        timerFallbackRef.current = null;
       }
+      speechService.cancelAll();
       return;
     }
 
     let isCancelled = false;
 
-    const prepareAudio = async () => {
+    const initAudio = async () => {
       try {
-        // Try calling ElevenLabs via Supabase edge function
         const { data, error } = await supabase.functions.invoke("elevenlabs-tts", {
           body: {
             text: cleanForTTS(WELCOME_NARRATION_TEXT),
-            voiceId: "IKne3meq5aSn9XLyUdCD", // Multilingual authoritative Arabic voice
+            voiceId: "IKne3meq5aSn9XLyUdCD", // ElevenLabs Multilingual Charlie voice (natural Arabic)
             modelId: "eleven_multilingual_v2",
           },
         });
 
         if (isCancelled) return;
 
-        if (error || !data) {
-          console.warn("[WelcomeVideo] ElevenLabs error, falling back to speechService:", error);
-          fallbackToSpeechService();
-          return;
-        }
-
-        let audioBlob: Blob;
+        let blob: Blob | null = null;
         if (data instanceof Blob) {
-          audioBlob = data;
+          blob = data;
         } else if (data instanceof ArrayBuffer) {
-          audioBlob = new Blob([data], { type: "audio/mpeg" });
-        } else if (typeof data === "string") {
+          blob = new Blob([data], { type: "audio/mpeg" });
+        } else if (typeof data === "string" && data.length > 500) {
           const bytes = new Uint8Array(data.length);
           for (let i = 0; i < data.length; i++) {
             bytes[i] = data.charCodeAt(i) & 0xff;
           }
-          audioBlob = new Blob([bytes], { type: "audio/mpeg" });
+          blob = new Blob([bytes], { type: "audio/mpeg" });
+        }
+
+        if (blob && blob.size > 1000) {
+          const url = URL.createObjectURL(blob);
+          audioBlobUrlRef.current = url;
+          const audio = new Audio(url);
+          audioRef.current = audio;
+
+          audio.onloadedmetadata = () => {
+            if (audio.duration && !isNaN(audio.duration)) {
+              setDuration(audio.duration);
+            }
+            setAudioLoaded(true);
+          };
+
+          // Synchronize progress and scene changes directly with audio time
+          audio.ontimeupdate = () => {
+            if (audio.duration) {
+              const current = audio.currentTime;
+              setCurrentTime(current);
+              const pct = (current / audio.duration) * 100;
+              setProgress(pct);
+              const sceneIdx = Math.min(3, Math.floor((current / audio.duration) * SCENES.length));
+              setCurrentScene(sceneIdx);
+            }
+          };
+
+          audio.onended = () => {
+            handleComplete();
+          };
+
+          audio.onerror = () => {
+            console.warn("[WelcomeVideo] Audio error, falling back to speechService");
+            startFallbackSpeech();
+          };
+
+          // Try autoplay
+          audio.play().then(() => {
+            setIsPlaying(true);
+            setNeedsUserGesture(false);
+          }).catch((err) => {
+            console.warn("[WelcomeVideo] Autoplay blocked by browser policy, prompt for click:", err);
+            setIsPlaying(false);
+            setNeedsUserGesture(true);
+          });
         } else {
-          audioBlob = new Blob([data as any], { type: "audio/mpeg" });
+          startFallbackSpeech();
         }
-
-        if (audioBlob.size < 200) {
-          fallbackToSpeechService();
-          return;
-        }
-
-        const url = URL.createObjectURL(audioBlob);
-        audioBlobUrlRef.current = url;
-        const audio = new Audio(url);
-        audioRef.current = audio;
-
-        audio.onloadedmetadata = () => {
-          if (audio.duration && !isNaN(audio.duration)) {
-            setAudioDuration(Math.ceil(audio.duration));
-          }
-        };
-
-        audio.onended = () => {
-          handleComplete();
-        };
-
-        // Try playing
-        audio.play().then(() => {
-          setHasAudioStarted(true);
-        }).catch((playErr) => {
-          console.warn("[WelcomeVideo] Autoplay blocked, waiting for user click:", playErr);
-          setHasAudioStarted(false);
-        });
-      } catch (err) {
-        console.warn("[WelcomeVideo] Audio load failed, using fallback:", err);
-        fallbackToSpeechService();
+      } catch (e) {
+        console.warn("[WelcomeVideo] Edge function failed, using speechService fallback:", e);
+        startFallbackSpeech();
       }
     };
 
-    const fallbackToSpeechService = () => {
-      speechService.speak(
-        { id: "welcome-intro", text: WELCOME_NARRATION_TEXT },
-        { overrideLatest: true }
-      );
+    const startFallbackSpeech = () => {
+      setAudioLoaded(true);
+      setNeedsUserGesture(true);
     };
 
-    prepareAudio();
+    initAudio();
 
     return () => {
       isCancelled = true;
     };
   }, [isOpen]);
 
-  // Main playback timer loop for driving scenes & progress
-  useEffect(() => {
-    if (!isOpen || !isPlaying) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      return;
-    }
-
-    const interval = window.setInterval(() => {
-      setElapsedTime((prev) => {
-        const nextTime = prev + 0.2;
-        const totalDuration = audioDuration || (SCENES.length * SCENE_DURATION);
-        const currentProgress = Math.min(100, (nextTime / totalDuration) * 100);
-        setProgress(currentProgress);
-
-        // Sync scenes based on time elapsed
-        const sceneIndex = Math.min(
-          SCENES.length - 1,
-          Math.floor((nextTime / totalDuration) * SCENES.length)
+  // Start playback (guaranteed to work on user click)
+  const startPlayback = () => {
+    setNeedsUserGesture(false);
+    if (audioRef.current) {
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch(() => {
+        // Fallback to speech synthesis
+        speechService.speak(
+          { id: "welcome-tour", text: WELCOME_NARRATION_TEXT },
+          { overrideLatest: true }
         );
-        setCurrentScene(sceneIndex);
-
-        if (nextTime >= totalDuration) {
-          clearInterval(interval);
-          handleComplete();
-          return totalDuration;
-        }
-
-        return nextTime;
+        startTimerDriver(23);
       });
-    }, 200);
+    } else {
+      speechService.speak(
+        { id: "welcome-tour", text: WELCOME_NARRATION_TEXT },
+        { overrideLatest: true }
+      );
+      startTimerDriver(23);
+    }
+  };
 
-    timerRef.current = interval;
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isOpen, isPlaying, audioDuration]);
+  // Timer driver if HTML5 Audio is unavailable
+  const startTimerDriver = (totalSec: number) => {
+    setIsPlaying(true);
+    let sec = 0;
+    timerFallbackRef.current = window.setInterval(() => {
+      sec += 0.25;
+      setCurrentTime(sec);
+      const pct = (sec / totalSec) * 100;
+      setProgress(pct);
+      const sceneIdx = Math.min(3, Math.floor((sec / totalSec) * SCENES.length));
+      setCurrentScene(sceneIdx);
+      if (sec >= totalSec) {
+        clearInterval(timerFallbackRef.current!);
+        handleComplete();
+      }
+    }, 250);
+  };
 
   // Toggle Play / Pause
   const togglePlayPause = () => {
     if (isPlaying) {
       if (audioRef.current) audioRef.current.pause();
+      if (timerFallbackRef.current) clearInterval(timerFallbackRef.current);
       speechService.cancelAll();
       setIsPlaying(false);
     } else {
-      if (audioRef.current) {
-        audioRef.current.play().catch(() => {});
-      }
-      setIsPlaying(true);
+      startPlayback();
     }
   };
 
@@ -271,40 +284,32 @@ export default function WelcomeVideoModal() {
     setIsMuted(!isMuted);
   };
 
-  // Manual audio unlock if browser autoplay prevented audio initially
-  const handleUserClickToPlay = () => {
-    if (audioRef.current) {
-      audioRef.current.play().then(() => {
-        setHasAudioStarted(true);
-      }).catch(console.error);
-    }
-  };
-
-  // When video completes or is skipped
+  // Complete and dismiss
   const handleComplete = useCallback(() => {
-    // Dismiss and mark viewed for this session
     sessionStorage.removeItem("tx_show_welcome_video");
     sessionStorage.setItem("tx_welcome_video_viewed", "true");
 
     if (audioRef.current) {
       audioRef.current.pause();
     }
+    if (timerFallbackRef.current) {
+      clearInterval(timerFallbackRef.current);
+    }
     speechService.cancelAll();
 
-    // Trigger celebration confetti
     try {
       confetti({
-        particleCount: 100,
-        spread: 80,
+        particleCount: 90,
+        spread: 75,
         origin: { y: 0.6 },
-        colors: ["#10b981", "#06b6d4", "#6366f1", "#f59e0b"]
+        colors: ["#059669", "#10b981", "#34d399", "#f59e0b"]
       });
     } catch {}
 
     setIsOpen(false);
   }, []);
 
-  // Keyboard shortcut: Esc to dismiss
+  // Escape key handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
@@ -318,296 +323,297 @@ export default function WelcomeVideoModal() {
   if (!isOpen) return null;
 
   const currentSceneData = SCENES[currentScene] || SCENES[0];
-  const formattedMinutes = Math.floor(elapsedTime / 60).toString().padStart(2, "0");
-  const formattedSeconds = Math.floor(elapsedTime % 60).toString().padStart(2, "0");
-  const totalMinutes = Math.floor(audioDuration / 60).toString().padStart(2, "0");
-  const totalSeconds = Math.floor(audioDuration % 60).toString().padStart(2, "0");
+  const curMin = Math.floor(currentTime / 60).toString().padStart(2, "0");
+  const curSec = Math.floor(currentTime % 60).toString().padStart(2, "0");
+  const totMin = Math.floor(duration / 60).toString().padStart(2, "0");
+  const totSec = Math.floor(duration % 60).toString().padStart(2, "0");
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0, scale: 1.05 }}
-        transition={{ duration: 0.4 }}
-        className="fixed inset-0 z-[99999] flex flex-col justify-between bg-slate-950/98 backdrop-blur-2xl text-white select-none overflow-hidden"
+      <div
+        className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/70 backdrop-blur-xl p-3 sm:p-6 overflow-y-auto"
         dir="rtl"
       >
-        {/* Background Ambient Cosmic Glows */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-[-10%] right-[-10%] w-[650px] h-[650px] rounded-full bg-emerald-500/15 blur-[160px] animate-pulse" style={{ animationDuration: "8s" }} />
-          <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-cyan-500/15 blur-[150px] animate-pulse" style={{ animationDuration: "10s" }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-indigo-500/10 blur-[180px]" />
-          
-          {/* Subtle Cybernetic Grid */}
-          <div
-            className="absolute inset-0 opacity-[0.03]"
-            style={{
-              backgroundImage: "linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)",
-              backgroundSize: "40px 40px"
-            }}
-          />
-        </div>
-
-        {/* Top Progress Bar */}
-        <div className="relative z-20 w-full bg-white/10 h-1.5 overflow-hidden">
-          <motion.div
-            className="h-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-indigo-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]"
-            style={{ width: `${progress}%` }}
-            transition={{ ease: "linear" }}
-          />
-        </div>
-
-        {/* Top Navigation & Status Bar */}
-        <header className="relative z-20 flex items-center justify-between px-6 py-5 sm:px-12 border-b border-white/10 bg-slate-950/40 backdrop-blur-md">
-          {/* Logo & Voiceover Badge */}
-          <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-2xl bg-white/10 p-2 border border-white/20 shadow-lg flex items-center justify-center">
-              <img src={tawzeefLogo} alt="Tawzeef-X" className="w-7 h-7 object-contain" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-black text-lg text-white tracking-wide">Tawzeef-X</span>
-                <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold gap-1 px-2.5 py-0.5">
-                  <Sparkles className="w-3 h-3 animate-spin" style={{ animationDuration: "4s" }} />
-                  ElevenLabs AI Voice 🎙️
-                </Badge>
-              </div>
-              <p className="text-white/60 text-xs mt-0.5">فيديو ترحيبي تفاعلي لبدء الجلسة</p>
-            </div>
-          </div>
-
-          {/* Real-time Sound Equalizer & Skip Button */}
-          <div className="flex items-center gap-3">
-            {/* Audio Wave Visualizer */}
-            <div className="hidden sm:flex items-center gap-1 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full">
-              {[0.4, 0.9, 0.6, 1.0, 0.5, 0.8, 0.3, 0.7].map((heightRatio, i) => (
-                <motion.div
-                  key={i}
-                  className="w-1 bg-emerald-400 rounded-full"
-                  animate={{
-                    height: isPlaying ? [heightRatio * 18, (1 - heightRatio) * 18 + 4, heightRatio * 18] : 4
-                  }}
-                  transition={{
-                    repeat: Infinity,
-                    duration: 0.6 + (i * 0.1),
-                    ease: "easeInOut"
-                  }}
-                />
-              ))}
-              <span className="text-[10px] text-emerald-300 font-mono font-bold mr-2">
-                {formattedMinutes}:{formattedSeconds} / {totalMinutes}:{totalSeconds}
-              </span>
-            </div>
-
-            {/* Audio Mute/Unmute */}
-            <button
-              onClick={toggleMute}
-              className="p-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 transition-colors text-white"
-              title={isMuted ? "تشغيل الصوت" : "كتم الصوت"}
-            >
-              {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
-            </button>
-
-            {/* Skip Button */}
-            <Button
-              variant="outline"
-              onClick={handleComplete}
-              className="gap-2 rounded-xl bg-white/10 hover:bg-white/20 border-white/20 text-white font-bold text-xs h-10 px-4 shadow-lg transition-all"
-            >
-              <span>تخطي والبدء فوراً</span>
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </div>
-        </header>
-
-        {/* Main Center Video Reel Canvas */}
-        <main className="relative z-20 flex-1 flex flex-col items-center justify-center p-6 sm:p-12 max-w-5xl mx-auto w-full">
-          <AnimatePresence mode="wait">
+        {/* Cinema Presentation Card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.94, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.94, y: 20 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className="relative w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl border border-emerald-500/20 bg-gradient-to-b from-white via-slate-50 to-emerald-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950/30 text-slate-800 dark:text-slate-100 flex flex-col my-auto"
+        >
+          {/* Top Progress Gradient Bar */}
+          <div className="w-full bg-slate-200/80 dark:bg-slate-800 h-1.5 overflow-hidden">
             <motion.div
-              key={currentScene}
-              initial={{ opacity: 0, y: 25, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -25, scale: 0.96 }}
-              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-              className="w-full text-center flex flex-col items-center"
-            >
-              {/* Scene Badge */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.85 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.1 }}
-                className="mb-4"
-              >
-                <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs sm:text-sm font-bold shadow-lg shadow-emerald-500/5">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  {currentSceneData.badge}
+              className="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-amber-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]"
+              style={{ width: `${progress}%` }}
+              transition={{ ease: "linear" }}
+            />
+          </div>
+
+          {/* Header Bar */}
+          <div className="px-5 sm:px-8 py-4 border-b border-slate-200/80 dark:border-white/10 flex items-center justify-between bg-white/70 dark:bg-slate-900/70 backdrop-blur-md">
+            {/* Platform Identity */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-500/20 p-2 flex items-center justify-center shadow-xs">
+                <img src={tawzeefLogo} alt="Tawzeef-X" className="w-6 h-6 object-contain" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-black text-base sm:text-lg text-slate-900 dark:text-white">Tawzeef-X</span>
+                  <Badge className="bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-bold py-0.5 px-2">
+                    الذكاء الاصطناعي نشط
+                  </Badge>
+                </div>
+                <p className="text-slate-500 dark:text-slate-400 text-xs hidden sm:block">جولة تقديمية تفاعلية للوحة التحكم</p>
+              </div>
+            </div>
+
+            {/* Audio Waveform & Actions */}
+            <div className="flex items-center gap-2.5">
+              {/* Animated Equalizer */}
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-200/60 dark:border-white/10">
+                <div className="flex items-center gap-0.5 h-4">
+                  {[0.3, 0.8, 0.5, 1.0, 0.6, 0.4].map((ratio, idx) => (
+                    <motion.div
+                      key={idx}
+                      className="w-1 bg-emerald-600 dark:bg-emerald-400 rounded-full"
+                      animate={{
+                        height: isPlaying ? [ratio * 16, (1 - ratio) * 16 + 3, ratio * 16] : 3
+                      }}
+                      transition={{
+                        repeat: Infinity,
+                        duration: 0.5 + idx * 0.1,
+                        ease: "easeInOut"
+                      }}
+                    />
+                  ))}
+                </div>
+                <span className="text-[11px] font-mono font-bold text-slate-600 dark:text-slate-300 mr-1.5" dir="ltr">
+                  {curMin}:{curSec} / {totMin}:{totSec}
                 </span>
+              </div>
+
+              {/* Mute/Unmute */}
+              <button
+                onClick={toggleMute}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-white/10 transition-colors text-slate-700 dark:text-slate-200"
+                title={isMuted ? "تشغيل الصوت" : "كتم الصوت"}
+              >
+                {isMuted ? <VolumeX className="w-4 h-4 text-rose-500" /> : <Volume2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
+              </button>
+
+              {/* Skip Button */}
+              <Button
+                variant="ghost"
+                onClick={handleComplete}
+                className="text-xs font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white h-9 px-3 rounded-xl gap-1"
+              >
+                <span>تخطي</span>
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Central Interactive Cinema Screen */}
+          <div className="relative p-6 sm:p-10 flex flex-col items-center justify-center min-h-[380px] sm:min-h-[420px]">
+            {/* Autoplay Unlock Overlay (If browser blocked audio initially) */}
+            {needsUserGesture && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="absolute inset-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center"
+              >
+                <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-4 text-emerald-600 dark:text-emerald-400 shadow-lg">
+                  <Volume2 className="w-8 h-8 animate-bounce" />
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-2">
+                  جاهز لبدء العرض الترحيبي بالصوت
+                </h3>
+                <p className="text-sm text-slate-600 dark:text-slate-300 max-w-md mb-6 leading-relaxed">
+                  انقر على الزر أدناه لتشغيل التعليق الصوتي المباشر بتقنية الذكاء الاصطناعي مع استعراض مزايا منصة توظيف إكس.
+                </p>
+                <Button
+                  size="lg"
+                  onClick={startPlayback}
+                  className="rounded-2xl px-8 h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-xl shadow-emerald-500/20 gap-2.5"
+                >
+                  <Play className="w-4 h-4 fill-white" />
+                  <span>بدء العرض التقديمي مع الصوت 🔊</span>
+                </Button>
               </motion.div>
+            )}
 
-              {/* Scene Dynamic Main Visual */}
-              <div className="relative my-4 sm:my-6 w-full max-w-2xl min-h-[220px] flex items-center justify-center">
-                {currentScene === 0 && (
-                  <motion.div
-                    className="relative flex flex-col items-center justify-center"
-                    animate={{ y: [0, -6, 0] }}
-                    transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-                  >
-                    {/* Glowing holographic orb */}
-                    <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-3xl bg-gradient-to-tr from-emerald-500/20 via-cyan-500/30 to-indigo-500/20 border border-emerald-400/40 backdrop-blur-xl p-5 shadow-[0_0_50px_rgba(16,185,129,0.3)] flex items-center justify-center relative">
-                      <img src={tawzeefLogo} alt="Tawzeef-X" className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]" />
-                      <div className="absolute -top-3 -right-3 bg-emerald-500 text-slate-950 font-black text-[10px] px-2.5 py-1 rounded-full shadow-lg">
-                        v2.2 AI
+            {/* Dynamic Stage Content */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentScene}
+                initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -16, scale: 0.98 }}
+                transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                className="w-full flex flex-col items-center text-center max-w-2xl"
+              >
+                {/* Scene Badge */}
+                <div className="mb-4">
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 border border-emerald-500/30 text-xs font-bold shadow-2xs">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    {currentSceneData.badge}
+                  </span>
+                </div>
+
+                {/* Scene Graphic Representation */}
+                <div className="my-3 sm:my-5 w-full flex items-center justify-center">
+                  {currentScene === 0 && (
+                    <div className="p-6 rounded-3xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-white/10 shadow-lg flex flex-col items-center justify-center relative max-w-md w-full">
+                      <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-emerald-500/10 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mb-3 shadow-inner">
+                        <img src={tawzeefLogo} alt="Tawzeef-X" className="w-12 h-12 object-contain" />
+                      </div>
+                      <span className="text-xs font-black text-emerald-700 dark:text-emerald-400">توظيف إكس • Tawzeef-X</span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">نظام التوظيف وإدارة الكفاءات الذكي المعتمد</span>
+                    </div>
+                  )}
+
+                  {currentScene === 1 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full max-w-lg">
+                      <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/80 border border-emerald-500/30 shadow-sm text-right flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                          <Bot className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div>
+                          <div className="text-xl font-black text-emerald-600 dark:text-emerald-400">98% تطابق</div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">مطابقة دقيقة لمتطلبات الشاغر</p>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/80 border border-amber-500/30 shadow-sm text-right flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-500/30 flex items-center justify-center shrink-0">
+                          <ShieldCheck className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <div>
+                          <div className="text-xl font-black text-amber-600 dark:text-amber-400">تدقيق فوري</div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">الرخص المهنية والشهادات ETEC</p>
+                        </div>
                       </div>
                     </div>
-                  </motion.div>
-                )}
+                  )}
 
-                {currentScene === 1 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg">
-                    {/* Radar AI Score */}
-                    <div className="p-4 rounded-2xl bg-white/5 border border-emerald-500/30 backdrop-blur-md flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0 border border-emerald-500/40">
-                        <Bot className="w-6 h-6 text-emerald-400" />
-                      </div>
-                      <div className="text-right flex-1">
-                        <div className="text-2xl font-black text-emerald-400">98%</div>
-                        <p className="text-xs text-white/70">مطابقة دقيقة للشواغر</p>
+                  {currentScene === 2 && (
+                    <div className="w-full max-w-lg bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-white/10 rounded-2xl p-4 shadow-sm">
+                      <div className="grid grid-cols-4 gap-2 text-center text-xs font-bold">
+                        <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/50 border border-slate-200/60 dark:border-white/5">
+                          <div className="text-[10px] text-slate-400 mb-1">المرحلة 1</div>
+                          <div>تقديم الطلب 📄</div>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/50 border border-slate-200/60 dark:border-white/5">
+                          <div className="text-[10px] text-slate-400 mb-1">المرحلة 2</div>
+                          <div>فرز بالـ AI ⚡</div>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300">
+                          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mb-1">المرحلة 3</div>
+                          <div>مقابلة فيديو 🎥</div>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/50 border border-slate-200/60 dark:border-white/5">
+                          <div className="text-[10px] text-slate-400 mb-1">المرحلة 4</div>
+                          <div>عرض وظيفي 🏅</div>
+                        </div>
                       </div>
                     </div>
+                  )}
 
-                    {/* Resume Parser */}
-                    <div className="p-4 rounded-2xl bg-white/5 border border-cyan-500/30 backdrop-blur-md flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center shrink-0 border border-cyan-500/40">
-                        <ShieldCheck className="w-6 h-6 text-cyan-400" />
-                      </div>
-                      <div className="text-right flex-1">
-                        <div className="text-2xl font-black text-cyan-400">فوري ⚡</div>
-                        <p className="text-xs text-white/70">تحليل رخص ومعايير ETEC</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {currentScene === 2 && (
-                  <div className="w-full max-w-xl bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-md">
-                    <div className="flex items-center justify-between gap-2 overflow-x-auto pb-2 text-xs">
-                      {["تقديم الطلب 📄", "الفحص والفرز 🔍", "المقابلة الذكية 🎥", "العرض الوظيفي 🏅"].map((step, idx) => (
-                        <div key={idx} className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold border shrink-0 ${idx === 2 ? 'bg-emerald-500/25 border-emerald-500/50 text-emerald-300 shadow-md' : 'bg-white/5 border-white/10 text-white/60'}`}>
-                          <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">{idx + 1}</span>
-                          <span>{step}</span>
+                  {currentScene === 3 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-lg">
+                      {[
+                        { num: "1,250+", label: "وظيفة نشطة", icon: Briefcase, color: "text-emerald-600 dark:text-emerald-400" },
+                        { num: "85K+", label: "مرشح مؤهل", icon: Users, color: "text-teal-600 dark:text-teal-400" },
+                        { num: "99.9%", label: "جاهزية النظام", icon: Zap, color: "text-amber-600 dark:text-amber-400" },
+                        { num: "80%", label: "توفير الوقت", icon: Sparkles, color: "text-indigo-600 dark:text-indigo-400" },
+                      ].map((stat, i) => (
+                        <div key={i} className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-white/10 shadow-2xs text-center">
+                          <stat.icon className={`w-4 h-4 mx-auto mb-1 ${stat.color}`} />
+                          <div className={`text-base font-black ${stat.color}`}>{stat.num}</div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{stat.label}</div>
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
-                {currentScene === 3 && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-xl">
-                    {[
-                      { num: "1,250+", label: "وظيفة نشطة", icon: Briefcase, color: "text-emerald-400" },
-                      { num: "85K+", label: "مرشح مسجل", icon: Users, color: "text-cyan-400" },
-                      { num: "99.9%", label: "وقت الجاهزية", icon: Zap, color: "text-amber-400" },
-                      { num: "3X", label: "سرعة في التعيين", icon: Sparkles, color: "text-indigo-400" },
-                    ].map((stat, i) => (
-                      <div key={i} className="p-3.5 rounded-2xl bg-white/5 border border-white/10 text-center">
-                        <stat.icon className={`w-5 h-5 mx-auto mb-1 ${stat.color}`} />
-                        <div className={`text-lg font-black ${stat.color}`}>{stat.num}</div>
-                        <div className="text-[10px] text-white/60 font-medium">{stat.label}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                {/* Scene Title */}
+                <h2 className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+                  {currentSceneData.title}
+                </h2>
 
-              {/* Scene Title */}
-              <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight max-w-2xl leading-tight">
-                {currentSceneData.title}
-              </h2>
+                {/* Scene Description */}
+                <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm max-w-lg mt-2 leading-relaxed">
+                  {currentSceneData.description}
+                </p>
 
-              {/* Scene Narrative Subtitle */}
-              <p className="text-white/70 text-sm sm:text-base max-w-xl mt-3 leading-relaxed">
-                {currentSceneData.description}
-              </p>
-
-              {/* Highlights Chips */}
-              <div className="flex flex-wrap items-center justify-center gap-2 mt-5">
-                {currentSceneData.highlights.map((item, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 border border-white/15 text-xs font-semibold text-white/90"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    {item}
-                  </span>
-                ))}
-              </div>
-
-              {/* Prompt to play audio if browser blocked initial autoplay */}
-              {!hasAudioStarted && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-4"
-                >
-                  <Button
-                    size="sm"
-                    onClick={handleUserClickToPlay}
-                    className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl text-xs px-4"
-                  >
-                    <Volume2 className="w-3.5 h-3.5" />
-                    انقر هنا لتفعيل الصوت الترحيبي 🔊
-                  </Button>
-                </motion.div>
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </main>
-
-        {/* Bottom Interactive Control Footer */}
-        <footer className="relative z-20 px-6 py-6 sm:px-12 border-t border-white/10 bg-slate-950/60 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4">
-          {/* Scene Carousel Indicators */}
-          <div className="flex items-center gap-2">
-            {SCENES.map((s, idx) => (
-              <button
-                key={s.id}
-                onClick={() => {
-                  setCurrentScene(idx);
-                  const total = audioDuration || (SCENES.length * SCENE_DURATION);
-                  setElapsedTime((idx / SCENES.length) * total);
-                }}
-                className={`h-2 transition-all rounded-full ${currentScene === idx ? 'w-8 bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'w-2.5 bg-white/20 hover:bg-white/40'}`}
-                title={s.title}
-              />
-            ))}
+                {/* Highlights Tags */}
+                <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+                  {currentSceneData.highlights.map((h, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-[11px] font-semibold text-slate-700 dark:text-slate-200"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      {h}
+                    </span>
+                  ))}
+                </div>
+              </motion.div>
+            </AnimatePresence>
           </div>
 
-          {/* Subtitles Quote Bar */}
-          <div className="text-center sm:text-right text-xs text-white/60 max-w-md hidden md:block">
-            <span className="text-emerald-400 font-bold ml-1.5">🎙️ التعليق الصوتي:</span>
-            <span>{currentScene === 0 ? "أهلاً بك في توظيف إكس، شريكك الذكي في التوظيف..." : currentScene === 1 ? "فحص وتدقيق تلقائي للسير الذاتية ومطابقة المهارات..." : currentScene === 2 ? "إدارة مسار التوظيف والمقابلات الرقمية المتكاملة..." : "لوحة تحكمك جاهزة الآن، نتمنى لك تجربة موفقة..."}</span>
-          </div>
+          {/* Footer Bar */}
+          <div className="px-5 sm:px-8 py-4 border-t border-slate-200/80 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
+            {/* Scene Stepper Dots */}
+            <div className="flex items-center gap-1.5">
+              {SCENES.map((s, idx) => (
+                <button
+                  key={s.id}
+                  onClick={() => {
+                    setCurrentScene(idx);
+                    if (audioRef.current && audioRef.current.duration) {
+                      audioRef.current.currentTime = (idx / SCENES.length) * audioRef.current.duration;
+                    }
+                  }}
+                  className={`h-2 rounded-full transition-all ${currentScene === idx ? "w-7 bg-emerald-600 dark:bg-emerald-400 shadow-xs" : "w-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400"}`}
+                  title={s.title}
+                />
+              ))}
+            </div>
 
-          {/* Play/Pause and Primary CTA */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={togglePlayPause}
-              className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white transition-all shadow-md"
-              title={isPlaying ? "إيقاف مؤقت" : "متابعة التشغيل"}
-            >
-              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 text-emerald-400" />}
-            </button>
+            {/* Live Subtitle Narration Snippet */}
+            <div className="text-center sm:text-right text-xs text-slate-500 dark:text-slate-400 hidden sm:flex items-center gap-1.5 max-w-md">
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold shrink-0">🎙️ الراوي:</span>
+              <span className="truncate">{currentSceneData.subtitle}</span>
+            </div>
 
-            <Button
-              onClick={handleComplete}
-              className="rounded-2xl px-6 h-12 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-slate-950 font-black shadow-[0_0_25px_rgba(16,185,129,0.4)] transition-all transform hover:scale-[1.02]"
-            >
-              <span>{currentScene === SCENES.length - 1 ? "الدخول للوحة التحكم 🚀" : "بدء استخدام المنصة الآن"}</span>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-            </Button>
+            {/* Play/Pause & Enter Dashboard CTA */}
+            <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={togglePlayPause}
+                className="h-10 w-10 rounded-xl border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                title={isPlaying ? "إيقاف مؤقت" : "تشغيل"}
+              >
+                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 text-emerald-600 fill-emerald-600" />}
+              </Button>
+
+              <Button
+                onClick={handleComplete}
+                className="h-10 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 gap-2 flex-1 sm:flex-initial"
+              >
+                <span>{currentScene === SCENES.length - 1 ? "الدخول للوحة التحكم 🚀" : "بدء الاستخدام الآن"}</span>
+                <ArrowLeft className="w-3.5 h-3.5" />
+              </Button>
+            </div>
           </div>
-        </footer>
-      </motion.div>
+        </motion.div>
+      </div>
     </AnimatePresence>
   );
 }
+
