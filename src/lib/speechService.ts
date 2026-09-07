@@ -229,8 +229,22 @@ class SpeechService {
         return;
       }
 
-      const blob = data instanceof Blob ? data : new Blob([data as BlobPart], { type: "audio/mpeg" });
-      if (!blob.type.includes("audio")) {
+      let blob: Blob;
+      if (data instanceof Blob) {
+        blob = data;
+      } else if (data instanceof ArrayBuffer) {
+        blob = new Blob([data], { type: "audio/mpeg" });
+      } else if (typeof data === "string") {
+        const bytes = new Uint8Array(data.length);
+        for (let i = 0; i < data.length; i++) {
+          bytes[i] = data.charCodeAt(i) & 0xff;
+        }
+        blob = new Blob([bytes], { type: "audio/mpeg" });
+      } else {
+        blob = new Blob([data as any], { type: "audio/mpeg" });
+      }
+
+      if (!blob.type.includes("audio") || blob.size < 100) {
         // Unexpected content — fallback
         this.activeProvider = "browser";
         this.addLog({

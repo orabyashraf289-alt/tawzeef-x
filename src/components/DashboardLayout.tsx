@@ -23,6 +23,7 @@ import BottomNav from "@/components/BottomNav";
 import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
 import CompanySwitcher from "@/components/CompanySwitcher";
 import ScreenGuideHelper from "@/components/ScreenGuideHelper";
+import WelcomeVideoModal from "@/components/WelcomeVideoModal";
 import { prefetchRoute, recordNavigation } from "@/lib/routePrefetch";
 
 const tourIdMap: Record<string, string> = {
@@ -515,6 +516,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             </button>
 
             <button
+              onClick={() => window.dispatchEvent(new CustomEvent("open-welcome-video"))}
+              className="px-3 py-1.5 rounded-md3-full bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 group"
+              title="عرض الفيديو الترحيبي (ElevenLabs AI Voice)"
+            >
+              <Video className="w-3.5 h-3.5 text-indigo-500 group-hover:scale-110 transition-transform" />
+              <span>فيديو ترحيبي 🎬</span>
+            </button>
+
+            <button
               onClick={startTour}
               className="px-3 py-1.5 rounded-md3-full bg-md-secondary-container text-md-on-secondary-container text-xs font-bold hover:bg-md-secondary-container/80 transition-colors"
             >
@@ -530,6 +540,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <CompanySwitcher />
           </div>
           <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("open-welcome-video"))}
+              className="p-2 rounded-md3-md text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10"
+              title="فيديو ترحيبي"
+            >
+              <Video className="w-4 h-4" />
+            </button>
             <button
               onClick={() => window.dispatchEvent(new CustomEvent("open-screen-guide"))}
               className="p-2 rounded-md3-md text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
@@ -576,6 +593,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
       <OnboardingTour active={showTour} onEnd={endTour} />
       <ScreenGuideHelper />
+      <WelcomeVideoModal />
     </div>
   );
 }

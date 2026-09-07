@@ -20,7 +20,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN") {
+        try {
+          // If already viewed in this browser session, don't re-trigger until fresh login
+          if (!sessionStorage.getItem("tx_welcome_video_viewed")) {
+            sessionStorage.setItem("tx_show_welcome_video", "true");
+          }
+        } catch {}
+      }
       setSession(session);
       setLoading(false);
     });
@@ -46,6 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clear trusted device so next login requires OTP
     try {
       localStorage.removeItem("tawzeef-x_trusted_device");
+      sessionStorage.removeItem("tx_welcome_video_viewed");
+      sessionStorage.removeItem("tx_show_welcome_video");
     } catch {}
     
     // Clear React Query cache

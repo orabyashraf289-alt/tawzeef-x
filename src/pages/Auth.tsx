@@ -803,6 +803,9 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
         // Direct Instant Login (OTP Bypassed for instant seamless access)
         setPendingPassword("");
         setPendingOtp(false);
+        try {
+          sessionStorage.setItem("tx_show_welcome_video", "true");
+        } catch {}
         confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
         toast({ title: "تم تسجيل الدخول بنجاح ✅", description: userRole === "candidate" ? "مرحباً بك في بوابة المتقدمين" : "مرحباً بك في منصة Tawzeef-X" });
         logAuditEvent({ eventType: "login.success", userId: loginData.user?.id, userEmail: normalizedEmail, details: { method: "direct_login_instant" } });
@@ -866,6 +869,9 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
       if (rememberDevice) trustDevice(otpEmail);
       setPendingPassword("");
       setPendingOtp(false);
+      try {
+        sessionStorage.setItem("tx_show_welcome_video", "true");
+      } catch {}
       confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
       toast({ title: "تم التحقق بنجاح ✅" });
       const accountType = loginData.session?.user?.user_metadata?.account_type;
