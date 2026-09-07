@@ -49,7 +49,7 @@ export default function BillingHistory() {
     const startDate = new Date(activeSub.starts_at || new Date());
     const currentDate = new Date();
 
-    let tempDate = new Date(startDate);
+    const tempDate = new Date(startDate);
     let index = 1;
 
     let iterations = 0;

@@ -14,7 +14,7 @@ export function useCompactView() {
   const toggleCompact = useCallback(() => {
     setIsCompact(prev => {
       const next = !prev;
-      try { localStorage.setItem(STORAGE_KEY, String(next)); } catch {}
+      try { localStorage.setItem(STORAGE_KEY, String(next)); } catch (error) { console.warn("Failed to save compact-view preference:", error); }
       return next;
     });
   }, []);

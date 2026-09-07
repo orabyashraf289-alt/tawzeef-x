@@ -300,7 +300,7 @@ export function useCreateConvertedOrder() {
       // Attempt Supabase insert in background
       try {
         await supabase.from("converted_orders" as any).insert(newOrder);
-      } catch {}
+      } catch (error) { console.warn("Non-critical converted-order sync step failed:", error); }
 
       return newOrder;
     },
@@ -354,7 +354,7 @@ export function useUpdateConvertedOrderStatus() {
           .from("converted_orders" as any)
           .update({ status, ...(notes ? { notes } : {}), updated_at: new Date().toISOString() })
           .eq("id", id);
-      } catch {}
+      } catch (error) { console.warn("Non-critical converted-order sync step failed:", error); }
 
       return { id, status };
     },
@@ -395,7 +395,7 @@ export function useUpdateConvertedOrderChecklist() {
           .from("converted_orders" as any)
           .update({ documents_checklist: checklist, updated_at: new Date().toISOString() })
           .eq("id", id);
-      } catch {}
+      } catch (error) { console.warn("Non-critical converted-order sync step failed:", error); }
 
       return { id, checklist };
     },
@@ -447,7 +447,7 @@ export function useTransferOrderBranch() {
             updated_at: new Date().toISOString(),
           })
           .eq("id", id);
-      } catch {}
+      } catch (error) { console.warn("Non-critical converted-order sync step failed:", error); }
 
       return { id, targetBranch };
     },
@@ -471,7 +471,7 @@ export function useDeleteConvertedOrder() {
 
       try {
         await supabase.from("converted_orders" as any).delete().eq("id", id);
-      } catch {}
+      } catch (error) { console.warn("Non-critical converted-order sync step failed:", error); }
 
       return id;
     },

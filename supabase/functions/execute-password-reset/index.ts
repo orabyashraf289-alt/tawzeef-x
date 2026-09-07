@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
+import { getErrorMessage } from "../_shared/errorMessage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,6 +25,11 @@ async function sha256(input: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // Rate limit: 10 محاولات/دقيقة لكل IP — طبقة حماية إضافية فوق التوكن العشوائي
+  // (UUID) والانتهاء بعد استخدام واحد، تقلل من الضجيج على قاعدة البيانات ومحاولات القوة الغاشمة
+  const { allowed } = checkRateLimit(req, 10, 60_000);
+  if (!allowed) return rateLimitResponse(corsHeaders);
 
   try {
     const { email, token, password } = await req.json();
@@ -77,8 +84,8 @@ Deno.serve(async (req) => {
 
     console.log(`Password successfully reset for user: ${normalizedEmail}`);
     return json({ success: true, message: "تم تغيير كلمة المرور بنجاح." });
-  } catch (error: any) {
+  } catch (error) {
     console.error("execute-password-reset error:", error);
-    return json({ error: error.message || "حدث خطأ أثناء معالجة الطلب" }, 500);
+    return json({ error: getErrorMessage(error, "حدث خطأ أثناء معالجة الطلب") }, 500);
   }
 });

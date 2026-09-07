@@ -1,4 +1,5 @@
 import nodemailer from "npm:nodemailer@6.9.16";
+import { getErrorMessage } from "../_shared/errorMessage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -124,9 +125,9 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Welcome email error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: getErrorMessage(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -302,7 +302,7 @@ export function useQuestions(jobId?: string) {
 
           if (!refetchErr && refetchedData && refetchedData.length > 0) {
             const mcIds = refetchedData.filter(q => ["multiple_choice", "matching", "ordering"].includes(q.question_type)).map(q => q.id);
-            let optionsMap: Record<string, QuestionOption[]> = {};
+            const optionsMap: Record<string, QuestionOption[]> = {};
             if (mcIds.length > 0) {
               const { data: opts } = await supabase
                 .from("question_options")
@@ -323,7 +323,7 @@ export function useQuestions(jobId?: string) {
 
         // Fetch options for multiple choice, matching, and ordering questions
         const mcIds = data.filter(q => ["multiple_choice", "matching", "ordering"].includes(q.question_type)).map(q => q.id);
-        let optionsMap: Record<string, QuestionOption[]> = {};
+        const optionsMap: Record<string, QuestionOption[]> = {};
         if (mcIds.length > 0) {
           const { data: opts } = await supabase
             .from("question_options")
@@ -639,7 +639,7 @@ export function useAssessments() {
 
           if (refetchedAssessments && refetchedAssessments.length > 0) {
             const ids = refetchedAssessments.map(a => a.id);
-            let countMap: Record<string, number> = {};
+            const countMap: Record<string, number> = {};
             const { data: respCount } = await supabase
               .from("assessment_responses")
               .select("assessment_id")
@@ -657,7 +657,7 @@ export function useAssessments() {
 
         // Get response counts
         const ids = data.map(a => a.id);
-        let countMap: Record<string, number> = {};
+        const countMap: Record<string, number> = {};
         if (ids.length > 0) {
           const { data: responses } = await supabase
             .from("assessment_responses")

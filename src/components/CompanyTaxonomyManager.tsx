@@ -75,7 +75,7 @@ export default function CompanyTaxonomyManager() {
     try {
       const saved = localStorage.getItem("company_departments");
       return saved ? JSON.parse(saved) : DEFAULT_DEPARTMENTS;
-    } catch { return DEFAULT_DEPARTMENTS; }
+    } catch (error) { console.warn("Failed to read from localStorage, using default:", error); return DEFAULT_DEPARTMENTS; }
   });
 
   // Locations State
@@ -88,11 +88,11 @@ export default function CompanyTaxonomyManager() {
       const missingDefault = DEFAULT_LOCATIONS.filter(l => !existingIds.has(l.id));
       if (missingDefault.length > 0) {
         const merged = [...parsed, ...missingDefault];
-        try { localStorage.setItem("company_locations", JSON.stringify(merged)); } catch {}
+        try { localStorage.setItem("company_locations", JSON.stringify(merged)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
         return merged;
       }
       return parsed;
-    } catch { return DEFAULT_LOCATIONS; }
+    } catch (error) { console.warn("Failed to read from localStorage, using default:", error); return DEFAULT_LOCATIONS; }
   });
 
   // Experience Levels State
@@ -100,7 +100,7 @@ export default function CompanyTaxonomyManager() {
     try {
       const saved = localStorage.getItem("company_experience_levels");
       return saved ? JSON.parse(saved) : DEFAULT_EXPERIENCE_LEVELS;
-    } catch { return DEFAULT_EXPERIENCE_LEVELS; }
+    } catch (error) { console.warn("Failed to read from localStorage, using default:", error); return DEFAULT_EXPERIENCE_LEVELS; }
   });
 
   // Educational Specs Lists State
@@ -108,42 +108,42 @@ export default function CompanyTaxonomyManager() {
     try {
       const saved = localStorage.getItem("company_school_types");
       return saved ? JSON.parse(saved) : DEFAULT_SCHOOL_TYPES;
-    } catch { return DEFAULT_SCHOOL_TYPES; }
+    } catch (error) { console.warn("Failed to read from localStorage, using default:", error); return DEFAULT_SCHOOL_TYPES; }
   });
 
   const [curricula, setCurricula] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem("company_curricula");
       return saved ? JSON.parse(saved) : DEFAULT_CURRICULA;
-    } catch { return DEFAULT_CURRICULA; }
+    } catch (error) { console.warn("Failed to read from localStorage, using default:", error); return DEFAULT_CURRICULA; }
   });
 
   const [gradeLevels, setGradeLevels] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem("company_grade_levels");
       return saved ? JSON.parse(saved) : DEFAULT_GRADE_LEVELS;
-    } catch { return DEFAULT_GRADE_LEVELS; }
+    } catch (error) { console.warn("Failed to read from localStorage, using default:", error); return DEFAULT_GRADE_LEVELS; }
   });
 
   const [teachingLoads, setTeachingLoads] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem("company_teaching_loads");
       return saved ? JSON.parse(saved) : DEFAULT_TEACHING_LOADS;
-    } catch { return DEFAULT_TEACHING_LOADS; }
+    } catch (error) { console.warn("Failed to read from localStorage, using default:", error); return DEFAULT_TEACHING_LOADS; }
   });
 
   const [workingHoursList, setWorkingHoursList] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem("company_working_hours");
       return saved ? JSON.parse(saved) : DEFAULT_WORKING_HOURS;
-    } catch { return DEFAULT_WORKING_HOURS; }
+    } catch (error) { console.warn("Failed to read from localStorage, using default:", error); return DEFAULT_WORKING_HOURS; }
   });
 
   const [benefitsList, setBenefitsList] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem("company_benefits_list");
       return saved ? JSON.parse(saved) : DEFAULT_BENEFITS_OPTIONS;
-    } catch { return DEFAULT_BENEFITS_OPTIONS; }
+    } catch (error) { console.warn("Failed to read from localStorage, using default:", error); return DEFAULT_BENEFITS_OPTIONS; }
   });
 
   // New item inputs for educational specs
@@ -162,39 +162,39 @@ export default function CompanyTaxonomyManager() {
 
   // Sync to local storage
   useEffect(() => {
-    try { localStorage.setItem("company_departments", JSON.stringify(departments)); } catch {}
+    try { localStorage.setItem("company_departments", JSON.stringify(departments)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
   }, [departments]);
 
   useEffect(() => {
-    try { localStorage.setItem("company_locations", JSON.stringify(locations)); } catch {}
+    try { localStorage.setItem("company_locations", JSON.stringify(locations)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
   }, [locations]);
 
   useEffect(() => {
-    try { localStorage.setItem("company_experience_levels", JSON.stringify(experienceLevels)); } catch {}
+    try { localStorage.setItem("company_experience_levels", JSON.stringify(experienceLevels)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
   }, [experienceLevels]);
 
   useEffect(() => {
-    try { localStorage.setItem("company_school_types", JSON.stringify(schoolTypes)); } catch {}
+    try { localStorage.setItem("company_school_types", JSON.stringify(schoolTypes)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
   }, [schoolTypes]);
 
   useEffect(() => {
-    try { localStorage.setItem("company_curricula", JSON.stringify(curricula)); } catch {}
+    try { localStorage.setItem("company_curricula", JSON.stringify(curricula)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
   }, [curricula]);
 
   useEffect(() => {
-    try { localStorage.setItem("company_grade_levels", JSON.stringify(gradeLevels)); } catch {}
+    try { localStorage.setItem("company_grade_levels", JSON.stringify(gradeLevels)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
   }, [gradeLevels]);
 
   useEffect(() => {
-    try { localStorage.setItem("company_teaching_loads", JSON.stringify(teachingLoads)); } catch {}
+    try { localStorage.setItem("company_teaching_loads", JSON.stringify(teachingLoads)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
   }, [teachingLoads]);
 
   useEffect(() => {
-    try { localStorage.setItem("company_working_hours", JSON.stringify(workingHoursList)); } catch {}
+    try { localStorage.setItem("company_working_hours", JSON.stringify(workingHoursList)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
   }, [workingHoursList]);
 
   useEffect(() => {
-    try { localStorage.setItem("company_benefits_list", JSON.stringify(benefitsList)); } catch {}
+    try { localStorage.setItem("company_benefits_list", JSON.stringify(benefitsList)); } catch (error) { console.warn("Failed to persist to localStorage:", error); }
   }, [benefitsList]);
 
   // Handlers for Departments

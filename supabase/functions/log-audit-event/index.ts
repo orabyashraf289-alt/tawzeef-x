@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
               .limit(1);
 
             if (!existingAlerts || existingAlerts.length === 0) {
-              const notifications = adminRoles.map((r: any) => ({
+              const notifications = adminRoles.map((r: { user_id: string }) => ({
                 user_id: r.user_id,
                 title: `⚠️ تنبيه أمني: محاولات دخول مشبوهة`,
                 description: `تم رصد ${failCount} محاولات دخول فاشلة من العنوان ${clientIp} خلال 15 دقيقة. البريد المستهدف: ${body.userEmail || "غير معروف"}`,

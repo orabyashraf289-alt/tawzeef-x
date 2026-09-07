@@ -38,7 +38,9 @@ function trustDevice(email: string) {
     const data = JSON.parse(localStorage.getItem(TRUST_KEY) || "{}");
     data[email] = { deviceId: generateDeviceId(), expires: Date.now() + TRUST_DAYS * 24 * 60 * 60 * 1000 };
     localStorage.setItem(TRUST_KEY, JSON.stringify(data));
-  } catch {}
+  } catch (error) {
+    console.warn("Failed to save trusted device data:", error);
+  }
 }
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -269,7 +271,7 @@ const TawzeefXSystemShowcase = memo(function TawzeefXSystemShowcase() {
 
   useEffect(() => {
     let frame: number;
-    let start = performance.now();
+    const start = performance.now();
     const duration = 1500;
     const animate = (now: number) => {
       const elapsed = now - start;

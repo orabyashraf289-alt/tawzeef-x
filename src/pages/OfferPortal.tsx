@@ -372,7 +372,7 @@ export default function OfferPortal() {
               // Parse salary breakdown from additional_terms
               const breakdownMatch = offer.additional_terms?.match(/تفصيل الراتب:|Salary Breakdown:/);
               const hasBreakdown = !!breakdownMatch;
-              let breakdownItems: { label: string; amount: string }[] = [];
+              const breakdownItems: { label: string; amount: string }[] = [];
 
               if (hasBreakdown && offer.additional_terms) {
                 const lines = offer.additional_terms.split("\n");

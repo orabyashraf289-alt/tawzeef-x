@@ -46,7 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clear trusted device so next login requires OTP
     try {
       localStorage.removeItem("tawzeef-x_trusted_device");
-    } catch {}
+    } catch (error) {
+      console.warn("Failed to remove trusted device data on logout:", error);
+    }
     
     // Clear React Query cache
     try {

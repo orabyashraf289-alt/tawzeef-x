@@ -144,7 +144,9 @@ export function logAuditEvent(params: {
       timestamp: new Date().toISOString(),
       ...params,
     });
-  } catch {}
+  } catch (error) {
+    console.warn("Failed to write audit log entry:", error);
+  }
 }
 
 // ─── Encryption / Decryption ───

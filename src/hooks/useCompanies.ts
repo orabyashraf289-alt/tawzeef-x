@@ -118,7 +118,9 @@ export function parseCompanyRow(c: Record<string, any>): Company {
     try {
       meta = JSON.parse(c.notes);
       isJsonNotes = typeof meta === "object" && meta !== null;
-    } catch {}
+    } catch (error) {
+      console.warn("Failed to parse company notes as JSON metadata:", error);
+    }
   }
 
   const cleanNotes = isJsonNotes
@@ -457,7 +459,7 @@ export function useCompanyBranches(parentId: string | undefined) {
       const managerUserIds = Array.from(
         new Set(branchCompanies.map((c) => c.manager_user_id).filter(Boolean))
       ) as string[];
-      let profilesMap: Record<string, unknown> = {};
+      const profilesMap: Record<string, unknown> = {};
 
       if (managerUserIds.length > 0) {
         const { data: profs } = await supabase

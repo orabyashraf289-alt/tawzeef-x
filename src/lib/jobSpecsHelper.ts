@@ -93,7 +93,7 @@ export function parseJobCustomSpecs(job: any): { cleanDescription: string; specs
   const rawDescription = job.description || "";
   const match = rawDescription.match(SPECS_TAG_REGEX);
 
-  let cleanDescription = rawDescription.replace(SPECS_TAG_REGEX, "").trim();
+  const cleanDescription = rawDescription.replace(SPECS_TAG_REGEX, "").trim();
   let specs: JobCustomSpecs = {};
   let hasSpecs = false;
 

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getErrorMessage } from "../_shared/errorMessage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -197,10 +198,10 @@ Deno.serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error("auto-create-candidate-account error:", err);
     return new Response(
-      JSON.stringify({ error: err.message || "حدث خطأ أثناء إنشاء حساب المتقدم" }),
+      JSON.stringify({ error: getErrorMessage(err, "حدث خطأ أثناء إنشاء حساب المتقدم") }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

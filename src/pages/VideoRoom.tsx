@@ -60,7 +60,7 @@ function useSpeechRecognition() {
     recognition.onend = () => {
       // Auto-restart if still listening
       if (recognitionRef.current) {
-        try { recognition.start(); } catch {}
+        try { recognition.start(); } catch (error) { console.warn("Failed to restart speech recognition:", error); }
       }
     };
 

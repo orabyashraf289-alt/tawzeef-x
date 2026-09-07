@@ -5,7 +5,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-function buildCandidateText(c: any): string {
+interface CandidateForRanking {
+  id: string;
+  name?: string;
+  role?: string;
+  summary?: string;
+  skills?: string[];
+  experience?: string;
+  education?: string;
+  location?: string;
+}
+
+interface JobForRanking {
+  title?: string;
+  department?: string;
+  description?: string;
+  requirements?: string[];
+}
+
+function buildCandidateText(c: CandidateForRanking): string {
   return [
     c.name,
     c.role,
@@ -21,7 +39,7 @@ function buildCandidateText(c: any): string {
 
 function hashEmbed(text: string, dim = 128): number[] {
   const v = new Array(dim).fill(0);
-  const tokens = text.toLowerCase().split(/[\s,/|.;:!?()\[\]{}"'`-]+/).filter(Boolean);
+  const tokens = text.toLowerCase().split(/[\s,/|.;:!?()[\]{}"'`-]+/).filter(Boolean);
   for (const tok of tokens) {
     let h = 5381;
     for (let i = 0; i < tok.length; i++) h = ((h << 5) + h) ^ tok.charCodeAt(i);
@@ -39,7 +57,13 @@ function cosine(a: number[], b: number[]): number {
   return dot;
 }
 
-function localRank(job: any, candidates: any[]): any[] {
+interface RankedCandidate {
+  candidate_id: string;
+  score: number;
+  summary: string;
+}
+
+function localRank(job: JobForRanking, candidates: CandidateForRanking[]): RankedCandidate[] {
   const jobText = `${job.title} ${job.department || ""} ${job.description || ""} ${(job.requirements || []).join(" ")}`;
   const jobVec = hashEmbed(jobText);
   
@@ -120,7 +144,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    let rankings: any[] = [];
+    let rankings: RankedCandidate[] = [];
     let isFallback = false;
 
     const LOVABLE_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("LOVABLE_API_KEY");
