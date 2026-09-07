@@ -163,11 +163,14 @@ class SpeechService {
     this.status = "loading";
     this.emit();
 
-    // If ElevenLabs is known to be blocked, skip straight to browser TTS
+    // If ElevenLabs is known to be blocked, use Google TTS fallback first, then browser TTS
     if (this.elevenLabsBlocked) {
       this.activeProvider = "browser";
       this.emit();
-      await this.playBrowser(next.text);
+      const ok = await this.playGoogleTTS(next.text);
+      if (!ok) {
+        await this.playBrowser(next.text);
+      }
       this.afterPlayback();
       return;
     }
@@ -224,7 +227,10 @@ class SpeechService {
             details: json?.details || "",
           });
           this.emit();
-          await this.playBrowser(next.text);
+          const ok = await this.playGoogleTTS(next.text);
+          if (!ok) {
+            await this.playBrowser(next.text);
+          }
           this.afterPlayback();
           return;
         }
@@ -244,7 +250,10 @@ class SpeechService {
           error: "Unexpected audio response size",
         });
         this.emit();
-        await this.playBrowser(next.text);
+        const ok = await this.playGoogleTTS(next.text);
+        if (!ok) {
+          await this.playBrowser(next.text);
+        }
         this.afterPlayback();
         return;
       }
@@ -269,9 +278,32 @@ class SpeechService {
         error: e?.message || String(e),
       });
       this.emit();
-      await this.playBrowser(next.text);
+      const ok = await this.playGoogleTTS(next.text);
+      if (!ok) {
+        await this.playBrowser(next.text);
+      }
       this.afterPlayback();
     }
+  }
+
+  private playGoogleTTS(text: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      try {
+        const isArabic = detectLanguage(text) === "ar";
+        const langCode = isArabic ? "ar" : "en";
+        const clean = encodeURIComponent(text.slice(0, 200).trim());
+        const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${langCode}&client=tw-ob&q=${clean}`;
+        const audio = new Audio(url);
+        this.currentAudio = audio;
+        this.status = "speaking";
+        this.emit();
+        audio.onended = () => resolve(true);
+        audio.onerror = () => resolve(false);
+        audio.play().catch(() => resolve(false));
+      } catch {
+        resolve(false);
+      }
+    });
   }
 
   private afterPlayback() {

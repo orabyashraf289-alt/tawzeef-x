@@ -21,10 +21,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
-import { speechService, cleanForTTS } from "@/lib/speechService";
+import { speechService } from "@/lib/speechService";
 
+const WELCOME_AUDIO_URL = "/audio/welcome-narration.mp3";
 const WELCOME_NARRATION_TEXT = 
-  "أهلاً ومرحباً بك في منصة توظيف إكس. شريكك التنفيذي الذكي لاستقطاب وتقييم أفضل الكفاءات. تم تجهيز بيئة عملك بأحدث تقنيات الذكاء الاصطناعي لأتمتة مسارات التوظيف، فحص وتدقيق السير الذاتية، وإدارة المقابلات الرقمية بكل احترافية. لوحة تحكمك جاهزة الآن، نتمنى لك تجربة توظيف استثنائية.";
+  "مرحباً بك في منصة توظيف إكس، شريكك التنفيذي الذكي لأتمتة مسارات التوظيف وفحص السير الذاتية وإدارة المقابلات بالذكاء الاصطناعي. مساحة عملك جاهزة للانطلاق.";
 
 interface Scene {
   id: number;
@@ -41,7 +42,7 @@ const SCENES: Scene[] = [
     title: "مرحباً بك في منصة توظيف إكس",
     badge: "الجيل الأذكى في التوظيف 🇸🇦",
     description: "المنصة السحابية المتقدمة لإدارة واستقطاب الكفاءات التعليمية والمهنية بالذكاء الاصطناعي وفق أرقى المعايير.",
-    subtitle: "أهلاً ومرحباً بك في منصة توظيف إكس، شريكك التنفيذي الذكي...",
+    subtitle: "مرحباً بك في منصة توظيف إكس، شريكك التنفيذي الذكي...",
     highlights: ["بوابة موحدة للتوظيف وأوامر التعيين", "أتمتة شاملة لمسارات العمل", "معتمد ومتوافق مع المعايير السعودية"]
   },
   {
@@ -49,7 +50,7 @@ const SCENES: Scene[] = [
     title: "محرك الفرز والتقييم الذكي بالـ AI",
     badge: "مطابقة فورية بدقة 98% ⚡",
     description: "فحص وتدقيق فوري للسير الذاتية، استخلاص المهارات والخبرات ومطابقة الرخص المهنية المعتمدة.",
-    subtitle: "تم تجهيز بيئة عملك بأحدث تقنيات الذكاء الاصطناعي لأتمتة التوظيف...",
+    subtitle: "أتمتة مسارات التوظيف وفحص وتدقيق السير الذاتية...",
     highlights: ["مطابقة المؤهلات والرخص المهنية", "تحليل الرغبات والتفضيلات الجغرافية", "توفير 80% من الجهد اليدوي"]
   },
   {
@@ -57,7 +58,7 @@ const SCENES: Scene[] = [
     title: "مسار توظيف متكامل وغرف مقابلات ذكية",
     badge: "من التقديم إلى الاعتماد 🎥",
     description: "لوحة Kanban تفاعلية لتتبع المرشحين مع غرف فيديو مدمجة تدعم التسجيل والتفريغ النصي التلقائي.",
-    subtitle: "فحص وتدقيق السير الذاتية، وإدارة المقابلات الرقمية باحترافية...",
+    subtitle: "إدارة المقابلات الرقمية بتقنيات الذكاء الاصطناعي المتقدمة...",
     highlights: ["مقابلات أونلاين فائقة الدقة", "تفريغ صوتي وتحليل مشاعر المحادثة", "عروض وظيفية رقمية وتوقيع إلكتروني"]
   },
   {
@@ -65,7 +66,7 @@ const SCENES: Scene[] = [
     title: "مساحة عملك جاهزة للانطلاق!",
     badge: "جاهزية كاملة 100% 🚀",
     description: "تم ضبط إعداداتك ومؤشراتك الحيوية. يمكنك الآن البدء مباشرة في نشر الوظائف واستقطاب أفضل الكوادر.",
-    subtitle: "لوحة تحكمك جاهزة الآن، نتمنى لك تجربة توظيف استثنائية...",
+    subtitle: "مساحة عملك جاهزة الآن، نتمنى لك تجربة توظيف استثنائية...",
     highlights: ["تقارير وتحليلات أداء لحظية", "تصدير القرارات وطباعتها بنقرة واحدة", "دعم فني استشاري مدار الساعة"]
   }
 ];
@@ -78,11 +79,10 @@ export default function WelcomeVideoModal() {
   const [isMuted, setIsMuted] = useState(false);
   const [audioStatus, setAudioStatus] = useState<"idle" | "loading" | "ready" | "playing" | "error">("idle");
   const [userWantsPlay, setUserWantsPlay] = useState(false);
-  const [duration, setDuration] = useState(23);
+  const [duration, setDuration] = useState(15.5);
   const [currentTime, setCurrentTime] = useState(0);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioBlobUrlRef = useRef<string | null>(null);
   const timerFallbackRef = useRef<number | null>(null);
 
   // Check on mount if welcome video should show
@@ -107,16 +107,12 @@ export default function WelcomeVideoModal() {
     };
   }, []);
 
-  // Fetch ElevenLabs audio via direct fetch to get a clean uncorrupted Blob
+  // Initialize and load bundled ElevenLabs narration audio
   useEffect(() => {
     if (!isOpen) {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
-      }
-      if (audioBlobUrlRef.current) {
-        URL.revokeObjectURL(audioBlobUrlRef.current);
-        audioBlobUrlRef.current = null;
       }
       if (timerFallbackRef.current) {
         clearInterval(timerFallbackRef.current);
@@ -128,103 +124,57 @@ export default function WelcomeVideoModal() {
       return;
     }
 
-    let isCancelled = false;
     setAudioStatus("loading");
 
-    const fetchAudioDirectly = async () => {
-      try {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://rlfewneisuezsamhosct.supabase.co";
-        const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+    // Load bundled local studio audio (ElevenLabs Arabic)
+    const audio = new Audio(WELCOME_AUDIO_URL);
+    audio.preload = "auto";
+    audioRef.current = audio;
 
-        // Direct fetch to edge function prevents Supabase-js from calling response.text() on binary MP3
-        const response = await fetch(`${supabaseUrl}/functions/v1/elevenlabs-tts`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "apikey": supabaseKey,
-            "Authorization": `Bearer ${supabaseKey}`,
-          },
-          body: JSON.stringify({
-            text: cleanForTTS(WELCOME_NARRATION_TEXT),
-            voiceId: "IKne3meq5aSn9XLyUdCD", // Natural Arabic voice (Charlie Multilingual)
-            modelId: "eleven_multilingual_v2",
-          }),
-        });
+    const handleReady = () => {
+      if (audio.duration && !isNaN(audio.duration)) {
+        setDuration(audio.duration);
+      }
+      setAudioStatus("ready");
+    };
 
-        if (isCancelled) return;
+    audio.onloadedmetadata = handleReady;
+    audio.oncanplay = handleReady;
 
-        if (!response.ok) {
-          throw new Error(`TTS edge function HTTP error: ${response.status}`);
-        }
-
-        const contentType = response.headers.get("Content-Type") || "";
-        if (contentType.includes("application/json")) {
-          const json = await response.json();
-          if (json?.fallback) {
-            throw new Error(json?.error || "ElevenLabs fallback returned");
-          }
-        }
-
-        // Get pure binary blob
-        const blob = await response.blob();
-        if (isCancelled) return;
-
-        if (blob && blob.size > 2000) {
-          const url = URL.createObjectURL(blob);
-          audioBlobUrlRef.current = url;
-          const audio = new Audio(url);
-          audioRef.current = audio;
-
-          audio.onloadedmetadata = () => {
-            if (audio.duration && !isNaN(audio.duration)) {
-              setDuration(audio.duration);
-            }
-            setAudioStatus("ready");
-          };
-
-          // Synchronize progress and scene changes directly with audio time
-          audio.ontimeupdate = () => {
-            if (audio.duration) {
-              const cur = audio.currentTime;
-              setCurrentTime(cur);
-              const pct = (cur / audio.duration) * 100;
-              setProgress(pct);
-              const sceneIdx = Math.min(3, Math.floor((cur / audio.duration) * SCENES.length));
-              setCurrentScene(sceneIdx);
-            }
-          };
-
-          audio.onended = () => {
-            handleComplete();
-          };
-
-          audio.onerror = (e) => {
-            console.warn("[WelcomeVideo] HTML5 Audio error:", e);
-            setAudioStatus("error");
-          };
-
-          // Attempt autoplay
-          audio.play().then(() => {
-            setIsPlaying(true);
-            setAudioStatus("playing");
-          }).catch(() => {
-            // Autoplay blocked by Chrome policy — ready for single user tap
-            setAudioStatus("ready");
-            setIsPlaying(false);
-          });
-        } else {
-          setAudioStatus("ready");
-        }
-      } catch (err) {
-        console.warn("[WelcomeVideo] Direct fetch failed, fallback ready:", err);
-        setAudioStatus("ready");
+    // Synchronize progress and scene changes directly with audio time
+    audio.ontimeupdate = () => {
+      if (audio.duration) {
+        const cur = audio.currentTime;
+        setCurrentTime(cur);
+        const pct = (cur / audio.duration) * 100;
+        setProgress(pct);
+        const sceneIdx = Math.min(3, Math.floor((cur / audio.duration) * SCENES.length));
+        setCurrentScene(sceneIdx);
       }
     };
 
-    fetchAudioDirectly();
+    audio.onended = () => {
+      handleComplete();
+    };
+
+    audio.onerror = () => {
+      console.warn("[WelcomeVideo] Audio load error, ready for fallback");
+      setAudioStatus("ready");
+    };
+
+    // Attempt autoplay
+    audio.play().then(() => {
+      setIsPlaying(true);
+      setAudioStatus("playing");
+    }).catch(() => {
+      // Autoplay blocked by browser policy — ready for single user tap
+      setAudioStatus("ready");
+      setIsPlaying(false);
+    });
 
     return () => {
-      isCancelled = true;
+      audio.pause();
+      audioRef.current = null;
     };
   }, [isOpen]);
 
@@ -248,25 +198,14 @@ export default function WelcomeVideoModal() {
           { id: "welcome-tour", text: WELCOME_NARRATION_TEXT },
           { overrideLatest: true }
         );
-        startTimerDriver(23);
+        startTimerDriver(duration || 15.5);
       });
-    } else if (audioStatus === "loading") {
-      // Audio is downloading — intent recorded, set a safety timeout in case network hangs
-      setTimeout(() => {
-        if (!audioRef.current) {
-          speechService.speak(
-            { id: "welcome-tour", text: WELCOME_NARRATION_TEXT },
-            { overrideLatest: true }
-          );
-          startTimerDriver(23);
-        }
-      }, 4000);
     } else {
       speechService.speak(
         { id: "welcome-tour", text: WELCOME_NARRATION_TEXT },
         { overrideLatest: true }
       );
-      startTimerDriver(23);
+      startTimerDriver(15.5);
     }
   };
 
@@ -289,6 +228,7 @@ export default function WelcomeVideoModal() {
       }
     }, 250);
   };
+
 
   // Toggle Play / Pause
   const togglePlayPause = () => {
