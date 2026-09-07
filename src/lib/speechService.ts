@@ -179,8 +179,18 @@ class SpeechService {
     const started = Date.now();
 
     try {
+      const isArabic = detectLanguage(next.text) === "ar";
+      // Arabic: use "Omar" (multilingual, supports Arabic) or "Aria" multilingual
+      // English: use "Sarah" (EXAVITQu4vr4xnSDxMaL)
+      const autoVoiceId = isArabic
+        ? "IKne3meq5aSn9XLyUdCD"   // Charlie - ElevenLabs multilingual voice that handles Arabic
+        : "EXAVITQu4vr4xnSDxMaL";  // Sarah - English
       const { data, error } = await supabase.functions.invoke("elevenlabs-tts", {
-        body: { text: next.text, voiceId: next.voiceId || "EXAVITQu4vr4xnSDxMaL" },
+        body: {
+          text: next.text,
+          voiceId: next.voiceId || autoVoiceId,
+          modelId: "eleven_multilingual_v2",
+        },
       });
       // Stale request — newer one took over
       if (seq !== this.fetchSeq) return;
@@ -286,18 +296,38 @@ class SpeechService {
     });
   }
 
-  private playBrowser(text: string): Promise<void> {
+  private getVoicesAsync(): Promise<SpeechSynthesisVoice[]> {
     return new Promise((resolve) => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) { resolve(voices); return; }
+      // Chrome loads voices asynchronously — wait for the event
+      const onChanged = () => {
+        window.speechSynthesis.removeEventListener("voiceschanged", onChanged);
+        resolve(window.speechSynthesis.getVoices());
+      };
+      window.speechSynthesis.addEventListener("voiceschanged", onChanged);
+      // Timeout fallback: if voiceschanged never fires, proceed with whatever is available
+      setTimeout(() => {
+        window.speechSynthesis.removeEventListener("voiceschanged", onChanged);
+        resolve(window.speechSynthesis.getVoices());
+      }, 2000);
+    });
+  }
+
+  private playBrowser(text: string): Promise<void> {
+    return new Promise(async (resolve) => {
       if (typeof window === "undefined" || !("speechSynthesis" in window)) {
         resolve(); return;
       }
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
-      const voices = window.speechSynthesis.getVoices();
-      
+
       const isEnglish = detectLanguage(text) === "en";
+      const voices = await this.getVoicesAsync();
+
       let chosen: SpeechSynthesisVoice | undefined;
-      
+
+      // 1. Check user preference
       if (this.voicePref.voiceURI) {
         const prefVoice = voices.find((v) => v.voiceURI === this.voicePref.voiceURI);
         if (prefVoice) {
@@ -308,20 +338,28 @@ class SpeechService {
           }
         }
       }
-      
+
+      // 2. Auto-pick by language
       if (!chosen) {
         if (isEnglish) {
-          chosen = voices.find((v) => v.lang.startsWith("en-US")) || 
+          chosen = voices.find((v) => v.lang.startsWith("en-US")) ||
                    voices.find((v) => v.lang.startsWith("en"));
         } else {
-          chosen = voices.find((v) => v.lang.startsWith("ar-SA")) || 
-                   voices.find((v) => v.lang.startsWith("ar"));
+          // Arabic — try multiple common Arabic voice names
+          chosen =
+            voices.find((v) => v.lang === "ar-SA") ||
+            voices.find((v) => v.lang === "ar-EG") ||
+            voices.find((v) => v.lang.startsWith("ar")) ||
+            voices.find((v) => /maged|layla|tarik|salma|naayf|zeina|hoda|arabic/i.test(v.name));
         }
       }
-      
+
       if (chosen) utter.voice = chosen;
-      utter.lang = chosen?.lang || (isEnglish ? "en-US" : "ar-SA");
-      utter.rate = this.voicePref.rate || 0.95;
+      // Always set lang — even without a matched voice this helps the browser pick the right engine
+      utter.lang = isEnglish ? "en-US" : "ar-SA";
+      utter.rate = this.voicePref.rate || (isEnglish ? 0.98 : 0.88);
+      utter.pitch = 1.0;
+
       utter.onend = () => resolve();
       utter.onerror = () => resolve();
       this.status = "speaking";
