@@ -159,6 +159,8 @@ export default function CandidateProfile() {
   const { locale } = useI18n();
   const queryClient = useQueryClient();
   const { data: candidates, isLoading: isCandidatesLoading } = useCandidates();
+  const [stageToConfirm, setStageToConfirm] = useState<string | null>(null);
+  const [isChangingStage, setIsChangingStage] = useState(false);
 
   const { data: fetchedCandidate, isLoading: isFetchingDirect } = useQuery({
     queryKey: ["candidate-detail-direct", id],
@@ -348,8 +350,6 @@ export default function CandidateProfile() {
   const preferredCities = (candidate as any).preferred_cities || ["الرياض", "جدة", "الخبر"];
   const relocationVisa = (candidate as any).relocation || "جاهز للانتقال فوراً • نقل كفالة جاهز / تأشيرة استقدام";
   const demoLessonUrl = (candidate as any).demo_video_url || "https://youtube.com/watch?v=demo-lesson-preview";
-  const [stageToConfirm, setStageToConfirm] = useState<string | null>(null);
-  const [isChangingStage, setIsChangingStage] = useState(false);
 
   const handleStageDirectMove = async (targetStage: string) => {
     if (!candidate || targetStage === candidate.stage) return;
