@@ -30,7 +30,16 @@ jobs:
         run: npm ci
 
       - name: TypeScript Check
-        run: npx tsc --noEmit
+        # NOTE: plain `tsc --noEmit` silently checks ZERO files here, because the
+        # root tsconfig.json only declares `references` (only followed by `tsc -b`,
+        # not plain `tsc`). This step was passing unconditionally regardless of
+        # real type errors. Using -p to point at the actual project fixes that.
+        # continue-on-error is temporary: the codebase currently has ~275
+        # pre-existing type errors surfaced now that this check is real. Remove
+        # continue-on-error once that backlog is paid down so this step blocks
+        # merges like it always should have.
+        run: npx tsc -p tsconfig.app.json
+        continue-on-error: true
 
       - name: Run Unit & Integration Tests
         run: npx vitest run
