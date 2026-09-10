@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useRef } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import {
   Shield, Search, Filter, User, AlertTriangle, CheckCircle, XCircle,
   LogIn, UserCog, FileText, Download, ChevronLeft, ChevronRight, Clock,
@@ -42,6 +43,16 @@ const PAGE_SIZE = 25;
 
 type Severity = "critical" | "high" | "medium" | "low" | "info";
 type ViewMode = "table" | "timeline" | "kanban";
+
+interface AuditLogEntry {
+  id: string;
+  created_at: string;
+  event_type: string;
+  user_email: string | null;
+  user_id: string | null;
+  ip_address: string | null;
+  details: Json | null;
+}
 
 const SEVERITY_CONFIG: Record<Severity, { label: string; labelEn: string; color: string; bg: string; ring: string; dot: string; icon: typeof Shield }> = {
   critical: { label: "حرج", labelEn: "Critical", color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10 border-red-500/30", ring: "ring-red-500", dot: "bg-red-500 animate-pulse", icon: Flame },
@@ -94,7 +105,8 @@ function getSeverity(eventType: string): Severity {
   return EVENT_TYPES[eventType]?.severity ?? "info";
 }
 
-function parseSessionDuration(details: Record<string, unknown> | null, createdAt: string) {
+function parseSessionDuration(rawDetails: Json | null, createdAt: string) {
+  const details = rawDetails as Record<string, unknown> | null;
   if (!details) return null;
   const secs = (details.duration_seconds ?? details.durationSeconds) as number | undefined;
   if (secs !== undefined && secs !== null) return formatExactArabicDuration(Number(secs));
@@ -110,7 +122,8 @@ function parseSessionDuration(details: Record<string, unknown> | null, createdAt
   return null;
 }
 
-function parseDeviceDetails(details: Record<string, unknown> | null) {
+function parseDeviceDetails(rawDetails: Json | null) {
+  const details = rawDetails as Record<string, unknown> | null;
   if (!details) return { deviceName: "كمبيوتر شخصي (Windows PC)", deviceType: "Desktop", osName: "Windows", browserName: "المتصفح", icon: Laptop };
   let devName = (details.device_name ?? details.deviceName) as string | undefined;
   let os = (details.os ?? details.osName) as string | undefined;
@@ -126,7 +139,8 @@ function parseDeviceDetails(details: Record<string, unknown> | null) {
   return { deviceName: devName ?? "جهاز كمبيوتر (Desktop)", deviceType: devType, osName: os ?? "نظام التشغيل", browserName: browser ?? "المتصفح", icon: IconComponent };
 }
 
-function parseLocationDetails(details: Record<string, unknown> | null, ip?: string) {
+function parseLocationDetails(rawDetails: Json | null, ip?: string) {
+  const details = rawDetails as Record<string, unknown> | null;
   if (details?.location) return details.location as string;
   if (details?.city || details?.country) {
     const code = (details.country_code ?? details.countryCode ?? "SA") as string;
@@ -207,12 +221,12 @@ interface ThreatAlert {
   affectedEmails: string[];
 }
 
-function detectThreats(logs: any[]): ThreatAlert[] {
+function detectThreats(logs: AuditLogEntry[]): ThreatAlert[] {
   const threats: ThreatAlert[] = [];
   const now = new Date();
 
   // 1. Brute force: >3 failed logins from same IP in 10 min
-  const failedByIp: Record<string, any[]> = {};
+  const failedByIp: Record<string, AuditLogEntry[]> = {};
   logs.forEach(l => {
     if (l.event_type?.includes("failed") && l.ip_address) {
       if (!failedByIp[l.ip_address]) failedByIp[l.ip_address] = [];
@@ -227,7 +241,7 @@ function detectThreats(logs: any[]): ThreatAlert[] {
         title: "🔴 محاولات دخول متكررة (Brute Force)",
         description: `${events.length} محاولة دخول فاشلة من العنوان ${ip}`,
         count: events.length,
-        affectedEmails: [...new Set(events.map((e: any) => e.user_email).filter(Boolean))] as string[],
+        affectedEmails: [...new Set(events.map((e: AuditLogEntry) => e.user_email).filter(Boolean))] as string[],
       });
     }
   });
@@ -245,7 +259,7 @@ function detectThreats(logs: any[]): ThreatAlert[] {
       title: "🟠 تغيير صلاحيات خارج أوقات العمل",
       description: `${offHoursRoles.length} تغيير صلاحيات تم خارج ساعات العمل الرسمية`,
       count: offHoursRoles.length,
-      affectedEmails: [...new Set(offHoursRoles.map((e: any) => e.user_email).filter(Boolean))] as string[],
+      affectedEmails: [...new Set(offHoursRoles.map((e: AuditLogEntry) => e.user_email).filter(Boolean))] as string[],
     });
   }
 
@@ -258,7 +272,7 @@ function detectThreats(logs: any[]): ThreatAlert[] {
       title: "🚨 عناوين IP مشبوهة مكتشفة",
       description: `${suspiciousIp.length} حدث من عناوين IP مصنّفة على أنها مشبوهة`,
       count: suspiciousIp.length,
-      affectedEmails: [...new Set(suspiciousIp.map((e: any) => e.user_email).filter(Boolean))] as string[],
+      affectedEmails: [...new Set(suspiciousIp.map((e: AuditLogEntry) => e.user_email).filter(Boolean))] as string[],
     });
   }
 
@@ -306,11 +320,11 @@ function ThreatIntelPanel({ threats, onDismiss, onFilter }: { threats: ThreatAle
 // User Activity Popover
 // ────────────────────────────────────────────────────────────
 
-function UserActivityPopover({ email, logs, onFilterByUser }: { email: string; logs: any[]; onFilterByUser: (email: string) => void }) {
-  const userLogs = useMemo(() => logs.filter((l: any) => l.user_email === email), [email, logs]);
+function UserActivityPopover({ email, logs, onFilterByUser }: { email: string; logs: AuditLogEntry[]; onFilterByUser: (email: string) => void }) {
+  const userLogs = useMemo(() => logs.filter((l: AuditLogEntry) => l.user_email === email), [email, logs]);
   const todayCount = useMemo(() => {
     const today = new Date().toDateString();
-    return userLogs.filter((l: any) => new Date(l.created_at).toDateString() === today).length;
+    return userLogs.filter((l: AuditLogEntry) => new Date(l.created_at).toDateString() === today).length;
   }, [userLogs]);
   const recentFive = useMemo(() => userLogs.slice(0, 5), [userLogs]);
 
@@ -345,7 +359,7 @@ function UserActivityPopover({ email, logs, onFilterByUser }: { email: string; l
           </div>
           <div className="space-y-1">
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">آخر الأحداث</p>
-            {recentFive.map((l: any) => {
+            {recentFive.map((l: AuditLogEntry) => {
               const info = EVENT_TYPES[l.event_type];
               const Icon = info?.icon ?? Shield;
               return (
@@ -472,13 +486,13 @@ function AdvancedFiltersDrawer({
 }: {
   filters: AdvancedFilters;
   onApply: (f: AdvancedFilters) => void;
-  logs: any[];
+  logs: AuditLogEntry[];
 }) {
   const [local, setLocal] = useState<AdvancedFilters>(filters);
 
   const uniqueDevices = useMemo(() => {
     const s = new Set<string>();
-    logs.forEach((l: any) => {
+    logs.forEach((l: AuditLogEntry) => {
       const d = parseDeviceDetails(l.details);
       s.add(d.deviceType);
     });
@@ -620,15 +634,15 @@ function useAuditLogQuery(page: number, eventFilter: string, activeTab: string, 
 // ────────────────────────────────────────────────────────────
 
 function AuditLogRow({ log, index, isCompact, allLogs, onFilterByUser }: {
-  log: any; index: number; isCompact: boolean; allLogs: any[]; onFilterByUser: (email: string) => void;
+  log: AuditLogEntry; index: number; isCompact: boolean; allLogs: AuditLogEntry[]; onFilterByUser: (email: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const info = EVENT_TYPES[log.event_type] ?? { label: log.event_type, icon: Shield, color: "text-muted-foreground", category: "session", severity: "info" as Severity };
   const Icon = info.icon;
   const details = log.details as Record<string, unknown> | null;
-  const parsedDevice = parseDeviceDetails(details);
-  const locationText = parseLocationDetails(details, log.ip_address);
-  const durationText = parseSessionDuration(details, log.created_at);
+  const parsedDevice = parseDeviceDetails(log.details);
+  const locationText = parseLocationDetails(log.details, log.ip_address);
+  const durationText = parseSessionDuration(log.details, log.created_at);
   const DeviceIcon = parsedDevice.icon;
   const severity = getSeverity(log.event_type);
   const sevCfg = SEVERITY_CONFIG[severity];
@@ -747,20 +761,20 @@ function AuditLogRow({ log, index, isCompact, allLogs, onFilterByUser }: {
                 </div>
 
                 {/* Active percentage */}
-                {details && (details as any).formatted_active && (
+                {details && (details as { formatted_active?: string; active_percentage?: number }).formatted_active && (
                   <div className="text-xs flex items-center gap-2 text-muted-foreground">
                     <Activity className="w-3.5 h-3.5 text-emerald-500" />
-                    نشاط تفاعلي: <span className="font-bold text-emerald-600">{(details as any).formatted_active}</span>
-                    ({(details as any).active_percentage}%)
+                    نشاط تفاعلي: <span className="font-bold text-emerald-600">{(details as { formatted_active?: string }).formatted_active}</span>
+                    ({(details as { active_percentage?: number }).active_percentage}%)
                   </div>
                 )}
 
                 {/* User Agent */}
-                {details && (details as any).user_agent && (
+                {details && (details as { user_agent?: string }).user_agent && (
                   <div>
                     <p className="text-[10px] text-muted-foreground font-bold mb-1">User Agent String:</p>
                     <p className="font-mono text-[10px] text-slate-300 break-all bg-slate-900 rounded-xl p-3 border border-slate-800">
-                      {(details as any).user_agent}
+                      {(details as { user_agent?: string }).user_agent}
                     </p>
                   </div>
                 )}
@@ -780,20 +794,20 @@ function AuditLogRow({ log, index, isCompact, allLogs, onFilterByUser }: {
 // Timeline Feed View
 // ────────────────────────────────────────────────────────────
 
-function TimelineFeedView({ logs, allLogs, onFilterByUser }: { logs: any[]; allLogs: any[]; onFilterByUser: (email: string) => void }) {
+function TimelineFeedView({ logs, allLogs, onFilterByUser }: { logs: AuditLogEntry[]; allLogs: AuditLogEntry[]; onFilterByUser: (email: string) => void }) {
   return (
     <div className="relative space-y-0 pl-6" dir="rtl">
       {/* Vertical line */}
       <div className="absolute right-[18px] top-0 bottom-0 w-0.5 bg-gradient-to-b from-border via-border/60 to-transparent" />
 
-      {logs.map((log: any, i: number) => {
+      {logs.map((log: AuditLogEntry, i: number) => {
         const info = EVENT_TYPES[log.event_type] ?? { label: log.event_type, icon: Shield, color: "text-muted-foreground", category: "session", severity: "info" as Severity };
         const Icon = info.icon;
         const severity = getSeverity(log.event_type);
         const sevCfg = SEVERITY_CONFIG[severity];
         const details = log.details as Record<string, unknown> | null;
-        const locationText = parseLocationDetails(details, log.ip_address);
-        const parsedDevice = parseDeviceDetails(details);
+        const locationText = parseLocationDetails(log.details, log.ip_address);
+        const parsedDevice = parseDeviceDetails(log.details);
 
         return (
           <motion.div key={log.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
@@ -854,10 +868,10 @@ function TimelineFeedView({ logs, allLogs, onFilterByUser }: { logs: any[]; allL
 // Kanban View (grouped by user)
 // ────────────────────────────────────────────────────────────
 
-function KanbanView({ logs, allLogs, onFilterByUser }: { logs: any[]; allLogs: any[]; onFilterByUser: (email: string) => void }) {
+function KanbanView({ logs, allLogs, onFilterByUser }: { logs: AuditLogEntry[]; allLogs: AuditLogEntry[]; onFilterByUser: (email: string) => void }) {
   const grouped = useMemo(() => {
-    const g: Record<string, any[]> = {};
-    logs.forEach((l: any) => {
+    const g: Record<string, AuditLogEntry[]> = {};
+    logs.forEach((l: AuditLogEntry) => {
       const key = l.user_email || "غير معروف";
       if (!g[key]) g[key] = [];
       g[key].push(l);
@@ -879,7 +893,7 @@ function KanbanView({ logs, allLogs, onFilterByUser }: { logs: any[]; allLogs: a
             </div>
           </div>
           <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
-            {userLogs.map((log: any) => {
+            {userLogs.map((log: AuditLogEntry) => {
               const info = EVENT_TYPES[log.event_type] ?? { label: log.event_type, icon: Shield, color: "text-muted-foreground", severity: "info" as Severity };
               const severity = getSeverity(log.event_type);
               const sevCfg = SEVERITY_CONFIG[severity];
@@ -927,10 +941,10 @@ export default function AuditLog() {
   const filteredLogs = useMemo(() => {
     let result = [...logs];
     if (advancedFilters.severities.length > 0) {
-      result = result.filter((l: any) => advancedFilters.severities.includes(getSeverity(l.event_type)));
+      result = result.filter((l: AuditLogEntry) => advancedFilters.severities.includes(getSeverity(l.event_type)));
     }
     if (advancedFilters.devices.length > 0) {
-      result = result.filter((l: any) => {
+      result = result.filter((l: AuditLogEntry) => {
         const d = parseDeviceDetails(l.details);
         return advancedFilters.devices.includes(d.deviceType);
       });
@@ -940,9 +954,9 @@ export default function AuditLog() {
 
   // Analytics
   const stats = useMemo(() => {
-    const failed = logs.filter((l: any) => l.event_type?.includes("failed") || l.event_type?.includes("suspicious")).length;
-    const roles = logs.filter((l: any) => l.event_type?.includes("role") || l.event_type?.includes("member")).length;
-    const sessionLogs = logs.filter((l: any) => l.event_type === "session.duration" || l.event_type === "logout.user");
+    const failed = logs.filter((l: AuditLogEntry) => l.event_type?.includes("failed") || l.event_type?.includes("suspicious")).length;
+    const roles = logs.filter((l: AuditLogEntry) => l.event_type?.includes("role") || l.event_type?.includes("member")).length;
+    const sessionLogs = logs.filter((l: AuditLogEntry) => l.event_type === "session.duration" || l.event_type === "logout.user");
     const totalSessions = sessionLogs.length;
     const healthScore = totalCount > 0 ? Math.max(60, Math.round(100 - (failed / totalCount) * 120)) : 100;
     const riskLevel: "low" | "medium" | "high" | "critical" =
@@ -950,7 +964,7 @@ export default function AuditLog() {
 
     // Top actor
     const emailCount: Record<string, number> = {};
-    logs.forEach((l: any) => { if (l.user_email) emailCount[l.user_email] = (emailCount[l.user_email] || 0) + 1; });
+    logs.forEach((l: AuditLogEntry) => { if (l.user_email) emailCount[l.user_email] = (emailCount[l.user_email] || 0) + 1; });
     const topActor = Object.entries(emailCount).sort((a, b) => b[1] - a[1])[0];
 
     // Sparkline: 24 buckets (1h each)
@@ -958,14 +972,14 @@ export default function AuditLog() {
     const sparkline = Array.from({ length: 24 }, (_, i) => {
       const bucketStart = now - (23 - i) * 3600000;
       const bucketEnd = bucketStart + 3600000;
-      return logs.filter((l: any) => {
+      return logs.filter((l: AuditLogEntry) => {
         const t = new Date(l.created_at).getTime();
         return t >= bucketStart && t < bucketEnd;
       }).length;
     });
 
     // Yesterday comparison (rough estimate from position in dataset)
-    const todayCount = logs.filter((l: any) => new Date(l.created_at).toDateString() === new Date().toDateString()).length;
+    const todayCount = logs.filter((l: AuditLogEntry) => new Date(l.created_at).toDateString() === new Date().toDateString()).length;
 
     return { total: totalCount, failed, roles, totalSessions, healthScore, riskLevel, topActor, sparkline, todayCount };
   }, [logs, totalCount]);
@@ -986,7 +1000,7 @@ export default function AuditLog() {
 
   const exportToExcel = async () => {
     const XLSX = await import("xlsx");
-    const rows = filteredLogs.map((l: any) => {
+    const rows = filteredLogs.map((l: AuditLogEntry) => {
       const dev = parseDeviceDetails(l.details);
       const loc = parseLocationDetails(l.details, l.ip_address);
       const dur = parseSessionDuration(l.details, l.created_at);
@@ -1011,7 +1025,7 @@ export default function AuditLog() {
 
   const exportToCSV = () => {
     const headers = ["الخطورة", "نوع الحدث", "البريد", "عنوان IP", "الموقع", "الجهاز", "التاريخ"];
-    const rows = filteredLogs.map((l: any) => [
+    const rows = filteredLogs.map((l: AuditLogEntry) => [
       SEVERITY_CONFIG[getSeverity(l.event_type)].label,
       EVENT_TYPES[l.event_type]?.label || l.event_type,
       l.user_email || "",
@@ -1080,7 +1094,7 @@ export default function AuditLog() {
             <th>الخطورة</th><th>نوع الحدث</th><th>المستخدم</th><th>عنوان IP</th><th>الموقع</th><th>الجهاز</th><th>التاريخ</th>
           </tr></thead>
           <tbody>
-            ${filteredLogs.map((l: any) => {
+            ${filteredLogs.map((l: AuditLogEntry) => {
               const sev = getSeverity(l.event_type);
               const info = EVENT_TYPES[l.event_type];
               const loc = parseLocationDetails(l.details, l.ip_address);
@@ -1372,7 +1386,7 @@ export default function AuditLog() {
                           </td>
                         </tr>
                       ) : (
-                        filteredLogs.map((log: any, i: number) => (
+                        filteredLogs.map((log: AuditLogEntry, i: number) => (
                           <AuditLogRow key={log.id} log={log} index={i} isCompact={isCompact} allLogs={logs} onFilterByUser={handleFilterByUser} />
                         ))
                       )}
