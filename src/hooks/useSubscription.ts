@@ -267,7 +267,7 @@ export function useCreateUpgradeRequest() {
 
       if (!memberRows || memberRows.length === 0) throw new Error("لم يتم العثور على شركة مرتبطة بالحساب");
 
-      const companyIds = memberRows.map((r: any) => r.company_id);
+      const companyIds = memberRows.map((r: { company_id: string }) => r.company_id);
       const { data: companiesData } = await supabase
         .from("companies")
         .select("id, name, parent_company_id")
@@ -278,7 +278,7 @@ export function useCreateUpgradeRequest() {
       const companyId = activeCompany?.parent_company_id || activeCompany?.id || companyIds[0];
       const companyName = activeCompany?.name || "الشركة";
 
-      let insertedRecord: any = null;
+      let insertedRecord: UpgradeRequestRow | null = null;
 
       try {
         const { data, error } = await supabase
@@ -296,11 +296,12 @@ export function useCreateUpgradeRequest() {
 
         if (error) throw error;
         insertedRecord = data;
-      } catch (err: any) {
+      } catch (err) {
+        const pgErr = err as { code?: string; message?: string };
         const isTableMissing =
-          err?.code === "PGRST205" ||
-          err?.message?.includes("schema cache") ||
-          err?.message?.includes("subscription_upgrade_requests");
+          pgErr?.code === "PGRST205" ||
+          pgErr?.message?.includes("schema cache") ||
+          pgErr?.message?.includes("subscription_upgrade_requests");
 
         if (isTableMissing) {
           console.warn("Table subscription_upgrade_requests is missing in Supabase. Using fallback notification and local storage queue.");
@@ -339,19 +340,19 @@ export function useCreateUpgradeRequest() {
           .from("user_roles" as any)
           .select("user_id")
           .eq("role", "admin");
-        (adminRoles || []).forEach((r: any) => r.user_id && adminUserIds.add(r.user_id));
+        (adminRoles || []).forEach((r: { user_id: string }) => r.user_id && adminUserIds.add(r.user_id));
 
         // Check profiles table for admins / super_admins
         const { data: adminProfiles } = await supabase
           .from("profiles")
           .select("id, user_id, email, role")
           .or("role.eq.admin,role.eq.super_admin,email.eq.tx@tawzeefx.com,email.eq.ctraining801@gmail.com");
-        (adminProfiles || []).forEach((p: any) => {
+        (adminProfiles || []).forEach((p: { id: string; user_id?: string | null }) => {
           const uid = p.user_id || p.id;
           if (uid) adminUserIds.add(uid);
         });
 
-        const notifsToInsert: any[] = [];
+        const notifsToInsert: { user_id: string; title: string; description: string; type?: string; read?: boolean }[] = [];
         adminUserIds.forEach((adminId) => {
           notifsToInsert.push({
             user_id: adminId,
@@ -682,7 +683,7 @@ export function useAdminCustomUpgradeSubscription() {
         // Also update local storage fallback queue if present
         try {
           const local = JSON.parse(localStorage.getItem("tx_pending_upgrade_requests") || "[]");
-          const updated = local.map((r: any) => (r.id === requestId ? { ...r, status: "approved" } : r));
+          const updated = local.map((r: UpgradeRequestRow) => (r.id === requestId ? { ...r, status: "approved" } : r));
           localStorage.setItem("tx_pending_upgrade_requests", JSON.stringify(updated));
         } catch (error) { console.warn("Non-critical subscription sync step failed:", error); }
       }
@@ -848,7 +849,7 @@ export function useRejectUpgradeRequest() {
       // 2. Update local storage
       try {
         const local = JSON.parse(localStorage.getItem("tx_pending_upgrade_requests") || "[]");
-        const updated = local.map((r: any) => (r.id === requestId ? { ...r, status: "rejected" } : r));
+        const updated = local.map((r: UpgradeRequestRow) => (r.id === requestId ? { ...r, status: "rejected" } : r));
         localStorage.setItem("tx_pending_upgrade_requests", JSON.stringify(updated));
       } catch (error) { console.warn("Non-critical subscription sync step failed:", error); }
 
