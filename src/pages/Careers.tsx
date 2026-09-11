@@ -184,8 +184,8 @@ export default function Careers() {
   return (
     <div className="min-h-screen bg-background" dir="rtl" style={styleVars}>
       <SEO 
-        title={brand ? `فرص العمل والتوظيف في ${brand.name} | TawzeefX` : "الوظائف والشواغر المتاحة | TawzeefX"} 
-        description="استكشف أحدث الشواغر والفرص الوظيفية المعتمدة وقدم سيرتك الذاتية مباشرة عبر منصة TawzeefX." 
+        title={brand ? `فرص العمل والتوظيف في ${brand.name} | TawzeefX` : "وظائف وفرص عمل خالية | TawzeefX"} 
+        description="تصفح أحدث الوظائف وفرص العمل الشاغرة في مختلف المجالات والتخصصات. قدّم سيرتك الذاتية مباشرة وتتبع حالة طلبك بسهولة مع TawzeefX." 
         canonical="https://www.tawzeefx.com/careers"
       />
       {/* Header */}
@@ -251,7 +251,7 @@ export default function Careers() {
             animate={{ opacity: 1, y: 0 }}
             className="text-3xl sm:text-4xl font-black text-foreground mb-3"
           >
-            {brand ? `فرص العمل الحالية في ${brand.name}` : "اكتشف فرصتك المهنية القادمة"}
+            {brand ? `فرص العمل الحالية في ${brand.name}` : "وظائف وفرص عمل شاغرة — ابحث عن وظيفتك القادمة"}
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 10 }}
@@ -259,7 +259,7 @@ export default function Careers() {
             transition={{ delay: 0.05 }}
             className="text-muted-foreground text-sm sm:text-base mb-8 max-w-lg mx-auto"
           >
-            {brand ? `تصفح الوظائف المتاحة وقدّم الآن للانضمام إلى فريقنا المتميز` : "تصفح الوظائف المتاحة وقدّم بسهولة — بدون تسجيل دخول"}
+            {brand ? `تصفح الوظائف المتاحة وقدّم الآن للانضمام إلى فريقنا المتميز` : "تصفح أحدث الشواغر والفرص الوظيفية المعتمدة وقدّم سيرتك الذاتية مباشرة وبسهولة"}
           </motion.p>
 
 

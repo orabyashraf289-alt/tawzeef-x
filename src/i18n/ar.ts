@@ -1235,14 +1235,14 @@ const ar: Record<string, string> = {
   "marketing.footer.support": "الدعم",
 
   // About page
-  "about.seo.title": "عن منصة Tawzeef-X | منصة التوظيف الذكية",
-  "about.seo.description": "تعرّف على رؤيتنا ورسالتنا وفريقنا الذي يعيد تعريف التوظيف عبر الذكاء الاصطناعي.",
+  "about.seo.title": "عن منصة TawzeefX | منصة التوظيف الذكية للشركات والباحثين عن عمل",
+  "about.seo.description": "تعرّف على TawzeefX، المنصة الذكية التي تجمع بين الكفاءات المهنية وأصحاب الأعمال بأحدث تقنيات الذكاء الاصطناعي.",
   "about.hero.badge": "قصتنا",
   "about.hero.title": "نُعيد تعريف التوظيف",
   "about.hero.highlight": "بالذكاء الاصطناعي",
   "about.hero.subtitle": "Tawzeef-X هي منصة توظيف متكاملة تجمع بين تقنيات الذكاء الاصطناعي وتجربة مستخدم استثنائية لمساعدة الشركات على إيجاد أفضل المواهب وتسريع قرارات التوظيف.",
   "about.mission.title": "رسالتنا",
-  "about.mission.text": "تمكين فرق الموارد البشرية حول العالم من اتخاذ قرارات توظيف أفضل وأسرع، مدعومة بالبيانات والذكاء الاصطناعي.",
+  "about.mission.text": "تمكين الشركات والباحثين عن عمل من الوصول إلى الفرص والكفاءات المثالية بأسرع وقت وأعلى دقة، مدعومة بالذكاء الاصطناعي.",
   "about.vision.title": "رؤيتنا",
   "about.vision.text": "أن نكون المنصة الأولى عالمياً للتوظيف الذكي، ونساهم في بناء فرق عمل استثنائية في كل قطاع.",
   "about.values.title": "قيمنا",
@@ -1261,8 +1261,8 @@ const ar: Record<string, string> = {
   "about.cta.subtitle": "ابدأ مع آلاف الشركات التي تثق بـ Tawzeef-X",
 
   // Features page
-  "features.seo.title": "مميزات Tawzeef-X | كل أدوات التوظيف في منصة واحدة",
-  "features.seo.description": "اكتشف كافة مميزات Tawzeef-X: AI، Kanban، مقابلات أونلاين، عروض رقمية، تقارير، ومزيد.",
+  "features.seo.title": "ميزات TawzeefX | أدوات ذكية للبحث عن الوظائف والتوظيف",
+  "features.seo.description": "اكتشف أدوات TawzeefX للتوظيف والبحث عن الوظائف: الذكاء الاصطناعي، تتبع المتقدمين، مقابلات الفيديو، والعروض الوظيفية الرقمية.",
   "features.hero.title": "كل ما تحتاجه لتوظيف",
   "features.hero.highlight": "أفضل الكفاءات",
   "features.hero.subtitle": "أدوات احترافية متكاملة لإدارة دورة التوظيف بالكامل — من نشر الوظيفة حتى التعيين.",
@@ -1270,8 +1270,8 @@ const ar: Record<string, string> = {
   "features.cta.subtitle": "بدون بطاقة ائتمان. ابدأ في أقل من دقيقة.",
 
   // Contact page
-  "contact.seo.title": "تواصل معنا | Tawzeef-X",
-  "contact.seo.description": "تواصل مع فريق Tawzeef-X لأي استفسار، طلب تجربة، أو دعم تقني.",
+  "contact.seo.title": "تواصل معنا | TawzeefX",
+  "contact.seo.description": "تواصل مع فريق منصة TawzeefX لاستفسارات حلول التوظيف للشركات، أو مساعدة الباحثين عن عمل، أو الدعم الفني المباشر.",
   "contact.hero.title": "نحن هنا",
   "contact.hero.highlight": "لمساعدتك",
   "contact.hero.subtitle": "تواصل معنا في أي وقت — فريقنا متاح للرد على استفساراتك وحجز عروض تجريبية.",
@@ -1292,8 +1292,8 @@ const ar: Record<string, string> = {
   "contact.info.hoursValue": "الأحد - الخميس، 9 ص - 6 م (KSA)",
 
   // Blog
-  "blog.seo.title": "المدونة | Tawzeef-X — أفكار حول التوظيف والذكاء الاصطناعي",
-  "blog.seo.description": "مقالات وأدلة عن التوظيف الحديث، الذكاء الاصطناعي في الموارد البشرية، وأفضل الممارسات.",
+  "blog.seo.title": "مدونة TawzeefX | مقالات التوظيف، المقابلات والنصائح المهنية",
+  "blog.seo.description": "مقالات وأدلة شاملة حول التوظيف الذكي، اجتياز المقابلات الشخصية، وأحدث استراتيجيات استقطاب الكفاءات والبحث عن عمل.",
   "blog.hero.title": "أفكار ونصائح",
   "blog.hero.highlight": "في عالم التوظيف",
   "blog.hero.subtitle": "أحدث المقالات والأدلة من فريق Tawzeef-X",

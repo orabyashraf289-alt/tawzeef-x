@@ -4,6 +4,7 @@ Allow: /
 Allow: /features
 Allow: /pricing
 Allow: /careers
+Allow: /apply/
 Allow: /about
 Allow: /contact
 Allow: /blog
@@ -75,7 +76,6 @@ Disallow: /onboard/
 Disallow: /meeting/
 Disallow: /assessment/
 Disallow: /invitation/
-Disallow: /apply/
 Disallow: /typography
 
 # Sitemap index

@@ -146,6 +146,55 @@ export default function ApplyJob() {
     return skillsFound;
   }, [job]);
 
+  // Google Jobs Structured Data (JobPosting)
+  const jobPostingJsonLd = useMemo(() => {
+    if (!job || !job.title) return undefined;
+    const employmentTypeMap: Record<string, string> = {
+      "دوام كامل": "FULL_TIME",
+      "دوام جزئي": "PART_TIME",
+      "عقد": "CONTRACTOR",
+      "تدريب": "INTERN",
+      "عن بُعد": "FULL_TIME",
+    };
+
+    const datePosted = job.created_at ? new Date(job.created_at).toISOString().split("T")[0] : undefined;
+
+    return {
+      "@context": "https://schema.org",
+      "@type": "JobPosting",
+      title: job.title,
+      description: cleanDescription || job.description || `وظيفة ${job.title} لدى ${schoolDisplayName}`,
+      datePosted: datePosted,
+      hiringOrganization: {
+        "@type": "Organization",
+        name: schoolDisplayName,
+        sameAs: "https://www.tawzeefx.com/",
+      },
+      jobLocation: {
+        "@type": "Place",
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: job.location || "المملكة العربية السعودية / مصر",
+          streetAddress: job.location || undefined,
+        },
+      },
+      ...(job.type && employmentTypeMap[job.type] ? { employmentType: employmentTypeMap[job.type] } : {}),
+      ...(job.type === "عن بُعد" ? { jobLocationType: "TELECOMMUTE" } : {}),
+      ...(job.salary_min || job.salary_max ? {
+        baseSalary: {
+          "@type": "MonetaryAmount",
+          currency: "SAR",
+          value: {
+            "@type": "QuantitativeValue",
+            ...(job.salary_min ? { minValue: job.salary_min } : {}),
+            ...(job.salary_max ? { maxValue: job.salary_max } : {}),
+            unitText: "MONTH",
+          },
+        },
+      } : {}),
+    };
+  }, [job, cleanDescription, schoolDisplayName]);
+
   const handleFieldChange = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
   };
@@ -393,9 +442,11 @@ export default function ApplyJob() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans" dir="rtl">
       <SEO
-        title={`التقديم على ${job?.title || "شاغر وظيفي"} | ${schoolDisplayName} | TawzeefX`}
-        description={`قدم الآن على شاغر ${job?.title || "وظيفة"} لدى ${schoolDisplayName} عبر منصة TawzeefX مع الفرز الذكي اللحظي.`}
-        noindex={true}
+        title={`${job?.title || "شاغر وظيفي"} | ${schoolDisplayName} | TawzeefX`}
+        description={`قدم الآن على شاغر ${job?.title || "وظيفة"} لدى ${schoolDisplayName} عبر منصة TawzeefX مع التقييم الذكي اللحظي.`}
+        canonical={`https://www.tawzeefx.com/apply/${id}`}
+        jsonLd={jobPostingJsonLd}
+        noindex={!job || job.status !== "نشطة"}
       />
 
       {/* Top Header App Bar */}

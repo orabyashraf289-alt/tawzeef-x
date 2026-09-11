@@ -217,8 +217,8 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-md-surface text-md-on-surface overflow-x-hidden w-full max-w-full font-sans antialiased selection:bg-md-primary selection:text-md-on-primary" dir="rtl">
       <SEO
-        title="TawzeefX | HR & Payroll Management System"
-        description="TawzeefX is an integrated HRMS platform for employee management, attendance, payroll, leave, recruitment, approvals and human resources operations."
+        title="TawzeefX | وظائف وفرص عمل ومنصة توظيف ذكية"
+        description="اكتشف أحدث الوظائف وفرص العمل مع TawzeefX، منصة توظيف ذكية تساعد الباحثين عن عمل على الوصول للفرص المناسبة وتساعد الشركات على العثور على أفضل المرشحين."
         canonical="https://www.tawzeefx.com/"
         image="https://www.tawzeefx.com/icon-512x512.png"
         jsonLd={{
@@ -228,20 +228,23 @@ export default function LandingPage() {
               "@type": "Organization",
               "@id": "https://www.tawzeefx.com/#organization",
               "name": "TawzeefX",
-              "url": "https://www.tawzeefx.com",
+              "url": "https://www.tawzeefx.com/",
               "logo": "https://www.tawzeefx.com/icon-512x512.png",
-              "description": "TawzeefX is an integrated HRMS platform for employee management, attendance, payroll, leave, recruitment, approvals and human resources operations."
+              "description": "منصة توظيف ذكية تربط الباحثين عن عمل بالشركات وأصحاب الأعمال لاكتشاف أحدث الوظائف واستقطاب أفضل الكفاءات."
             },
             {
-              "@type": "SoftwareApplication",
-              "@id": "https://www.tawzeefx.com/#software",
+              "@type": "WebSite",
+              "@id": "https://www.tawzeefx.com/#website",
+              "url": "https://www.tawzeefx.com/",
               "name": "TawzeefX",
-              "url": "https://www.tawzeefx.com",
-              "applicationCategory": "BusinessApplication",
-              "operatingSystem": "Web",
-              "description": "TawzeefX is an integrated HRMS platform for employee management, attendance, payroll, leave, recruitment, approvals and human resources operations.",
+              "description": "منصة توظيف ذكية للباحثين عن عمل والشركات",
               "publisher": {
                 "@id": "https://www.tawzeefx.com/#organization"
+              },
+              "potentialAction": {
+                "@type": "SearchAction",
+                "target": "https://www.tawzeefx.com/careers?q={search_term_string}",
+                "query-input": "required name=search_term_string"
               }
             }
           ]
@@ -267,6 +270,7 @@ export default function LandingPage() {
           {/* Desktop Nav Links */}
           <nav className="hidden lg:flex items-center gap-8">
             {[
+              { label: "الوظائف الشاغرة", href: "/careers" },
               { label: "المميزات والحلول", href: "#features" },
               { label: "معاينة النظام الحي", href: "#showcase" },
               { label: "باقات المنشآت", href: "#pricing" },
@@ -341,6 +345,7 @@ export default function LandingPage() {
 
             <nav className="flex flex-col gap-5 py-8 text-md3-title-md font-bold">
               {[
+                { label: "الوظائف الشاغرة", href: "/careers" },
                 { label: "المميزات والحلول", href: "#features" },
                 { label: "معاينة النظام الحي", href: "#showcase" },
                 { label: "باقات المنشآت", href: "#pricing" },
@@ -408,9 +413,9 @@ export default function LandingPage() {
                 variants={fadeUp}
                 className="text-4xl sm:text-5xl lg:text-[54px] font-black leading-[1.22] text-md-on-surface mb-6 tracking-normal"
               >
-                نظام إدارة الموارد البشرية والتوظيف الذكي <br />
+                منصة توظيف ذكية للباحثين عن عمل والشركات <br />
                 <span className="text-md-primary relative inline-block">
-                  HR &amp; Payroll Management System
+                  Smart Recruitment &amp; Job Search Platform
                   <span className="absolute left-0 bottom-1 w-full h-2.5 bg-md-primary-container/60 -z-10 rounded-full" />
                 </span>
               </motion.h1>
@@ -419,7 +424,7 @@ export default function LandingPage() {
                 variants={fadeUp}
                 className="text-md3-body-lg text-md-on-surface-variant max-w-xl mx-auto lg:mx-0 mb-8 leading-relaxed font-medium"
               >
-                منظومة سحابية متكاملة مصممة لفرق الاستقطاب والمدراء: فرز السير الذاتية بالذكاء الاصطناعي، لوحات كانبان مؤتمتة، غرف مقابلات فيديو بتفريغ فوري، وإصدار العروض الوظيفية الرقمية المشفرة.
+                منظومة توظيف سحابية ذكية: تصفح أحدث الوظائف وفرص العمل المعتمدة، وفرز السير الذاتية بالذكاء الاصطناعي، ومقابلات الفيديو المدمجة، وإدارة استقطاب الكفاءات للشركات بكل سهولة.
               </motion.p>
 
               {/* CTAs */}
@@ -428,20 +433,20 @@ export default function LandingPage() {
                 className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start mb-8"
               >
                 <Link
-                  to="/auth?mode=signup"
+                  to="/careers"
                   className="w-full sm:w-auto bg-md-primary text-md-on-primary rounded-md3-full h-14 px-9 text-md3-title-sm font-bold flex items-center justify-center gap-2.5 shadow-md3-2 hover:shadow-md3-4 hover:scale-105 transition-all"
                 >
-                  <span>ابدأ تجربة المنصة مجاناً</span>
-                  <ArrowLeft className="w-4 h-4" />
+                  <Briefcase className="w-4 h-4" />
+                  <span>تصفح أحدث الوظائف</span>
                 </Link>
 
-                <a
-                  href="#showcase"
+                <Link
+                  to="/auth?mode=signup"
                   className="w-full sm:w-auto bg-md-secondary-container text-md-on-secondary-container rounded-md3-full h-14 px-8 text-md3-title-sm font-bold flex items-center justify-center gap-2 hover:bg-md-secondary-container/80 transition-all border border-md-outline-variant/80"
                 >
-                  <Play className="w-4 h-4" />
-                  <span>معاينة النظام الحي</span>
-                </a>
+                  <Building2 className="w-4 h-4" />
+                  <span>انضم كصاحب عمل وابدأ التوظيف</span>
+                </Link>
               </motion.div>
 
               {/* Live Status Indicators */}

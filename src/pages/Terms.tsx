@@ -7,7 +7,7 @@ export default function Terms() {
     <div className="min-h-screen bg-background text-right p-6 md:p-12 space-y-8 max-w-4xl mx-auto" dir="rtl">
       <SEO
         title="شروط الاستخدام والخدمة | TawzeefX"
-        description="شروط الاستخدام واتفاقية الخدمة الرسمية لمنصة TawzeefX."
+        description="شروط الاستخدام واتفاقية الخدمة الرسمية لأصحاب الأعمال والباحثين عن عمل في منصة TawzeefX."
         canonical="https://www.tawzeefx.com/terms"
       />
       <Link to="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors">
