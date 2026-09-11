@@ -100,8 +100,9 @@ export default function BlogPost() {
   return (
     <MarketingLayout>
       <SEO
-        title={`${title} | Tawzeef-X`}
+        title={`${title} | TawzeefX`}
         description={excerpt || title}
+        canonical={`https://www.tawzeefx.com/blog/${slug}`}
         type="article"
         image={post.cover_image || undefined}
         jsonLd={{

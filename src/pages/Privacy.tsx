@@ -1,10 +1,16 @@
 import { Link } from "react-router-dom";
 import { Shield, ChevronLeft, Building2, GraduationCap, Lock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SEO } from "@/components/marketing/SEO";
 
 export default function Privacy() {
   return (
     <div className="min-h-screen bg-background text-right p-6 md:p-12 space-y-8 max-w-4xl mx-auto" dir="rtl">
+      <SEO
+        title="سياسة الخصوصية وحماية البيانات | TawzeefX"
+        description="سياسة الخصوصية وسرية وحماية البيانات المعتمدة في منصة TawzeefX."
+        canonical="https://www.tawzeefx.com/privacy"
+      />
       <Link to="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors">
         <ChevronLeft className="w-4 h-4 rotate-180" />
         العودة للرئيسية

@@ -33,7 +33,11 @@ export default function Blog() {
 
   return (
     <MarketingLayout>
-      <SEO title={t("blog.seo.title")} description={t("blog.seo.description")} />
+      <SEO
+        title={t("blog.seo.title")}
+        description={t("blog.seo.description")}
+        canonical="https://www.tawzeefx.com/blog"
+      />
 
       {/* Hero */}
       <section className="relative overflow-hidden">

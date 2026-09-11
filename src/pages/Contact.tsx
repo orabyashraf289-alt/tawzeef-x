@@ -45,7 +45,11 @@ export default function Contact() {
 
   return (
     <MarketingLayout>
-      <SEO title={t("contact.seo.title")} description={t("contact.seo.description")} />
+      <SEO
+        title={t("contact.seo.title")}
+        description={t("contact.seo.description")}
+        canonical="https://www.tawzeefx.com/contact"
+      />
 
       {/* Hero */}
       <section className="relative overflow-hidden">

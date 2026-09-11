@@ -1,9 +1,15 @@
 import { Link } from "react-router-dom";
 import { BookOpen, ChevronLeft, Building2, GraduationCap, CheckCircle2 } from "lucide-react";
+import { SEO } from "@/components/marketing/SEO";
 
 export default function Terms() {
   return (
     <div className="min-h-screen bg-background text-right p-6 md:p-12 space-y-8 max-w-4xl mx-auto" dir="rtl">
+      <SEO
+        title="شروط الاستخدام والخدمة | TawzeefX"
+        description="شروط الاستخدام واتفاقية الخدمة الرسمية لمنصة TawzeefX."
+        canonical="https://www.tawzeefx.com/terms"
+      />
       <Link to="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors">
         <ChevronLeft className="w-4 h-4 rotate-180" />
         العودة للرئيسية

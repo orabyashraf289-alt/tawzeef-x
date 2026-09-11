@@ -393,8 +393,9 @@ export default function ApplyJob() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans" dir="rtl">
       <SEO
-        title={`التقديم على ${job?.title || "شاغر وظيفي"} | ${schoolDisplayName} | Tawzeef-X`}
-        description={`قدم الآن على شاغر ${job?.title || "وظيفة"} لدى ${schoolDisplayName} عبر منصة Tawzeef-X مع الفرز الذكي اللحظي.`}
+        title={`التقديم على ${job?.title || "شاغر وظيفي"} | ${schoolDisplayName} | TawzeefX`}
+        description={`قدم الآن على شاغر ${job?.title || "وظيفة"} لدى ${schoolDisplayName} عبر منصة TawzeefX مع الفرز الذكي اللحظي.`}
+        noindex={true}
       />
 
       {/* Top Header App Bar */}

@@ -21,6 +21,7 @@ import {
   Download } from "lucide-react";
 import { generateOfferPdf } from "@/lib/offerPdf";
 import { toast } from "@/hooks/use-toast";
+import { SEO } from "@/components/marketing/SEO";
 
 import sarSymbol from "@/assets/sar-symbol.png";
 
@@ -311,6 +312,7 @@ export default function OfferPortal() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 py-8 px-4">
+      <SEO title="العرض الوظيفي الرقمي | TawzeefX" description="بوابة استعراض واعتماد العرض الوظيفي" noindex={true} />
       <div className="max-w-2xl mx-auto space-y-6">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center flex flex-col items-center justify-center space-y-2">
           <img src={company?.logo_url || tawzeefLogo} alt={company?.name || "Tawzeef-X"} className="w-16 h-16 object-contain rounded-xl shadow-md border border-border/40" />

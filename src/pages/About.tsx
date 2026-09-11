@@ -31,12 +31,13 @@ export default function About() {
       <SEO
         title={t("about.seo.title")}
         description={t("about.seo.description")}
+        canonical="https://www.tawzeefx.com/about"
         type="website"
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "Organization",
-          name: "Tawzeef-X",
-          url: typeof window !== "undefined" ? window.location.origin : "",
+          name: "TawzeefX",
+          url: "https://www.tawzeefx.com",
           description: t("about.seo.description"),
         }}
       />

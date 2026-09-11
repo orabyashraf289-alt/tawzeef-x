@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole, AppRole } from "@/hooks/useUserRole";
@@ -17,6 +18,16 @@ export default function RoleProtectedRoute({ children, allowedRoles, superAdminO
   const { role, isSuperAdmin, isLoading: roleLoading } = useUserRole();
   const { hasScreenAccess, isLoading: permLoading } = useScreenPermissions();
   const location = useLocation();
+
+  useEffect(() => {
+    let el = document.head.querySelector<HTMLMetaElement>('meta[name="robots"]');
+    if (!el) {
+      el = document.createElement("meta");
+      el.setAttribute("name", "robots");
+      document.head.appendChild(el);
+    }
+    el.setAttribute("content", "noindex, nofollow");
+  }, []);
 
   if (loading || roleLoading || permLoading) return <PageSkeleton />;
   if (!user) return <Navigate to="/auth" replace />;

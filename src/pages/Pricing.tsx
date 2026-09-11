@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import CheckoutModal from "@/components/CheckoutModal";
+import { SEO } from "@/components/marketing/SEO";
 import { useState } from "react";
 
 const planIcons: Record<string, any> = {
@@ -36,6 +37,11 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
+      <SEO
+        title="باقات الأسعار والاشتراكات | TawzeefX"
+        description="تعرف على باقات وخطط أسعار TawzeefX لإدارة الموارد البشرية واستقطاب الكفاءات. باقات مرنة تناسب الشركات والمؤسسات."
+        canonical="https://www.tawzeefx.com/pricing"
+      />
       {/* Header */}
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">

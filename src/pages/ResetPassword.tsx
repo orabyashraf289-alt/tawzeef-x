@@ -6,6 +6,7 @@ import { Lock, Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { SEO } from "@/components/marketing/SEO";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -70,6 +71,7 @@ export default function ResetPassword() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[hsl(220,30%,98%)] via-[hsl(230,25%,96%)] to-[hsl(210,35%,94%)]" dir="rtl">
+      <SEO title="تعيين كلمة مرور جديدة | TawzeefX" description="تعيين كلمة مرور جديدة لحسابك" noindex={true} />
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}

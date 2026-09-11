@@ -184,8 +184,9 @@ export default function Careers() {
   return (
     <div className="min-h-screen bg-background" dir="rtl" style={styleVars}>
       <SEO 
-        title={brand ? `فرص العمل والتوظيف في ${brand.name} | Tawzeef-X` : "استكشف الفرص والوظائف الشاغرة | Tawzeef-X"} 
-        description="تصفح جميع الوظائف والفرص الشاغرة ودمج رخصتك المهنية وسيرتك الذاتية للتقديم المباشر." 
+        title={brand ? `فرص العمل والتوظيف في ${brand.name} | TawzeefX` : "الوظائف والشواغر المتاحة | TawzeefX"} 
+        description="استكشف أحدث الشواغر والفرص الوظيفية المعتمدة وقدم سيرتك الذاتية مباشرة عبر منصة TawzeefX." 
+        canonical="https://www.tawzeefx.com/careers"
       />
       {/* Header */}
       <header className="sticky top-0 z-30 bg-card/90 backdrop-blur-xl border-b border-border/50">

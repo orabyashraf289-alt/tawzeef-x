@@ -82,6 +82,7 @@ export default function Features() {
       <SEO
         title={t("features.seo.title")}
         description={t("features.seo.description")}
+        canonical="https://www.tawzeefx.com/features"
       />
 
       {/* Hero */}

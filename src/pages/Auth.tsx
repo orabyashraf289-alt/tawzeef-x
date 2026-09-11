@@ -43,6 +43,7 @@ function trustDevice(email: string) {
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBrandSettings } from "@/hooks/useBrandSettings";
+import { SEO } from "@/components/marketing/SEO";
 import { motion, AnimatePresence, useMotionValue } from "framer-motion";
 import { lovable } from "@/integrations/lovable/index";
 import { translateAuthError } from "@/lib/authErrors";
@@ -1418,6 +1419,11 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen min-h-[100dvh] relative overflow-hidden bg-gradient-to-tr from-emerald-50/30 via-slate-50 to-cyan-50/30 text-slate-800" dir="rtl">
+      <SEO
+        title={isLogin ? "تسجيل الدخول | TawzeefX" : "إنشاء حساب جديد | TawzeefX"}
+        description="بوابة الدخول الموحدة لمنصة TawzeefX لإدارة الموارد البشرية والتوظيف."
+        noindex={true}
+      />
       {/* Styles for sweeping border gradient + off-thread hardware accelerated CSS animations */}
       <style>{`
         @keyframes gradient-sweep {

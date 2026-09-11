@@ -217,9 +217,35 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-md-surface text-md-on-surface overflow-x-hidden w-full max-w-full font-sans antialiased selection:bg-md-primary selection:text-md-on-primary" dir="rtl">
       <SEO
-        title="Tawzeef-X | منصة التوظيف الذكية الشاملة للشركات وإدارة الاستقطاب"
-        description="منصة التوظيف الذكية المدعومة بالذكاء الاصطناعي — أتمتة الفلترة، تقييم المرشحين، مقابلات الفيديو المدمجة، وإدارة العروض الوظيفية."
+        title="TawzeefX | HR & Payroll Management System"
+        description="TawzeefX is an integrated HRMS platform for employee management, attendance, payroll, leave, recruitment, approvals and human resources operations."
         canonical="https://www.tawzeefx.com/"
+        image="https://www.tawzeefx.com/icon-512x512.png"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "Organization",
+              "@id": "https://www.tawzeefx.com/#organization",
+              "name": "TawzeefX",
+              "url": "https://www.tawzeefx.com",
+              "logo": "https://www.tawzeefx.com/icon-512x512.png",
+              "description": "TawzeefX is an integrated HRMS platform for employee management, attendance, payroll, leave, recruitment, approvals and human resources operations."
+            },
+            {
+              "@type": "SoftwareApplication",
+              "@id": "https://www.tawzeefx.com/#software",
+              "name": "TawzeefX",
+              "url": "https://www.tawzeefx.com",
+              "applicationCategory": "BusinessApplication",
+              "operatingSystem": "Web",
+              "description": "TawzeefX is an integrated HRMS platform for employee management, attendance, payroll, leave, recruitment, approvals and human resources operations.",
+              "publisher": {
+                "@id": "https://www.tawzeefx.com/#organization"
+              }
+            }
+          ]
+        }}
       />
 
       {/* ── Top App Bar (MD3 Header) ── */}
@@ -382,9 +408,9 @@ export default function LandingPage() {
                 variants={fadeUp}
                 className="text-4xl sm:text-5xl lg:text-[54px] font-black leading-[1.22] text-md-on-surface mb-6 tracking-normal"
               >
-                أتمتة شاملة لدورة التوظيف <br />
+                نظام إدارة الموارد البشرية والتوظيف الذكي <br />
                 <span className="text-md-primary relative inline-block">
-                  بذكاء اصطناعي دقيق وسرعة استثنائية
+                  HR &amp; Payroll Management System
                   <span className="absolute left-0 bottom-1 w-full h-2.5 bg-md-primary-container/60 -z-10 rounded-full" />
                 </span>
               </motion.h1>

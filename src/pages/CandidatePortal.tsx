@@ -314,8 +314,9 @@ export default function CandidatePortal() {
   return (
     <div className="min-h-screen bg-background text-right" dir="rtl">
       <SEO 
-        title="بوابة تتبع الطلبات والرخص المهنية | Tawzeef-X"
+        title="بوابة تتبع الطلبات والرخص المهنية | TawzeefX"
         description="تابِع حالة طلب التوظيف، توثيق الرخصة المهنية للمعلمين، وجدولة المقابلات الشخصية مباشرة برمز التتبع."
+        noindex={true}
       />
       {/* Header */}
       <header className="border-b border-border/50 bg-card/80 backdrop-blur-sm sticky top-0 z-10">

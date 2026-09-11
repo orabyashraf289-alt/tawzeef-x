@@ -6,6 +6,7 @@ import { Mail, ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
+import { SEO } from "@/components/marketing/SEO";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -32,6 +33,7 @@ export default function ForgotPassword() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[hsl(220,30%,98%)] via-[hsl(230,25%,96%)] to-[hsl(210,35%,94%)]" dir="rtl">
+      <SEO title="استعادة كلمة المرور | TawzeefX" description="استعادة كلمة المرور" noindex={true} />
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
