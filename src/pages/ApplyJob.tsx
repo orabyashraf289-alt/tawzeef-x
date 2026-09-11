@@ -86,41 +86,50 @@ export default function ApplyJob() {
     async function fetchJob() {
       if (!id) return;
       try {
-        const { data } = await supabase
+        // Query jobs table directly to avoid PostgREST foreign key cache mismatch
+        const { data: jobData } = await supabase
           .from("jobs")
-          .select("*, companies(name, logo_url)")
+          .select("*")
           .eq("id", id)
           .maybeSingle();
 
-        if (data) {
-          setJob(data);
+        if (jobData) {
+          let companyData = null;
+          if (jobData.company_id) {
+            try {
+              const { data: cData } = await supabase
+                .from("companies")
+                .select("name, logo_url")
+                .eq("id", jobData.company_id)
+                .maybeSingle();
+              companyData = cData;
+            } catch (err) {
+              console.warn("Could not fetch company:", err);
+            }
+          }
+          setJob({ ...jobData, companies: companyData });
         } else {
-          setJob({
-            id,
-            title: "شاغر وظيفي معتمد",
-            department: "العامة",
-            location: "المملكة العربية السعودية",
-            type: "دوام كامل",
-            salary_min: null,
-            salary_max: null,
-            description: "يسرنا استقبال طلبات التقديم لهذا الشاغر الوظيفي المعتمد عبر منصة Tawzeef-X.",
-            requirements: ["مؤهل علمي ملائم", "خبرة عملية مناسبة", "مهارات تواصل احترافية"],
-          });
+          setJob(null);
         }
       } catch (e) {
         console.warn("Could not fetch job:", e);
+        setJob(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     fetchJob();
   }, [id]);
 
   const { cleanDescription, specs, hasSpecs } = useMemo(() => parseJobCustomSpecs(job), [job]);
-  const schoolDisplayName =
-    (job as any)?.companies?.name ||
-    specs.school_name ||
-    (job as any)?.school_name ||
-    "المؤسسة المعلنة";
+
+  const schoolDisplayName = useMemo(() => {
+    if ((job as any)?.companies?.name) return (job as any).companies.name;
+    if (specs.school_name) return specs.school_name;
+    if ((job as any)?.school_name) return (job as any).school_name;
+    if (job?.location?.includes("الأندلس")) return "مجمع مدارس الأندلس الأهلية";
+    return "TawzeefX Partner";
+  }, [job, specs]);
 
   const isEducational = Boolean(
     specs.is_educational ||
@@ -146,7 +155,7 @@ export default function ApplyJob() {
     return skillsFound;
   }, [job]);
 
-  // Google Jobs Structured Data (JobPosting)
+  // Google Jobs Structured Data (JobPosting) - Strict Google Search Central Compliance
   const jobPostingJsonLd = useMemo(() => {
     if (!job || !job.title) return undefined;
     const employmentTypeMap: Record<string, string> = {
@@ -154,31 +163,50 @@ export default function ApplyJob() {
       "دوام جزئي": "PART_TIME",
       "عقد": "CONTRACTOR",
       "تدريب": "INTERN",
+      "مؤقت": "TEMPORARY",
       "عن بُعد": "FULL_TIME",
     };
 
-    const datePosted = job.created_at ? new Date(job.created_at).toISOString().split("T")[0] : undefined;
+    const datePosted = job.created_at ? new Date(job.created_at).toISOString() : new Date().toISOString();
+    const postedTime = new Date(datePosted).getTime();
+    const validThrough = new Date(postedTime + 90 * 24 * 60 * 60 * 1000).toISOString();
+
+    const plainDesc = cleanDescription || job.description || `وظيفة ${job.title} لدى ${schoolDisplayName}`;
+    const loc = job.location || "جدة، المملكة العربية السعودية";
+    const isJeddah = loc.includes("جدة") || loc.includes("Jeddah");
+    const isRiyadh = loc.includes("الرياض") || loc.includes("Riyadh");
+    const locality = isJeddah ? "جدة" : (isRiyadh ? "الرياض" : "المملكة العربية السعودية");
+    const region = isJeddah ? "منطقة مكة المكرمة" : (isRiyadh ? "منطقة الرياض" : "المملكة العربية السعودية");
 
     return {
       "@context": "https://schema.org",
       "@type": "JobPosting",
       title: job.title,
-      description: cleanDescription || job.description || `وظيفة ${job.title} لدى ${schoolDisplayName}`,
+      description: plainDesc,
+      identifier: {
+        "@type": "PropertyValue",
+        name: "TawzeefX",
+        value: `TX-${id?.slice(0, 8) || "JOB"}`,
+      },
       datePosted: datePosted,
+      validThrough: validThrough,
+      employmentType: job.type && employmentTypeMap[job.type] ? employmentTypeMap[job.type] : "FULL_TIME",
       hiringOrganization: {
         "@type": "Organization",
         name: schoolDisplayName,
         sameAs: "https://www.tawzeefx.com/",
+        logo: (job as any)?.companies?.logo_url || "https://www.tawzeefx.com/icon-512x512.png",
       },
       jobLocation: {
         "@type": "Place",
         address: {
           "@type": "PostalAddress",
-          addressLocality: job.location || "المملكة العربية السعودية / مصر",
-          streetAddress: job.location || undefined,
+          streetAddress: loc,
+          addressLocality: locality,
+          addressRegion: region,
+          addressCountry: "SA",
         },
       },
-      ...(job.type && employmentTypeMap[job.type] ? { employmentType: employmentTypeMap[job.type] } : {}),
       ...(job.type === "عن بُعد" ? { jobLocationType: "TELECOMMUTE" } : {}),
       ...(job.salary_min || job.salary_max ? {
         baseSalary: {
@@ -186,14 +214,15 @@ export default function ApplyJob() {
           currency: "SAR",
           value: {
             "@type": "QuantitativeValue",
-            ...(job.salary_min ? { minValue: job.salary_min } : {}),
-            ...(job.salary_max ? { maxValue: job.salary_max } : {}),
+            ...(job.salary_min ? { minValue: Number(job.salary_min) } : {}),
+            ...(job.salary_max ? { maxValue: Number(job.salary_max) } : {}),
             unitText: "MONTH",
           },
         },
       } : {}),
+      directApply: true,
     };
-  }, [job, cleanDescription, schoolDisplayName]);
+  }, [job, cleanDescription, schoolDisplayName, id]);
 
   const handleFieldChange = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -417,10 +446,67 @@ export default function ApplyJob() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4" dir="rtl">
+        <SEO
+          title="شاغر وظيفي معتمد | TawzeefX"
+          description="بوابة التقديم والتوظيف الذكي عبر منصة TawzeefX."
+          canonical={`https://www.tawzeefx.com/apply/${id}`}
+          noindex={false}
+        />
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-xs font-bold text-muted-foreground">جاري تحميل بيانات الشاغر الوظيفي...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!job) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col font-sans" dir="rtl">
+        <SEO
+          title="الشاغر الوظيفي غير متاح | TawzeefX"
+          description="عذراً، هذا الشاغر الوظيفي غير متاح حالياً أو انتهت فترة التقديم عليه."
+          canonical={`https://www.tawzeefx.com/apply/${id}`}
+          noindex={true}
+        />
+        <header className="border-b border-border/60 bg-card/80 backdrop-blur-md sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+            <Link to="/" className="flex items-center gap-2.5 group">
+              <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
+              <div className="text-right">
+                <span className="font-black text-sm tracking-tight text-foreground block leading-tight">
+                  Tawzeef-X
+                </span>
+                <span className="text-[10px] text-muted-foreground font-semibold block">
+                  بوابة التقديم والتوظيف الذكي
+                </span>
+              </div>
+            </Link>
+            <Link to="/careers">
+              <Button variant="default" size="sm" className="h-9 text-xs font-bold gap-1.5">
+                <Briefcase className="w-3.5 h-3.5" />
+                <span>تصفح كل الوظائف</span>
+              </Button>
+            </Link>
+          </div>
+        </header>
+        <div className="flex-1 flex items-center justify-center p-6 text-center">
+          <div className="max-w-md space-y-4">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
+              <Briefcase className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold">الشاغر الوظيفي غير متاح</h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              قد يكون هذا الشاغر قد تم إغلاقه أو أن رابط التقديم غير صحيح. يمكنك تصفح الشواغر المتاحة حالياً والتقديم عليها مباشرة.
+            </p>
+            <Link to="/careers">
+              <Button className="mt-2 text-xs font-bold gap-2">
+                <span>تصفح الوظائف الشاغرة</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -442,11 +528,11 @@ export default function ApplyJob() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans" dir="rtl">
       <SEO
-        title={`${job?.title || "شاغر وظيفي"} | ${schoolDisplayName} | TawzeefX`}
+        title={`${job?.title || "شاغر وظيفي معتمد"} | ${schoolDisplayName} | TawzeefX`}
         description={`قدم الآن على شاغر ${job?.title || "وظيفة"} لدى ${schoolDisplayName} عبر منصة TawzeefX مع التقييم الذكي اللحظي.`}
         canonical={`https://www.tawzeefx.com/apply/${id}`}
         jsonLd={jobPostingJsonLd}
-        noindex={!job || job.status !== "نشطة"}
+        noindex={job?.status !== undefined && job?.status !== "نشطة" && job?.status !== "active"}
       />
 
       {/* Top Header App Bar */}

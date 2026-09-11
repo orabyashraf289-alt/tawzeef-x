@@ -4,7 +4,9 @@ Allow: /
 Allow: /features
 Allow: /pricing
 Allow: /careers
+Allow: /apply
 Allow: /apply/
+Allow: /apply/*
 Allow: /about
 Allow: /contact
 Allow: /blog
