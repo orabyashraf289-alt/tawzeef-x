@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.execute-password-reset]
 verify_jwt = false
+
+[functions.delete-company]
+verify_jwt = true

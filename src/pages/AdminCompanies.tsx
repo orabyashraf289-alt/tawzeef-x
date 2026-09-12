@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Building2, Search, Trash2, ExternalLink, Power, Users as UsersIcon, X, Bell, Clock, Crown, ShieldAlert } from "lucide-react";
+import { Plus, Building2, Search, Trash2, ExternalLink, Power, Users as UsersIcon, X, Bell, Clock, Crown, ShieldAlert, Loader2, Lock } from "lucide-react";
 import {
   useAllCompanies,
   useCreateCompany,
@@ -47,7 +47,13 @@ export default function AdminCompanies() {
   const [industry, setIndustry] = useState("");
   const [membersFor, setMembersFor] = useState<{ id: string; name: string } | null>(null);
   const [activeTab, setActiveTab] = useState<"directory" | "subscriptions">("directory");
-  const [companyToDelete, setCompanyToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [companyToDelete, setCompanyToDelete] = useState<{ id: string; name: string; branchesCount: number } | null>(null);
+  const [confirmNameInput, setConfirmNameInput] = useState("");
+
+  const isPlatformCompany = (c: { id: string; name: string }) =>
+    c.id === "00000000-0000-0000-0000-000000000001" ||
+    c.name.toLowerCase().includes("tawzeef") ||
+    c.name.includes("توظيف إكس");
 
   const pendingRequests = (upgradeRequests || []).filter((r) => r.status === "pending");
   const parentCompanies = companies.filter((c) => !c.parent_company_id);
@@ -257,14 +263,33 @@ export default function AdminCompanies() {
                         <Power className="w-3.5 h-3.5 ml-1.5" />
                         {c.status === "active" ? "تعطيل" : "تفعيل"}
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => setCompanyToDelete({ id: c.id, name: c.name })}
-                      >
-                        <Trash2 className="w-3.5 h-3.5 ml-1.5" />حذف
-                      </Button>
+                      {isPlatformCompany(c) ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled
+                          className="text-muted-foreground opacity-60 cursor-not-allowed text-xs"
+                          title="الشركة الرئيسية للمنصة محمية من الحذف"
+                        >
+                          <Lock className="w-3.5 h-3.5 ml-1.5 text-primary" />محمية
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive text-xs"
+                          onClick={() => {
+                            setCompanyToDelete({
+                              id: c.id,
+                              name: c.name,
+                              branchesCount: branches.length,
+                            });
+                            setConfirmNameInput("");
+                          }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5 ml-1.5" />حذف
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -295,39 +320,98 @@ export default function AdminCompanies() {
           />
         )}
 
-        {/* ─── Delete Company Confirmation Modal (Centered & Modern) ─── */}
-        <AlertDialog open={!!companyToDelete} onOpenChange={(open) => !open && setCompanyToDelete(null)}>
-          <AlertDialogContent className="sm:max-w-[460px] p-6 text-right rounded-2xl border border-border/80 shadow-2xl bg-card" dir="rtl">
+        {/* ─── Delete Company Confirmation Modal (Type-to-Confirm & Cascade Safeguarded) ─── */}
+        <AlertDialog
+          open={!!companyToDelete}
+          onOpenChange={(open) => {
+            if (!open && !deleteCompany.isPending) {
+              setCompanyToDelete(null);
+              setConfirmNameInput("");
+            }
+          }}
+        >
+          <AlertDialogContent className="sm:max-w-[500px] p-6 text-right rounded-2xl border border-destructive/30 shadow-2xl bg-card" dir="rtl">
             <AlertDialogHeader className="space-y-3 text-right">
-              <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-600 flex items-center justify-center border border-red-500/20 shadow-sm">
+              <div className="w-12 h-12 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center border border-destructive/20 shadow-sm">
                 <Trash2 className="w-6 h-6 animate-pulse" />
               </div>
               <AlertDialogTitle className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                تأكيد حذف الشركة وفروعها
+                تأكيد حذف شركة العميل وجميع توابعها
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                هل أنت متأكد من رغبتك في حذف شركة <strong className="text-foreground">"{companyToDelete?.name}"</strong> نهائياً؟
-                <span className="text-xs text-red-600 dark:text-red-400 font-medium block mt-3 bg-red-50 dark:bg-red-950/40 p-2.5 rounded-xl border border-red-200 dark:border-red-900/40">
-                  ⚠️ تحذير: سيؤدي هذا الإجراء إلى حذف جميع الفروع والوظائف والاشتراكات وسجلات التوظيف المرتبطة بهذه الشركة نهائياً.
-                </span>
+              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed space-y-3" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                <div>
+                  أنت على وشك حذف شركة <strong className="text-foreground">"{companyToDelete?.name}"</strong> بشكل دائم لا يمكن التراجع عنه.
+                </div>
+                
+                <div className="text-xs text-destructive bg-destructive/10 p-3 rounded-xl border border-destructive/20 space-y-1.5">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <ShieldAlert className="w-4 h-4 shrink-0" />
+                    <span>تنبيه أمني وإداري بالغ الأهمية:</span>
+                  </div>
+                  <p>
+                    سيؤدي هذا الإجراء الذري (Atomic Cascade) إلى حذف الشركة مع
+                    {companyToDelete?.branchesCount ? ` جميع فروعها التابعة (${companyToDelete.branchesCount} فروع)` : " كافة سجلاتها"}،
+                    وجميع الوظائف، المتقدمين، المقابلات، العروض الوظيفية، والاشتراكات المرتبطة بها نهائياً من قاعدة البيانات.
+                  </p>
+                </div>
+
+                <div className="space-y-2 pt-2 text-right">
+                  <label className="text-xs font-bold text-foreground block">
+                    لتأكيد الحذف، اكتب اسم الشركة بالكامل في الحقل أدناه:
+                  </label>
+                  <div className="p-2 bg-muted/60 rounded-lg text-xs font-mono font-bold text-center select-all border border-border/60">
+                    {companyToDelete?.name}
+                  </div>
+                  <Input
+                    placeholder="اكتب اسم الشركة هنا للمطابقة..."
+                    value={confirmNameInput}
+                    onChange={(e) => setConfirmNameInput(e.target.value)}
+                    disabled={deleteCompany.isPending}
+                    className="text-center font-bold text-sm h-11 border-2 focus-visible:border-destructive"
+                  />
+                </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="mt-6 flex flex-row gap-2 justify-end sm:space-x-0" dir="rtl">
-              <AlertDialogCancel className="font-bold text-xs rounded-xl px-5 h-10 border-border hover:bg-muted">
+              <AlertDialogCancel
+                disabled={deleteCompany.isPending}
+                onClick={() => {
+                  setCompanyToDelete(null);
+                  setConfirmNameInput("");
+                }}
+                className="font-bold text-xs rounded-xl px-5 h-10 border-border hover:bg-muted"
+              >
                 إلغاء
               </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => {
-                  if (companyToDelete) {
-                    deleteCompany.mutate(companyToDelete.id);
+              <Button
+                disabled={
+                  confirmNameInput.trim() !== companyToDelete?.name.trim() ||
+                  deleteCompany.isPending
+                }
+                onClick={async () => {
+                  if (!companyToDelete) return;
+                  try {
+                    await deleteCompany.mutateAsync(companyToDelete.id);
                     setCompanyToDelete(null);
+                    setConfirmNameInput("");
+                  } catch (err) {
+                    console.error("Failed to delete company:", err);
                   }
                 }}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl px-5 h-10 gap-1.5 shadow-md shadow-red-600/20"
+                className="bg-destructive hover:bg-destructive/90 text-white font-bold text-xs rounded-xl px-5 h-10 gap-1.5 shadow-md shadow-destructive/20"
               >
-                <Trash2 className="w-3.5 h-3.5" />
-                تأكيد حذف الشركة
-              </AlertDialogAction>
+                {deleteCompany.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>جارٍ الحذف التتابعي...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>حذف نهائي لا رجعة فيه</span>
+                  </>
+                )}
+              </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

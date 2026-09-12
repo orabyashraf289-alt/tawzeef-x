@@ -386,19 +386,86 @@ export function useDeleteCompany() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      // 1) Delete members of this company/branch
-      await supabase.from("company_members" as any).delete().eq("company_id", id);
-      // 2) Delete company record
-      const { error } = await supabase.from("companies" as any).delete().eq("id", id);
-      if (error) throw error;
+      let rpcSuccess = false;
+      let dataResult: any = null;
+
+      // 1. Try invoking Edge Function delete-company
+      try {
+        const { data, error } = await supabase.functions.invoke("delete-company", {
+          body: { companyId: id },
+        });
+        if (!error && (data?.success || data?.deleted_company_id)) {
+          rpcSuccess = true;
+          dataResult = data;
+        } else if (error && error.message?.includes("Security restriction")) {
+          throw new Error("لا يمكن حذف الشركة المركزية للمنصة");
+        }
+      } catch (edgeErr: any) {
+        if (edgeErr.message?.includes("الشركة المركزية")) throw edgeErr;
+        console.warn("Edge function delete-company unavailable, attempting database RPC:", edgeErr);
+      }
+
+      // 2. Fallback to atomic server-side cascade deletion RPC
+      if (!rpcSuccess) {
+        const { data, error } = await supabase.rpc("delete_company_cascade" as any, {
+          target_company_id: id,
+        });
+
+        if (error) {
+          const errMsg = error.message || "";
+          if (errMsg.includes("Unauthorized") || errMsg.includes("Security Restriction")) {
+            throw new Error(errMsg);
+          }
+
+          console.warn("delete_company_cascade RPC not available or failed, using client cascade fallback:", error);
+          // Client Fallback: Delete related records in known tables, then members, then branches, then company
+          await supabase.from("jobs" as any).delete().eq("company_id", id);
+          await supabase.from("company_invitations" as any).delete().eq("company_id", id);
+          await supabase.from("company_members" as any).delete().eq("company_id", id);
+          await supabase.from("companies" as any).delete().eq("parent_company_id", id);
+          const { error: delErr } = await supabase.from("companies" as any).delete().eq("id", id);
+          if (delErr) throw delErr;
+        } else {
+          dataResult = data;
+        }
+      }
+
+      // 2. Clean up localStorage if active company was deleted
+      try {
+        const activeId = localStorage.getItem("tx_active_company_id");
+        if (activeId === id) {
+          localStorage.removeItem("tx_active_company_id");
+        }
+      } catch (err) {
+        console.warn("Failed to clear tx_active_company_id from localStorage:", err);
+      }
+
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ["all-companies"] });
       qc.invalidateQueries({ queryKey: ["company-branches"] });
       qc.invalidateQueries({ queryKey: ["my-companies"] });
-      toast({ title: "تم حذف الفرع بنجاح ✅" });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      qc.invalidateQueries({ queryKey: ["candidates"] });
+      qc.invalidateQueries({ queryKey: ["dashboard_stats"] });
+      qc.invalidateQueries({ queryKey: ["company-stats"] });
+
+      const countMsg = data?.deleted_branches_count
+        ? ` (و ${data.deleted_branches_count} فروع تابعة)`
+        : "";
+      toast({
+        title: "تم الحذف بنجاح ✅",
+        description: `تم حذف الشركة وتوابعها${countMsg} نهائياً من النظام`,
+      });
     },
-    onError: (e: Error) => toast({ title: "خطأ في الحذف", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => {
+      toast({
+        title: "تعذر إكمال الحذف",
+        description: e.message || "حدث خطأ أثناء محاولة حذف الشركة",
+        variant: "destructive",
+      });
+    },
   });
 }
 
