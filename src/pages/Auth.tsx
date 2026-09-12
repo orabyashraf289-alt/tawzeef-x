@@ -666,6 +666,96 @@ const SocialButtons = memo(function SocialButtons() {
   );
 });
 
+/* ─── Tenant Status Validation Gatekeeper ─── */
+export async function validateTenantLoginStatus(user: any): Promise<{ allowed: boolean; reason?: string }> {
+  if (!user) return { allowed: false, reason: "بيانات المستخدم غير متوفرة" };
+
+  const email = (user.email || "").toLowerCase().trim();
+  const meta = user.user_metadata || {};
+  const userRole = meta.role || meta.account_type;
+
+  // 1. Super Admin bypass (Platform Owner)
+  const isSuperAdmin =
+    email === "tx@tawzeefx.com" ||
+    email === "ctraining801@gmail.com" ||
+    userRole === "super_admin" ||
+    meta.role === "admin";
+
+  if (isSuperAdmin) {
+    return { allowed: true };
+  }
+
+  // 2. Job Seeker / Candidate bypass
+  const isCandidate =
+    userRole === "candidate" ||
+    userRole === "job_seeker" ||
+    meta.account_type === "candidate" ||
+    meta.account_type === "job_seeker";
+
+  if (isCandidate) {
+    return { allowed: true };
+  }
+
+  try {
+    // 3. Check registered memberships in companies
+    const { data: memberRows, error: memberErr } = await supabase
+      .from("company_members" as any)
+      .select("company_id, member_role, company:companies(id, name, status, is_active)")
+      .eq("user_id", user.id);
+
+    if (memberErr) {
+      console.warn("Tenant company validation query error:", memberErr);
+    }
+
+    // 4. Check owned companies (where user is owner or creator)
+    const { data: ownedCompanies, error: ownedErr } = await supabase
+      .from("companies" as any)
+      .select("id, name, status, is_active")
+      .or(`owner_user_id.eq.${user.id},user_id.eq.${user.id}`);
+
+    if (ownedErr) {
+      console.warn("Tenant owned company validation error:", ownedErr);
+    }
+
+    const matchedCompanies: any[] = [];
+    (memberRows || []).forEach((r: any) => {
+      if (r.company) matchedCompanies.push(r.company);
+    });
+    (ownedCompanies || []).forEach((c: any) => {
+      if (!matchedCompanies.some((m) => m.id === c.id)) {
+        matchedCompanies.push(c);
+      }
+    });
+
+    // CASE 1: Company deleted permanently (no company association found)
+    if (matchedCompanies.length === 0) {
+      return {
+        allowed: false,
+        reason: "تم حذف حساب هذه الشركة نهائياً من منصة Tawzeef-X، ولا يمكن تسجيل الدخول بهذا الحساب.",
+      };
+    }
+
+    // CASE 2: Company deactivated (all associated companies are inactive)
+    const hasActiveCompany = matchedCompanies.some((c: any) => {
+      const isStatusActive = !c.status || c.status === "active";
+      const isFlagActive = c.is_active !== false;
+      return isStatusActive && isFlagActive;
+    });
+
+    if (!hasActiveCompany) {
+      return {
+        allowed: false,
+        reason: "تم إيقاف حساب الشركة مؤقتاً من قِبل إدارة المنصة. يرجى التواصل مع إدارة Tawzeef-X.",
+      };
+    }
+
+    return { allowed: true };
+  } catch (err) {
+    console.error("Failed to check company status during authentication:", err);
+    return { allowed: true };
+  }
+}
+
 /* ─── Auth form ─── */
 const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; setIsLogin: (v: boolean) => void; setPendingOtp: (v: boolean) => void }) {
   const [loading, setLoading] = useState(false);
@@ -799,6 +889,33 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
         if (error) { setPendingOtp(false); logAuditEvent({ eventType: "login.failed", userEmail: normalizedEmail, details: { reason: error.message } }); throw error; }
 
+        // Tenant Company Status & Existence Gatekeeper
+        const loginUser = loginData.session?.user || loginData.user;
+        const tenantCheck = await validateTenantLoginStatus(loginUser);
+        if (!tenantCheck.allowed) {
+          await supabase.auth.signOut();
+          try {
+            localStorage.removeItem("tx_active_company_id");
+            localStorage.removeItem("tawzeef-x_trusted_device");
+            sessionStorage.removeItem("tx_welcome_video_viewed");
+            sessionStorage.removeItem("tx_show_welcome_video");
+          } catch {}
+          setPendingPassword("");
+          setPendingOtp(false);
+          setLoading(false);
+          toast({
+            title: "تم رفض تسجيل الدخول ⛔",
+            description: tenantCheck.reason,
+            variant: "destructive",
+          });
+          logAuditEvent({
+            eventType: "login.failed",
+            userEmail: normalizedEmail,
+            details: { reason: tenantCheck.reason, company_blocked: true },
+          });
+          return;
+        }
+
         const userRole = loginData.session?.user?.user_metadata?.role || loginData.session?.user?.user_metadata?.account_type;
 
         // Direct Instant Login (OTP Bypassed for instant seamless access)
@@ -866,6 +983,29 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
         password: pendingPassword,
       });
       if (loginError) throw loginError;
+
+      // Tenant Company Status & Existence Gatekeeper
+      const loginUser = loginData.session?.user || loginData.user;
+      const tenantCheck = await validateTenantLoginStatus(loginUser);
+      if (!tenantCheck.allowed) {
+        await supabase.auth.signOut();
+        try {
+          localStorage.removeItem("tx_active_company_id");
+          localStorage.removeItem("tawzeef-x_trusted_device");
+          sessionStorage.removeItem("tx_welcome_video_viewed");
+          sessionStorage.removeItem("tx_show_welcome_video");
+        } catch {}
+        setPendingPassword("");
+        setPendingOtp(false);
+        setOtpLoading(false);
+        setOtpStep(false);
+        toast({
+          title: "تم رفض تسجيل الدخول ⛔",
+          description: tenantCheck.reason,
+          variant: "destructive",
+        });
+        return;
+      }
 
       if (rememberDevice) trustDevice(otpEmail);
       setPendingPassword("");
@@ -1411,8 +1551,27 @@ export default function Auth() {
 
   useEffect(() => { setIsLogin(searchParams.get("mode") !== "signup"); }, [searchParams]);
 
-  // Don't redirect while OTP 2FA is in progress
-  if (user && !pendingOtp) {
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    if (errorParam === "company_deleted") {
+      toast({
+        title: "الحساب غير متاح ⛔",
+        description: "تم حذف حساب هذه الشركة نهائياً من منصة Tawzeef-X، ولا يمكن تسجيل الدخول بهذا الحساب.",
+        variant: "destructive",
+      });
+    } else if (errorParam === "company_inactive") {
+      toast({
+        title: "حساب الشركة موقوف ⚠️",
+        description: "تم إيقاف حساب الشركة مؤقتاً من قِبل إدارة المنصة. يرجى التواصل مع إدارة Tawzeef-X.",
+        variant: "destructive",
+      });
+    }
+  }, [searchParams]);
+
+  const hasErrorParam = !!searchParams.get("error");
+
+  // Don't redirect while OTP 2FA is in progress or if ejected due to company status error
+  if (user && !pendingOtp && !hasErrorParam) {
     const accountType = user.user_metadata?.account_type;
     return <Navigate to={accountType === "job_seeker" ? "/seeker-dashboard" : "/dashboard"} replace />;
   }
@@ -1421,7 +1580,7 @@ export default function Auth() {
     <div className="min-h-screen min-h-[100dvh] relative overflow-hidden bg-gradient-to-tr from-emerald-50/30 via-slate-50 to-cyan-50/30 text-slate-800" dir="rtl">
       <SEO
         title={isLogin ? "تسجيل الدخول | TawzeefX" : "إنشاء حساب جديد | TawzeefX"}
-        description="بوابة الدخول الموحدة لمنصة TawzeefX لإدارة الموارد البشرية والتوظيف."
+        description="بوابة الدخول الموحدة لمنصة Tawzeef-X للتوظيف والفرص الوظيفية الذكية."
         noindex={true}
       />
       {/* Styles for sweeping border gradient + off-thread hardware accelerated CSS animations */}

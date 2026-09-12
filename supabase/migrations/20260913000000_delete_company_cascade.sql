@@ -4,14 +4,16 @@
 --              Enforces Super Admin / Platform Owner permission.
 --              Protects Platform Owner company from deletion.
 --              Cascades through all dependent tables in topological order.
---              Preserves user accounts and decouples system audit trail.
+--              Purges exclusive company users from profiles and user_roles.
+--              Invalidates auth sessions and sets permanent ban on exclusive users.
+--              Decouples system audit trail.
 -- =========================================================================
 
 CREATE OR REPLACE FUNCTION public.delete_company_cascade(target_company_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, auth
 AS $$
 DECLARE
   _calling_user_id uuid;
@@ -19,10 +21,12 @@ DECLARE
   _branch_ids uuid[];
   _all_company_ids uuid[];
   _job_ids uuid[];
+  _exclusive_user_ids uuid[] := ARRAY[]::uuid[];
   _deleted_branches int := 0;
   _deleted_jobs int := 0;
   _deleted_members int := 0;
   _deleted_candidates int := 0;
+  _deleted_users int := 0;
   _result jsonb;
 BEGIN
   _calling_user_id := auth.uid();
@@ -68,7 +72,32 @@ BEGIN
   FROM public.jobs
   WHERE company_id = ANY(_all_company_ids);
 
-  -- 7. CASCADE DELETION IN STRICT TOPOLOGICAL ORDER
+  -- 7. Identify users belonging EXCLUSIVELY to this company or its branches
+  IF to_regclass('public.company_members') IS NOT NULL THEN
+    SELECT COALESCE(array_agg(user_id), ARRAY[]::uuid[]) INTO _exclusive_user_ids
+    FROM (
+      SELECT user_id
+      FROM public.company_members
+      WHERE company_id = ANY(_all_company_ids)
+      GROUP BY user_id
+      HAVING NOT EXISTS (
+        SELECT 1 FROM public.company_members cm2
+        WHERE cm2.user_id = company_members.user_id
+          AND cm2.company_id != ALL(_all_company_ids)
+      )
+    ) exclusive_users;
+  END IF;
+
+  -- Filter out Super Admins from exclusive users (safety check)
+  IF array_length(_exclusive_user_ids, 1) > 0 THEN
+    _exclusive_user_ids := ARRAY(
+      SELECT u_id FROM unnest(_exclusive_user_ids) AS u_id
+      WHERE NOT public.is_super_admin(u_id)
+    );
+    _deleted_users := COALESCE(array_length(_exclusive_user_ids, 1), 0);
+  END IF;
+
+  -- 8. CASCADE DELETION IN STRICT TOPOLOGICAL ORDER
 
   -- A. Candidate checklists
   IF to_regclass('public.candidate_checklists') IS NOT NULL THEN
@@ -164,7 +193,6 @@ BEGIN
     BEGIN
       EXECUTE 'DELETE FROM public.company_invitations WHERE branch_id = ANY($1)' USING _all_company_ids;
     EXCEPTION WHEN undefined_column THEN
-      -- branch_id column not in this version of table, ignore
       NULL;
     END;
   END IF;
@@ -182,27 +210,47 @@ BEGIN
     EXECUTE 'DELETE FROM public.subscription_upgrade_requests WHERE company_id = ANY($1)' USING _all_company_ids;
   END IF;
 
-  -- M. Company Memberships (Removes tenant access without deleting the user accounts)
+  -- M. Company Memberships
   IF to_regclass('public.company_members') IS NOT NULL THEN
     DELETE FROM public.company_members WHERE company_id = ANY(_all_company_ids);
     GET DIAGNOSTICS _deleted_members = ROW_COUNT;
   END IF;
 
-  -- N. Decouple System Audit Logs (Keep audit entries but set company_id to NULL to preserve history)
+  -- N. Clean up exclusive users from profiles, roles, and invalidate sessions
+  IF array_length(_exclusive_user_ids, 1) > 0 THEN
+    IF to_regclass('public.profiles') IS NOT NULL THEN
+      DELETE FROM public.profiles WHERE user_id = ANY(_exclusive_user_ids);
+    END IF;
+
+    IF to_regclass('public.user_roles') IS NOT NULL THEN
+      DELETE FROM public.user_roles WHERE user_id = ANY(_exclusive_user_ids);
+    END IF;
+
+    -- Invalidate sessions & apply permanent ban in auth schema if permitted
+    BEGIN
+      EXECUTE 'DELETE FROM auth.sessions WHERE user_id = ANY($1)' USING _exclusive_user_ids;
+      EXECUTE 'DELETE FROM auth.refresh_tokens WHERE user_id = ANY($1)' USING _exclusive_user_ids;
+      EXECUTE 'UPDATE auth.users SET banned_until = ''3000-01-01 00:00:00+00''::timestamptz WHERE id = ANY($1)' USING _exclusive_user_ids;
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+  END IF;
+
+  -- O. Decouple System Audit Logs (Keep audit entries but set company_id to NULL to preserve history)
   IF to_regclass('public.audit_log') IS NOT NULL THEN
     EXECUTE 'UPDATE public.audit_log SET company_id = NULL WHERE company_id = ANY($1)' USING _all_company_ids;
   END IF;
 
-  -- O. Delete child branches first (to satisfy self-referential foreign keys)
+  -- P. Delete child branches first (to satisfy self-referential foreign keys)
   IF array_length(_branch_ids, 1) > 0 THEN
     DELETE FROM public.companies WHERE id = ANY(_branch_ids);
     GET DIAGNOSTICS _deleted_branches = ROW_COUNT;
   END IF;
 
-  -- P. Delete target parent company
+  -- Q. Delete target parent company
   DELETE FROM public.companies WHERE id = target_company_id;
 
-  -- 8. Record audit trail entry for this deletion event
+  -- 9. Record audit trail entry for this deletion event
   IF to_regclass('public.audit_log') IS NOT NULL THEN
     INSERT INTO public.audit_log (
       user_id,
@@ -221,13 +269,14 @@ BEGIN
         'deleted_jobs_count', _deleted_jobs,
         'deleted_members_count', _deleted_members,
         'deleted_candidates_count', _deleted_candidates,
+        'deleted_users_count', _deleted_users,
         'timestamp', now()
       ),
       now()
     );
   END IF;
 
-  -- 9. Return structured success payload
+  -- 10. Return structured success payload
   _result := jsonb_build_object(
     'success', true,
     'deleted_company_id', target_company_id,
@@ -236,7 +285,8 @@ BEGIN
     'deleted_jobs_count', _deleted_jobs,
     'deleted_members_count', _deleted_members,
     'deleted_candidates_count', _deleted_candidates,
-    'message', 'Company and all associated resources deleted successfully'
+    'deleted_users_count', _deleted_users,
+    'message', 'Company, branches, jobs, and all exclusive users permanently deleted'
   );
 
   RETURN _result;

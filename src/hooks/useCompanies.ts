@@ -451,12 +451,15 @@ export function useDeleteCompany() {
       qc.invalidateQueries({ queryKey: ["dashboard_stats"] });
       qc.invalidateQueries({ queryKey: ["company-stats"] });
 
-      const countMsg = data?.deleted_branches_count
+      const branchesMsg = data?.deleted_branches_count
         ? ` (و ${data.deleted_branches_count} فروع تابعة)`
         : "";
+      const usersMsg = data?.deleted_users_count
+        ? ` وإلغاء حسابات ${data.deleted_users_count} مستخدم`
+        : "";
       toast({
-        title: "تم الحذف بنجاح ✅",
-        description: `تم حذف الشركة وتوابعها${countMsg} نهائياً من النظام`,
+        title: "تم الحذف النهائي بنجاح ✅",
+        description: `تم حذف الشركة وتوابعها${branchesMsg}${usersMsg} نهائياً ومنع دخول مستخدميها`,
       });
     },
     onError: (e: Error) => {
@@ -479,7 +482,12 @@ export function usePurgeOrphanedBranches() {
           body: { action: "purge_orphans" },
         });
         if (!error && data?.success) {
-          return { deletedCount: data.purged_count || branchIds.length };
+          return {
+            deletedCount: data.purged_branches_count || branchIds.length,
+            purged_branches_count: data.purged_branches_count,
+            purged_jobs_count: data.purged_jobs_count,
+            purged_users_count: data.purged_users_count,
+          };
         }
       } catch (err) {
         console.warn("delete-company purge_orphans edge function failed, falling back to direct purge:", err);
@@ -506,7 +514,7 @@ export function usePurgeOrphanedBranches() {
       }
       return { deletedCount };
     },
-    onSuccess: (res) => {
+    onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["all-companies"] });
       qc.invalidateQueries({ queryKey: ["company-branches"] });
       qc.invalidateQueries({ queryKey: ["my-companies"] });
@@ -514,9 +522,13 @@ export function usePurgeOrphanedBranches() {
       qc.invalidateQueries({ queryKey: ["candidates"] });
       qc.invalidateQueries({ queryKey: ["dashboard_stats"] });
       qc.invalidateQueries({ queryKey: ["company-stats"] });
+
+      const count = res.purged_branches_count ?? res.deletedCount;
+      const jobsMsg = res.purged_jobs_count ? ` و ${res.purged_jobs_count} وظيفة معلقة` : "";
+      const usersMsg = res.purged_users_count ? ` وتطهير ${res.purged_users_count} حسابات تابعة` : "";
       toast({
-        title: "تم تطهير الفروع المعلقة بنجاح ✅",
-        description: `تم حذف ${res.deletedCount} فرع معلق وجميع الوظائف التابعة لها نهائياً`,
+        title: "تم تطهير البيانات المعلقة بنجاح ✅",
+        description: `تم حذف ${count} فرع معلق${jobsMsg}${usersMsg} نهائياً`,
       });
     },
     onError: (e: Error) => {

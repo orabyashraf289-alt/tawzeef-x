@@ -79,6 +79,57 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     }
   }, [myCompanies, isLoading, activeCompanyIdState]);
 
+  // Real-time tenant security watchdog: if company was deleted or deactivated during active session, eject user immediately
+  useEffect(() => {
+    if (isLoading || !user?.id) return;
+
+    const email = (user?.email || "").toLowerCase().trim();
+    const isSuperAdmin =
+      email === "tx@tawzeefx.com" ||
+      email === "ctraining801@gmail.com" ||
+      user?.user_metadata?.role === "super_admin" ||
+      user?.user_metadata?.role === "admin";
+
+    const isCandidate =
+      user?.user_metadata?.role === "candidate" ||
+      user?.user_metadata?.role === "job_seeker" ||
+      user?.user_metadata?.account_type === "candidate" ||
+      user?.user_metadata?.account_type === "job_seeker";
+
+    // Super Admins, Candidates, and Onboarding flows are immune
+    if (isSuperAdmin || isCandidate) return;
+
+    const path = window.location.pathname;
+    const isPublicOrOnboarding =
+      path.startsWith("/onboarding") ||
+      path.startsWith("/auth") ||
+      path.startsWith("/portal") ||
+      path.startsWith("/agency") ||
+      path === "/";
+
+    if (isPublicOrOnboarding) return;
+
+    // 1. Company was deleted permanently
+    if (myCompanies.length === 0) {
+      console.warn("Tenant user has no active companies (company deleted). Ejecting session.");
+      localStorage.removeItem(ACTIVE_COMPANY_STORAGE_KEY);
+      supabase.auth.signOut().then(() => {
+        window.location.href = "/auth?error=company_deleted";
+      });
+      return;
+    }
+
+    // 2. Company was deactivated
+    if (activeCompany && (activeCompany.status === "inactive" || (activeCompany as any).is_active === false)) {
+      console.warn("Company is deactivated. Ejecting session.");
+      localStorage.removeItem(ACTIVE_COMPANY_STORAGE_KEY);
+      supabase.auth.signOut().then(() => {
+        window.location.href = "/auth?error=company_inactive";
+      });
+      return;
+    }
+  }, [myCompanies, isLoading, user, activeCompany]);
+
   const activeCompany = useMemo(() => {
     if (!activeCompanyIdState || myCompanies.length === 0) return null;
     return myCompanies.find((c) => c.id === activeCompanyIdState) || myCompanies[0] || null;
