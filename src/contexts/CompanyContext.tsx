@@ -63,6 +63,14 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     },
   });
 
+  // Compute activeCompany first so effects can safely reference it without TDZ ReferenceError
+  const activeCompany = useMemo(() => {
+    if (!activeCompanyIdState || myCompanies.length === 0) return null;
+    return myCompanies.find((c) => c.id === activeCompanyIdState) || myCompanies[0] || null;
+  }, [myCompanies, activeCompanyIdState]);
+
+  const activeCompanyId = activeCompany?.id || null;
+
   // Automatically select the active company if not set or invalid
   useEffect(() => {
     if (!isLoading && myCompanies.length > 0) {
@@ -129,13 +137,6 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       return;
     }
   }, [myCompanies, isLoading, user, activeCompany]);
-
-  const activeCompany = useMemo(() => {
-    if (!activeCompanyIdState || myCompanies.length === 0) return null;
-    return myCompanies.find((c) => c.id === activeCompanyIdState) || myCompanies[0] || null;
-  }, [myCompanies, activeCompanyIdState]);
-
-  const activeCompanyId = activeCompany?.id || null;
 
   // Query branches of active company if it is a parent company
   const isValidTargetCompanyId = !!activeCompanyId && activeCompanyId !== "undefined" && activeCompanyId !== "null";
