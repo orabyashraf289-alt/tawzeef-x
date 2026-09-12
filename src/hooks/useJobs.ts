@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { generateAndStoreJobQR } from "@/lib/qrCodeService";
 import { loadBrandSettings } from "@/lib/posterBrandSettings";
+import { notifyGoogleIndexing } from "@/lib/googleIndexingService";
 
 export interface JobPayload {
   user_id?: string;
@@ -244,6 +245,14 @@ export function useAddJob() {
           userId: user!.id,
           brand,
         }).catch((err) => console.warn("QR auto-generation failed:", err));
+
+        // Notify Google Indexing API server-side endpoint (URL_UPDATED) — non-blocking
+        notifyGoogleIndexing({
+          jobId: data.id,
+          action: "URL_UPDATED",
+          jobTitle: data.title,
+          status: data.status || "نشطة",
+        }).catch((err) => console.warn("Google Indexing add job trigger notice:", err));
       }
 
       return data;
@@ -304,6 +313,19 @@ export function useUpdateJob() {
       }
 
       if (error) throw error;
+
+      // Notify Google Indexing API server-side endpoint — non-blocking
+      if (data?.id) {
+        const status = (data.status || "نشطة").trim().toLowerCase();
+        const isActive = status === "نشطة" || status === "active";
+        notifyGoogleIndexing({
+          jobId: data.id,
+          action: isActive ? "URL_UPDATED" : "URL_DELETED",
+          jobTitle: data.title,
+          status: data.status,
+        }).catch((err) => console.warn("Google Indexing update job trigger notice:", err));
+      }
+
       return data;
     },
     onSuccess: () => {

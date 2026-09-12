@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { getApplyUrl, getOgApplyUrl } from "@/lib/getPublicUrl";
+import { notifyGoogleIndexing } from "@/lib/googleIndexingService";
 import { useCanPostJob } from "@/hooks/useSubscription";
 import { stagger, fadeUp, cardHover } from "@/lib/motion";
 import { useI18n } from "@/contexts/I18nContext";
@@ -148,6 +149,16 @@ export default function Jobs() {
       const { error } = await supabase.from("jobs").update({ status: newStatus }).in("id", selectedJobs);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      
+      // Notify Google Indexing API for each job — non-blocking
+      selectedJobs.forEach((jId) => {
+        notifyGoogleIndexing({
+          jobId: jId,
+          action: restore ? "URL_UPDATED" : "URL_DELETED",
+          status: newStatus,
+        }).catch(() => {});
+      });
+
       setSelectedJobs([]);
       toast({ title: `تمت عملية ال${actionText} بنجاح ✅`, description: `تم تحديث حالة ${selectedJobs.length} وظيفة.` });
     } catch (e: any) {
@@ -163,6 +174,15 @@ export default function Jobs() {
       const { error } = await supabase.from("jobs").delete().in("id", selectedJobs);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
+
+      // Notify Google Indexing API (URL_DELETED) for deleted jobs — non-blocking
+      selectedJobs.forEach((jId) => {
+        notifyGoogleIndexing({
+          jobId: jId,
+          action: "URL_DELETED",
+        }).catch(() => {});
+      });
+
       setSelectedJobs([]);
       toast({ title: "تم الحذف بنجاح ✅", description: "تم إزالة الوظائف المحددة نهائياً." });
     } catch (e: any) {
@@ -289,6 +309,12 @@ export default function Jobs() {
       toast({ title: t("common.error", "خطأ"), description: error.message, variant: "destructive" });
     } else {
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      // Notify Google Indexing API — non-blocking
+      notifyGoogleIndexing({
+        jobId,
+        action: restore ? "URL_UPDATED" : "URL_DELETED",
+        status: newStatus,
+      }).catch(() => {});
       toast({ title: restore ? t("jobs.restored_toast") : t("jobs.archived_toast") });
     }
   };
@@ -301,6 +327,12 @@ export default function Jobs() {
       toast({ title: t("common.error", "خطأ"), description: error.message, variant: "destructive" });
     } else {
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      // Notify Google Indexing API (URL_DELETED) — non-blocking
+      notifyGoogleIndexing({
+        jobId,
+        action: "URL_DELETED",
+        jobTitle,
+      }).catch(() => {});
       toast({ title: t("jobs.deleted_toast") });
     }
   };

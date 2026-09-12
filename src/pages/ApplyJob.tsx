@@ -5,6 +5,8 @@ import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import { validateFile } from "@/lib/fileValidation";
 import { extractTextFromPDF, extractTextFromDocx } from "@/lib/fileParser";
 import { parseJobCustomSpecs } from "@/lib/jobSpecsHelper";
+import { getJobAvailability } from "@/lib/jobSeoHelper";
+import { notifyGoogleIndexing } from "@/lib/googleIndexingService";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { SEO } from "@/components/marketing/SEO";
@@ -122,6 +124,19 @@ export default function ApplyJob() {
   }, [id]);
 
   const { cleanDescription, specs, hasSpecs } = useMemo(() => parseJobCustomSpecs(job), [job]);
+  const jobAvailability = useMemo(() => getJobAvailability(job), [job]);
+
+  // If page is loaded for an expired or closed job, trigger URL_DELETED to Google Indexing API in background
+  useEffect(() => {
+    if (!loading && job && !jobAvailability.isOpen && id) {
+      notifyGoogleIndexing({
+        jobId: id,
+        action: "URL_DELETED",
+        jobTitle: job.title,
+        status: job.status,
+      }).catch(() => {});
+    }
+  }, [loading, job, jobAvailability.isOpen, id]);
 
   const schoolDisplayName = useMemo(() => {
     if ((job as any)?.companies?.name) return (job as any).companies.name;
@@ -157,7 +172,8 @@ export default function ApplyJob() {
 
   // Google Jobs Structured Data (JobPosting) - Strict Google Search Central Compliance
   const jobPostingJsonLd = useMemo(() => {
-    if (!job || !job.title) return undefined;
+    // Only generate JobPosting structured data if the job is active and NOT expired
+    if (!job || !job.title || !jobAvailability.isOpen || jobAvailability.isExpired) return undefined;
     const employmentTypeMap: Record<string, string> = {
       "دوام كامل": "FULL_TIME",
       "دوام جزئي": "PART_TIME",
@@ -168,8 +184,7 @@ export default function ApplyJob() {
     };
 
     const datePosted = job.created_at ? new Date(job.created_at).toISOString() : new Date().toISOString();
-    const postedTime = new Date(datePosted).getTime();
-    const validThrough = new Date(postedTime + 90 * 24 * 60 * 60 * 1000).toISOString();
+    const validThrough = jobAvailability.validThroughIso;
 
     const plainDesc = cleanDescription || job.description || `وظيفة ${job.title} لدى ${schoolDisplayName}`;
     const loc = job.location || "جدة، المملكة العربية السعودية";
@@ -461,11 +476,11 @@ export default function ApplyJob() {
     );
   }
 
-  if (!job) {
+  if (!job || !jobAvailability.isOpen) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col font-sans" dir="rtl">
         <SEO
-          title="الشاغر الوظيفي غير متاح | TawzeefX"
+          title={`${job?.title ? `الشاغر الوظيفي (${job.title}) مغلق` : "الشاغر الوظيفي غير متاح"} | TawzeefX`}
           description="عذراً، هذا الشاغر الوظيفي غير متاح حالياً أو انتهت فترة التقديم عليه."
           canonical={`https://www.tawzeefx.com/apply/${id}`}
           noindex={true}
@@ -496,13 +511,17 @@ export default function ApplyJob() {
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
               <Briefcase className="w-8 h-8" />
             </div>
-            <h2 className="text-xl font-bold">الشاغر الوظيفي غير متاح</h2>
+            <h2 className="text-xl font-bold">
+              {jobAvailability.isExpired ? "انتهت مهلة التقديم على هذا الشاغر" : "الشاغر الوظيفي غير متاح"}
+            </h2>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              قد يكون هذا الشاغر قد تم إغلاقه أو أن رابط التقديم غير صحيح. يمكنك تصفح الشواغر المتاحة حالياً والتقديم عليها مباشرة.
+              {jobAvailability.isExpired
+                ? "عذراً، انتهت مهلة استقبال طلبات التقديم لهذه الوظيفة. ندعوك لاستعراض الوظائف النشطة والتقديم عليها مباشرة."
+                : "قد يكون هذا الشاغر قد تم إغلاقه أو أرشفته. يمكنك تصفح الشواغر المتاحة حالياً والتقديم عليها مباشرة."}
             </p>
             <Link to="/careers">
               <Button className="mt-2 text-xs font-bold gap-2">
-                <span>تصفح الوظائف الشاغرة</span>
+                <span>تصفح الوظائف الشاغرة المتاحة</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </Link>
@@ -532,7 +551,7 @@ export default function ApplyJob() {
         description={`قدم الآن على شاغر ${job?.title || "وظيفة"} لدى ${schoolDisplayName} عبر منصة TawzeefX مع التقييم الذكي اللحظي.`}
         canonical={`https://www.tawzeefx.com/apply/${id}`}
         jsonLd={jobPostingJsonLd}
-        noindex={job?.status !== undefined && job?.status !== "نشطة" && job?.status !== "active"}
+        noindex={!jobAvailability.isOpen}
       />
 
       {/* Top Header App Bar */}

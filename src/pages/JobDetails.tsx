@@ -25,6 +25,7 @@ import { toast } from "@/hooks/use-toast";
 import { SEO } from "@/components/marketing/SEO";
 import ShareJobDialog from "@/components/ShareJobDialog";
 import { getApplyUrl, getOgApplyUrl } from "@/lib/getPublicUrl";
+import { notifyGoogleIndexing } from "@/lib/googleIndexingService";
 import { useScreenPermissions } from "@/hooks/useScreenPermissions";
 import { useAssessments } from "@/hooks/useQuestionBank";
 import { useAuth } from "@/contexts/AuthContext";
@@ -287,6 +288,12 @@ export default function JobDetails() {
                     const { error } = await supabase.from("jobs").delete().eq("id", job.id);
                     if (error) { toast({ title: "خطأ", description: error.message, variant: "destructive" }); return; }
                     queryClient.invalidateQueries({ queryKey: ["jobs"] });
+                    // Notify Google Indexing API (URL_DELETED) — non-blocking
+                    notifyGoogleIndexing({
+                      jobId: job.id,
+                      action: "URL_DELETED",
+                      jobTitle: job.title,
+                    }).catch(() => {});
                     toast({ title: "تم حذف الشاغر 🗑️" });
                     navigate("/jobs");
                   }}>
