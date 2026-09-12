@@ -1,21 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "../_shared/rateLimiter.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-function json(body: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-function handledFailure(error: string, code: string, extra: Record<string, unknown> = {}) {
-  return json({ success: false, error, code, ...extra }, 200);
-}
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -27,11 +12,21 @@ async function sha256(input: string) {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-    // Rate limit: 5 requests per minute per IP (brute-force OTP protection)
-    const { allowed } = checkRateLimit(req, 5, 60_000);
-    if (!allowed) return rateLimitResponse(corsHeaders);
+  const json = (body: Record<string, unknown>, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
+  const handledFailure = (error: string, code: string, extra: Record<string, unknown> = {}) =>
+    json({ success: false, error, code, ...extra }, 200);
+
+  // Rate limit: 5 requests per minute per IP (brute-force OTP protection)
+  const { allowed } = checkRateLimit(req, 5, 60_000);
+  if (!allowed) return rateLimitResponse(corsHeaders);
 
   try {
     const { email, code } = await req.json();

@@ -667,94 +667,55 @@ const SocialButtons = memo(function SocialButtons() {
 });
 
 /* ─── Tenant Status Validation Gatekeeper ─── */
-export async function validateTenantLoginStatus(user: any): Promise<{ allowed: boolean; reason?: string }> {
-  if (!user) return { allowed: false, reason: "بيانات المستخدم غير متوفرة" };
-
-  const email = (user.email || "").toLowerCase().trim();
-  const meta = user.user_metadata || {};
-  const userRole = meta.role || meta.account_type;
-
-  // 1. Super Admin bypass (Platform Owner)
-  const isSuperAdmin =
-    email === "tx@tawzeefx.com" ||
-    email === "ctraining801@gmail.com" ||
-    userRole === "super_admin" ||
-    meta.role === "admin";
-
-  if (isSuperAdmin) {
-    return { allowed: true };
-  }
-
-  // 2. Job Seeker / Candidate bypass
-  const isCandidate =
-    userRole === "candidate" ||
-    userRole === "job_seeker" ||
-    meta.account_type === "candidate" ||
-    meta.account_type === "job_seeker";
-
-  if (isCandidate) {
-    return { allowed: true };
-  }
-
+export async function checkCompanyStatus(user: any): Promise<{ allowed: boolean; reason?: string }> {
   try {
-    // 3. Check registered memberships in companies
-    const { data: memberRows, error: memberErr } = await supabase
-      .from("company_members" as any)
-      .select("company_id, member_role, company:companies(id, name, status, is_active)")
-      .eq("user_id", user.id);
-
-    if (memberErr) {
-      console.warn("Tenant company validation query error:", memberErr);
-    }
-
-    // 4. Check owned companies (where user is owner or creator)
-    const { data: ownedCompanies, error: ownedErr } = await supabase
-      .from("companies" as any)
-      .select("id, name, status, is_active")
-      .or(`owner_user_id.eq.${user.id},user_id.eq.${user.id}`);
-
-    if (ownedErr) {
-      console.warn("Tenant owned company validation error:", ownedErr);
-    }
-
-    const matchedCompanies: any[] = [];
-    (memberRows || []).forEach((r: any) => {
-      if (r.company) matchedCompanies.push(r.company);
-    });
-    (ownedCompanies || []).forEach((c: any) => {
-      if (!matchedCompanies.some((m) => m.id === c.id)) {
-        matchedCompanies.push(c);
-      }
-    });
-
-    // CASE 1: Company deleted permanently (no company association found)
-    if (matchedCompanies.length === 0) {
+    // Single server-side source of truth: validate_tenant_status RPC
+    const { data, error } = await supabase.rpc("validate_tenant_status");
+    if (error) {
+      console.error("Server-side tenant validation RPC error:", error);
+      // FAIL CLOSED: Never allow login on security validation error
       return {
         allowed: false,
-        reason: "تم حذف حساب هذه الشركة نهائياً من منصة Tawzeef-X، ولا يمكن تسجيل الدخول بهذا الحساب.",
+        reason: "فشل التحقق الأمني من حالة الحساب والمنظمة. يرجى المحاولة لاحقاً أو التواصل مع الدعم الفني.",
       };
     }
 
-    // CASE 2: Company deactivated (all associated companies are inactive)
-    const hasActiveCompany = matchedCompanies.some((c: any) => {
-      const isStatusActive = !c.status || c.status === "active";
-      const isFlagActive = c.is_active !== false;
-      return isStatusActive && isFlagActive;
-    });
+    const res = data as any;
+    if (!res || res.access_state !== "ALLOWED") {
+      const reasonMap: Record<string, string> = {
+        COMPANY_SUSPENDED: "تم إيقاف حساب الشركة مؤقتاً من قِبل إدارة المنصة. يرجى التواصل مع إدارة Tawzeef-X.",
+        COMPANY_INACTIVE: "تم تعطيل حساب الشركة. يرجى التواصل مع مسؤول النظام.",
+        COMPANY_DELETING: "حساب الشركة قيد الحذف النهائي ولا يمكن الوصول إليه.",
+        COMPANY_DELETED: "تم حذف حساب هذه الشركة نهائياً من منصة Tawzeef-X، ولا يمكن تسجيل الدخول بهذا الحساب.",
+        COMPANY_DELETE_FAILED: "حساب الشركة غير متاح حالياً بسبب إجراءات صيانة أمنية.",
+        COMPANY_BLOCKED: "تم حظر حساب الشركة. يرجى مراجعة إدارة Tawzeef-X.",
+        COMPANY_NOT_FOUND: "لم يتم العثور على المنظمة التابع لها هذا الحساب أو تم حذفها نهائياً.",
+        NO_COMPANY_MEMBERSHIP: "تم حذف حساب الشركة نهائياً من منصة Tawzeef-X، ولم يعد هذا الحساب مرتبطاً بأي منظمة نشطة.",
+        NOT_COMPANY_MEMBER: "هذا الحساب غير مخول بالوصول إلى الشركة المحددة.",
+        UNAUTHENTICATED: "جلسة المستخدم غير صالحة.",
+      };
 
-    if (!hasActiveCompany) {
+      const denialReason = (res?.denial_reason as string) || "";
+      const message = reasonMap[denialReason] || "تم رفض تسجيل الدخول بناءً على سياسات التحقق الأمني للشركات.";
+
       return {
         allowed: false,
-        reason: "تم إيقاف حساب الشركة مؤقتاً من قِبل إدارة المنصة. يرجى التواصل مع إدارة Tawzeef-X.",
+        reason: message,
       };
     }
 
     return { allowed: true };
   } catch (err) {
-    console.error("Failed to check company status during authentication:", err);
-    return { allowed: true };
+    console.error("Critical error during server-side tenant validation (fail-closed):", err);
+    // FAIL CLOSED: Strictly deny on unexpected exceptions
+    return {
+      allowed: false,
+      reason: "حدث خطأ أمني غير متوقع أثناء التحقق من حالة الحساب. تم رفض الدخول لحماية البيانات.",
+    };
   }
 }
+
+export const validateTenantLoginStatus = checkCompanyStatus;
 
 /* ─── Auth form ─── */
 const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; setIsLogin: (v: boolean) => void; setPendingOtp: (v: boolean) => void }) {

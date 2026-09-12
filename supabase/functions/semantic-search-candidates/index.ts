@@ -2,12 +2,7 @@
 // Computes cosine similarity in-memory; caches embeddings on candidates table.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { getExtendedCorsHeaders } from "../_shared/cors.ts";
 
 const EMBED_MODEL = "google/gemini-2.0-flash";
 
@@ -51,6 +46,7 @@ function cosine(a: number[], b: number[]): number {
 }
 
 serve(async (req) => {
+  const corsHeaders = getExtendedCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {

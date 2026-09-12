@@ -1,48 +1,27 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useUserRole, type AppRole } from "@/hooks/useUserRole";
+import { useUserRole } from "@/hooks/useUserRole";
+import {
+  type PermissionRow,
+  evaluateScreenAccess,
+  evaluateActionPermission,
+  SCREEN_PERMISSIONS,
+  PUBLIC_ROUTES,
+  PLATFORM_ADMIN_ROUTES,
+} from "@/lib/permissionsRegistry";
 
-export interface PermissionRow {
-  permission_key: string;
-  description: string;
-  admin: boolean;
-  recruiter: boolean;
-  reviewer: boolean;
-}
+export type { PermissionRow };
 
-// Map route paths to permission keys
-const ROUTE_PERMISSION_MAP: Record<string, string> = {
-  "/dashboard": "screen.dashboard",
-  "/jobs": "screen.jobs",
-  "/candidates": "screen.candidates",
-  "/pipeline": "screen.pipeline",
-  "/interviews": "screen.interviews",
-  "/offers": "screen.offers",
-  "/converted-orders": "screen.converted_orders",
-  "/reports": "screen.reports",
-  "/hiring-plan": "screen.hiring_plan",
-  "/notifications": "screen.notifications",
-  "/ai-assistant": "screen.ai_assistant",
-  "/talent-pool": "screen.talent_pool",
-  "/library": "screen.library",
-  "/system-library": "screen.library",
-  "/team": "screen.team",
-  "/audit-log": "screen.audit_log",
-  "/tutorial": "screen.tutorial",
-  "/guide": "screen.tutorial",
-  "/system-guide": "screen.tutorial",
-  "/help": "screen.tutorial",
-  "/settings": "screen.settings",
-  "/roadmap": "screen.roadmap",
-  "/tasks": "screen.tasks",
-  "/task-board": "screen.tasks",
-  "/evaluation": "screen.evaluation",
-  "/performance-evaluation": "screen.evaluation",
-};
+// Backward-compatibility export of route maps
+export const ROUTE_PERMISSION_MAP: Record<string, string> = Object.entries(
+  SCREEN_PERMISSIONS
+).reduce((acc, [path, cfg]) => {
+  acc[path] = cfg.key;
+  return acc;
+}, {} as Record<string, string>);
 
-// Sub-routes map to parent screen permission
-const SUB_ROUTE_MAP: Record<string, string> = {
+export const SUB_ROUTE_MAP: Record<string, string> = {
   "/jobs/:id": "screen.jobs",
   "/candidates/:id": "screen.candidates",
 };
@@ -61,9 +40,9 @@ export function useAllPermissions() {
       return (data as any[]).map((d: any) => ({
         permission_key: d.permission_key,
         description: d.description || "",
-        admin: d.admin,
-        recruiter: d.recruiter,
-        reviewer: d.reviewer,
+        admin: Boolean(d.admin),
+        recruiter: Boolean(d.recruiter),
+        reviewer: Boolean(d.reviewer),
       })) as PermissionRow[];
     },
     enabled: !!user,
@@ -72,41 +51,43 @@ export function useAllPermissions() {
   });
 }
 
+/**
+ * Hook for screen and action permissions implementing strict DENY-BY-DEFAULT
+ */
 export function useScreenPermissions() {
-  const { role, isSuperAdmin } = useUserRole();
-  const { data: permissions, isLoading } = useAllPermissions();
+  const { role, isSuperAdmin, isPlatformSuperAdmin, isLoading: roleLoading } = useUserRole();
+  const { data: permissions, isLoading: permLoading, isError } = useAllPermissions();
+
+  const isLoading = roleLoading || permLoading;
 
   const hasScreenAccess = (path: string): boolean => {
-    if (isSuperAdmin) return true; // Super Admin has unhindered access to 100% of all screens
-    if (role === "admin") return true; // Admin has full default access to company screens
-
-    if (!permissions) return false;
-
-    const permKey = ROUTE_PERMISSION_MAP[path] || SUB_ROUTE_MAP[path];
-    if (!permKey) return true; // Unknown routes are accessible
-
-    const perm = permissions.find(p => p.permission_key === permKey);
-    if (!perm) return true; // If no permission row, allow access
-
-    const roleKey = role as "admin" | "recruiter" | "reviewer";
-    return perm[roleKey] ?? false;
+    return evaluateScreenAccess({
+      pathname: path,
+      role,
+      isPlatformSuperAdmin: isPlatformSuperAdmin ?? isSuperAdmin,
+      isCandidate: role === "job_seeker",
+      permissions,
+      isLoading,
+      isError,
+    });
   };
 
   const hasActionPermission = (actionKey: string): boolean => {
-    if (isSuperAdmin || role === "admin") return true;
-    if (!permissions) return false;
-    const perm = permissions.find(p => p.permission_key === actionKey);
-    if (!perm) return true;
-    const roleKey = role as "admin" | "recruiter" | "reviewer";
-    return perm[roleKey] ?? false;
+    if (isLoading) return false; // Fail-closed while loading
+    return evaluateActionPermission({
+      actionKey,
+      role,
+      isPlatformSuperAdmin: isPlatformSuperAdmin ?? isSuperAdmin,
+      permissions,
+    });
   };
 
   const getScreenPermissions = () => {
-    return (permissions || []).filter(p => p.permission_key.startsWith("screen."));
+    return (permissions || []).filter((p) => p.permission_key.startsWith("screen."));
   };
 
   const getActionPermissions = () => {
-    return (permissions || []).filter(p => p.permission_key.startsWith("action."));
+    return (permissions || []).filter((p) => p.permission_key.startsWith("action."));
   };
 
   return {
@@ -119,5 +100,3 @@ export function useScreenPermissions() {
     role,
   };
 }
-
-export { ROUTE_PERMISSION_MAP, SUB_ROUTE_MAP };

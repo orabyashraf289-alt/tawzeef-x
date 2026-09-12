@@ -91,6 +91,48 @@ export async function deleteCompanyPermanently(companyId: string): Promise<Compa
   return result!;
 }
 
+export interface CompanyDeletionDryRunResult {
+  success: boolean;
+  dryRun: true;
+  summary: {
+    companyId: string;
+    companyName: string;
+    status: string;
+    branchesCount: number;
+    branchesList: string[];
+    jobsCount: number;
+    applicationsCount: number;
+    candidatesCount: number;
+    interviewsCount: number;
+    exclusiveUsersCount: number;
+    exclusiveUsersList: string[];
+    estimatedFilesCount: number;
+  };
+}
+
+/**
+ * Dry Run preview of permanent deletion - shows exact counts of resources
+ * that will be deleted WITHOUT modifying any data.
+ */
+export async function previewCompanyDeletion(companyId: string): Promise<CompanyDeletionDryRunResult> {
+  if (!companyId || companyId.trim() === "") {
+    throw new Error("Target company ID is required");
+  }
+
+  const { data, error } = await supabase.functions.invoke("delete-company", {
+    body: {
+      action: "dry_run",
+      companyId,
+    },
+  });
+
+  if (error || !data?.success) {
+    throw new Error(error?.message || data?.error || "فشل إجراء المعاينة المسبقة لحذف الشركة");
+  }
+
+  return data as CompanyDeletionDryRunResult;
+}
+
 /**
  * Deactivate Company Service (Preserves all data, blocks login)
  */

@@ -6,6 +6,8 @@ import { useScreenPermissions } from "@/hooks/useScreenPermissions";
 import { PageSkeleton } from "@/components/Skeletons";
 import Unauthorized from "@/pages/Unauthorized";
 
+import { isPlatformAdminRoute } from "@/lib/permissionsRegistry";
+
 interface RoleProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: AppRole[];
@@ -15,7 +17,7 @@ interface RoleProtectedRouteProps {
 
 export default function RoleProtectedRoute({ children, allowedRoles, superAdminOnly, screenPath }: RoleProtectedRouteProps) {
   const { user, loading } = useAuth();
-  const { role, isSuperAdmin, isLoading: roleLoading } = useUserRole();
+  const { role, isSuperAdmin, isPlatformSuperAdmin, isLoading: roleLoading } = useUserRole();
   const { hasScreenAccess, isLoading: permLoading } = useScreenPermissions();
   const location = useLocation();
 
@@ -32,8 +34,10 @@ export default function RoleProtectedRoute({ children, allowedRoles, superAdminO
   if (loading || roleLoading || permLoading) return <PageSkeleton />;
   if (!user) return <Navigate to="/auth" replace />;
 
-  // 1) Super Admin Only Check
-  if (superAdminOnly && !isSuperAdmin) {
+  const effectiveSuperAdmin = isPlatformSuperAdmin ?? isSuperAdmin;
+
+  // 1) Platform Super Admin Route / Super Admin Only Check (FAIL CLOSED)
+  if ((superAdminOnly || isPlatformAdminRoute(location.pathname)) && !effectiveSuperAdmin) {
     return <Unauthorized />;
   }
 

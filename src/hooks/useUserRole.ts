@@ -48,17 +48,36 @@ export function useUserRole() {
     enabled: !!user,
   });
 
-  const email = user?.email?.toLowerCase() || "";
-  const isSuperAdmin = email === "tx@tawzeefx.com" || email === "ctraining801@gmail.com" || user?.user_metadata?.role === "super_admin";
+  // Server-side single source of truth for platform super admin (public.platform_roles)
+  const superAdminQuery = useQuery({
+    queryKey: ["is-platform-super-admin", user?.id],
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    queryFn: async () => {
+      if (!user) return false;
+      const { data, error } = await supabase.rpc("is_super_admin", { _user_id: user.id });
+      if (error) {
+        console.error("Failed to query is_super_admin RPC (fail-closed):", error);
+        return false; // FAIL CLOSED
+      }
+      return Boolean(data);
+    },
+    enabled: !!user,
+  });
+
+  const isPlatformSuperAdmin = superAdminQuery.data === true;
+  const isTenantAdmin = query.data === "admin";
 
   return {
     role: (query.data as AppRole) || "recruiter",
-    isAdmin: query.data === "admin",
-    isSuperAdmin,
+    isAdmin: isTenantAdmin,
+    isTenantAdmin,
+    isSuperAdmin: isPlatformSuperAdmin,
+    isPlatformSuperAdmin,
     isRecruiter: query.data === "recruiter",
     isReviewer: query.data === "reviewer",
     isJobSeeker: query.data === "job_seeker",
-    isLoading: query.isLoading,
+    isLoading: query.isLoading || superAdminQuery.isLoading,
   };
 }
 

@@ -87,16 +87,21 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     }
   }, [myCompanies, isLoading, activeCompanyIdState]);
 
-  // Real-time tenant security watchdog: if company was deleted or deactivated during active session, eject user immediately
+  // Server-side check for platform super admin
+  const { data: isPlatformSuperAdmin = false } = useQuery({
+    queryKey: ["platform-super-admin-watchdog", user?.id],
+    staleTime: 10 * 60 * 1000,
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("is_super_admin", { _user_id: user!.id });
+      if (error) return false;
+      return Boolean(data);
+    },
+  });
+
+  // Real-time tenant security watchdog: if company was deleted or non-active, eject user immediately (FAIL-CLOSED)
   useEffect(() => {
     if (isLoading || !user?.id) return;
-
-    const email = (user?.email || "").toLowerCase().trim();
-    const isSuperAdmin =
-      email === "tx@tawzeefx.com" ||
-      email === "ctraining801@gmail.com" ||
-      user?.user_metadata?.role === "super_admin" ||
-      user?.user_metadata?.role === "admin";
 
     const isCandidate =
       user?.user_metadata?.role === "candidate" ||
@@ -104,8 +109,8 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       user?.user_metadata?.account_type === "candidate" ||
       user?.user_metadata?.account_type === "job_seeker";
 
-    // Super Admins, Candidates, and Onboarding flows are immune
-    if (isSuperAdmin || isCandidate) return;
+    // Verified Platform Super Admins and Candidates are immune
+    if (isPlatformSuperAdmin || isCandidate) return;
 
     const path = window.location.pathname;
     const isPublicOrOnboarding =
@@ -127,16 +132,16 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // 2. Company was deactivated
-    if (activeCompany && (activeCompany.status === "inactive" || (activeCompany as any).is_active === false)) {
-      console.warn("Company is deactivated. Ejecting session.");
+    // 2. Company was deactivated, suspended, or in deleting state (FAIL-CLOSED)
+    if (activeCompany && (activeCompany.status !== "active" || (activeCompany as any).is_active === false)) {
+      console.warn(`Company status is '${activeCompany.status}'. Ejecting session.`);
       localStorage.removeItem(ACTIVE_COMPANY_STORAGE_KEY);
       supabase.auth.signOut().then(() => {
-        window.location.href = "/auth?error=company_inactive";
+        window.location.href = `/auth?error=company_${activeCompany.status}`;
       });
       return;
     }
-  }, [myCompanies, isLoading, user, activeCompany]);
+  }, [myCompanies, isLoading, user, activeCompany, isPlatformSuperAdmin]);
 
   // Query branches of active company if it is a parent company
   const isValidTargetCompanyId = !!activeCompanyId && activeCompanyId !== "undefined" && activeCompanyId !== "null";

@@ -49,16 +49,16 @@ export async function validateTenantRequest(
     };
   }
 
-  const email = (user.email || "").toLowerCase().trim();
-  const meta = user.user_metadata || {};
-  const userRole = meta.role || meta.account_type;
+  const adminClient = createClient(supabaseUrl, serviceKey);
 
-  // 2. Super Admin Bypass (Platform Owner)
-  const isSuperAdmin =
-    email === "tx@tawzeefx.com" ||
-    email === "ctraining801@gmail.com" ||
-    userRole === "super_admin" ||
-    meta.role === "admin";
+  // 2. Platform Super Admin Check via public.platform_roles (Single Source of Truth)
+  const { data: platformRole } = await adminClient
+    .from("platform_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const isSuperAdmin = platformRole?.role === "super_admin";
 
   if (isSuperAdmin) {
     return {
@@ -70,10 +70,17 @@ export async function validateTenantRequest(
     };
   }
 
-  // 3. Candidate / Job Seeker Bypass
+  // 3. Candidate / Job Seeker Role Check (from user_roles or metadata)
+  const { data: userRoleRecord } = await adminClient
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
   const isCandidate =
-    userRole === "candidate" ||
-    userRole === "job_seeker" ||
+    userRoleRecord?.role === "job_seeker" ||
+    meta.role === "candidate" ||
+    meta.role === "job_seeker" ||
     meta.account_type === "candidate" ||
     meta.account_type === "job_seeker";
 
@@ -84,9 +91,6 @@ export async function validateTenantRequest(
       isCandidate: true,
     };
   }
-
-  // 4. Tenant User Authorization with Service Role
-  const adminClient = createClient(supabaseUrl, serviceKey);
 
   // If a specific company is requested in the query / body / header
   const companyToCheck = targetCompanyId || req.headers.get("X-Company-ID") || undefined;
@@ -108,12 +112,12 @@ export async function validateTenantRequest(
       };
     }
 
-    if (company.status === "inactive" || company.status === "suspended" || company.status === "deleting") {
+    if (company.status !== "active") {
       return {
         authorized: false,
         status: 403,
-        error: "Tenant company is inactive or suspended",
-        code: "COMPANY_INACTIVE",
+        error: `Tenant company is ${company.status}`,
+        code: `COMPANY_${(company.status || "inactive").toUpperCase()}`,
       };
     }
 

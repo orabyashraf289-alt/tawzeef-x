@@ -18,6 +18,8 @@ export interface GoogleIndexingResult {
   error?: string;
 }
 
+import { supabase } from "@/integrations/supabase/client";
+
 export async function notifyGoogleIndexing({
   jobId,
   action,
@@ -41,11 +43,23 @@ export async function notifyGoogleIndexing({
 
   try {
     const endpoint = "/api/google-indexing";
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+    } catch {
+      // Continue if session fetch fails
+    }
+
     const res = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
         jobId,
         action,

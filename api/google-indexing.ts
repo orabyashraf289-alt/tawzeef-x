@@ -4,6 +4,23 @@ import { createClient } from "@supabase/supabase-js";
 // In-memory token cache for warm serverless function instances
 let cachedToken: { accessToken: string; expiresAt: number } | null = null;
 
+// Debouncing / Idempotency cache: Map of `${jobId}:${action}` -> timestamp
+const debounceMap = new Map<string, number>();
+const DEBOUNCE_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+// Rate Limiter: Map of IP/User -> array of timestamps
+const rateLimitMap = new Map<string, number[]>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 30; // 30 req/min
+
+const ALLOWED_ORIGINS = [
+  "https://www.tawzeefx.com",
+  "https://tawzeefx.com",
+  "https://tx-hire-buddy-22-main.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
 const APP_BASE_URL = (
   process.env.APP_BASE_URL ||
   process.env.VITE_APP_BASE_URL ||
@@ -28,7 +45,6 @@ function createServiceAccountJwt(email: string, rawPrivateKey: string): string {
   const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const unsignedToken = `${encodedHeader}.${encodedPayload}`;
 
-  // Handle various environment variable formats (escaped \n, surrounding quotes)
   let cleanKey = rawPrivateKey.trim();
   if (cleanKey.startsWith('"') && cleanKey.endsWith('"')) {
     cleanKey = cleanKey.slice(1, -1);
@@ -99,33 +115,31 @@ async function publishToGoogleIndexing(
       });
 
       const body = await res.json().catch(() => ({}));
+      if (res.ok) {
+        return { status: res.status, body };
+      }
 
-      // If status is rate-limited (429) or transient server error (5xx), retry
-      if ((res.status === 429 || res.status >= 500) && attempt < maxRetries) {
+      if (res.status === 429 || res.status >= 500) {
         attempt++;
-        const delay = Math.pow(2, attempt) * 1000;
-        await new Promise((r) => setTimeout(r, delay));
-        continue;
+        if (attempt <= maxRetries) {
+          await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+          continue;
+        }
       }
 
       return { status: res.status, body };
-    } catch (err: any) {
-      if (attempt < maxRetries) {
-        attempt++;
-        const delay = Math.pow(2, attempt) * 1000;
-        await new Promise((r) => setTimeout(r, delay));
-        continue;
+    } catch (networkError: any) {
+      attempt++;
+      if (attempt > maxRetries) {
+        throw networkError;
       }
-      throw err;
+      await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
     }
   }
 
-  throw new Error("Max retries exceeded while calling Google Indexing API");
+  throw new Error("Maximum retries exceeded calling Google Indexing API");
 }
 
-/**
- * Writes an audit record to Supabase table google_indexing_logs (safe fallback if table does not exist)
- */
 async function recordIndexingLog(supabase: any, log: {
   job_id: string | null;
   url: string;
@@ -147,15 +161,24 @@ async function recordIndexingLog(supabase: any, log: {
       error: log.error,
     });
   } catch (err) {
-    console.warn("[Google Indexing Logger] Notice: Could not save log to table (table may not exist yet):", err);
+    console.warn("[Google Indexing Logger] Could not save log to table:", err);
   }
 }
 
 export default async function handler(req: any, res: any) {
-  // Set CORS and Security headers
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  // 1. Strict CORS domain allowlist
+  const reqOrigin = req.headers["origin"] || "";
+  const isAllowedOrigin =
+    ALLOWED_ORIGINS.includes(reqOrigin) ||
+    /^https:\/\/tx-hire-buddy-[a-zA-Z0-9_-]+\.vercel\.app$/.test(reqOrigin);
+
+  res.setHeader(
+    "Access-Control-Allow-Origin",
+    isAllowedOrigin ? reqOrigin : ALLOWED_ORIGINS[0]
+  );
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Internal-Secret");
+  res.setHeader("Vary", "Origin");
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();
@@ -163,6 +186,60 @@ export default async function handler(req: any, res: any) {
 
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed. Only POST requests are accepted." });
+  }
+
+  // 2. Rate Limiting Check (30 requests per minute per IP)
+  const clientIp = (req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "unknown").toString().split(",")[0].trim();
+  const now = Date.now();
+  const clientTimestamps = (rateLimitMap.get(clientIp) || []).filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+  if (clientTimestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+    return res.status(429).json({ error: "Rate limit exceeded (30 requests/minute). Please slow down." });
+  }
+  clientTimestamps.push(now);
+  rateLimitMap.set(clientIp, clientTimestamps);
+
+  // 3. Initialize server Supabase client
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  const supabase = supabaseUrl && serviceKey ? createClient(supabaseUrl, serviceKey) : null;
+
+  // 4. Mandatory Authentication & Authorization Check
+  const internalSecret = req.headers["x-internal-secret"];
+  const authHeader = req.headers["authorization"] || "";
+  const expectedSecret = process.env.INTERNAL_SERVICE_SECRET;
+
+  let isAuthorized = false;
+  let callerUserId: string | null = null;
+  let isSuperAdminCaller = false;
+
+  if (expectedSecret && internalSecret && internalSecret === expectedSecret) {
+    isAuthorized = true;
+  } else if (authHeader.startsWith("Bearer ") && supabase) {
+    const token = authHeader.replace("Bearer ", "").trim();
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+
+    if (!authErr && user) {
+      callerUserId = user.id;
+
+      // Check if user is Platform Super Admin
+      const { data: pRole } = await supabase
+        .from("platform_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (pRole?.role === "super_admin") {
+        isAuthorized = true;
+        isSuperAdminCaller = true;
+      }
+    }
+  }
+
+  // Reject unauthenticated requests immediately (PROMPT 06 requirement)
+  if (!isAuthorized && !callerUserId) {
+    return res.status(401).json({
+      error: "Unauthorized: Google Indexing API requires a valid authentication token or internal secret.",
+    });
   }
 
   const { jobId, action, url: providedUrl } = req.body || {};
@@ -176,132 +253,136 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: "Invalid action. Must be 'URL_UPDATED' or 'URL_DELETED'." });
   }
 
-  // Explicit prohibition: reject any non-job marketing URLs
-  const RESERVED_ROUTES = ["features", "pricing", "blog", "about", "contact", "careers", "privacy", "terms", "dashboard", "auth", "login"];
-  if (jobId && RESERVED_ROUTES.includes(jobId.toLowerCase())) {
-    return res.status(400).json({
-      error: `Invalid jobId '${jobId}'. Google Indexing API is strictly reserved for JobPosting pages (/apply/{id}).`,
-      rejectedJobId: jobId,
-    });
-  }
-
-  if (providedUrl && (!providedUrl.includes("/apply/") || /https?:\/\/[^\/]+(\/|\/features|\/pricing|\/blog|\/about|\/contact|\/careers)\/?$/i.test(providedUrl))) {
-    return res.status(400).json({
-      error: "Google Indexing API is strictly reserved for JobPosting pages (/apply/{id}). Non-job marketing pages (/, /features, /pricing, /blog, /about, /contact) must be indexed via sitemap.xml and standard Google crawl.",
-      rejectedUrl: providedUrl,
-    });
-  }
-
-  // Construct and validate canonical job URL
+  // 5. Server-side Canonical URL building & UUID validation
   const targetJobId = jobId || (providedUrl ? providedUrl.split("/apply/")[1]?.split(/[?#]/)[0] : null);
-  const targetUrl = targetJobId ? `${APP_BASE_URL}/apply/${targetJobId}` : providedUrl;
 
-  // Strict check: ONLY /apply/:id URLs are eligible for Google Indexing API
-  const applyUrlRegex = new RegExp(`^${APP_BASE_URL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\/apply\\/[a-zA-Z0-9_-]+$`);
-  if (!applyUrlRegex.test(targetUrl)) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!targetJobId || !uuidRegex.test(targetJobId)) {
     return res.status(400).json({
-      error: "Google Indexing API is strictly reserved for JobPosting pages (/apply/{id}). Non-job pages (/, /features, /pricing, /blog, /about, /contact) must be indexed via sitemap.xml and standard Google crawl.",
-      rejectedUrl: targetUrl,
+      error: `Invalid jobId format. Must be a valid UUID.`,
+      rejectedJobId: targetJobId,
     });
   }
 
-  // Initialize server Supabase client
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+  // Build canonical URL strictly server-side
+  const canonicalJobUrl = `${APP_BASE_URL}/apply/${targetJobId}`;
 
-  // Verify job state if Supabase is connected
+  // 6. Job Ownership & State Verification
   let effectiveAction: "URL_UPDATED" | "URL_DELETED" = rawAction;
-  if (supabase && targetJobId) {
-    try {
-      const { data: job } = await supabase.from("jobs").select("id, status, description, created_at").eq("id", targetJobId).maybeSingle();
-      if (job) {
-        const status = (job.status || "").trim().toLowerCase();
-        const isActive = status === "نشطة" || status === "active";
+  if (supabase) {
+    const { data: job, error: jobErr } = await supabase
+      .from("jobs")
+      .select("id, company_id, status")
+      .eq("id", targetJobId)
+      .maybeSingle();
 
-        // If action is URL_UPDATED but the job in DB is inactive or archived, automatically switch to URL_DELETED
-        if (rawAction === "URL_UPDATED" && !isActive) {
-          effectiveAction = "URL_DELETED";
+    if (jobErr || !job) {
+      if (rawAction === "URL_UPDATED") {
+        return res.status(404).json({ error: "Job posting not found in database." });
+      }
+    } else {
+      // Check caller authorization for this company if not platform super admin
+      if (!isAuthorized && callerUserId && !isSuperAdminCaller) {
+        const { count: memberCount } = await supabase
+          .from("company_members")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", callerUserId)
+          .eq("company_id", job.company_id);
+
+        if (!memberCount || memberCount === 0) {
+          return res.status(403).json({ error: "Forbidden: You do not have permission to manage indexing for this job." });
         }
-      } else if (rawAction === "URL_UPDATED") {
-        // Job does not exist in DB, cannot publish as active
+      }
+
+      const status = (job.status || "").trim().toLowerCase();
+      const isActive = status === "نشطة" || status === "active";
+      if (rawAction === "URL_UPDATED" && !isActive) {
         effectiveAction = "URL_DELETED";
       }
-    } catch (err) {
-      console.warn("[Google Indexing] Notice reading job status:", err);
     }
   }
 
-  // Check Google Cloud Service Account Credentials
+  // 7. Debounce / Idempotency check (15-minute window per job action)
+  const debounceKey = `${targetJobId}:${effectiveAction}`;
+  const lastCallTime = debounceMap.get(debounceKey);
+  if (lastCallTime && now - lastCallTime < DEBOUNCE_WINDOW_MS) {
+    const remainingSecs = Math.round((DEBOUNCE_WINDOW_MS - (now - lastCallTime)) / 1000);
+    return res.status(200).json({
+      success: true,
+      skipped: true,
+      debounced: true,
+      reason: `Indexing notification already submitted recently. Debounced for next ${remainingSecs}s.`,
+      url: canonicalJobUrl,
+      action: effectiveAction,
+    });
+  }
+
+  // 8. Service Account Credentials Verification
   const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const privateKey = process.env.GOOGLE_PRIVATE_KEY;
 
   if (!serviceAccountEmail || !privateKey) {
-    console.warn("[Google Indexing] Service Account credentials not configured yet in environment variables.");
     await recordIndexingLog(supabase, {
       job_id: targetJobId,
-      url: targetUrl,
+      url: canonicalJobUrl,
       action: effectiveAction,
       status: "NOT_CONFIGURED",
       status_code: null,
-      response: { message: "GOOGLE_SERVICE_ACCOUNT_EMAIL or GOOGLE_PRIVATE_KEY environment variable is not configured in Vercel." },
+      response: { message: "Google Indexing credentials not configured in environment." },
       error: "Credentials missing in server environment",
     });
 
     return res.status(200).json({
       success: false,
       configured: false,
-      message: "Google Indexing API credentials are not configured yet in Vercel environment variables.",
-      requiredEnvVars: ["GOOGLE_SERVICE_ACCOUNT_EMAIL", "GOOGLE_PRIVATE_KEY"],
+      message: "Google Indexing credentials are not configured yet in environment variables.",
       action: effectiveAction,
-      url: targetUrl,
+      url: canonicalJobUrl,
     });
   }
 
+  // 9. Execute Google Indexing API notification
   try {
     const accessToken = await getGoogleAccessToken(serviceAccountEmail, privateKey);
-    const { status, body } = await publishToGoogleIndexing(targetUrl, effectiveAction, accessToken);
+    const googleResult = await publishToGoogleIndexing(canonicalJobUrl, effectiveAction, accessToken);
 
-    const isSuccess = status >= 200 && status < 300;
-    const statusText = isSuccess ? "SUCCESS" : "FAILED";
-
-    await recordIndexingLog(supabase, {
-      job_id: targetJobId,
-      url: targetUrl,
-      action: effectiveAction,
-      status: statusText,
-      status_code: status,
-      response: body,
-      error: isSuccess ? null : (body.error?.message || `Google API returned status ${status}`),
-    });
-
-    return res.status(isSuccess ? 200 : status).json({
-      success: isSuccess,
-      configured: true,
-      statusCode: status,
-      action: effectiveAction,
-      url: targetUrl,
-      result: body,
-    });
-  } catch (err: any) {
-    console.error("[Google Indexing Exception]", err);
+    debounceMap.set(debounceKey, Date.now());
 
     await recordIndexingLog(supabase, {
       job_id: targetJobId,
-      url: targetUrl,
+      url: canonicalJobUrl,
       action: effectiveAction,
-      status: "FAILED",
+      status: googleResult.status === 200 ? "SUCCESS" : "FAILED",
+      status_code: googleResult.status,
+      response: googleResult.body,
+      error: googleResult.status === 200 ? null : JSON.stringify(googleResult.body),
+    });
+
+    return res.status(200).json({
+      success: googleResult.status === 200,
+      statusCode: googleResult.status,
+      action: effectiveAction,
+      url: canonicalJobUrl,
+      googleResponse: googleResult.body,
+    });
+  } catch (apiError: any) {
+    console.error("[Google Indexing API] Request failed:", apiError);
+
+    await recordIndexingLog(supabase, {
+      job_id: targetJobId,
+      url: canonicalJobUrl,
+      action: effectiveAction,
+      status: "ERROR",
       status_code: 500,
       response: null,
-      error: err.message || "Unknown error occurred",
+      error: apiError.message || "Failed to publish URL to Google Indexing API",
     });
 
     return res.status(500).json({
       success: false,
-      configured: true,
-      error: err.message || "Internal server error during Google Indexing notification",
+      error: "Google Indexing API call failed. Check server logs for details.",
       action: effectiveAction,
-      url: targetUrl,
+      url: canonicalJobUrl,
     });
   }
 }

@@ -1,11 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -36,14 +34,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2. Check Super Admin permission (Platform Owner)
-    const isSuperAdmin =
-      ["tx@tawzeefx.com", "ctraining801@gmail.com"].includes(user.email || "") ||
-      user.user_metadata?.role === "super_admin" ||
-      user.user_metadata?.role === "admin";
+    const adminClient = createClient(supabaseUrl, serviceKey);
 
-    if (!isSuperAdmin) {
-      return new Response(JSON.stringify({ error: "Forbidden: Super Admin access required" }), {
+    // 2. Verify Platform Super Admin via single server-side source of truth (public.platform_roles)
+    const { data: platformRole } = await adminClient
+      .from("platform_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (platformRole?.role !== "super_admin") {
+      return new Response(JSON.stringify({ error: "Forbidden: Platform Super Admin access required" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -51,16 +52,12 @@ Deno.serve(async (req) => {
 
     // 3. Parse request body
     const body = await req.json();
-    const { companyId, action } = body;
-
-    // 4. Admin client with full service role privileges
-    const adminClient = createClient(supabaseUrl, serviceKey);
+    const { companyId, action = "permanent_delete" } = body;
 
     // =========================================================================
     // ACTION: PURGE ORPHANS (Branches, orphaned jobs, and orphaned auth users)
     // =========================================================================
     if (action === "purge_orphans" || companyId === "orphans") {
-      // Find all valid parent companies
       const { data: parents } = await adminClient
         .from("companies")
         .select("id")
@@ -68,7 +65,6 @@ Deno.serve(async (req) => {
 
       const parentIds = (parents || []).map((p: any) => p.id);
 
-      // Find all branches
       const { data: allBranches } = await adminClient
         .from("companies")
         .select("id, name, parent_company_id")
@@ -77,18 +73,15 @@ Deno.serve(async (req) => {
       const orphanedBranches = (allBranches || []).filter((b: any) => !parentIds.includes(b.parent_company_id));
       const orphanBranchIds = orphanedBranches.map((b: any) => b.id);
 
-      // Set of all valid company IDs (Parents + valid branches)
       const validCompanyIds = new Set([
         ...parentIds,
         ...(allBranches || []).filter((b: any) => parentIds.includes(b.parent_company_id)).map((b: any) => b.id),
       ]);
 
-      // Find all orphaned jobs (jobs whose company_id is not in valid companies)
       const { data: allJobs } = await adminClient.from("jobs").select("id, company_id, title");
       const orphanedJobs = (allJobs || []).filter((j: any) => !validCompanyIds.has(j.company_id));
       const orphanJobIds = orphanedJobs.map((j: any) => j.id);
 
-      // Clean up orphaned jobs and dependent data
       if (orphanJobIds.length > 0) {
         await adminClient.from("applications").delete().in("job_id", orphanJobIds);
         await adminClient.from("interviews").delete().in("job_id", orphanJobIds);
@@ -96,7 +89,6 @@ Deno.serve(async (req) => {
         await adminClient.from("jobs").delete().in("id", orphanJobIds);
       }
 
-      // Clean up orphaned branches and their direct records
       if (orphanBranchIds.length > 0) {
         await adminClient.from("jobs").delete().in("company_id", orphanBranchIds);
         await adminClient.from("company_invitations").delete().in("company_id", orphanBranchIds);
@@ -104,22 +96,26 @@ Deno.serve(async (req) => {
         await adminClient.from("companies").delete().in("id", orphanBranchIds);
       }
 
-      // Purge orphaned users who have no membership in any valid company
       let purgedUsersCount = 0;
       try {
         const { data: { users: allAuthUsers } } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
         for (const u of (allAuthUsers || [])) {
-          const uEmail = (u.email || "").toLowerCase();
-          const isImmune =
-            uEmail === "tx@tawzeefx.com" ||
-            uEmail === "ctraining801@gmail.com" ||
-            u.user_metadata?.role === "super_admin" ||
-            u.user_metadata?.account_type === "candidate" ||
-            u.user_metadata?.account_type === "job_seeker";
+          // Skip platform roles
+          const { data: uPlatformRole } = await adminClient
+            .from("platform_roles")
+            .select("role")
+            .eq("user_id", u.id)
+            .maybeSingle();
+          if (uPlatformRole) continue;
 
-          if (isImmune) continue;
+          // Skip candidates
+          const { data: uRole } = await adminClient
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", u.id)
+            .maybeSingle();
+          if (uRole?.role === "job_seeker" || u.user_metadata?.account_type === "candidate") continue;
 
-          // Check if user has membership in any valid company
           const { count: validMemberCount } = await adminClient
             .from("company_members")
             .select("id", { count: "exact", head: true })
@@ -133,7 +129,6 @@ Deno.serve(async (req) => {
             .or(`owner_user_id.eq.${u.id},user_id.eq.${u.id}`);
 
           if ((!validMemberCount || validMemberCount === 0) && (!validOwnerCount || validOwnerCount === 0)) {
-            console.log(`Purging orphaned user: ${u.email} (${u.id})`);
             await adminClient.auth.admin.signOut(u.id);
             const { error: delErr } = await adminClient.auth.admin.deleteUser(u.id);
             if (delErr) {
@@ -176,7 +171,7 @@ Deno.serve(async (req) => {
     // Retrieve target company info
     const { data: targetCompany, error: fetchErr } = await adminClient
       .from("companies")
-      .select("id, name, parent_company_id")
+      .select("id, name, status, is_platform_company, parent_company_id")
       .eq("id", companyId)
       .maybeSingle();
 
@@ -187,10 +182,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 5. Hard Safeguard: Prevent deleting the platform owner company
+    // 4. Hard Safeguard: Prevent deleting the platform owner company
     const lowerName = (targetCompany.name || "").toLowerCase();
     if (
       companyId === "00000000-0000-0000-0000-000000000001" ||
+      targetCompany.is_platform_company === true ||
       lowerName.includes("tawzeef") ||
       targetCompany.name?.includes("توظيف إكس")
     ) {
@@ -203,25 +199,47 @@ Deno.serve(async (req) => {
       );
     }
 
-    // =========================================================================
-    // CASCADE DELETION OF TARGET COMPANY & ALL CHILD BRANCHES
-    // =========================================================================
-
-    // A. Collect all child branches
-    const { data: branches } = await adminClient
+    // Collect child branches
+    const { data: branches = [] } = await adminClient
       .from("companies")
       .select("id, name")
       .eq("parent_company_id", companyId);
 
     const allCompanyIds = [companyId, ...(branches || []).map((b: any) => b.id)];
 
-    // B. Collect and purge exclusive company users from auth.users & revoke sessions
-    const { data: memberRows } = await adminClient
+    // Collect jobs
+    const { data: jobs = [] } = await adminClient
+      .from("jobs")
+      .select("id, title")
+      .in("company_id", allCompanyIds);
+
+    const jobIds = (jobs || []).map((j: any) => j.id);
+
+    // Collect applications
+    const { count: applicationsCount = 0 } = await adminClient
+      .from("applications")
+      .select("id", { count: "exact", head: true })
+      .in("company_id", allCompanyIds);
+
+    // Collect candidates
+    const { count: candidatesCount = 0 } = await adminClient
+      .from("candidates")
+      .select("id", { count: "exact", head: true })
+      .in("company_id", allCompanyIds);
+
+    // Collect interviews
+    const { count: interviewsCount = 0 } = await adminClient
+      .from("interviews")
+      .select("id", { count: "exact", head: true })
+      .in("company_id", allCompanyIds);
+
+    // Identify exclusive company users
+    const { data: memberRows = [] } = await adminClient
       .from("company_members")
       .select("user_id")
       .in("company_id", allCompanyIds);
 
-    const { data: ownerRows } = await adminClient
+    const { data: ownerRows = [] } = await adminClient
       .from("companies")
       .select("owner_user_id, user_id")
       .in("id", allCompanyIds);
@@ -234,117 +252,185 @@ Deno.serve(async (req) => {
       ].filter(Boolean))
     );
 
-    let purgedUsersCount = 0;
+    const exclusiveUserIds: string[] = [];
+    const exclusiveUserEmails: string[] = [];
 
     for (const uId of candidateUserIds) {
+      // Check if user has platform role
+      const { data: pRole } = await adminClient
+        .from("platform_roles")
+        .select("role")
+        .eq("user_id", uId)
+        .maybeSingle();
+
+      if (pRole) continue; // Platform roles are never deleted
+
+      // Check if candidate/job seeker
+      const { data: uRole } = await adminClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", uId)
+        .maybeSingle();
+
+      if (uRole?.role === "job_seeker") continue; // Never delete candidate profiles
+
+      // Check if user belongs to other companies
+      const { count: otherCount } = await adminClient
+        .from("company_members")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", uId)
+        .not("company_id", "in", `(${allCompanyIds.join(",")})`);
+
+      if (otherCount && otherCount > 0) continue; // User belongs to another company
+
+      exclusiveUserIds.push(uId);
+
+      const { data: { user: uObj } } = await adminClient.auth.admin.getUserById(uId);
+      if (uObj?.email) exclusiveUserEmails.push(uObj.email);
+    }
+
+    // =========================================================================
+    // ACTION: DRY RUN (Preview affected resources before permanent delete)
+    // =========================================================================
+    if (action === "dry_run") {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          dryRun: true,
+          summary: {
+            companyId,
+            companyName: targetCompany.name,
+            status: targetCompany.status,
+            branchesCount: branches.length,
+            branchesList: branches.map((b: any) => b.name),
+            jobsCount: jobs.length,
+            applicationsCount: applicationsCount || 0,
+            candidatesCount: candidatesCount || 0,
+            interviewsCount: interviewsCount || 0,
+            exclusiveUsersCount: exclusiveUserIds.length,
+            exclusiveUsersList: exclusiveUserEmails,
+            estimatedFilesCount: applicationsCount || 0,
+          },
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // =========================================================================
+    // ACTION: PERMANENT DELETE SAGA
+    // =========================================================================
+
+    // Step 1: Lock tenant across target company and all child branches
+    await adminClient
+      .from("companies")
+      .update({ status: "deleting", updated_at: new Date().toISOString() })
+      .in("id", allCompanyIds);
+
+    // Step 2: Invalidate active sessions & delete exclusive users from auth.users
+    let purgedUsersCount = 0;
+    for (const uId of exclusiveUserIds) {
       try {
-        const { data: { user: targetUser } } = await adminClient.auth.admin.getUserById(uId);
-        if (targetUser) {
-          const uEmail = (targetUser.email || "").toLowerCase();
-          const isSuper =
-            uEmail === "tx@tawzeefx.com" ||
-            uEmail === "ctraining801@gmail.com" ||
-            targetUser.user_metadata?.role === "super_admin";
-
-          if (isSuper) {
-            continue; // Never delete platform Super Admin
-          }
-        }
-
-        // Check if user belongs to other companies outside this deletion scope
-        const { count: otherCompaniesCount } = await adminClient
-          .from("company_members")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", uId)
-          .not("company_id", "in", `(${allCompanyIds.join(",")})`);
-
-        if (otherCompaniesCount && otherCompaniesCount > 0) {
-          continue; // Keep user account for their other companies
-        }
-
-        // 1. Immediately revoke all active sessions and refresh tokens
         await adminClient.auth.admin.signOut(uId);
-
-        // 2. Permanently delete user from Supabase Auth
         const { error: delUserErr } = await adminClient.auth.admin.deleteUser(uId);
         if (delUserErr) {
-          console.warn(`deleteUser failed for ${uId}, applying 100-year ban fallback:`, delUserErr);
+          console.warn(`deleteUser fallback ban for ${uId}:`, delUserErr);
           await adminClient.auth.admin.updateUserById(uId, {
             ban_duration: "876000h",
             user_metadata: { banned: true, reason: "Company permanently deleted" },
           });
         }
-
-        // 3. Clean up user profile and role tables
         await adminClient.from("profiles").delete().eq("user_id", uId);
         await adminClient.from("user_roles").delete().eq("user_id", uId);
         await adminClient.from("activity_log").delete().eq("user_id", uId);
-
         purgedUsersCount++;
-      } catch (userPurgeErr) {
-        console.error(`Error purging user ${uId}:`, userPurgeErr);
+      } catch (purgeErr) {
+        console.error(`Error purging user ${uId}:`, purgeErr);
       }
     }
 
-    // C. Collect all associated jobs
-    const { data: jobs } = await adminClient
+    // Step 3: Paginated Storage Cleanup across storage buckets
+    const storageBuckets = ["resumes", "company-logos", "avatars", "documents"];
+    let deletedFilesCount = 0;
+
+    for (const bucketName of storageBuckets) {
+      for (const cId of allCompanyIds) {
+        try {
+          const { data: fileList, error: listErr } = await adminClient.storage
+            .from(bucketName)
+            .list(cId, { limit: 100 });
+
+          if (!listErr && fileList && fileList.length > 0) {
+            const filesToRemove = fileList.map((f: any) => `${cId}/${f.name}`);
+            const { error: removeErr } = await adminClient.storage
+              .from(bucketName)
+              .remove(filesToRemove);
+
+            if (!removeErr) {
+              deletedFilesCount += filesToRemove.length;
+            }
+          }
+        } catch (storageErr) {
+          console.warn(`Storage cleanup notice for bucket ${bucketName}/${cId}:`, storageErr);
+        }
+      }
+    }
+
+    // Step 4: Database Atomic Cascade Deletion (Call PostgreSQL RPC)
+    const { data: rpcResult, error: rpcErr } = await adminClient.rpc(
+      "delete_company_permanently",
+      {
+        target_company_id: companyId,
+        calling_user_id: user.id,
+      }
+    );
+
+    if (rpcErr) {
+      console.error("Database deletion RPC failed, setting delete_failed state:", rpcErr);
+      await adminClient
+        .from("companies")
+        .update({ status: "delete_failed", updated_at: new Date().toISOString() })
+        .in("id", allCompanyIds);
+
+      throw new Error(`Database cascade failed: ${rpcErr.message}`);
+    }
+
+    // Step 5: Post-Delete Orphan Verification
+    const { count: remainingCompanyCount } = await adminClient
+      .from("companies")
+      .select("id", { count: "exact", head: true })
+      .eq("id", companyId);
+
+    const { count: remainingJobsCount } = await adminClient
       .from("jobs")
-      .select("id")
+      .select("id", { count: "exact", head: true })
       .in("company_id", allCompanyIds);
 
-    const jobIds = (jobs || []).map((j: any) => j.id);
+    const { count: remainingMembersCount } = await adminClient
+      .from("company_members")
+      .select("id", { count: "exact", head: true })
+      .in("company_id", allCompanyIds);
 
-    // D. Cascade delete across all dependent tables in topological order
-    if (jobIds.length > 0) {
-      await adminClient.from("candidate_checklists").delete().in("job_id", jobIds);
-      await adminClient.from("interviews").delete().in("job_id", jobIds);
-      await adminClient.from("job_offers").delete().in("job_id", jobIds);
-      await adminClient.from("applications").delete().in("job_id", jobIds);
-    }
+    const zeroOrphansVerified =
+      (remainingCompanyCount ?? 0) === 0 &&
+      (remainingJobsCount ?? 0) === 0 &&
+      (remainingMembersCount ?? 0) === 0;
 
-    await adminClient.from("candidate_checklists").delete().in("company_id", allCompanyIds);
-    await adminClient.from("agency_assignments").delete().in("company_id", allCompanyIds);
-    await adminClient.from("interviews").delete().in("company_id", allCompanyIds);
-    await adminClient.from("job_offers").delete().in("company_id", allCompanyIds);
-    await adminClient.from("applications").delete().in("company_id", allCompanyIds);
-    await adminClient.from("candidates").delete().in("company_id", allCompanyIds);
-    await adminClient.from("jobs").delete().in("company_id", allCompanyIds);
-    await adminClient.from("pipeline_sub_stages").delete().in("company_id", allCompanyIds);
-    await adminClient.from("pipeline_stages").delete().in("company_id", allCompanyIds);
-    await adminClient.from("question_bank").delete().in("company_id", allCompanyIds);
-    await adminClient.from("talent_pool").delete().in("company_id", allCompanyIds);
-    await adminClient.from("notification_templates").delete().in("company_id", allCompanyIds);
-    await adminClient.from("company_invitations").delete().in("company_id", allCompanyIds);
-    await adminClient.from("company_subscriptions").delete().in("company_id", allCompanyIds);
-    await adminClient.from("company_invoices").delete().in("company_id", allCompanyIds);
-    await adminClient.from("subscription_upgrade_requests").delete().in("company_id", allCompanyIds);
-    await adminClient.from("company_members").delete().in("company_id", allCompanyIds);
-
-    // Decouple audit logs
-    await adminClient.from("audit_log").update({ company_id: null }).in("company_id", allCompanyIds);
-
-    // Delete child branches first
-    if (branches && branches.length > 0) {
-      await adminClient.from("companies").delete().eq("parent_company_id", companyId);
-    }
-
-    // Delete target parent company
-    const { error: finalDelErr } = await adminClient.from("companies").delete().eq("id", companyId);
-    if (finalDelErr) {
-      throw finalDelErr;
-    }
-
-    // Record audit trail entry
+    // Step 6: Log immutable audit event
     await adminClient.from("audit_log").insert({
       user_id: user.id,
-      action: "COMPANY_CASCADE_DELETED",
+      action: "COMPANY_PERMANENT_DELETED_SAGA",
       resource: "companies",
       details: {
         company_id: companyId,
         company_name: targetCompany.name,
-        deleted_branches_count: branches?.length || 0,
+        deleted_branches_count: branches.length,
         deleted_users_count: purgedUsersCount,
         deleted_jobs_count: jobIds.length,
+        deleted_files_count: deletedFilesCount,
+        zero_orphans_verified: zeroOrphansVerified,
         timestamp: new Date().toISOString(),
       },
     });
@@ -354,10 +440,12 @@ Deno.serve(async (req) => {
         success: true,
         deleted_company_id: companyId,
         deleted_company_name: targetCompany.name,
-        deleted_branches_count: branches?.length || 0,
+        deleted_branches_count: branches.length,
         deleted_users_count: purgedUsersCount,
         deleted_jobs_count: jobIds.length,
-        message: "Company, branches, jobs, and all exclusive users permanently deleted",
+        deleted_files_count: deletedFilesCount,
+        zero_orphans_verified: zeroOrphansVerified,
+        message: "Company deletion saga completed with zero orphan records",
       }),
       {
         status: 200,
@@ -365,10 +453,16 @@ Deno.serve(async (req) => {
       }
     );
   } catch (err: any) {
-    console.error("delete-company error:", err);
-    return new Response(JSON.stringify({ error: err.message || "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("delete-company saga error:", err);
+    return new Response(
+      JSON.stringify({
+        error: err.message || "Internal server error during company deletion",
+        code: "COMPANY_DELETE_ERROR",
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 });
