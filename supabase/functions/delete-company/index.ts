@@ -51,7 +51,47 @@ Deno.serve(async (req) => {
 
     // 3. Parse request body
     const body = await req.json();
-    const { companyId } = body;
+    const { companyId, action } = body;
+
+    // 4. Admin client with service role
+    const adminClient = createClient(supabaseUrl, serviceKey);
+
+    // SPECIAL ACTION: Purge all orphaned branches
+    if (action === "purge_orphans" || companyId === "orphans") {
+      const { data: parents } = await adminClient
+        .from("companies")
+        .select("id")
+        .is("parent_company_id", null);
+
+      const parentIds = (parents || []).map((p: any) => p.id);
+
+      const { data: allBranches } = await adminClient
+        .from("companies")
+        .select("id, name, parent_company_id")
+        .not("parent_company_id", "is", null);
+
+      const orphaned = (allBranches || []).filter((b: any) => !parentIds.includes(b.parent_company_id));
+      const orphanIds = orphaned.map((b: any) => b.id);
+
+      if (orphanIds.length > 0) {
+        await adminClient.from("jobs").delete().in("company_id", orphanIds);
+        await adminClient.from("company_invitations").delete().in("company_id", orphanIds);
+        await adminClient.from("company_members").delete().in("company_id", orphanIds);
+        await adminClient.from("companies").delete().in("id", orphanIds);
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          purged_count: orphanIds.length,
+          purged_names: orphaned.map((o: any) => o.name),
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
     if (!companyId) {
       return new Response(JSON.stringify({ error: "Missing companyId parameter" }), {
@@ -59,9 +99,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    // 4. Admin client with service role
-    const adminClient = createClient(supabaseUrl, serviceKey);
 
     // Retrieve target company info
     const { data: targetCompany, error: fetchErr } = await adminClient

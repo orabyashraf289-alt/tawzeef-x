@@ -469,6 +469,66 @@ export function useDeleteCompany() {
   });
 }
 
+export function usePurgeOrphanedBranches() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (branchIds: string[]) => {
+      // 1. Try single-call edge function purge
+      try {
+        const { data, error } = await supabase.functions.invoke("delete-company", {
+          body: { action: "purge_orphans" },
+        });
+        if (!error && data?.success) {
+          return { deletedCount: data.purged_count || branchIds.length };
+        }
+      } catch (err) {
+        console.warn("delete-company purge_orphans edge function failed, falling back to direct purge:", err);
+      }
+
+      // 2. Fallback: delete each orphan branch via RPC or direct cascade
+      let deletedCount = 0;
+      for (const id of branchIds) {
+        try {
+          const { error: rpcErr } = await supabase.rpc("delete_company_cascade" as any, {
+            target_company_id: id,
+          });
+
+          if (rpcErr) {
+            await supabase.from("jobs" as any).delete().eq("company_id", id);
+            await supabase.from("company_invitations" as any).delete().eq("company_id", id);
+            await supabase.from("company_members" as any).delete().eq("company_id", id);
+            await supabase.from("companies" as any).delete().eq("id", id);
+          }
+          deletedCount++;
+        } catch (e) {
+          console.warn(`Failed to delete branch ${id}:`, e);
+        }
+      }
+      return { deletedCount };
+    },
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["all-companies"] });
+      qc.invalidateQueries({ queryKey: ["company-branches"] });
+      qc.invalidateQueries({ queryKey: ["my-companies"] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      qc.invalidateQueries({ queryKey: ["candidates"] });
+      qc.invalidateQueries({ queryKey: ["dashboard_stats"] });
+      qc.invalidateQueries({ queryKey: ["company-stats"] });
+      toast({
+        title: "تم تطهير الفروع المعلقة بنجاح ✅",
+        description: `تم حذف ${res.deletedCount} فرع معلق وجميع الوظائف التابعة لها نهائياً`,
+      });
+    },
+    onError: (e: Error) => {
+      toast({
+        title: "تعذر تطهير بعض الفروع",
+        description: e.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
 // Stats for a single company
 export function useCompanyStats(companyId: string | undefined) {
   const isValidCompanyId = !!companyId && companyId !== "undefined" && companyId !== "null" && companyId.trim() !== "";

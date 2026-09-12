@@ -24,6 +24,7 @@ import {
   useAllCompanies,
   useCreateCompany,
   useDeleteCompany,
+  usePurgeOrphanedBranches,
   useToggleCompanyStatus,
   useCompanyMembers,
   useAddCompanyMember,
@@ -58,6 +59,12 @@ export default function AdminCompanies() {
   const pendingRequests = (upgradeRequests || []).filter((r) => r.status === "pending");
   const parentCompanies = companies.filter((c) => !c.parent_company_id);
   const branchesCount = companies.filter((c) => c.parent_company_id).length;
+
+  const purgeOrphans = usePurgeOrphanedBranches();
+  const parentCompanyIds = new Set(parentCompanies.map((c) => c.id));
+  const orphanedBranches = companies.filter(
+    (c) => c.parent_company_id && !parentCompanyIds.has(c.parent_company_id)
+  );
 
   const filtered = parentCompanies.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -179,6 +186,84 @@ export default function AdminCompanies() {
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input placeholder="ابحث باسم أو بريد الشركة..." value={search} onChange={(e) => setSearch(e.target.value)} className="pr-10" />
             </div>
+
+            {/* ⚠️ Orphaned Branches Warning & Direct Purge Card */}
+            {orphanedBranches.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 p-5 rounded-2xl bg-destructive/10 border-2 border-destructive/30 space-y-4 shadow-lg shadow-destructive/5"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start sm:items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-destructive text-white flex items-center justify-center shrink-0 shadow-md">
+                      <ShieldAlert className="w-5 h-5 animate-pulse" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                        <span>تم رصد {orphanedBranches.length} فروع معلقة / متبقية في قاعدة البيانات</span>
+                        <Badge variant="destructive" className="text-[10px]">
+                          متبقية بعد حذف الشركة الأم
+                        </Badge>
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        هذه الفروع تابعة لشركة سابقة تم حذف سجلها الرئيسي، وما زالت مسجلة في قاعدة البيانات وتشغل عدد الفروع في النظام.
+                      </p>
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={purgeOrphans.isPending}
+                    onClick={async () => {
+                      const ids = orphanedBranches.map((b) => b.id);
+                      await purgeOrphans.mutateAsync(ids);
+                    }}
+                    className="gap-2 shrink-0 font-bold text-xs rounded-xl shadow-md h-10 px-4"
+                  >
+                    {purgeOrphans.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>جارٍ التطهير النهائي...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>تطهير وحذف جميع الفروع المعلقة ({orphanedBranches.length})</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* List of Orphaned Branches with individual delete button */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pt-2 border-t border-destructive/20 max-h-56 overflow-y-auto">
+                  {orphanedBranches.map((b) => (
+                    <div
+                      key={b.id}
+                      className="flex items-center justify-between p-2.5 bg-background/80 rounded-xl border border-destructive/20 text-xs"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Building2 className="w-3.5 h-3.5 text-destructive shrink-0" />
+                        <span className="font-bold truncate" title={b.name}>
+                          {b.name}
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={deleteCompany.isPending || purgeOrphans.isPending}
+                        onClick={() => deleteCompany.mutate(b.id)}
+                        className="w-7 h-7 text-destructive hover:bg-destructive/10 rounded-lg shrink-0"
+                        title="حذف هذا الفرع"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
 
             {isLoading && <p className="text-sm text-muted-foreground">جارٍ التحميل...</p>}
 
