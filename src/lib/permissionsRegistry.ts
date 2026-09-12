@@ -133,6 +133,11 @@ export const SCREEN_PERMISSIONS: Record<string, { key: string; description: stri
     description: "طلبات التوظيف المحوّلة",
     defaultAllowed: ["admin", "recruiter", "reviewer"],
   },
+  "/hiring-plan": {
+    key: "screen.hiring_plan",
+    description: "خطة وميزانية التوظيف",
+    defaultAllowed: ["admin", "recruiter"],
+  },
   "/settings": {
     key: "screen.settings",
     description: "إعدادات الشركة والملف الشخصي",
