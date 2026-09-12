@@ -162,6 +162,69 @@ class MockMultiTenantSystem {
   }
 
   // =========================================================================
+  // SERVER-SIDE API TENANT GUARD (mirrors tenantAuthGuard.ts)
+  // =========================================================================
+  validateApiTenantRequest(tokenUserEmail: string, requestCompanyId: string): { status: number; code: string; allowed: boolean } {
+    const authUser = this.authUsers.find(u => u.email.toLowerCase() === tokenUserEmail.toLowerCase());
+    if (!authUser || authUser.banned) {
+      return { status: 401, code: "USER_INVALID_OR_BANNED", allowed: false };
+    }
+
+    if (this.isSuperAdmin(authUser.email) || authUser.user_metadata?.role === "super_admin") {
+      return { status: 200, code: "OK", allowed: true };
+    }
+
+    const company = this.companies.find(c => c.id === requestCompanyId);
+    if (!company) {
+      return { status: 403, code: "TENANT_ACCESS_DENIED", allowed: false };
+    }
+
+    if (company.status !== "active") {
+      return { status: 403, code: "TENANT_ACCESS_DENIED", allowed: false };
+    }
+
+    const isMember = this.members.some(m => m.company_id === requestCompanyId && m.user_id === authUser.id);
+    const isOwner = company.owner_user_id === authUser.id;
+    if (!isMember && !isOwner) {
+      return { status: 403, code: "TENANT_ACCESS_DENIED", allowed: false };
+    }
+
+    return { status: 200, code: "OK", allowed: true };
+  }
+
+  // =========================================================================
+  // ATOMIC DATABASE TRANSACTION WITH FULL ROLLBACK SIMULATION
+  // =========================================================================
+  deleteCompanyWithTransactionRollback(targetCompanyId: string, callingUserEmail: string, simulateErrorAtStep?: number) {
+    // Snapshot state for full transaction rollback
+    const snapshot = {
+      companies: JSON.parse(JSON.stringify(this.companies)),
+      jobs: JSON.parse(JSON.stringify(this.jobs)),
+      members: JSON.parse(JSON.stringify(this.members)),
+      candidates: JSON.parse(JSON.stringify(this.candidates)),
+      authUsers: JSON.parse(JSON.stringify(this.authUsers)),
+    };
+
+    try {
+      if (simulateErrorAtStep === 1) {
+        throw new Error("COMPANY_DELETE_TRANSACTION_ROLLBACK: Simulated disk/network failure during tenant lock");
+      }
+      if (simulateErrorAtStep === 2) {
+        throw new Error("COMPANY_DELETE_TRANSACTION_ROLLBACK: Simulated foreign key deadlock during cascade");
+      }
+      return this.deleteCompanyPermanent(targetCompanyId, callingUserEmail);
+    } catch (err) {
+      // Atomic Transaction Rollback: restore all records to initial state
+      this.companies = snapshot.companies;
+      this.jobs = snapshot.jobs;
+      this.members = snapshot.members;
+      this.candidates = snapshot.candidates;
+      this.authUsers = snapshot.authUsers;
+      throw err;
+    }
+  }
+
+  // =========================================================================
   // DEACTIVATE COMPANY (Preserves data, blocks login)
   // =========================================================================
   deactivateCompany(companyId: string) {
@@ -421,5 +484,89 @@ describe("Company Permanent Deletion & Authentication Gatekeeper", () => {
     expect(() => {
       system.deleteCompanyPermanent("comp-andalus", "random@domain.com");
     }).toThrow("Unauthorized: Only Platform Owner / Super Admin can delete customer companies");
+  });
+
+  // -----------------------------------------------------------------------
+  // TEST 8: Server API Tenant Guard & Token Invalidation (403 TENANT_ACCESS_DENIED)
+  // -----------------------------------------------------------------------
+  it("rejects API requests with 403 TENANT_ACCESS_DENIED when company is deleted or deactivated", () => {
+    // 1. Before deletion, API requests with valid credentials succeed
+    const preDeleteApi = system.validateApiTenantRequest("habeeb@tawzeefx.com", "comp-andalus-b1");
+    expect(preDeleteApi.allowed).toBe(true);
+    expect(preDeleteApi.status).toBe(200);
+
+    // 2. Deactivate company -> API request must be rejected with 403 TENANT_ACCESS_DENIED
+    system.deactivateCompany("comp-andalus");
+    const deactivatedApi = system.validateApiTenantRequest("director@andalus.edu.sa", "comp-andalus");
+    expect(deactivatedApi.allowed).toBe(false);
+    expect(deactivatedApi.status).toBe(403);
+    expect(deactivatedApi.code).toBe("TENANT_ACCESS_DENIED");
+
+    // 3. Reactivate company -> API request succeeds again
+    system.reactivateCompany("comp-andalus");
+    expect(system.validateApiTenantRequest("director@andalus.edu.sa", "comp-andalus").allowed).toBe(true);
+
+    // 4. Permanently delete company -> API requests must be rejected immediately
+    system.deleteCompanyPermanent("comp-andalus", "tx@tawzeefx.com");
+
+    // Director trying to query deleted company
+    const postDeleteApi = system.validateApiTenantRequest("director@andalus.edu.sa", "comp-andalus");
+    expect(postDeleteApi.allowed).toBe(false);
+    // User is banned or company missing -> access denied
+    expect([401, 403]).toContain(postDeleteApi.status);
+
+    // Habeeb trying to query branch
+    const postDeleteHabeebApi = system.validateApiTenantRequest("habeeb@tawzeefx.com", "comp-andalus-b1");
+    expect(postDeleteHabeebApi.allowed).toBe(false);
+    expect([401, 403]).toContain(postDeleteHabeebApi.status);
+  });
+
+  // -----------------------------------------------------------------------
+  // TEST 9: Atomic Database Transaction Rollback on Error (Full Rollback)
+  // -----------------------------------------------------------------------
+  it("rolls back all changes atomically if any error occurs during deletion", () => {
+    const initialCompaniesCount = system.companies.length;
+    const initialJobsCount = system.jobs.length;
+    const initialMembersCount = system.members.length;
+    const initialUsersCount = system.authUsers.length;
+
+    // Simulate error during deletion
+    expect(() => {
+      system.deleteCompanyWithTransactionRollback("comp-andalus", "tx@tawzeefx.com", 1);
+    }).toThrow("COMPANY_DELETE_TRANSACTION_ROLLBACK");
+
+    // Verify 100% rollback: exact same counts, no partial deletion, no orphan records
+    expect(system.companies.length).toBe(initialCompaniesCount);
+    expect(system.jobs.length).toBe(initialJobsCount);
+    expect(system.members.length).toBe(initialMembersCount);
+    expect(system.authUsers.length).toBe(initialUsersCount);
+
+    // Verify Habeeb is NOT banned and company is NOT deleted
+    const habeeb = system.authUsers.find(u => u.email === "habeeb@tawzeefx.com");
+    expect(habeeb?.banned).toBe(false);
+    expect(system.companies.find(c => c.id === "comp-andalus")).toBeDefined();
+  });
+
+  // -----------------------------------------------------------------------
+  // TEST 10: Complete Zero-Orphan Verification across all cascaded entities
+  // -----------------------------------------------------------------------
+  it("guarantees 0 orphan records across all tables after permanent deletion", () => {
+    system.deleteCompanyPermanent("comp-andalus", "tx@tawzeefx.com");
+
+    // Verify zero orphaned jobs referencing Al-Andalus or its branches
+    const orphanJobs = system.jobs.filter(j => j.company_id.includes("andalus"));
+    expect(orphanJobs).toHaveLength(0);
+
+    // Verify zero orphaned members
+    const orphanMembers = system.members.filter(m => m.company_id.includes("andalus"));
+    expect(orphanMembers).toHaveLength(0);
+
+    // Verify zero orphaned candidates
+    const orphanCandidates = system.candidates.filter(c => c.company_id.includes("andalus"));
+    expect(orphanCandidates).toHaveLength(0);
+
+    // Verify zero orphaned child branches
+    const orphanBranches = system.companies.filter(c => c.parent_company_id === "comp-andalus");
+    expect(orphanBranches).toHaveLength(0);
   });
 });

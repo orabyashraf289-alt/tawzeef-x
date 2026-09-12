@@ -2,6 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import {
+  deleteCompanyPermanently,
+  deactivateCompany,
+  reactivateCompany,
+} from "@/services/companyDeletionService";
 
 export interface CompanyRow {
   id: string;
@@ -293,13 +298,17 @@ export function useToggleCompanyStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "active" | "inactive" }) => {
-      const { error } = await supabase.from("companies" as any).update({ status } as any).eq("id", id);
-      if (error) throw error;
+      if (status === "inactive") {
+        await deactivateCompany(id);
+      } else {
+        await reactivateCompany(id);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["all-companies"] });
       qc.invalidateQueries({ queryKey: ["company"] });
-      toast({ title: "تم تحديث الحالة ✅" });
+      qc.invalidateQueries({ queryKey: ["company-branches"] });
+      toast({ title: "تم تحديث الحالة بنجاح ✅" });
     },
     onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
@@ -386,61 +395,7 @@ export function useDeleteCompany() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      let rpcSuccess = false;
-      let dataResult: any = null;
-
-      // 1. Try invoking Edge Function delete-company
-      try {
-        const { data, error } = await supabase.functions.invoke("delete-company", {
-          body: { companyId: id },
-        });
-        if (!error && (data?.success || data?.deleted_company_id)) {
-          rpcSuccess = true;
-          dataResult = data;
-        } else if (error && error.message?.includes("Security restriction")) {
-          throw new Error("لا يمكن حذف الشركة المركزية للمنصة");
-        }
-      } catch (edgeErr: any) {
-        if (edgeErr.message?.includes("الشركة المركزية")) throw edgeErr;
-        console.warn("Edge function delete-company unavailable, attempting database RPC:", edgeErr);
-      }
-
-      // 2. Fallback to atomic server-side cascade deletion RPC
-      if (!rpcSuccess) {
-        const { data, error } = await supabase.rpc("delete_company_cascade" as any, {
-          target_company_id: id,
-        });
-
-        if (error) {
-          const errMsg = error.message || "";
-          if (errMsg.includes("Unauthorized") || errMsg.includes("Security Restriction")) {
-            throw new Error(errMsg);
-          }
-
-          console.warn("delete_company_cascade RPC not available or failed, using client cascade fallback:", error);
-          // Client Fallback: Delete related records in known tables, then members, then branches, then company
-          await supabase.from("jobs" as any).delete().eq("company_id", id);
-          await supabase.from("company_invitations" as any).delete().eq("company_id", id);
-          await supabase.from("company_members" as any).delete().eq("company_id", id);
-          await supabase.from("companies" as any).delete().eq("parent_company_id", id);
-          const { error: delErr } = await supabase.from("companies" as any).delete().eq("id", id);
-          if (delErr) throw delErr;
-        } else {
-          dataResult = data;
-        }
-      }
-
-      // 2. Clean up localStorage if active company was deleted
-      try {
-        const activeId = localStorage.getItem("tx_active_company_id");
-        if (activeId === id) {
-          localStorage.removeItem("tx_active_company_id");
-        }
-      } catch (err) {
-        console.warn("Failed to clear tx_active_company_id from localStorage:", err);
-      }
-
-      return data;
+      return await deleteCompanyPermanently(id);
     },
     onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ["all-companies"] });
