@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { useAuth } from "@/contexts/AuthContext";
 import { useAllUserRoles, useUpdateUserRole, useDeleteTeamMember, useInvitations, useSendInvitation, useActivityLog, type AppRole, useCustomRoles, useCreateCustomRole, useDeleteCustomRole, useUserRole } from "@/hooks/useUserRole";
 import { useAllPermissions, type PermissionRow } from "@/hooks/useScreenPermissions";
 import { useQueryClient } from "@tanstack/react-query";
