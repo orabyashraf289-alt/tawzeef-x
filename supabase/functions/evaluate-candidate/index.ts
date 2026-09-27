@@ -5,6 +5,7 @@ import {
   buildGeminiRequest,
   canEvaluateCandidate,
   GEMINI_ENDPOINT,
+  isInvalidGeminiKeyResponse,
   jobMatchesCandidate,
   parseGeminiEvaluation,
   type EvaluationCandidate,
@@ -102,6 +103,9 @@ serve(async (req) => {
     }
     if (response.status === 429) return json({ error: "Gemini request limit reached" }, 429, corsHeaders);
     if (!response.ok) {
+      if (response.status === 400 && isInvalidGeminiKeyResponse(await response.json().catch(() => null))) {
+        return json({ error: "مفتاح Gemini غير صالح. حدّث GEMINI_API_KEY في إعدادات Supabase." }, 503, corsHeaders);
+      }
       console.warn("Gemini returned status", response.status);
       return json({ error: "Gemini evaluation is currently unavailable" }, 503, corsHeaders);
     }
