@@ -23,7 +23,7 @@ import {
   MessageSquare, FileText, Briefcase, GraduationCap, Check, Clock, 
   Circle, CalendarPlus, User, Activity, Hash, Layers, Globe, 
   Copy, ChevronLeft, Sparkles, Eye, StarOff, GitBranch, ClipboardCheck,
-  Lock, Shield, Award, CheckCircle2, Video, BookOpen, Heart, Home, Bus, ExternalLink, FileCheck2, Loader2
+  Lock, Shield, Award, Video, BookOpen, Heart, Home, Bus, ExternalLink, FileCheck2, Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCandidates } from "@/hooks/useJobs";
@@ -380,22 +380,22 @@ export default function CandidateProfile() {
     return fallback;
   };
 
-  // Educational teacher attributes — safely coerced
-  const licenseNumber = safeStr((candidate as any).license_number, "ETEC-9842145-SA");
-  const licenseExpiry = safeStr((candidate as any).license_expiry, "30 ديسمبر 2028");
-  const universityDegree = safeStr((candidate as any).university_degree, "بكالوريوس علوم وتربية (فيزياء وكيمياء)");
-  const universityName = safeStr((candidate as any).university_name, "جامعة الملك سعود - الرياض (2018)");
-  const teachingCurricula = safeArr((candidate as any).curricula, ["المنهج الأمريكي NGSS", "المنهج البريطاني IGCSE", "المنهج السعودي"]);
-  const teachingLevels = safeArr((candidate as any).teaching_levels, ["المرحلة المتوسطة (الصفوف 7-9)", "المرحلة الثانوية (الصفوف 10-12)"]);
-  const ieltsScore = safeStr((candidate as any).ielts_score, "7.5 (C1 Advanced)");
-  const intCertificates = safeArr((candidate as any).certificates, ["CELTA (Cambridge)", "PGCE International"]);
-  const preferredCities = safeArr((candidate as any).preferred_cities, ["الرياض", "جدة", "الخبر"]);
-  const relocationVisa = safeStr((candidate as any).relocation, "جاهز للانتقال فوراً • نقل كفالة جاهز / تأشيرة استقدام");
-  const demoLessonUrl = safeStr((candidate as any).demo_video_url, "https://youtube.com/watch?v=demo-lesson-preview");
+  // Show only professional details actually recorded for this candidate.
+  const licenseNumber = safeStr((candidate as any).license_number);
+  const licenseExpiry = safeStr((candidate as any).license_expiry);
+  const universityDegree = safeStr((candidate as any).university_degree) || safeStr((candidate as any).education);
+  const universityName = safeStr((candidate as any).university_name);
+  const teachingCurricula = safeArr((candidate as any).curricula, []);
+  const teachingLevels = safeArr((candidate as any).teaching_levels, []);
+  const ieltsScore = safeStr((candidate as any).ielts_score);
+  const intCertificates = safeArr((candidate as any).certificates, []);
+  const preferredCities = safeArr((candidate as any).preferred_cities, []);
+  const relocationVisa = safeStr((candidate as any).relocation);
+  const demoLessonUrl = safeStr((candidate as any).demo_video_url);
 
   // Safe rendered strings — prevent React Error #31 (objects as children)
   const candidateName = safeStr(candidate.name, "—");
-  const candidateRole = safeStr((candidate as any).role, "معلم علوم وفيزياء");
+  const candidateRole = safeStr((candidate as any).role, "غير محدد");
   const candidateEmail = safeStr((candidate as any).email, "");
   const candidatePhone = safeStr((candidate as any).phone, "");
   const candidateStatus = safeStr(candidate.status, "قيد المراجعة");
@@ -541,10 +541,6 @@ export default function CandidateProfile() {
               <div className="flex-1 pt-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-1.5">
                   <h1 className="text-xl lg:text-2xl font-bold text-foreground truncate">{candidateName}</h1>
-                  <Badge className="bg-emerald-600 text-white text-[11px] font-bold gap-1 px-3">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    ملف معلم موثق ومعتمد 🏅
-                  </Badge>
                   <Badge variant="secondary" className={cn("text-[11px] px-2.5 py-0.5 rounded-full font-semibold gap-1.5", statusCfg.bg)}>
                     <span className={cn("w-1.5 h-1.5 rounded-full", statusCfg.dot)} />
                     {statusCfg.label}
@@ -565,10 +561,12 @@ export default function CandidateProfile() {
                       <Phone className="w-3.5 h-3.5 text-emerald-600" />{candidatePhone}
                     </span>
                   )}
-                  <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold px-3 py-1 rounded-xl border border-emerald-500/20">
-                    <Shield className="w-3.5 h-3.5" />
-                    الرخصة المهنية: {licenseNumber} ({licenseExpiry})
-                  </span>
+                  {licenseNumber && (
+                    <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold px-3 py-1 rounded-xl border border-emerald-500/20">
+                      <Shield className="w-3.5 h-3.5" />
+                      الرخصة المهنية: {licenseNumber}{licenseExpiry ? ` (الانتهاء: ${licenseExpiry})` : ""}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -620,11 +618,8 @@ export default function CandidateProfile() {
           <div className="flex items-center justify-between border-b border-border/60 pb-4">
             <h3 className="font-bold text-base text-foreground flex items-center gap-2">
               <GraduationCap className="w-5 h-5 text-emerald-600" />
-              سجل المؤهلات والرخصة المهنية والتخصص التخصصي للمعلم:
+              بيانات المؤهلات والخبرات المسجلة:
             </h3>
-            <Badge className="bg-emerald-600 text-white text-[10px] font-bold">
-              معتمد وموثق 🇸🇦
-            </Badge>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -634,8 +629,8 @@ export default function CandidateProfile() {
                 <Shield className="w-3.5 h-3.5 text-emerald-600" />
                 الرخصة المهنية للمعلمين (ETEC)
               </span>
-              <p className="text-xs font-black text-emerald-600 font-mono">{licenseNumber}</p>
-              <p className="text-[10px] text-emerald-600 font-bold">سارية المفعول حتى {licenseExpiry}</p>
+              <p className="text-xs font-black text-emerald-600 font-mono">{licenseNumber || "غير مذكور"}</p>
+              {licenseExpiry && <p className="text-[10px] text-muted-foreground">تاريخ الانتهاء: {licenseExpiry}</p>}
             </div>
 
             {/* University & Degree */}
@@ -644,8 +639,8 @@ export default function CandidateProfile() {
                 <GraduationCap className="w-3.5 h-3.5 text-indigo-600" />
                 المؤهل والجامعة
               </span>
-              <p className="text-xs font-bold text-foreground">{universityDegree}</p>
-              <p className="text-[10px] text-muted-foreground">{universityName}</p>
+              <p className="text-xs font-bold text-foreground">{universityDegree || "غير مذكور"}</p>
+              {universityName && <p className="text-[10px] text-muted-foreground">{universityName}</p>}
             </div>
 
             {/* Curricula & Levels */}
@@ -654,8 +649,8 @@ export default function CandidateProfile() {
                 <BookOpen className="w-3.5 h-3.5 text-blue-600" />
                 المناهج والمراحل التي يدرسها
               </span>
-              <p className="text-xs font-bold text-foreground">{teachingCurricula.join(" • ")}</p>
-              <p className="text-[10px] text-muted-foreground">{teachingLevels.join(" • ")}</p>
+              <p className="text-xs font-bold text-foreground">{teachingCurricula.join(" • ") || "غير مذكور"}</p>
+              {teachingLevels.length > 0 && <p className="text-[10px] text-muted-foreground">{teachingLevels.join(" • ")}</p>}
             </div>
 
             {/* Certificates & English */}
@@ -664,8 +659,8 @@ export default function CandidateProfile() {
                 <Award className="w-3.5 h-3.5 text-amber-600" />
                 الشهادات الدولية واللغات
               </span>
-              <p className="text-xs font-bold text-foreground">IELTS: {ieltsScore}</p>
-              <p className="text-[10px] text-muted-foreground">{intCertificates.join(" | ")}</p>
+              <p className="text-xs font-bold text-foreground">{ieltsScore ? `IELTS: ${ieltsScore}` : "درجة IELTS غير مذكورة"}</p>
+              {intCertificates.length > 0 && <p className="text-[10px] text-muted-foreground">{intCertificates.join(" | ")}</p>}
             </div>
           </div>
 
@@ -677,9 +672,9 @@ export default function CandidateProfile() {
                 التفضيلات الجغرافية والجاهزية والتأشيرة:
               </span>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                المدن المفضلة: <strong>{preferredCities.join("، ")}</strong>
+                المدن المفضلة: <strong>{preferredCities.join("، ") || "غير مذكورة"}</strong>
               </p>
-              <p className="text-xs font-semibold text-emerald-600">{relocationVisa}</p>
+              {relocationVisa && <p className="text-xs font-semibold text-emerald-600">{relocationVisa}</p>}
             </div>
 
             <div className="p-4 rounded-2xl bg-card border border-border/60 space-y-2 flex flex-col justify-between">
@@ -688,12 +683,12 @@ export default function CandidateProfile() {
                   <Video className="w-4 h-4 text-emerald-600" />
                   فيديو الحصة التجريبية ومعرض الشرح:
                 </span>
-                <p className="text-xs text-muted-foreground mt-1">مشاهدة تسجيل شرح حصة تجريبية للمعلم لتقييم الإلقاء والتفاعل.</p>
+                <p className="text-xs text-muted-foreground mt-1">{demoLessonUrl ? "فيديو مرفق بملف المرشح." : "لا يوجد فيديو مرفق."}</p>
               </div>
-              <a href={demoLessonUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:underline pt-2">
+              {demoLessonUrl && <a href={demoLessonUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:underline pt-2">
                 <ExternalLink className="w-3.5 h-3.5" />
-                مشاهدة فيديو الدرس التجريبي والمناهج 🎬
-              </a>
+                مشاهدة الفيديو المرفق 🎬
+              </a>}
             </div>
           </div>
         </Card>
