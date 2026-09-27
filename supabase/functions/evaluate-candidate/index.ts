@@ -1,185 +1,126 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getExtendedCorsHeaders } from "../_shared/cors.ts";
+import {
+  buildGeminiRequest,
+  canEvaluateCandidate,
+  GEMINI_ENDPOINT,
+  jobMatchesCandidate,
+  parseGeminiEvaluation,
+  type EvaluationCandidate,
+  type EvaluationJob,
+} from "./policy.ts";
+
+const json = (body: object, status: number, corsHeaders: Record<string, string>) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 
 serve(async (req) => {
   const corsHeaders = getExtendedCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405, corsHeaders);
+
+  let candidateId: unknown;
+  let jobId: unknown;
+  try {
+    ({ candidateId, jobId } = await req.json());
+  } catch {
+    return json({ error: "Invalid request body" }, 400, corsHeaders);
+  }
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (typeof candidateId !== "string" || !uuid.test(candidateId) ||
+      (jobId != null && (typeof jobId !== "string" || !uuid.test(jobId)))) {
+    return json({ error: "Invalid candidate or job" }, 400, corsHeaders);
+  }
+
+  const authHeader = req.headers.get("Authorization") || "";
+  const token = authHeader.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  if (!token || token === anonKey || token === serviceKey || token === Deno.env.get("SUPABASE_PUBLISHABLE_KEY")) {
+    return json({ error: "Authentication required" }, 401, corsHeaders);
+  }
 
   try {
-    const { candidateId, jobId } = await req.json();
-
-    if (typeof candidateId !== "string" || !/^[0-9a-f-]{36}$/i.test(candidateId)) {
-      return new Response(JSON.stringify({ error: "Invalid candidate" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
-    const authHeader = req.headers.get("Authorization") || "";
-    const tokenStr = authHeader.replace(/^Bearer\s+/i, "").trim();
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    if (!tokenStr || tokenStr === anonKey || tokenStr === Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || tokenStr === supabaseKey) {
-      return new Response(JSON.stringify({ error: "Authentication required" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
     const authClient = createClient(supabaseUrl, anonKey);
-    const { data: { user }, error: userError } = await authClient.auth.getUser(tokenStr);
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Authentication required" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const { data: { user }, error: authError } = await authClient.auth.getUser(token);
+    if (authError || !user || user.is_anonymous) {
+      return json({ error: "Authentication required" }, 401, corsHeaders);
     }
-    const callerId = user.id;
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Fetch candidate
-    const { data: candidate, error: candErr } = await supabase
+    const db = createClient(supabaseUrl, serviceKey);
+    const { data: candidate, error: candidateError } = await db
       .from("candidates")
-      .select("*")
+      .select("id,user_id,company_id,job_id,role,skills,experience,education,summary")
       .eq("id", candidateId)
-      .single();
-    if (candErr || !candidate) throw new Error("المرشح غير موجود");
+      .maybeSingle();
+    if (candidateError) throw candidateError;
+    if (!candidate) return json({ error: "Candidate not found" }, 404, corsHeaders);
 
-    const [{ data: platformRole, error: roleError }, { data: member, error: memberError }] = await Promise.all([
-      supabase.from("platform_roles").select("role").eq("user_id", callerId).eq("role", "super_admin").maybeSingle(),
+    const [{ data: role, error: roleError }, { data: member, error: memberError }] = await Promise.all([
+      db.from("platform_roles").select("id").eq("user_id", user.id).eq("role", "super_admin").maybeSingle(),
       candidate.company_id
-        ? supabase.from("company_members").select("id").eq("company_id", candidate.company_id).eq("user_id", callerId).maybeSingle()
+        ? db.from("company_members").select("id").eq("company_id", candidate.company_id).eq("user_id", user.id).maybeSingle()
         : Promise.resolve({ data: null, error: null }),
     ]);
     if (roleError || memberError) throw roleError || memberError;
-    if (!platformRole && !member && !(candidate.user_id === callerId && !candidate.company_id)) {
-      return new Response(JSON.stringify({ error: "Forbidden: candidate belongs to another company" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!canEvaluateCandidate(candidate as EvaluationCandidate, user.id, Boolean(role), Boolean(member))) {
+      return json({ error: "Forbidden" }, 403, corsHeaders);
     }
-    if (jobId && jobId !== candidate.job_id) {
-      return new Response(JSON.stringify({ error: "Job does not match candidate" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // Fetch job if provided
-    let job = null;
-    if (jobId) {
-      const { data } = await supabase.from("jobs").select("*").eq("id", jobId).single();
-      job = data;
-    } else if (candidate.job_id) {
-      const { data } = await supabase.from("jobs").select("*").eq("id", candidate.job_id).single();
-      job = data;
+    if (jobId != null && jobId !== candidate.job_id) {
+      return json({ error: "Job does not match candidate" }, 400, corsHeaders);
     }
 
-    let evaluation = null;
-
-    // Try External LLM Gateway
-    const LOVABLE_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("LOVABLE_API_KEY");
-    if (LOVABLE_API_KEY) {
-      try {
-        const isDirectGemini = (LOVABLE_API_KEY.startsWith("AIza") || LOVABLE_API_KEY.startsWith("AQ."));
-        const API_URL = isDirectGemini
-          ? `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`
-          : "https://api.lovable.dev/v1/chat/completions";
-
-        const candidateInfo = `
-الاسم: ${candidate.name}
-الدور: ${candidate.role || "غير محدد"}
-المهارات: ${(candidate.skills || []).join(", ") || "غير محددة"}
-الخبرة: ${candidate.experience || "غير محددة"}
-التعليم: ${candidate.education || "غير محدد"}
-الملخص: ${candidate.summary || "غير متوفر"}
-`;
-
-        const jobInfo = job ? `
-المسمى الوظيفي: ${job.title}
-القسم: ${job.department}
-الموقع: ${job.location}
-نوع العمل: ${job.type}
-مستوى الخبرة: ${job.experience_level || "غير محدد"}
-الوصف: ${job.description || "غير متوفر"}
-المتطلبات: ${(job.requirements || []).join(", ") || "غير محددة"}
-` : "لا توجد وظيفة محددة للمقارنة";
-
-        const response = await fetch(API_URL, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: isDirectGemini ? "gemini-2.0-flash" : "google/gemini-2.0-flash",
-            tools: [
-              {
-                type: "function",
-                function: {
-                  name: "evaluate_candidate",
-                  description: "تقييم عالي الدقة لمدى توافق المرشح مع الوظيفة",
-                  parameters: {
-                    type: "object",
-                    properties: {
-                      score: { type: "integer", description: "نسبة التوافق الكلية من 0 إلى 100" },
-                      skillsMatchScore: { type: "integer", description: "درجة مطابقة المهارات (0-100)" },
-                      experienceMatchScore: { type: "integer", description: "درجة مطابقة سنوات وتخصص الخبرة (0-100)" },
-                      educationMatchScore: { type: "integer", description: "درجة مطابقة المؤهل العلمي (0-100)" },
-                      culturalFitScore: { type: "integer", description: "درجة التوافق التنظيمي والمالي (0-100)" },
-                      summary: { type: "string", description: "ملخص التقييم التحليلي في 2-3 جمل بالعربية" },
-                      strengths: { type: "array", items: { type: "string" }, description: "أهم نقاط القوة البارزة (3-5 نقاط)" },
-                      weaknesses: { type: "array", items: { type: "string" }, description: "الفجوات والمخاطر المتوقعة (2-4 نقاط)" },
-                      recommendation: { type: "string", description: "التوصية النهائية باللغة العربية" },
-                      tailoredInterviewQuestions: { type: "array", items: { type: "string" }, description: "3 أسئلة مقابلة تقنية مخصصة لهذا المرشح" },
-                    },
-                    required: ["score", "summary", "strengths", "weaknesses", "recommendation"],
-                    additionalProperties: false,
-                  },
-                },
-              },
-            ],
-            tool_choice: { type: "function", function: { name: "evaluate_candidate" } },
-            messages: [
-              {
-                role: "system",
-                content: `أنت خبير كبار الموارد البشرية ومحلل جدارات التوظيف بالذكاء الاصطناعي. قيّم المرشح التالي بدقة متناهية بناءً على معلوماته ومدى توافقه مع الوظيفة.`,
-              },
-              {
-                role: "user",
-                content: `قيّم هذا المرشح:\n\n--- معلومات المرشح ---${candidateInfo}\n--- معلومات الوظيفة ---${jobInfo}`,
-              },
-            ],
-          }),
-        });
-
-        if (response.ok) {
-          const aiData = await response.json();
-          const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-          if (toolCall) {
-            evaluation = JSON.parse(toolCall.function.arguments);
-          }
-        } else {
-          console.warn("AI Gateway response not ok, status:", response.status, await response.text());
-        }
-      } catch (aiErr) {
-        console.warn("LLM API call exception, falling back to smart evaluation:", aiErr);
+    let job: EvaluationJob | null = null;
+    if (candidate.job_id) {
+      const { data, error } = await db.from("jobs")
+        .select("id,user_id,company_id,status,title,department,location,type,experience_level,description,requirements")
+        .eq("id", candidate.job_id).maybeSingle();
+      if (error) throw error;
+      if (!data || !jobMatchesCandidate(candidate as EvaluationCandidate, data as EvaluationJob, user.id)) {
+        return json({ error: "Job does not match candidate" }, 403, corsHeaders);
       }
+      job = data as EvaluationJob;
     }
 
-    if (!evaluation) {
-      return new Response(JSON.stringify({ error: "AI evaluation is currently unavailable" }), {
-        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const geminiKey = Deno.env.get("GEMINI_API_KEY")?.trim();
+    if (!geminiKey) return json({ error: "Gemini evaluation is not configured" }, 503, corsHeaders);
+
+    let response: Response;
+    try {
+      response = await fetch(GEMINI_ENDPOINT, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${geminiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(buildGeminiRequest(candidate as EvaluationCandidate, job)),
+        signal: AbortSignal.timeout(30000),
       });
+    } catch {
+      return json({ error: "Gemini evaluation is currently unavailable" }, 503, corsHeaders);
     }
-    if (typeof evaluation.score !== "number" || !Number.isFinite(evaluation.score) || evaluation.score < 0 || evaluation.score > 100) {
-      throw new Error("Invalid AI evaluation score");
+    if (response.status === 429) return json({ error: "Gemini request limit reached" }, 429, corsHeaders);
+    if (!response.ok) {
+      console.warn("Gemini returned status", response.status);
+      return json({ error: "Gemini evaluation is currently unavailable" }, 503, corsHeaders);
     }
 
-    // Save evaluation to DB
-    const { error: updateError } = await supabase
-      .from("candidates")
-      .update({
-        ai_score: evaluation.score,
-        ai_evaluation: JSON.stringify(evaluation),
-      })
+    const evaluation = parseGeminiEvaluation(await response.json());
+    if (!evaluation) return json({ error: "Invalid Gemini evaluation" }, 502, corsHeaders);
+
+    let update = db.from("candidates")
+      .update({ ai_score: evaluation.score, ai_evaluation: JSON.stringify(evaluation) })
       .eq("id", candidateId);
+    update = candidate.company_id ? update.eq("company_id", candidate.company_id) : update.is("company_id", null);
+    update = candidate.job_id ? update.eq("job_id", candidate.job_id) : update.is("job_id", null);
+    const { data: updated, error: updateError } = await update.select("id").maybeSingle();
     if (updateError) throw updateError;
+    if (!updated) return json({ error: "Candidate changed during evaluation" }, 409, corsHeaders);
 
-    return new Response(JSON.stringify(evaluation), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (e) {
-    console.error("evaluate error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json(evaluation, 200, corsHeaders);
+  } catch (error) {
+    console.error("Candidate evaluation failed", error instanceof Error ? error.message : "Unknown error");
+    return json({ error: "Candidate evaluation failed" }, 500, corsHeaders);
   }
 });
