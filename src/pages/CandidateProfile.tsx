@@ -160,6 +160,8 @@ export default function CandidateProfile() {
   const { data: candidates, isLoading: isCandidatesLoading } = useCandidates();
   const [overrideStage, setOverrideStage] = useState<string | null>(null);
   const [overrideStatus, setOverrideStatus] = useState<string | null>(null);
+  const [stageToConfirm, setStageToConfirm] = useState<string | null>(null);
+  const [isChangingStage, setIsChangingStage] = useState(false);
 
   useEffect(() => {
     setOverrideStage(null);
@@ -397,9 +399,6 @@ export default function CandidateProfile() {
   const candidateEmail = safeStr((candidate as any).email, "");
   const candidatePhone = safeStr((candidate as any).phone, "");
   const candidateStatus = safeStr(candidate.status, "قيد المراجعة");
-
-  const [stageToConfirm, setStageToConfirm] = useState<string | null>(null);
-  const [isChangingStage, setIsChangingStage] = useState(false);
 
   const handleStageDirectMove = async (targetStage: string) => {
     if (!candidate || targetStage === candidate.stage) return;
