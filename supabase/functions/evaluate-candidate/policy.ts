@@ -1,6 +1,16 @@
 export const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 export const GEMINI_MODEL = "gemini-3.8-flash";
 
+export function isInvalidGeminiKeyResponse(body: unknown): boolean {
+  const entries = Array.isArray(body) ? body : [body];
+  return entries.some((entry) => {
+    if (!entry || typeof entry !== "object" || !("error" in entry)) return false;
+    const error = entry.error;
+    if (!error || typeof error !== "object" || !("message" in error)) return false;
+    return typeof error.message === "string" && /(?:pass a valid API key|API key not valid)/i.test(error.message);
+  });
+}
+
 export interface EvaluationCandidate {
   id: string;
   user_id: string | null;

@@ -4,6 +4,7 @@ import {
   canEvaluateCandidate,
   GEMINI_ENDPOINT,
   GEMINI_MODEL,
+  isInvalidGeminiKeyResponse,
   jobMatchesCandidate,
   parseGeminiEvaluation,
   type EvaluationCandidate,
@@ -46,6 +47,12 @@ describe("candidate evaluation authorization", () => {
 });
 
 describe("Gemini request and response", () => {
+  it("recognizes Google's array-wrapped invalid key error without treating other validation errors as credentials", () => {
+    expect(isInvalidGeminiKeyResponse([{ error: { code: 400, message: "Please pass a valid API key", status: "INVALID_ARGUMENT" } }])).toBe(true);
+    expect(isInvalidGeminiKeyResponse({ error: { message: "Invalid JSON payload" } })).toBe(false);
+    expect(isInvalidGeminiKeyResponse(null)).toBe(false);
+  });
+
   it("sends only the approved profile fields to Google's endpoint", () => {
     const withContact = { ...candidate, name: "Full Name", email: "private@example.invalid", phone: "01000000000" };
     const body = buildGeminiRequest(withContact, job);
