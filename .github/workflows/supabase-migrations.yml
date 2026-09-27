@@ -1,0 +1,23 @@
+name: Supabase historical migration audit
+
+# The historical migration set cannot yet bootstrap a blank project.
+# Run this manually while issue #4 tracks restoring the missing baseline.
+on:
+  workflow_dispatch:
+
+jobs:
+  replay-migrations:
+    name: Replay database migrations locally
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+      - name: Start database and replay migrations
+        run: supabase db start
+      - name: Stop local database
+        if: always()
+        run: supabase stop

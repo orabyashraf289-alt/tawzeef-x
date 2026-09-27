@@ -394,7 +394,8 @@ Deno.serve(async (req) => {
             .maybeSingle();
 
           if (assessment) {
-            const assessmentUrl = `${supabaseUrl.replace('/rest/v1', '').replace('https://odtpjvmayutbwqhlbvsr.supabase.co', Deno.env.get('APP_URL') || 'https://ai-hire-buddy-22.lovable.app')}/assessment/${assessment.token}`;
+            const appUrl = (Deno.env.get("APP_URL") || "https://www.tawzeefx.com").replace(/\/$/, "");
+            const assessmentUrl = `${appUrl}/assessment/${encodeURIComponent(assessment.token)}`;
             const customTpl = await getCustomTemplate(supabase, candidate.company_id, "assessment");
             let subject = `اختبار مطلوب: ${assessment.title}`;
             let html = buildAssessmentEmail(candidate.name, assessment.title, assessmentUrl, jobTitle);
