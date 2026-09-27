@@ -3,6 +3,15 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
+// Vite embeds these public values in browser assets at build time. Keep
+// production deployments usable when the Vercel project has no VITE_* settings.
+// Explicit environment variables still take precedence, and preview builds
+// never inherit this production database configuration.
+if (process.env.VERCEL_ENV === "production") {
+  process.env.VITE_SUPABASE_URL ||= "https://rlfewneisuezsamhosct.supabase.co";
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||= "sb_publishable_3I_Wf9MjrbRC54g6PNhlbA_CoSwT6UC";
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
