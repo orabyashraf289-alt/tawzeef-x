@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 
 interface AIEvaluation {
   score: number;
@@ -76,7 +77,14 @@ export default function AIEvaluationCard(props: AIEvaluationCardProps) {
       const { data, error } = await supabase.functions.invoke<AIEvaluation>("evaluate-candidate", {
         body: { candidateId, jobId },
       });
-      if (error || !data || typeof data.score !== "number") throw error || new Error("تعذر التقييم، حاول لاحقاً");
+      if (error) {
+        if (error instanceof FunctionsHttpError) {
+          const responseBody = await error.context.json().catch(() => null);
+          if (typeof responseBody?.error === "string") throw new Error(responseBody.error);
+        }
+        throw error;
+      }
+      if (!data || typeof data.score !== "number") throw new Error("تعذر التقييم، حاول لاحقاً");
 
       setEvaluation(data);
 
