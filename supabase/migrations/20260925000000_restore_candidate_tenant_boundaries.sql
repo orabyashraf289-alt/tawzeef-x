@@ -5,6 +5,9 @@ DROP POLICY IF EXISTS "Public tracking code lookup candidates" ON public.candida
 DROP POLICY IF EXISTS "Public tracking code lookup applications" ON public.applications;
 DROP POLICY IF EXISTS "Authenticated users access all candidates" ON public.candidates;
 DROP POLICY IF EXISTS "Authenticated users access all applications" ON public.applications;
+-- Public applicants insert applications; its SECURITY DEFINER trigger writes
+-- the candidate row. Anonymous direct candidate inserts are unnecessary.
+DROP POLICY IF EXISTS "Anyone can submit candidate application" ON public.candidates;
 
 DROP POLICY IF EXISTS "Users manage own candidates" ON public.candidates;
 DROP POLICY IF EXISTS "Company members access candidates" ON public.candidates;
@@ -63,6 +66,24 @@ CREATE POLICY "Platform admins manage applications" ON public.applications
   WITH CHECK (public.is_super_admin(auth.uid()));
 
 -- Scorecards were also made writable by every signed-in user in July.
+-- Some existing projects have this migration recorded without the table.
+-- Create the expected shape before replacing the policies, without granting
+-- anonymous access.
+CREATE TABLE IF NOT EXISTS public.candidate_scorecards (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  candidate_id uuid NOT NULL REFERENCES public.candidates(id) ON DELETE CASCADE,
+  reviewer_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  reviewer_name text NOT NULL,
+  rating integer NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  notes text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT candidate_scorecards_candidate_reviewer_key UNIQUE (candidate_id, reviewer_id)
+);
+ALTER TABLE public.candidate_scorecards ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.candidate_scorecards TO authenticated;
+GRANT ALL ON public.candidate_scorecards TO service_role;
+
 DROP POLICY IF EXISTS "Authenticated users access scorecards" ON public.candidate_scorecards;
 DROP POLICY IF EXISTS "Users can view scorecards of accessible candidates" ON public.candidate_scorecards;
 DROP POLICY IF EXISTS "Users can manage scorecards of accessible candidates" ON public.candidate_scorecards;
@@ -106,8 +127,14 @@ CREATE POLICY "Reviewers delete own candidate scorecards" ON public.candidate_sc
 
 -- These SECURITY DEFINER procedures can change Auth credentials or purge an
 -- entire tenant. Only server-side service credentials may execute them.
-REVOKE ALL ON FUNCTION public.create_agency_account(text, text, text, text, uuid, uuid)
-  FROM PUBLIC, anon, authenticated;
+DO $$
+BEGIN
+  IF to_regprocedure('public.create_agency_account(text,text,text,text,uuid,uuid)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.create_agency_account(text, text, text, text, uuid, uuid)
+      FROM PUBLIC, anon, authenticated;
+  END IF;
+END;
+$$;
 REVOKE ALL ON FUNCTION public.delete_company_permanently(uuid, uuid)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.delete_company_permanently(uuid, uuid) TO service_role;
