@@ -54,6 +54,33 @@ jobs:
             IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.webhook_deliveries'::regclass) THEN
               RAISE EXCEPTION 'Webhook delivery RLS must be enabled';
             END IF;
+            IF EXISTS (
+              SELECT 1 FROM pg_policies
+              WHERE schemaname = 'public'
+                AND tablename IN ('candidates', 'applications', 'candidate_scorecards')
+                AND cmd = 'SELECT'
+                AND roles && ARRAY['anon'::name, 'public'::name]
+            ) THEN
+              RAISE EXCEPTION 'Candidate and application records must not have public SELECT policies';
+            END IF;
+            IF EXISTS (
+              SELECT 1 FROM pg_policies
+              WHERE schemaname = 'public'
+                AND tablename IN ('candidates', 'applications', 'candidate_scorecards')
+                AND (
+                  regexp_replace(COALESCE(qual, ''), '[ ()]', '', 'g') = 'true'
+                  OR regexp_replace(COALESCE(with_check, ''), '[ ()]', '', 'g') = 'true'
+                )
+            ) THEN
+              RAISE EXCEPTION 'Candidate and application policies must remain tenant scoped';
+            END IF;
+            IF pg_get_functiondef('public.is_super_admin(uuid)'::regprocedure) ILIKE '%user_metadata%'
+               OR pg_get_functiondef('public.is_super_admin(uuid)'::regprocedure) ILIKE '%tx@tawzeefx.com%' THEN
+              RAISE EXCEPTION 'Super-admin authorization must not trust signup metadata or email';
+            END IF;
+            IF to_regprocedure('public.get_auth_triggers()') IS NOT NULL THEN
+              RAISE EXCEPTION 'Privileged Auth diagnostic must not be exposed';
+            END IF;
           END $$;
           SQL
       - name: Stop local database
