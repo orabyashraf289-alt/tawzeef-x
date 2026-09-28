@@ -20,6 +20,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - name: Check migration filenames
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          paths = list(Path('supabase/migrations').glob('*.sql'))
+          invalid = [str(path) for path in paths if not re.fullmatch(r'\d{14}_.+\.sql', path.name)]
+          versions = [path.name[:14] for path in paths]
+          if invalid or len(set(versions)) != len(versions):
+              raise SystemExit(f'Invalid migration names: {invalid}; duplicate versions: {len(versions) - len(set(versions))}')
+          PY
       - uses: supabase/setup-cli@v1
         with:
           version: 2.109.1
