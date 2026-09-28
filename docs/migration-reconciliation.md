@@ -1,42 +1,47 @@
 # Migration reconciliation before a production push
 
-Snapshot: 2026-09-28. Production project `rlfewneisuezsamhosct` has 112 recorded versions. This branch has 138 active timestamped SQL files; 26 versions are not recorded in production. The six `20260927124...` repairs were applied independently even though older versions remain pending. A clean local replay tests the repository's chronological order, **not** the order that a production push would encounter. Do not run `supabase db push` against production on the basis of the local replay.
+Snapshot: 2026-09-28. Production project `rlfewneisuezsamhosct` has **113** recorded versions, including the individually applied signup fix `20260928170918`. The repository had 139 active files after PR #18. This change archives eight unrecorded historical scripts, leaving **131** active files and **18** versions missing from production. No version was marked as applied by archiving a file, and no production SQL was run for this change.
 
-The observations below use migration files and read-only catalog queries (`information_schema`, `pg_class`, `pg_proc`, `pg_policies` and function ACLs). No candidate or Auth rows were read or changed. A table or function appearing in production does not prove that its definition matches an unrecorded migration.
+The observations below use repository files and read-only production catalog queries (`pg_class`, `pg_attribute`, `pg_constraint`, `pg_indexes`, `pg_proc`, `pg_trigger`, and `pg_policies`). No candidate, Auth, job, or company rows were read or changed. Existence of an object does not prove its definition or migration side effects match.
 
-| Pending version | Production evidence / decision before deployment |
+| Still pending | Production evidence / required reconciliation |
 | --- | --- |
-| `20260722100000` | Candidate/company isolation policies: compare each policy with the six already-applied September tenant fixes; do not restore a broader policy. |
-| `20260722110000` | `jobs.approval_chain` is absent; review column semantics and existing job data before adding it. |
-| `20260722160000` | `handle_new_application()` exists; compare its actual definition and triggers before replacing it. |
-| `20260722183000` | Another replacement of `handle_new_application()`; compare with the live function and storage flow. |
-| `20260722221500` | Candidate/application RLS and trigger replacement; compare against later September tenant policies first. |
-| `20260723020000` | `applications.tracking_code` already exists; check column properties, indexes and trigger before recording the version. |
-| `20260723103000` | Anonymous candidate-portal read policies could conflict with the later tenant hardening; review before applying. |
-| `20260723104500` | `candidate_scorecards` already exists with RLS; compare policies and constraints. |
-| `20260724035700` | Live signup trigger exists, but grants `admin` based on email text or user-provided metadata. The pending file is corrected on this branch; production needs a separate reviewed fix. |
-| `20260724040700` | `is_super_admin(uuid)` exists; compare with the platform-role-only version already present in production. |
-| `20260724040900` | Company-member RLS change; compare with current company-member policies and recursion behavior. |
-| `20260724044100` | Diagnostic `get_auth_triggers()` function is absent; decide whether the production diagnostic is still required. |
-| `20260726162500` | `custom_roles` is absent; review tenant ownership and grants before creation. |
-| `20260726203500` | `granular_permissions` is absent; review its RLS and ownership before creation. |
-| `20260726224500` | Depends on the preceding `granular_permissions` table; review its user-scoped design together with that table. |
-| `20260727010000` | `tasks` lacks the proposed candidate/job/subtask/tag/comment columns; review the change as a group. |
-| `20260729060000` | `company_invoices` and `subscription_upgrade_requests` already exist with RLS; direct `CREATE POLICY` statements may conflict with live policies. Compare definitions and data constraints. |
-| `20260729070000` | Subscription RLS replacement; compare with live policies before changing existing access. |
-| `20260729180000` | `companies.manager_user_id` is absent; review branch-manager model. |
-| `20260729190000` | `company_invitations.branch_id` is absent while `accept_company_invitation()` exists; compare function and invitation schema together. |
-| `20260805000000` | `automation_rules` and `automation_logs` are absent. Three invalid index column references were fixed for clean replay; the rule-write policy now checks company ownership. Review the wider automation flow before deployment. |
-| `20260809000000` | Backfills `companies.parent_company_id` by casting `notes` JSON. Requires a guarded data preflight and staging test; no production rows were inspected here. |
-| `20260912000000` | `google_indexing_logs` is absent; normalize its timestamped filename and review table RLS/grants. |
-| `20260913000000` | `delete_company_cascade(uuid)` is absent; its body deletes company, candidate and user-linked records when called. Keep invocation disabled until the deletion flow is reviewed with synthetic records. |
-| `20260913010000` | `delete_company_permanently(uuid,uuid)` already exists. Its production ACL permits `service_role`, not `authenticated` or `anon`. The pending migration now preserves that restriction; the service Edge Function supplies a verified human caller. |
-| `20260913020000` | `platform_roles` and several platform functions already exist. Its live SELECT policy contains a self-reference that needs a synthetic RLS test. The pending file removes automatic super-admin grants based on email and avoids a self-query in that policy; compare all status constraints before applying. |
+| `20260722110000` | `jobs.approval_chain` is absent. Add the column with a reviewed default; assess the effect of the original blanket UPDATE on existing jobs. |
+| `20260722160000` | `handle_new_application()` exists, but its complete live body differs from this replacement. Compare triggers and candidate handling. |
+| `20260722183000` | Another replacement of `handle_new_application()`. It differs from the live function and writes candidate and resume data when invoked. |
+| `20260723020000` | `applications.tracking_code` exists. Its live btree index on that column has a **different name**, so the pending `CREATE INDEX IF NOT EXISTS` would create a redundant index. |
+| `20260726162500` | `custom_roles` is absent, although the frontend queries it. Its proposed public read/write RLS policies use `true`; design tenant ownership and grants before creation. |
+| `20260726203500` | `granular_permissions` is absent, although the frontend queries it. Its proposed public read/write RLS policies use `true`; design tenant ownership and grants before creation. |
+| `20260726224500` | Depends on `granular_permissions`; review per-user overrides and the uniqueness key together with that table. |
+| `20260727010000` | `tasks` lacks proposed candidate/job/subtask/tag/comment columns. Check intended task access and indexes before the additive change. |
+| `20260729060000` | `company_invoices` and `subscription_upgrade_requests` exist with RLS and live policies. The pending unconditional `CREATE POLICY` statements conflict with existing policies; compare the complete schema and live `is_super_admin_user()` function first. |
+| `20260729070000` | Live subscription policies already use `is_super_admin()` and ownership; compare their effective rules before any replacement. |
+| `20260729180000` | `companies.manager_user_id` is absent, although the frontend reads it. Review the branch-manager access model before adding it. |
+| `20260729190000` | `company_invitations.branch_id` is absent. **Do not replay the pending function:** it replaces the live `accept_company_invitation()` and removes the signed-in user's email match with the invitee. Validate branch ownership as well. |
+| `20260805000000` | `automation_rules` and `automation_logs` are absent. Review cross-company access, rule execution, grants, and indexes together. |
+| `20260809000000` | Backfills `companies.parent_company_id` by casting `notes` text to JSON. It needs an error-safe aggregate preflight and staging test; production rows were not inspected. |
+| `20260912000000` | `google_indexing_logs` is absent. The pending INSERT policy allows `anon` and its SELECT policy allows every authenticated user; restrict both before deployment. |
+| `20260913000000` | `delete_company_cascade(uuid)` is absent. Its pending body can permanently delete companies and candidates when called, and grants execution to `authenticated`. Keep deployment disabled pending a reviewed deletion flow and synthetic test. |
+| `20260913010000` | `delete_company_permanently(uuid,uuid)` exists and only `service_role` can execute it. Compare its complete live definition with this pending replacement and preserve that ACL. |
+| `20260913020000` | `platform_roles` and platform functions exist. The live SELECT policy queries `platform_roles` from itself, which needs an isolated RLS test. The pending file also updates company rows based on their names and changes status constraints; verify before deployment. |
 
-The unrecorded `20260724033600` super-admin mass grant and `20260725052500` anonymous password-changing RPC have been archived. The earlier destructive `20260724031500` clean-slate migration remains archived. Two untimestamped scripts that the CLI skipped have also been archived; they must not be renamed into active migrations.
+## Archived in this reconciliation
 
-## Reconciliation gate
+| Unrecorded version | Reason / outstanding work |
+| --- | --- |
+| `20260722100000` | Contains candidate/job/application backfills and older tenant policies. Its backfills are **not assumed complete**; review them separately without exposing candidate data. |
+| `20260722221500` | Contains candidate/application backfills, universally accessible RLS policies, and an outdated trigger body. Backfills remain unverified. |
+| `20260723103000` | Adds public tracking-code SELECT policies that would expose rows without proving possession of a valid code. Later applied protections removed this approach. |
+| `20260723104500` | Recreates a table already present and adds an unrestricted scorecard policy; the September production repair has narrower policies. |
+| `20260724035700` | Would overwrite the individually applied hardened signup function and reconsider an invitation-supplied role during Auth insert. |
+| `20260724040700` | Would allow caller-controlled JWT user metadata or an email address to grant super-admin access. Live authorization now uses `platform_roles`. |
+| `20260724040900` | Its sole company-member SELECT policy matches the live policy's predicate; no new schema is needed. |
+| `20260724044100` | Adds an unused SECURITY DEFINER diagnostic function to the exposed schema; absent in production. |
 
-1. Fix the live signup-trigger privilege escalation in a dedicated reviewed migration; editing a historically recorded file cannot change production.
-2. For each of the 26 pending versions, compare the **complete** live definition and dependencies, then use a separately reviewed additive replacement or record an already-equivalent version only after verification. Test data-dependent backfills and deletion routines with synthetic records in a disposable environment.
-3. Recheck the live migration list and migration diff after reconciliation. Keep deployment manual. Enable automatic deployment only after the production history and reviewed schema agree and the local replay remains green.
+The archived SQL is preserved as `.sql.disabled` under `docs/archived-migrations/`. These eight versions were **not** added to production history. Archiving the first two avoids an unsafe replay while leaving their data repair work open; it is not proof that any existing rows were fixed.
+
+## Deployment gate
+
+1. Do not run a global `supabase db push`. A clean local replay tests chronological fresh-project setup, not the order these 18 older pending files would run on the live project after September's already applied repairs.
+2. Compare each remaining file's full effect with the live catalog. Stage safe replacements on a disposable database; use synthetic records for data backfills and deletion flows. Record a historical version as applied only when its complete effects are verified equivalent.
+3. Recheck the production migration list after each individual change. Keep deployment manual until both the migration history and the reviewed schema agree.
