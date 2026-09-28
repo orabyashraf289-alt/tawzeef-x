@@ -8,13 +8,13 @@ DECLARE
   _role app_role;
   _inv RECORD;
 BEGIN
-  -- Determine role
-  _role := 'recruiter'::app_role; -- default
-  IF NEW.email = 'tx@tawzeefx.com' 
-     OR NEW.email LIKE '%tawzeef%' 
-     OR NEW.email = 'ctraining801@gmail.com' 
-     OR (NEW.raw_user_meta_data->>'role') IN ('admin', 'super_admin') THEN
-    _role := 'admin'::app_role;
+  -- Signup metadata and email text cannot grant administrative roles.
+  -- Administrative roles may only be assigned by a validated invitation.
+  _account_type := NEW.raw_user_meta_data->>'account_type';
+  IF _account_type = 'job_seeker' THEN
+    _role := 'job_seeker'::app_role;
+  ELSE
+    _role := 'recruiter'::app_role;
   END IF;
 
   -- Insert profile WITH BOTH id AND user_id safely!

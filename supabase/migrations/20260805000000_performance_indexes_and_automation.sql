@@ -2,13 +2,13 @@
 -- Date: 2026-08-05
 
 -- 1. Performance Composite Indexes for Ultra-Fast Multi-Tenant Queries
-CREATE INDEX IF NOT EXISTS idx_candidates_company_job_stage ON public.candidates(company_id, job_id, stage_id);
+CREATE INDEX IF NOT EXISTS idx_candidates_company_job_stage ON public.candidates(company_id, job_id, stage);
 CREATE INDEX IF NOT EXISTS idx_candidates_company_created ON public.candidates(company_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_jobs_company_status ON public.jobs(company_id, status, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_applications_company_candidate ON public.applications(company_id, candidate_id);
+CREATE INDEX IF NOT EXISTS idx_applications_company_job ON public.applications(company_id, job_id);
 CREATE INDEX IF NOT EXISTS idx_job_offers_company_status ON public.job_offers(company_id, status);
 CREATE INDEX IF NOT EXISTS idx_company_members_company_user ON public.company_members(company_id, user_id);
-CREATE INDEX IF NOT EXISTS idx_interviews_company_job ON public.interviews(company_id, job_id);
+CREATE INDEX IF NOT EXISTS idx_interviews_company_candidate ON public.interviews(company_id, candidate_id);
 
 -- 2. Create Automation Rules Table
 CREATE TABLE IF NOT EXISTS public.automation_rules (
@@ -52,11 +52,8 @@ CREATE POLICY "Company members can view automation rules"
 
 CREATE POLICY "Company admins can manage automation rules"
   ON public.automation_rules FOR ALL
-  USING (
-    company_id IN (
-      SELECT company_id FROM public.company_members WHERE user_id = auth.uid()
-    )
-  );
+  USING (public.is_company_owner(company_id))
+  WITH CHECK (public.is_company_owner(company_id));
 
 -- 6. RLS Policies for automation_logs
 CREATE POLICY "Company members can view automation logs"
