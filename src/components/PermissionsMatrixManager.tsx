@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
+import { useCompanyMembers } from "@/hooks/useCompanies";
 import { useI18n } from "@/contexts/I18nContext";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -139,7 +140,8 @@ const MODULE_CATEGORIES: SystemModuleCategory[] = [
 ];
 
 export default function PermissionsMatrixManager() {
-  const { user } = useAuth();
+  const { activeCompanyId } = useCompany();
+  const { data: companyMembers = [] } = useCompanyMembers(activeCompanyId || undefined);
   const { locale, dir } = useI18n();
   const { data: customRoles = [] } = useCustomRoles();
 
@@ -151,7 +153,10 @@ export default function PermissionsMatrixManager() {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
 
   // Team Members List for Individual User Mode
-  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const teamMembers = useMemo(() => companyMembers.map((member) => ({
+    user_id: member.user_id,
+    full_name: member.profiles?.full_name || null,
+  })), [companyMembers]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [permissions, setPermissions] = useState<Record<string, { can_read: boolean; can_create: boolean; can_edit: boolean; can_delete: boolean }>>({});
@@ -164,16 +169,12 @@ export default function PermissionsMatrixManager() {
     system_management: true,
   });
 
-  // Fetch Team Members for Individual User Selection
+  // Keep the override picker limited to members of the selected company.
   useEffect(() => {
-    (async () => {
-      const { data: profs } = await supabase.from("profiles").select("user_id, full_name, avatar_url");
-      if (profs && profs.length > 0) {
-        setTeamMembers(profs);
-        if (!selectedUserId) setSelectedUserId(profs[0].user_id);
-      }
-    })();
-  }, []);
+    if (!teamMembers.some((member) => member.user_id === selectedUserId)) {
+      setSelectedUserId(teamMembers[0]?.user_id || "");
+    }
+  }, [teamMembers, selectedUserId]);
 
   // Target Key for Database Queries (either role_key or user:USER_ID)
   const activeTargetKey = useMemo(() => {
@@ -184,17 +185,23 @@ export default function PermissionsMatrixManager() {
   }, [permissionMode, selectedRole, selectedUserId]);
 
   // Load Permissions from Database
-  const loadPermissions = async () => {
+  const loadPermissions = async (isCurrent: () => boolean) => {
     try {
-      let query = supabase.from("granular_permissions" as any).select("*");
+      if (!activeCompanyId || (permissionMode === "user" && !selectedUserId)) {
+        if (isCurrent()) setPermissions({});
+        return;
+      }
+      let query = supabase.from("granular_permissions" as any).select("*").eq("company_id", activeCompanyId);
 
-      if (permissionMode === "user" && selectedUserId) {
-        query = query.eq("user_id", selectedUserId);
+      if (permissionMode === "user") {
+        query = query.eq("user_id", selectedUserId).eq("role_key", `user:${selectedUserId}`);
       } else {
         query = query.eq("role_key", selectedRole).is("user_id", null);
       }
 
-      const { data } = await query;
+      const { data, error } = await query;
+      if (error) throw error;
+      if (!isCurrent()) return;
       const permMap: Record<string, { can_read: boolean; can_create: boolean; can_edit: boolean; can_delete: boolean }> = {};
 
       MODULE_CATEGORIES.forEach((cat) => {
@@ -223,12 +230,15 @@ export default function PermissionsMatrixManager() {
       setPermissions(permMap);
     } catch (e) {
       console.warn("Error loading permissions:", e);
+      if (isCurrent()) setPermissions({});
     }
   };
 
   useEffect(() => {
-    loadPermissions();
-  }, [permissionMode, selectedRole, selectedUserId]);
+    let current = true;
+    void loadPermissions(() => current);
+    return () => { current = false; };
+  }, [activeCompanyId, permissionMode, selectedRole, selectedUserId]);
 
   // Toggle Category Expand/Collapse
   const toggleCategoryExpand = (catId: string) => {
@@ -293,8 +303,12 @@ export default function PermissionsMatrixManager() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      if (!activeCompanyId || (permissionMode === "user" && !selectedUserId)) {
+        throw new Error("اختر شركة وموظفًا قبل حفظ الصلاحيات.");
+      }
       const allPages = MODULE_CATEGORIES.flatMap((c) => c.pages);
       const recordsToUpsert = allPages.map((page) => ({
+        company_id: activeCompanyId,
         role_key: permissionMode === "role" ? selectedRole : `user:${selectedUserId}`,
         user_id: permissionMode === "user" ? selectedUserId : null,
         module_key: page.key,
