@@ -79,6 +79,10 @@ jobs:
                OR pg_get_functiondef('public.is_super_admin(uuid)'::regprocedure) ILIKE '%tx@tawzeefx.com%' THEN
               RAISE EXCEPTION 'Super-admin authorization must not trust signup metadata or email';
             END IF;
+            IF pg_get_functiondef('public.is_super_admin_user()'::regprocedure) ILIKE '%user_roles%'
+               OR pg_get_functiondef('public.is_super_admin_user()'::regprocedure) ILIKE '%app_role%' THEN
+              RAISE EXCEPTION 'A tenant admin must not become a platform super-admin';
+            END IF;
             IF to_regprocedure('public.get_auth_triggers()') IS NOT NULL THEN
               RAISE EXCEPTION 'Privileged Auth diagnostic must not be exposed';
             END IF;

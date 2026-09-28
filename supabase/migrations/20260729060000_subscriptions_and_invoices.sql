@@ -35,17 +35,16 @@ CREATE TABLE IF NOT EXISTS public.company_invoices (
 ALTER TABLE public.subscription_upgrade_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.company_invoices ENABLE ROW LEVEL SECURITY;
 
--- Helper function to check if current user is super admin
+-- Platform super-admin status is separate from a company's user_roles.admin.
 CREATE OR REPLACE FUNCTION public.is_super_admin_user()
-RETURNS BOOLEAN AS $$
-BEGIN
-  RETURN COALESCE(public.is_super_admin(auth.uid()), false) OR EXISTS (
-    SELECT 1 FROM public.user_roles
-    WHERE user_id = auth.uid()
-    AND role = 'admin'::app_role
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT public.is_super_admin(auth.uid());
+$$;
 
 -- RLS Policies for subscription_upgrade_requests
 CREATE POLICY "Super admins can manage all upgrade requests"
