@@ -69,6 +69,10 @@ npm run dev
 
 The app will be available at `http://localhost:8080`
 
+### ✅ Testing
+
+Run `npm test` for the Vitest suite and `npm run build` for the production build. GitHub Actions runs both for pull requests. See [testing and CI](docs/TESTING.md) for the TestSprite integration requirements.
+
 ### 📁 Project Structure
 
 ```
@@ -138,6 +142,10 @@ npm install
 # تشغيل خادم التطوير
 npm run dev
 ```
+
+### ✅ الاختبارات
+
+شغّل `npm test` لاختبارات Vitest و`npm run build` للتحقق من بناء الإنتاج. يُشغّل GitHub Actions الأمرين عند فتح طلب دمج. تفاصيل تكامل TestSprite في [دليل الاختبارات](docs/TESTING.md).
 
 ---
 
