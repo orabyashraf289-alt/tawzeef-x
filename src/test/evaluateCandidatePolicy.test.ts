@@ -3,7 +3,9 @@ import {
   buildGeminiRequest,
   canEvaluateCandidate,
   GEMINI_ENDPOINT,
+  GEMINI_FALLBACK_MODEL,
   GEMINI_MODEL,
+  fetchGeminiEvaluation,
   isInvalidGeminiKeyResponse,
   jobMatchesCandidate,
   parseGeminiEvaluation,
@@ -47,6 +49,31 @@ describe("candidate evaluation authorization", () => {
 });
 
 describe("Gemini request and response", () => {
+  it("recovers from overload on the preferred model and falls back to a stable Gemini model", async () => {
+    const seenModels: string[] = [];
+    const fetcher = async (_url: string | URL | Request, init?: RequestInit) => {
+      seenModels.push(JSON.parse(String(init?.body)).model);
+      return new Response(null, { status: seenModels.length < 3 ? 503 : 200 });
+    };
+    const delays: number[] = [];
+    const response = await fetchGeminiEvaluation("test-key", buildGeminiRequest(candidate, job), fetcher,
+      async (ms) => { delays.push(ms); }, () => new AbortController().signal);
+    expect(response.status).toBe(200);
+    expect(seenModels).toEqual([GEMINI_MODEL, GEMINI_MODEL, GEMINI_FALLBACK_MODEL]);
+    expect(delays[0]).toBeGreaterThanOrEqual(1000);
+    expect(delays[1]).toBeGreaterThanOrEqual(2000);
+  });
+
+  it("does not retry a client error such as an invalid key", async () => {
+    let calls = 0;
+    const response = await fetchGeminiEvaluation("test-key", buildGeminiRequest(candidate, job), async () => {
+      calls++;
+      return new Response(null, { status: 400 });
+    }, async () => { throw new Error("unexpected retry"); }, () => new AbortController().signal);
+    expect(response.status).toBe(400);
+    expect(calls).toBe(1);
+  });
+
   it("recognizes Google's array-wrapped invalid key error without treating other validation errors as credentials", () => {
     expect(isInvalidGeminiKeyResponse([{ error: { code: 400, message: "Please pass a valid API key", status: "INVALID_ARGUMENT" } }])).toBe(true);
     expect(isInvalidGeminiKeyResponse({ error: { message: "Invalid JSON payload" } })).toBe(false);

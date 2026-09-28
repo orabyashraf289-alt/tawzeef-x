@@ -4,7 +4,7 @@ import { getExtendedCorsHeaders } from "../_shared/cors.ts";
 import {
   buildGeminiRequest,
   canEvaluateCandidate,
-  GEMINI_ENDPOINT,
+  fetchGeminiEvaluation,
   isInvalidGeminiKeyResponse,
   jobMatchesCandidate,
   parseGeminiEvaluation,
@@ -92,16 +92,12 @@ serve(async (req) => {
 
     let response: Response;
     try {
-      response = await fetch(GEMINI_ENDPOINT, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${geminiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify(buildGeminiRequest(candidate as EvaluationCandidate, job)),
-        signal: AbortSignal.timeout(30000),
-      });
+      response = await fetchGeminiEvaluation(geminiKey, buildGeminiRequest(candidate as EvaluationCandidate, job));
     } catch {
       return json({ error: "Gemini evaluation is currently unavailable" }, 503, corsHeaders);
     }
     if (response.status === 429) return json({ error: "Gemini request limit reached" }, 429, corsHeaders);
+    if (response.status === 503) return json({ error: "خدمة Gemini مشغولة مؤقتًا. حاول بعد دقائق." }, 503, corsHeaders);
     if (!response.ok) {
       if (response.status === 400 && isInvalidGeminiKeyResponse(await response.json().catch(() => null))) {
         return json({ error: "مفتاح Gemini غير صالح. حدّث GEMINI_API_KEY في إعدادات Supabase." }, 503, corsHeaders);

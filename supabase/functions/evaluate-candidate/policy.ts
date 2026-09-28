@@ -1,5 +1,6 @@
 export const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 export const GEMINI_MODEL = "gemini-3.8-flash";
+export const GEMINI_FALLBACK_MODEL = "gemini-3.6-flash";
 
 export function isInvalidGeminiKeyResponse(body: unknown): boolean {
   const entries = Array.isArray(body) ? body : [body];
@@ -124,6 +125,28 @@ export function buildGeminiRequest(candidate: EvaluationCandidate, job: Evaluati
       { role: "user", content: `معلومات المرشح:\n${candidateInfo}\n\nمعلومات الوظيفة:\n${jobInfo}` },
     ],
   };
+}
+
+export async function fetchGeminiEvaluation(
+  apiKey: string,
+  request: ReturnType<typeof buildGeminiRequest>,
+  fetcher: typeof fetch = fetch,
+  wait: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  timeoutSignal: () => AbortSignal = () => AbortSignal.timeout(30000),
+): Promise<Response> {
+  // Retry transient overloads once on the preferred model, then try another stable Gemini model.
+  const models = [GEMINI_MODEL, GEMINI_MODEL, GEMINI_FALLBACK_MODEL];
+  for (let attempt = 0; attempt < models.length; attempt++) {
+    const response = await fetcher(GEMINI_ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ ...request, model: models[attempt] }),
+      signal: timeoutSignal(),
+    });
+    if (response.status !== 503 || attempt === models.length - 1) return response;
+    await wait(1000 * 2 ** attempt + Math.floor(Math.random() * 250));
+  }
+  throw new Error("Gemini retries exhausted");
 }
 
 const isScore = (value: unknown): value is number =>
