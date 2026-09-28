@@ -52,11 +52,8 @@ CREATE POLICY "Company members can view automation rules"
 
 CREATE POLICY "Company admins can manage automation rules"
   ON public.automation_rules FOR ALL
-  USING (
-    company_id IN (
-      SELECT company_id FROM public.company_members WHERE user_id = auth.uid()
-    )
-  );
+  USING (public.is_company_owner(company_id))
+  WITH CHECK (public.is_company_owner(company_id));
 
 -- 6. RLS Policies for automation_logs
 CREATE POLICY "Company members can view automation logs"

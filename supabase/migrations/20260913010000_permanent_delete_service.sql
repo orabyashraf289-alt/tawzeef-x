@@ -339,5 +339,8 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
--- Grant execution rights to authenticated users (RLS and is_super_admin inside enforce authorization)
-GRANT EXECUTE ON FUNCTION public.delete_company_permanently(uuid, uuid) TO authenticated;
+-- The service-role Edge Function verifies the human caller before passing
+-- calling_user_id. Clients must not call this SECURITY DEFINER function with
+-- an arbitrary caller UUID (which would bypass the caller check above).
+REVOKE ALL ON FUNCTION public.delete_company_permanently(uuid, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.delete_company_permanently(uuid, uuid) TO service_role;

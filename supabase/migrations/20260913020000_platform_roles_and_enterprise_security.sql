@@ -41,21 +41,14 @@ FOR SELECT
 TO authenticated
 USING (
   user_id = auth.uid()
-  OR EXISTS (
-    SELECT 1 FROM public.platform_roles pr
-    WHERE pr.user_id = auth.uid() AND pr.role = 'super_admin'
-  )
+  OR public.is_super_admin(auth.uid())
 );
 
 -- NO direct INSERT / UPDATE / DELETE policies for authenticated users!
 -- Only service_role or SECURITY DEFINER functions can modify platform_roles.
 
--- 2. Seed verified Platform Super Admins into platform_roles
-INSERT INTO public.platform_roles (user_id, role)
-SELECT id, 'super_admin'
-FROM auth.users
-WHERE email IN ('tx@tawzeefx.com', 'ctraining801@gmail.com')
-ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role, updated_at = now();
+-- 2. Platform roles require explicit, audited provisioning by a trusted
+-- administrator. A schema migration must not grant them based on email alone.
 
 -- 3. Rewrite public.is_super_admin(_user_id uuid) to use ONLY platform_roles
 -- CRITICAL SECURITY FIX: Never check user_metadata, user_roles.role = 'admin', or profiles.role.
