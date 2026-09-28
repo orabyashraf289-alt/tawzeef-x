@@ -1,12 +1,11 @@
 # Migration reconciliation before a production push
 
-Snapshot: 2026-09-28. Production project `rlfewneisuezsamhosct` has **113** recorded versions, including the individually applied signup fix `20260928170918`. The repository had 139 active files after PR #18. This change archives eight unrecorded historical scripts, leaving **131** active files and **18** versions missing from production. No version was marked as applied by archiving a file, and no production SQL was run for this change.
+Snapshot: 2026-09-28. Production project `rlfewneisuezsamhosct` has **114** recorded versions, including individually applied signup fix `20260928170918` and job approval-chain column `20260928174510`. The repository had 139 active files after PR #18. PR #19 archived eight unrecorded historical scripts; this follow-up archives the old job-approval script and adds its safe replacement. The repository still has **131** active files and now **17** versions missing from production. Archiving a file does not mark its version as applied.
 
-The observations below use repository files and read-only production catalog queries (`pg_class`, `pg_attribute`, `pg_constraint`, `pg_indexes`, `pg_proc`, `pg_trigger`, and `pg_policies`). No candidate, Auth, job, or company rows were read or changed. Existence of an object does not prove its definition or migration side effects match.
+The observations below use repository files and read-only production catalog queries (`pg_class`, `pg_attribute`, `pg_constraint`, `pg_indexes`, `pg_proc`, `pg_trigger`, and `pg_policies`). The separately applied job-column migration changed only schema metadata and its constant default; `pg_attribute.atthasmissing` confirms the value is supplied to existing rows without a blanket UPDATE. No candidate, Auth, job, or company rows were read or directly updated. Existence of an object does not prove its definition or migration side effects match.
 
 | Still pending | Production evidence / required reconciliation |
 | --- | --- |
-| `20260722110000` | `jobs.approval_chain` is absent. Add the column with a reviewed default; assess the effect of the original blanket UPDATE on existing jobs. |
 | `20260722160000` | `handle_new_application()` exists, but its complete live body differs from this replacement. Compare triggers and candidate handling. |
 | `20260722183000` | Another replacement of `handle_new_application()`. It differs from the live function and writes candidate and resume data when invoked. |
 | `20260723020000` | `applications.tracking_code` exists. Its live btree index on that column has a **different name**, so the pending `CREATE INDEX IF NOT EXISTS` would create a redundant index. |
@@ -29,6 +28,7 @@ The observations below use repository files and read-only production catalog que
 
 | Unrecorded version | Reason / outstanding work |
 | --- | --- |
+| `20260722110000` | Original file added `jobs.approval_chain` and updated every existing job. Replaced with individually applied `20260928174510`, which adds the same text column/default without a data UPDATE; the new version was verified in the live catalog. |
 | `20260722100000` | Contains candidate/job/application backfills and older tenant policies. Its backfills are **not assumed complete**; review them separately without exposing candidate data. |
 | `20260722221500` | Contains candidate/application backfills, universally accessible RLS policies, and an outdated trigger body. Backfills remain unverified. |
 | `20260723103000` | Adds public tracking-code SELECT policies that would expose rows without proving possession of a valid code. Later applied protections removed this approach. |
@@ -38,10 +38,10 @@ The observations below use repository files and read-only production catalog que
 | `20260724040900` | Its sole company-member SELECT policy matches the live policy's predicate; no new schema is needed. |
 | `20260724044100` | Adds an unused SECURITY DEFINER diagnostic function to the exposed schema; absent in production. |
 
-The archived SQL is preserved as `.sql.disabled` under `docs/archived-migrations/`. These eight versions were **not** added to production history. Archiving the first two avoids an unsafe replay while leaving their data repair work open; it is not proof that any existing rows were fixed.
+The archived SQL is preserved as `.sql.disabled` under `docs/archived-migrations/`. These nine historical versions were **not** added to production history. Archiving the candidate backfill files `20260722100000` and `20260722221500` avoids an unsafe replay while leaving their data repair work open; it is not proof that existing candidate rows were fixed.
 
 ## Deployment gate
 
-1. Do not run a global `supabase db push`. A clean local replay tests chronological fresh-project setup, not the order these 18 older pending files would run on the live project after September's already applied repairs.
+1. Do not run a global `supabase db push`. A clean local replay tests chronological fresh-project setup, not the order these 17 older pending files would run on the live project after September's already applied repairs.
 2. Compare each remaining file's full effect with the live catalog. Stage safe replacements on a disposable database; use synthetic records for data backfills and deletion flows. Record a historical version as applied only when its complete effects are verified equivalent.
 3. Recheck the production migration list after each individual change. Keep deployment manual until both the migration history and the reviewed schema agree.
