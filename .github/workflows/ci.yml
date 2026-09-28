@@ -20,6 +20,24 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Reject migrations that delete authentication users
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          unsafe = [
+              str(path)
+              for path in Path('supabase/migrations').glob('*.sql')
+              if re.search(r'\bDELETE\s+FROM\s+auth\.users\b', path.read_text(), re.I)
+          ]
+          if unsafe:
+              print('Authentication user deletion is not allowed in active migrations:')
+              print('\n'.join(unsafe))
+              sys.exit(1)
+          PY
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
