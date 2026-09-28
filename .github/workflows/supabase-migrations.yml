@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/supabase-migrations.yml'
       - 'supabase/migrations/**'
+      - 'supabase/tests/**'
       - 'supabase/config.toml'
   workflow_dispatch:
 
@@ -83,6 +84,11 @@ jobs:
             END IF;
           END $$;
           SQL
+      - name: Verify custom role tenant isolation
+        run: |
+          database_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
+          test -n "$database_container"
+          docker exec -i "$database_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/custom_roles_rls.sql
       - name: Stop local database
         if: always()
         run: supabase stop

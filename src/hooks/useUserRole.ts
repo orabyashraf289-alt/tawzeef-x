@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
 import { logAuditEvent } from "@/hooks/useAuditLog";
 
@@ -242,12 +243,14 @@ export interface CustomRole {
 
 export function useCustomRoles() {
   const { user } = useAuth();
+  const { activeCompanyId } = useCompany();
   return useQuery({
-    queryKey: ["custom-roles"],
+    queryKey: ["custom-roles", activeCompanyId, user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("custom_roles" as any)
         .select("*")
+        .eq("company_id", activeCompanyId!)
         .order("created_at", { ascending: false });
       if (error) {
         console.warn("custom_roles query warning:", error);
@@ -255,23 +258,26 @@ export function useCustomRoles() {
       }
       return (data || []) as CustomRole[];
     },
-    enabled: !!user,
+    enabled: !!user && !!activeCompanyId,
   });
 }
 
 export function useCreateCustomRole() {
   const qc = useQueryClient();
   const { user } = useAuth();
+  const { activeCompanyId } = useCompany();
 
   return useMutation({
     mutationFn: async (roleData: { name: string; description?: string; permissions: string[] }) => {
+      if (!user || !activeCompanyId) throw new Error("اختر شركة أولًا لإضافة الدور.");
       const { data, error } = await supabase
         .from("custom_roles" as any)
         .insert({
+          company_id: activeCompanyId,
           name: roleData.name,
           description: roleData.description,
           permissions: roleData.permissions,
-          created_by: user?.id
+          created_by: user.id
         } as any)
         .select()
         .single();
@@ -279,7 +285,7 @@ export function useCreateCustomRole() {
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["custom-roles"] });
+      qc.invalidateQueries({ queryKey: ["custom-roles", activeCompanyId] });
       toast({ title: "تم إضافة الدور المخصص بنجاح! 🎉" });
     },
     onError: (e: Error) => toast({ title: "خطأ في إضافة الدور المخصص", description: e.message, variant: "destructive" })
@@ -288,18 +294,20 @@ export function useCreateCustomRole() {
 
 export function useDeleteCustomRole() {
   const qc = useQueryClient();
+  const { activeCompanyId } = useCompany();
   return useMutation({
     mutationFn: async (roleId: string) => {
+      if (!activeCompanyId) throw new Error("اختر شركة أولًا لحذف الدور.");
       const { error } = await supabase
         .from("custom_roles" as any)
         .delete()
-        .eq("id", roleId);
+        .eq("id", roleId)
+        .eq("company_id", activeCompanyId);
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["custom-roles"] });
+      qc.invalidateQueries({ queryKey: ["custom-roles", activeCompanyId] });
       toast({ title: "تم حذف الدور المخصص بنجاح ✅" });
     }
   });
 }
-
