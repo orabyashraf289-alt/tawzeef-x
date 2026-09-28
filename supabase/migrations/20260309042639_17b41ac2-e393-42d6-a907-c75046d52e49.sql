@@ -1,4 +1,44 @@
 
+-- These webhook tables existed in the original project, but their CREATE TABLE
+-- statements were missing from the exported migration history. Reconstruct
+-- them here, before the first policy that references webhook_deliveries.
+CREATE TABLE public.webhook_endpoints (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,
+  events TEXT[] DEFAULT '{}',
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.webhook_endpoints ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users manage own webhook endpoints"
+ON public.webhook_endpoints FOR ALL
+USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE TABLE public.webhook_deliveries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  endpoint_id UUID NOT NULL REFERENCES public.webhook_endpoints(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL,
+  payload JSONB NOT NULL,
+  status TEXT NOT NULL,
+  status_code INTEGER,
+  response_body TEXT,
+  error_message TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.webhook_deliveries ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users view own webhook deliveries"
+ON public.webhook_deliveries FOR SELECT
+USING (auth.uid() = user_id);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.webhook_endpoints TO authenticated;
+GRANT SELECT, INSERT ON public.webhook_deliveries TO authenticated;
+
 -- Allow service role to insert webhook deliveries (already has RLS bypass)
 -- But also allow authenticated users to insert via edge function context
 CREATE POLICY "Service can insert webhook deliveries"
