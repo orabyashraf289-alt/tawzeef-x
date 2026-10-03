@@ -151,7 +151,7 @@ async function recordIndexingLog(supabase: any, log: {
 }) {
   try {
     if (!supabase) return;
-    await supabase.from("google_indexing_logs").insert({
+    const { error } = await supabase.from("google_indexing_logs").insert({
       job_id: log.job_id,
       url: log.url,
       action: log.action,
@@ -160,6 +160,7 @@ async function recordIndexingLog(supabase: any, log: {
       response: log.response,
       error: log.error,
     });
+    if (error) console.warn("[Google Indexing Logger] Could not save log:", error.message);
   } catch (err) {
     console.warn("[Google Indexing Logger] Could not save log to table:", err);
   }
@@ -200,8 +201,11 @@ export default async function handler(req: any, res: any) {
 
   // 3. Initialize server Supabase client
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const supabase = supabaseUrl && serviceKey ? createClient(supabaseUrl, serviceKey) : null;
+  if (!supabase) {
+    return res.status(503).json({ error: "Indexing service is not configured." });
+  }
 
   // 4. Mandatory Authentication & Authorization Check
   const internalSecret = req.headers["x-internal-secret"];
@@ -269,6 +273,7 @@ export default async function handler(req: any, res: any) {
 
   // 6. Job Ownership & State Verification
   let effectiveAction: "URL_UPDATED" | "URL_DELETED" = rawAction;
+  let loggedJobId: string | null = null;
   if (supabase) {
     const { data: job, error: jobErr } = await supabase
       .from("jobs")
@@ -276,11 +281,15 @@ export default async function handler(req: any, res: any) {
       .eq("id", targetJobId)
       .maybeSingle();
 
-    if (jobErr || !job) {
-      if (rawAction === "URL_UPDATED") {
+    if (jobErr) {
+      return res.status(503).json({ error: "Unable to verify the job posting." });
+    }
+    if (!job) {
+      if (rawAction === "URL_UPDATED" || !isAuthorized) {
         return res.status(404).json({ error: "Job posting not found in database." });
       }
     } else {
+      loggedJobId = job.id;
       // Check caller authorization for this company if not platform super admin
       if (!isAuthorized && callerUserId && !isSuperAdminCaller) {
         const { count: memberCount } = await supabase
@@ -323,7 +332,7 @@ export default async function handler(req: any, res: any) {
 
   if (!serviceAccountEmail || !privateKey) {
     await recordIndexingLog(supabase, {
-      job_id: targetJobId,
+      job_id: loggedJobId,
       url: canonicalJobUrl,
       action: effectiveAction,
       status: "NOT_CONFIGURED",
@@ -349,7 +358,7 @@ export default async function handler(req: any, res: any) {
     debounceMap.set(debounceKey, Date.now());
 
     await recordIndexingLog(supabase, {
-      job_id: targetJobId,
+      job_id: loggedJobId,
       url: canonicalJobUrl,
       action: effectiveAction,
       status: googleResult.status === 200 ? "SUCCESS" : "FAILED",
@@ -369,7 +378,7 @@ export default async function handler(req: any, res: any) {
     console.error("[Google Indexing API] Request failed:", apiError);
 
     await recordIndexingLog(supabase, {
-      job_id: targetJobId,
+      job_id: loggedJobId,
       url: canonicalJobUrl,
       action: effectiveAction,
       status: "ERROR",
