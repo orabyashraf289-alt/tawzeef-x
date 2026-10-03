@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import {
   deleteCompanyPermanently,
+  purgeOrphanedBranches,
   deactivateCompany,
   reactivateCompany,
 } from "@/services/companyDeletionService";
@@ -431,45 +432,7 @@ export function useDeleteCompany() {
 export function usePurgeOrphanedBranches() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (branchIds: string[]) => {
-      // 1. Try single-call edge function purge
-      try {
-        const { data, error } = await supabase.functions.invoke("delete-company", {
-          body: { action: "purge_orphans" },
-        });
-        if (!error && data?.success) {
-          return {
-            deletedCount: data.purged_branches_count || branchIds.length,
-            purged_branches_count: data.purged_branches_count,
-            purged_jobs_count: data.purged_jobs_count,
-            purged_users_count: data.purged_users_count,
-          };
-        }
-      } catch (err) {
-        console.warn("delete-company purge_orphans edge function failed, falling back to direct purge:", err);
-      }
-
-      // 2. Fallback: delete each orphan branch via RPC or direct cascade
-      let deletedCount = 0;
-      for (const id of branchIds) {
-        try {
-          const { error: rpcErr } = await supabase.rpc("delete_company_cascade" as any, {
-            target_company_id: id,
-          });
-
-          if (rpcErr) {
-            await supabase.from("jobs" as any).delete().eq("company_id", id);
-            await supabase.from("company_invitations" as any).delete().eq("company_id", id);
-            await supabase.from("company_members" as any).delete().eq("company_id", id);
-            await supabase.from("companies" as any).delete().eq("id", id);
-          }
-          deletedCount++;
-        } catch (e) {
-          console.warn(`Failed to delete branch ${id}:`, e);
-        }
-      }
-      return { deletedCount };
-    },
+    mutationFn: async (_branchIds: string[]) => purgeOrphanedBranches(),
     onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["all-companies"] });
       qc.invalidateQueries({ queryKey: ["company-branches"] });
@@ -479,7 +442,7 @@ export function usePurgeOrphanedBranches() {
       qc.invalidateQueries({ queryKey: ["dashboard_stats"] });
       qc.invalidateQueries({ queryKey: ["company-stats"] });
 
-      const count = res.purged_branches_count ?? res.deletedCount;
+      const count = res.purged_branches_count ?? 0;
       const jobsMsg = res.purged_jobs_count ? ` و ${res.purged_jobs_count} وظيفة معلقة` : "";
       const usersMsg = res.purged_users_count ? ` وتطهير ${res.purged_users_count} حسابات تابعة` : "";
       toast({

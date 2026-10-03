@@ -49,6 +49,9 @@ jobs:
                OR has_function_privilege('anon', 'public.delete_company_permanently(uuid,uuid)', 'EXECUTE') THEN
               RAISE EXCEPTION 'Client roles must not execute permanent deletion';
             END IF;
+            IF to_regprocedure('public.delete_company_cascade(uuid)') IS NOT NULL THEN
+              RAISE EXCEPTION 'Legacy client deletion RPC must remain archived';
+            END IF;
             IF to_regprocedure('public.create_agency_account(text,text,text,text,uuid,uuid)') IS NOT NULL THEN
               RAISE EXCEPTION 'Unsafe account provisioning function is active';
             END IF;
