@@ -109,6 +109,7 @@ export function prepareCompanyPayload(input: Record<string, any>, existingNotes?
     ...schemaFields,
     // Write parent_company_id to the REAL column so RLS branch policies work
     ...(parent_company_id !== undefined ? { parent_company_id: parent_company_id || null } : {}),
+    ...(manager_user_id !== undefined ? { manager_user_id: manager_user_id || null } : {}),
     notes: Object.keys(mergedMeta).length > 0 ? JSON.stringify(mergedMeta) : null,
   };
 }
