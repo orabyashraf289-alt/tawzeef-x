@@ -95,6 +95,7 @@ export function useCreateCompanyInvitation() {
         .from("company_invitations" as any)
         .insert({
           company_id: companyId,
+          branch_id: branchId || null,
           email: email.trim().toLowerCase(),
           member_role: role,
           invited_by: user?.id,
@@ -105,14 +106,18 @@ export function useCreateCompanyInvitation() {
       return { ...(data as Record<string, unknown>), companyName, branchName, branchId };
     },
 
-    onSuccess: (data: Record<string, unknown>) => {
+    onSuccess: (data: Record<string, unknown>, variables) => {
       qc.invalidateQueries({ queryKey: ["company-invitations", data.company_id] });
       toast({ title: "تم إرسال دعوة الانضمام بنجاح 📩", description: "سيتم إرسال البريد الإلكتروني مع تفاصيل الفرع للموظف" });
 
       const inviteLink = `${window.location.origin}/invitation/${data.token}`;
-      const branchNotice = data.branchName ? ` وتولي إدارة فرع <strong>${data.branchName}</strong>` : "";
+      const branchNotice = data.branchName
+        ? variables.role === "viewer"
+          ? ` والوصول إلى فرع <strong>${data.branchName}</strong>`
+          : ` وتولي إدارة فرع <strong>${data.branchName}</strong>`
+        : "";
       const emailSubject = data.branchName
-        ? `دعوة للانضمام وتولي إدارة فرع ${data.branchName} - شركة ${data.companyName}`
+        ? `دعوة للانضمام إلى فرع ${data.branchName} - شركة ${data.companyName}`
         : `دعوة للانضمام إلى شركة ${data.companyName} على منصة Tawzeef-X`;
 
       supabase.functions.invoke("send-email", {
@@ -179,7 +184,7 @@ export function useAcceptInvitation() {
       qc.invalidateQueries({ queryKey: ["my-pending-invitations"] });
       qc.invalidateQueries({ queryKey: ["my-companies"] });
       qc.invalidateQueries({ queryKey: ["company-branches"] });
-      if (res?.success) toast({ title: "تم القبول وتأكيد الحساب بنجاح ✅", description: "أصبحت الآن مسجلاً بالشركة وتوليت الإدارة." });
+      if (res?.success) toast({ title: "تم القبول وتأكيد الحساب بنجاح ✅", description: "تم تفعيل عضويتك بالشركة." });
       else
         toast({
           title: "تعذّر قبول الدعوة",
