@@ -163,14 +163,14 @@ describe("PROMPT 06: Google Indexing API Security Controls", () => {
       const { req, res, resData } = createMockReqRes({ headers: { authorization: "Bearer test-token" }, body: { jobId } });
       await handler(req, res);
       expect(resData.statusCode).toBe(200);
-      expect(mocks.logInsert).toHaveBeenCalledWith(expect.objectContaining({ job_id: jobId, status: "NOT_CONFIGURED" }));
+      expect(mocks.logInsert).toHaveBeenCalledWith(expect.objectContaining({ company_id: "test-company", job_id: jobId, status: "NOT_CONFIGURED" }));
     });
     it("logs a trusted removal of a missing job with a null foreign key", async () => {
       mocks.jobExists = false;
       const { req, res, resData } = createMockReqRes({ headers: { "x-internal-secret": "test-super-secret-key-12345" }, body: { jobId, action: "URL_DELETED" } });
       await handler(req, res);
       expect(resData.statusCode).toBe(200);
-      expect(mocks.logInsert).toHaveBeenCalledWith(expect.objectContaining({ job_id: null }));
+      expect(mocks.logInsert).toHaveBeenCalledWith(expect.objectContaining({ company_id: null, job_id: null }));
     });
   });
 

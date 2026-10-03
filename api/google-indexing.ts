@@ -141,6 +141,7 @@ async function publishToGoogleIndexing(
 }
 
 async function recordIndexingLog(supabase: any, log: {
+  company_id: string | null;
   job_id: string | null;
   url: string;
   action: "URL_UPDATED" | "URL_DELETED";
@@ -152,6 +153,7 @@ async function recordIndexingLog(supabase: any, log: {
   try {
     if (!supabase) return;
     const { error } = await supabase.from("google_indexing_logs").insert({
+      company_id: log.company_id,
       job_id: log.job_id,
       url: log.url,
       action: log.action,
@@ -274,6 +276,7 @@ export default async function handler(req: any, res: any) {
   // 6. Job Ownership & State Verification
   let effectiveAction: "URL_UPDATED" | "URL_DELETED" = rawAction;
   let loggedJobId: string | null = null;
+  let loggedCompanyId: string | null = null;
   if (supabase) {
     const { data: job, error: jobErr } = await supabase
       .from("jobs")
@@ -289,7 +292,8 @@ export default async function handler(req: any, res: any) {
         return res.status(404).json({ error: "Job posting not found in database." });
       }
     } else {
-      loggedJobId = job.id;
+      loggedCompanyId = job.company_id || null;
+      loggedJobId = loggedCompanyId ? job.id : null;
       // Check caller authorization for this company if not platform super admin
       if (!isAuthorized && callerUserId && !isSuperAdminCaller) {
         const { count: memberCount } = await supabase
@@ -332,6 +336,7 @@ export default async function handler(req: any, res: any) {
 
   if (!serviceAccountEmail || !privateKey) {
     await recordIndexingLog(supabase, {
+      company_id: loggedCompanyId,
       job_id: loggedJobId,
       url: canonicalJobUrl,
       action: effectiveAction,
@@ -358,6 +363,7 @@ export default async function handler(req: any, res: any) {
     debounceMap.set(debounceKey, Date.now());
 
     await recordIndexingLog(supabase, {
+      company_id: loggedCompanyId,
       job_id: loggedJobId,
       url: canonicalJobUrl,
       action: effectiveAction,
@@ -378,6 +384,7 @@ export default async function handler(req: any, res: any) {
     console.error("[Google Indexing API] Request failed:", apiError);
 
     await recordIndexingLog(supabase, {
+      company_id: loggedCompanyId,
       job_id: loggedJobId,
       url: canonicalJobUrl,
       action: effectiveAction,
