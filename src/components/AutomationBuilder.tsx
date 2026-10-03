@@ -3,16 +3,14 @@ import { useAutomationRules, type AutomationRule } from "@/hooks/useAutomation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Zap, Plus, Trash2, ArrowLeft, Mail, MessageSquare, UserCheck, Play, Sparkles, CheckCircle2, ShieldCheck } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Zap, Plus, Trash2, Mail, MessageSquare, UserCheck, Sparkles } from "lucide-react";
 
 export default function AutomationBuilder() {
-  const { rules, isLoading, createRule, toggleRule, deleteRule } = useAutomationRules();
+  const { rules, isLoading, error, needsCompany, canManage, createRule, deleteRule } = useAutomationRules();
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [triggerEvent, setTriggerEvent] = useState<AutomationRule["trigger_event"]>("candidate.stage_changed");
@@ -29,7 +27,6 @@ export default function AutomationBuilder() {
         trigger_event: triggerEvent,
         conditions: [],
         actions: [{ type: actionType, payload: { details: actionDetail } }],
-        is_active: true,
       });
       setTitle("");
       setActionDetail("");
@@ -60,6 +57,11 @@ export default function AutomationBuilder() {
     }
   };
 
+  const getActionDetails = (rule: AutomationRule) => {
+    const details = rule.actions[0]?.payload?.details;
+    return typeof details === "string" && details ? details : "مسودة إجراء للمراجعة";
+  };
+
   return (
     <div className="space-y-6">
       {/* Header & Add Trigger */}
@@ -70,16 +72,16 @@ export default function AutomationBuilder() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-black text-base text-foreground">محرك الأتمتة والسيناريوهات الذكية (Automation Builder)</h3>
-              <Badge className="bg-amber-500 text-white text-[10px] px-2 font-bold">Smart Workflows</Badge>
+              <h3 className="font-black text-base text-foreground">قواعد الأتمتة</h3>
+              <Badge className="bg-amber-500 text-white text-[10px] px-2 font-bold">مسودات</Badge>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">أتمتة إرسال التنبيهات والرسائل وتعيين المسؤولين تلقائياً دون أي تدخل يدوي.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">قواعد محفوظة للمراجعة؛ التنفيذ التلقائي غير متاح حاليًا. إدارة القواعد متاحة لمالك الشركة.</p>
           </div>
         </div>
 
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button className="rounded-xl font-bold text-xs gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-md">
+            <Button disabled={!canManage || needsCompany} className="rounded-xl font-bold text-xs gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-md">
               <Plus className="w-4 h-4" /> إنشاء قاعدة أتمتة جديدة
             </Button>
           </DialogTrigger>
@@ -143,8 +145,8 @@ export default function AutomationBuilder() {
 
             <div className="flex items-center justify-end gap-2 pt-2">
               <Button variant="ghost" onClick={() => setIsOpen(false)} className="rounded-xl text-xs">إلغاء</Button>
-              <Button onClick={handleCreate} disabled={saving || !title.trim()} className="rounded-xl text-xs font-bold bg-primary gap-1">
-                <Sparkles className="w-3.5 h-3.5" /> حفظ وتفعيل الأتمتة
+              <Button onClick={handleCreate} disabled={saving || !title.trim() || !canManage} className="rounded-xl text-xs font-bold bg-primary gap-1">
+                <Sparkles className="w-3.5 h-3.5" /> حفظ المسودة
               </Button>
             </div>
           </DialogContent>
@@ -153,13 +155,17 @@ export default function AutomationBuilder() {
 
       {/* Rules List */}
       <div className="space-y-3">
-        {isLoading ? (
+        {needsCompany ? (
+          <p className="text-sm text-muted-foreground">اختر شركة لعرض قواعد الأتمتة.</p>
+        ) : error ? (
+          <p role="alert" className="text-sm text-destructive">تعذر تحميل قواعد الأتمتة: {error.message}</p>
+        ) : isLoading ? (
           <div className="p-8 text-center text-xs text-muted-foreground">جاري تحميل قواعد الأتمتة...</div>
         ) : rules.length === 0 ? (
           <Card className="p-8 text-center rounded-3xl border-dashed border-border/80 space-y-3">
             <Zap className="w-10 h-10 text-muted-foreground mx-auto opacity-40" />
-            <h4 className="font-bold text-sm">لا توجد قواعد أتمتة نشطة حالياً</h4>
-            <p className="text-xs text-muted-foreground max-w-sm mx-auto">قم بإنشاء أول قاعدة أتمتة لتسهيل وتلقائية التواصل مع المرشحين ومتابعة المراحل.</p>
+            <h4 className="font-bold text-sm">لا توجد قواعد أتمتة محفوظة</h4>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto">يمكن لمالك الشركة حفظ سيناريوهات التواصل ومراجعتها هنا.</p>
           </Card>
         ) : (
           rules.map((rule) => (
@@ -176,22 +182,17 @@ export default function AutomationBuilder() {
                     </Badge>
                   </div>
                   <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                    {rule.actions[0]?.payload?.details || "إجراء تلقائي منفذ بواسطة المحرك الذكي"}
+                    {getActionDetails(rule)}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3 shrink-0">
-                <div className="flex items-center gap-2 border-r border-border pr-3">
-                  <span className="text-[11px] font-bold text-muted-foreground">{rule.is_active ? "نشط" : "معطل"}</span>
-                  <Switch
-                    checked={rule.is_active}
-                    onCheckedChange={(checked) => toggleRule({ id: rule.id, is_active: checked })}
-                  />
-                </div>
+                <Badge variant="outline">مسودة محفوظة</Badge>
                 <Button
                   variant="ghost"
                   size="icon"
+                  disabled={!canManage}
                   onClick={() => deleteRule(rule.id)}
                   className="h-8 w-8 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 rounded-lg"
                 >
