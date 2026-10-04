@@ -957,6 +957,7 @@ export default function Pipeline() {
                     toast({ title: t("pipeline.moveError"), description: error.message, variant: "destructive" });
                     queryClient.invalidateQueries({ queryKey: ["candidates"] });
                   } else {
+                    queryClient.invalidateQueries({ queryKey: ["candidates"] });
                     const stageInfo = STAGES.find(s => s.id === stageId);
                     toast({ title: t("pipeline.movedSuccess").replace("{name}", candidateName).replace("{stage}", stageInfo?.label || "") });
                     recordTransition.mutate({ candidateId, fromStage: oldStage, toStage: stageId, movedByName: user?.email || undefined });
