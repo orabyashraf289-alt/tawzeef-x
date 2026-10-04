@@ -5,11 +5,13 @@ export async function updateCandidateStage(input: {
   companyId: string | null | undefined;
   stage: string;
   status: string;
+  notes?: string;
 }) {
   if (!input.companyId) throw new Error("يجب مراجعة ربط المرشح بالشركة قبل تغيير مرحلته.");
   const timestamp = new Date().toISOString();
   const { data: written, error: writeError } = await supabase.from("candidates")
-    .update({ stage: input.stage, status: input.status, stage_entered_at: timestamp, updated_at: timestamp })
+    .update({ stage: input.stage, status: input.status, stage_entered_at: timestamp, updated_at: timestamp,
+      ...(input.notes !== undefined ? { notes: input.notes } : {}) })
     .eq("id", input.candidateId).eq("company_id", input.companyId).select("id").single();
   if (writeError) throw writeError;
   if (!written) throw new Error("تعذر العثور على المرشح في الشركة المحددة.");
