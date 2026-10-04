@@ -1,3 +1,4 @@
+import { useSpeechService } from "@/hooks/useSpeechService";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
   Bot,
@@ -121,6 +122,8 @@ interface JobData {
 }
 
 interface OfferData {
+  benefits?: string[] | null;
+  start_date?: string | null;
   id: string;
   candidate_name: string;
   position: string;
@@ -926,7 +929,7 @@ const VoiceBriefingCard = ({ data }: { data: VoiceBriefingData }) => {
 const InteractiveOfferCard = ({ offer }: { offer: OfferData }) => {
   const [position, setPosition] = useState(offer.position);
   const [salary, setSalary] = useState(offer.salary);
-  const [benefits, setBenefits] = useState(offer.benefits || "تأمين طبي عائلي فئة A، بدل سكن 25%، بدل مواصلات 10%، تذاكر سفر سنوية");
+  const [benefits, setBenefits] = useState(offer.benefits?.join("\n") || "تأمين طبي عائلي فئة A، بدل سكن 25%، بدل مواصلات 10%، تذاكر سفر سنوية");
   const [startDate, setStartDate] = useState(offer.start_date || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]);
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -940,7 +943,7 @@ const InteractiveOfferCard = ({ offer }: { offer: OfferData }) => {
         .update({
           position,
           salary: Number(salary),
-          benefits,
+          benefits: benefits.split("\n").map((benefit) => benefit.trim()).filter(Boolean),
           start_date: startDate
         })
         .eq("id", offer.id);
@@ -1225,7 +1228,7 @@ export default function AIAssistant() {
   const navigate = useNavigate();
   const { data: jobs = [] } = useJobs();
   const { data: candidates = [] } = useCandidates();
-  const { data: activeStages = [] } = useActiveStages();
+  const activeStages = useActiveStages();
 
   // Fetch conversations
   const { data: conversations = [], refetch: refetchConversations } = useQuery({
@@ -2242,7 +2245,7 @@ export default function AIAssistant() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
               <Badge variant="outline" className="text-[10px] font-black rounded-md3-full bg-md-primary-container text-md-on-primary-container border-0 px-2.5 py-0.5">
-                {MODEL_OPTIONS.find(m => m.id === modelChoice)?.name || "Gemini 3.7"} ⚡
+                {MODEL_OPTIONS.find(m => m.value === modelChoice)?.label || "تلقائي"} ⚡
               </Badge>
             </div>
           </div>
