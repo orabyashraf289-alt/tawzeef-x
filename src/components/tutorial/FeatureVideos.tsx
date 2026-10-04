@@ -486,7 +486,7 @@ export default function FeatureVideos() {
           {/* Filters and Search */}
           <Card className="border border-border/50 p-4 space-y-3.5 bg-card/60">
             <div className="relative">
-              <Search className="absolute right-3 top-2.5 w-4 h-4 text-muted-foreground" dir={dir} />
+              <Search className="absolute right-3 top-2.5 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder={locale === "en" ? "Search tutorials..." : "ابحث عن درس تعليمي..."}
                 value={searchQuery}
