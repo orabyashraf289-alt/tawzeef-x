@@ -1,3 +1,4 @@
+import { useCompanyContext } from "@/contexts/CompanyContext";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,19 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Save, Info, Sparkles, Eye, Code, ArrowRight } from "lucide-react";
+import { FileText, Save, Info, Sparkles, Eye, Code, ArrowRight, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 type TemplateType = "approval" | "rejection" | "assessment";
-
-interface TemplateData {
-  id?: string;
-  company_id: string;
-  type: TemplateType;
-  subject: string;
-  body_html: string;
-}
 
 const DEFAULT_SUBJECTS: Record<TemplateType, string> = {
   approval: "تحديث حالة طلبك - {stage_name}",
@@ -88,6 +81,7 @@ const MERGE_TAGS = [
 
 export default function NotificationTemplatesSection() {
   const { user } = useAuth();
+  const { activeCompanyId: companyId } = useCompanyContext();
   const queryClient = useQueryClient();
   const [activeType, setActiveType] = useState<TemplateType>("approval");
   const [subject, setSubject] = useState("");
@@ -96,32 +90,26 @@ export default function NotificationTemplatesSection() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const activeInputRef = useRef<"subject" | "body">("body");
 
-  // Get active company_id
-  const { data: companyId } = useQuery({
-    queryKey: ["my-company-id", user?.id],
+  const { data: canEdit = false } = useQuery({
+    queryKey: ["notification-template-permission", companyId, user?.id],
+    enabled: !!companyId && !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("company_members")
-        .select("company_id")
-        .eq("user_id", user!.id)
-        .limit(1)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("can_manage_notification_templates", { _company_id: companyId! });
       if (error) throw error;
-      return data?.company_id || null;
+      return data;
     },
-    enabled: !!user,
   });
 
   // Query template list
-  const { data: dbTemplates, isLoading } = useQuery({
-    queryKey: ["notification-templates", companyId],
+  const { data: dbTemplates, isLoading, error: templateError } = useQuery({
+    queryKey: ["notification-templates", companyId, user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("notification_templates" as any)
+        .from("notification_templates")
         .select("*")
         .eq("company_id", companyId!);
       if (error) throw error;
-      return data as TemplateData[];
+      return data;
     },
     enabled: !!companyId,
   });
@@ -133,13 +121,14 @@ export default function NotificationTemplatesSection() {
       setSubject(activeTpl?.subject || DEFAULT_SUBJECTS[activeType]);
       setBodyHtml(activeTpl?.body_html || DEFAULT_BODIES[activeType]);
     }
-  }, [activeType, dbTemplates, isLoading]);
+  }, [activeType, dbTemplates, isLoading, companyId]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!companyId) throw new Error("لم يتم العثور على معرف الشركة الخاص بك.");
+      if (!canEdit || isLoading || templateError) throw new Error("تعذر حفظ القالب. تحقق من تحميله ومن صلاحية التعديل.");
       const { error } = await supabase
-        .from("notification_templates" as any)
+        .from("notification_templates")
         .upsert(
           {
             company_id: companyId,
@@ -303,9 +292,10 @@ export default function NotificationTemplatesSection() {
             )}
           </div>
 
+          {templateError && <p role="alert" className="text-sm text-destructive">تعذر تحميل القوالب المحفوظة. أعد المحاولة قبل الحفظ.</p>}
           <Button
             onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending}
+            disabled={!companyId || !canEdit || isLoading || !!templateError || saveMutation.isPending}
             className="w-full font-bold gap-2"
           >
             {saveMutation.isPending ? (
