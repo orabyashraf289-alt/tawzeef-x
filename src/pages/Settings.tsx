@@ -56,7 +56,7 @@ function HiringGoalsSection() {
     if (!user) return;
     (async () => {
       const { data } = await supabase
-        .from("hiring_goals" as any)
+        .from("hiring_goals")
         .select("*")
         .eq("user_id", user.id)
         .eq("month", currentMonth)
@@ -76,7 +76,7 @@ function HiringGoalsSection() {
     if (!user) return;
     setLoading(true);
     const { error } = await supabase
-      .from("hiring_goals" as any)
+      .from("hiring_goals")
       .upsert({ user_id: user.id, month: currentMonth, ...goals } as any, { onConflict: "user_id,month" });
     if (error) toast({ title: t("settings.goalsSaveError"), description: error.message, variant: "destructive" });
     else toast({ title: t("settings.goalsSaved") });
@@ -313,7 +313,7 @@ function SecuritySection() {
     if (!user) return;
     (async () => {
       const { data } = await supabase
-        .from("password_policies" as any)
+        .from("password_policies")
         .select("*")
         .eq("user_id", user.id)
         .maybeSingle();
@@ -373,7 +373,7 @@ function SecuritySection() {
     if (!user) return;
     setSavingPolicy(true);
     const { error } = await supabase
-      .from("password_policies" as any)
+      .from("password_policies")
       .upsert({
         user_id: user.id,
         min_length: minLength,
@@ -614,7 +614,7 @@ function LinkedInSection() {
   const loadSettings = () => {
     if (!user) return;
     supabase
-      .from("linkedin_settings" as any)
+      .from("linkedin_settings")
       .select("*")
       .eq("user_id", user.id)
       .maybeSingle()
@@ -634,7 +634,7 @@ function LinkedInSection() {
 
     // Load delivery log
     supabase
-      .from("linkedin_deliveries" as any)
+      .from("linkedin_deliveries")
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
@@ -688,7 +688,7 @@ function LinkedInSection() {
     }
     setLoading(true);
     const { error } = await supabase
-      .from("linkedin_settings" as any)
+      .from("linkedin_settings")
       .upsert({ user_id: user.id, zapier_webhook_url: webhookUrl, is_active: isActive } as any, { onConflict: "user_id" });
     if (error) toast({ title: t("settings.linkedinWebhookSaveError"), description: error.message, variant: "destructive" });
     else toast({ title: t("settings.linkedinWebhookSaved") });
@@ -735,7 +735,7 @@ function LinkedInSection() {
     if (customClientId || customClientSecret) {
       setLoading(true);
       const { error } = await supabase
-        .from("linkedin_settings" as any)
+        .from("linkedin_settings")
         .upsert({
           user_id: user.id,
           custom_client_id: customClientId,
@@ -766,7 +766,7 @@ function LinkedInSection() {
     if (!user) return;
     setIsDisconnecting(true);
     const { error } = await supabase
-      .from("linkedin_settings" as any)
+      .from("linkedin_settings")
       .update({
         access_token: null,
         expires_at: null,
@@ -803,7 +803,7 @@ function LinkedInSection() {
     if (!user) return;
     setLoading(true);
     const { error } = await supabase
-      .from("linkedin_settings" as any)
+      .from("linkedin_settings")
       .upsert({
         user_id: user.id,
         custom_client_id: customClientId,
@@ -1622,7 +1622,7 @@ function CompanyMembersSection({ companyId, memberRole, isAdmin }: { companyId: 
     queryKey: ["settings-company-members", companyId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("company_members" as any)
+        .from("company_members")
         .select("*")
         .eq("company_id", companyId);
       if (error) throw error;
@@ -1663,9 +1663,9 @@ function CompanyMembersSection({ companyId, memberRole, isAdmin }: { companyId: 
     setInviting(true);
     try {
       await createInvite.mutateAsync({
-        company_id: companyId,
+        companyId,
         email: inviteEmail.trim(),
-        member_role: inviteRole
+        role: inviteRole
       });
       setInviteEmail("");
       refetchInvites();
@@ -1679,7 +1679,7 @@ function CompanyMembersSection({ companyId, memberRole, isAdmin }: { companyId: 
   const handleUpdateRole = async (memberId: string, newRole: string) => {
     try {
       const { error } = await supabase
-        .from("company_members" as any)
+        .from("company_members")
         .update({ member_role: newRole })
         .eq("id", memberId);
       if (error) throw error;
