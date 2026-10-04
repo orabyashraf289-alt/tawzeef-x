@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { supabase } from "@/integrations/supabase/client";
-import { updateCandidateStage } from "@/services/candidateStageService";
+import { updateCandidateStage, updateCandidateStatus } from "@/services/candidateStageService";
 
 const mocks = vi.hoisted(() => ({
   writeError: null as null | { message: string },
@@ -28,6 +28,10 @@ const input = { candidateId: "candidate-a", companyId: "company-a", stage: "revi
 beforeEach(() => { vi.mocked(supabase.from).mockClear(); mocks.writeError = null; mocks.readError = null; mocks.writes = []; mocks.filters = []; });
 
 describe("Candidate stage updates with automation", () => {
+  it("rejects without rewriting a newer stage or resetting its elapsed time", async () => {
+    await updateCandidateStatus({ candidateId: "candidate-a", companyId: "company-a", status: "مرفوض", notes: "Review reason" });
+    expect(mocks.writes).toEqual([{ status: "مرفوض", notes: "Review reason", updated_at: expect.any(String) }]);
+  });
   it("writes once in the candidate's company and returns the final stage from a separate read", async () => {
     const saved = await updateCandidateStage(input);
     expect(saved.stage).toBe("screened-by-automation");
