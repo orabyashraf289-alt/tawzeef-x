@@ -26,7 +26,7 @@ const planColors: Record<string, string> = {
 export default function Pricing() {
   const { data: plans, isLoading } = useSubscriptionPlans();
   const { user } = useAuth();
-  const { role } = useUserRole();
+  const { role, isSuperAdmin } = useUserRole();
   const [selectedPlan, setSelectedPlan] = useState<{
     id: string;
     name: string;
@@ -147,7 +147,7 @@ export default function Pricing() {
                     ))}
                   </ul>
 
-                  {user && (role === "recruiter" || role === "admin" || role === "super_admin") ? (
+                  {user && (role === "recruiter" || role === "admin" || isSuperAdmin) ? (
                     <Button
                       onClick={() => setSelectedPlan({
                         id: plan.id,
