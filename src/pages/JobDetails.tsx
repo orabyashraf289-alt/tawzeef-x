@@ -695,10 +695,10 @@ export default function JobDetails() {
               location: updatedData.location,
               type: updatedData.type,
               description: updatedData.description,
-              requirements: updatedData.requirements ? updatedData.requirements.split("\n").filter(Boolean) : [],
-              salary_min: updatedData.salaryMin ? Number(updatedData.salaryMin) : null,
-              salary_max: updatedData.salaryMax ? Number(updatedData.salaryMax) : null,
-              experience_level: updatedData.experience,
+              requirements: updatedData.requirements,
+              salaryMin: updatedData.salaryMin,
+              salaryMax: updatedData.salaryMax,
+              experience: updatedData.experience,
             },
             {
               onSuccess: () => {
