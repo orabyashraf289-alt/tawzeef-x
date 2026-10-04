@@ -150,7 +150,7 @@ export default function Pipeline() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("assessment_responses")
-        .select("candidate_email, assessment_id, status, percentage, integrity_score, tab_switch_log")
+        .select("candidate_email, assessment_id, status, percentage, tab_switches, tab_switch_log")
         .eq("status", "completed");
       if (error) throw error;
       return data || [];
@@ -911,7 +911,7 @@ export default function Pipeline() {
                           }}
                           onReject={(id, name) => setRejectionTarget({ candidateId: id, candidateName: name })}
                           onDefer={(id) => deferCandidate.mutate({ candidateId: id })}
-                          onRestore={(id, orig) => restoreCandidate.mutate({ candidateId: id, originalStage: orig })}
+                          onRestore={(id, orig) => restoreCandidate.mutate({ candidateId: id, stage: orig })}
                           stageSlaHours={stage.sla_hours}
                         />
                       );
