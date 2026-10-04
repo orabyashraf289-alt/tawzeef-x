@@ -90,7 +90,7 @@ export function useAllUserRoles() {
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("user_roles" as any)
+        .from("user_roles")
         .select("*");
       if (error) throw error;
       return (data || []) as UserRoleRecord[];
@@ -105,13 +105,13 @@ export function useUpdateUserRole() {
   return useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: AppRole }) => {
       const { error: deleteError } = await supabase
-        .from("user_roles" as any)
+        .from("user_roles")
         .delete()
         .eq("user_id", userId);
       if (deleteError) throw deleteError;
 
       const { error: insertError } = await supabase
-        .from("user_roles" as any)
+        .from("user_roles")
         .insert({ user_id: userId, role } as any);
       if (insertError) throw insertError;
     },
@@ -131,7 +131,7 @@ export function useDeleteTeamMember() {
   return useMutation({
     mutationFn: async (userId: string) => {
       const { error: roleError } = await supabase
-        .from("user_roles" as any)
+        .from("user_roles")
         .delete()
         .eq("user_id", userId);
       if (roleError) throw roleError;
@@ -159,7 +159,7 @@ export function useInvitations() {
     queryKey: ["invitations"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("invitations" as any)
+        .from("invitations")
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -197,7 +197,7 @@ export function useActivityLog() {
     queryKey: ["activity-log"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("activity_log" as any)
+        .from("activity_log")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(50);
@@ -215,7 +215,7 @@ export function useLogActivity() {
   return useMutation({
     mutationFn: async (params: { action: string; entityType?: string; entityId?: string; details?: string; userName?: string }) => {
       const { error } = await supabase
-        .from("activity_log" as any)
+        .from("activity_log")
         .insert({
           user_id: user!.id,
           user_name: params.userName || user!.email,
@@ -248,7 +248,7 @@ export function useCustomRoles() {
     queryKey: ["custom-roles", activeCompanyId, user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("custom_roles" as any)
+        .from("custom_roles")
         .select("*")
         .eq("company_id", activeCompanyId!)
         .order("created_at", { ascending: false });
@@ -271,7 +271,7 @@ export function useCreateCustomRole() {
     mutationFn: async (roleData: { name: string; description?: string; permissions: string[] }) => {
       if (!user || !activeCompanyId) throw new Error("اختر شركة أولًا لإضافة الدور.");
       const { data, error } = await supabase
-        .from("custom_roles" as any)
+        .from("custom_roles")
         .insert({
           company_id: activeCompanyId,
           name: roleData.name,
@@ -299,7 +299,7 @@ export function useDeleteCustomRole() {
     mutationFn: async (roleId: string) => {
       if (!activeCompanyId) throw new Error("اختر شركة أولًا لحذف الدور.");
       const { error } = await supabase
-        .from("custom_roles" as any)
+        .from("custom_roles")
         .delete()
         .eq("id", roleId)
         .eq("company_id", activeCompanyId);
