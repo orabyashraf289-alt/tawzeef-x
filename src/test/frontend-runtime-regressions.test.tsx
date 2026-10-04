@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 const mocks = vi.hoisted(() => ({
   canEdit: true, templateError: null as { message: string } | null,
   writeError: null as Error | null,
-  updateStage: vi.fn(), recordTransition: vi.fn(), toast: vi.fn(), upsert: vi.fn(),
+  updateStage: vi.fn(), updateStatus: vi.fn(), recordTransition: vi.fn(), toast: vi.fn(), upsert: vi.fn(),
   filters: [] as [string, string, string][],
 }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "actor-a", email: "actor@example.test" } }) }));
@@ -26,7 +26,7 @@ vi.mock("@/hooks/useJobs", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/hooks/useJobs")>(),
   useInterviews: () => ({ data: [] }), useAddInterview: () => ({}), useUpdateInterview: () => ({}), useCancelInterview: () => ({}),
 }));
-vi.mock("@/services/candidateStageService", () => ({ updateCandidateStage: mocks.updateStage }));
+vi.mock("@/services/candidateStageService", () => ({ updateCandidateStage: mocks.updateStage, updateCandidateStatus: mocks.updateStatus }));
 vi.mock("@/services/candidateHistoryService", () => ({ recordStageTransition: mocks.recordTransition }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {
   auth: { getUser: async () => ({ data: { user: { id: "actor-a", email: "actor@example.test" } } }), getSession: async () => ({ data: { session: null } }) },
@@ -55,6 +55,7 @@ beforeEach(() => {
   vi.clearAllMocks(); mocks.filters = []; mocks.canEdit = true; mocks.templateError = null; mocks.writeError = null;
   client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   mocks.recordTransition.mockResolvedValue(undefined);
+  mocks.updateStatus.mockResolvedValue({ id: "candidate-a", company_id: "branch-a", stage: "المرحلة النهائية", status: "مرفوض" });
   mocks.updateStage.mockImplementation(async () => {
     if (mocks.writeError) throw mocks.writeError;
     return { id: "candidate-a", company_id: "branch-a", stage: "المرحلة النهائية", status: "قيد المراجعة" };
@@ -95,6 +96,16 @@ it("a rejected stage write does not show success or overwrite the candidate owne
   await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ variant: "destructive" })));
   expect(changed).not.toHaveBeenCalled();
   expect(mocks.recordTransition).not.toHaveBeenCalled();
+  expect(mocks.upsert).not.toHaveBeenCalled();
+});
+it("the reject button changes status while keeping the final stored stage", async () => {
+  const changed = vi.fn();
+  render(<StageActions candidate={candidate} onStageChange={changed} />, { wrapper });
+  fireEvent.click(screen.getByRole("button", { name: "رفض" }));
+  fireEvent.click(await screen.findByRole("button", { name: "تأكيد الرفض" }));
+  await waitFor(() => expect(changed).toHaveBeenCalledWith("المرحلة النهائية", "مرفوض"));
+  expect(mocks.updateStatus).toHaveBeenCalledWith({ candidateId: "candidate-a", companyId: "branch-a", status: "مرفوض" });
+  expect(mocks.updateStage).not.toHaveBeenCalled();
   expect(mocks.upsert).not.toHaveBeenCalled();
 });
 it("loads notification templates for the active branch", async () => {
