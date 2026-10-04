@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
+import { isConvertedOrder } from "@/types/convertedOrders";
 import type { ConvertedOrder, OrderStatus, OrderChecklist, OrderType } from "@/types/convertedOrders";
 
 const STORAGE_KEY_PREFIX = "tawzeef_converted_orders_";
@@ -217,7 +218,9 @@ export function useConvertedOrders() {
           .order("created_at", { ascending: false });
 
         if (!error && dbOrders && dbOrders.length > 0) {
-          return dbOrders as ConvertedOrder[];
+          const rows: unknown[] = dbOrders;
+          const validOrders = rows.filter(isConvertedOrder);
+          if (validOrders.length > 0) return validOrders;
         }
       } catch (dbErr) {
         // Fallback to local storage gracefully
