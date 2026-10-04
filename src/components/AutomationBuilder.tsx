@@ -1,208 +1,195 @@
-import React, { useState } from "react";
-import { useAutomationRules, type AutomationRule } from "@/hooks/useAutomation";
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { automationMessages, useAutomationRules, useAutomationStages, type AutomationRule } from "@/hooks/useAutomation";
+import { useCompany } from "@/contexts/CompanyContext";
+import { useCompanyMembers } from "@/hooks/useCompanies";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Zap, Plus, Trash2, Mail, MessageSquare, UserCheck, Sparkles } from "lucide-react";
+import { Zap, Plus, Trash2, Pencil, Play, Pause } from "lucide-react";
+
+const triggerLabels: Record<string, string> = {
+  "candidate.stage_changed": "عند تغيير مرحلة المرشح",
+  "application.created": "عند وصول طلب توظيف جديد",
+  "offer.sent": "عند إرسال عرض عمل",
+  "sla.expired": "عند تجاوز مهلة المرحلة",
+};
+const fieldLabels: Record<string, string> = { stage: "المرحلة", status: "الحالة", source: "المصدر", job_id: "الوظيفة", ai_score: "درجة التقييم" };
+const operatorLabels: Record<string, string> = { equals: "تساوي", contains: "تحتوي على", greater_than: "أكبر من", less_than: "أقل من" };
+const statusLabels: Record<string, string> = { success: "تم التنفيذ", failed: "تعذر التنفيذ", skipped: "لم تتحقق الشروط", running: "جارٍ التنفيذ" };
+
+function activationBlock(rule: AutomationRule): string | null {
+  if (!["candidate.stage_changed", "application.created"].includes(rule.trigger_event)) return automationMessages.unsupported_event;
+  if (!rule.actions.length) return "اختر إجراءً من خلال تعديل المسودة";
+  for (const action of rule.actions) {
+    if (!["move_stage", "assign_reviewer"].includes(action.type)) return automationMessages.unsupported_action;
+    const key = action.type === "move_stage" ? "stage_id" : "reviewer_id";
+    if (typeof action.payload?.[key] !== "string" || !action.payload[key]) return "حدّد المرحلة أو المراجع من خلال تعديل المسودة";
+  }
+  return null;
+}
 
 export default function AutomationBuilder() {
-  const { rules, isLoading, error, needsCompany, canManage, createRule, deleteRule } = useAutomationRules();
+  const { rules, logs, logsError, logsLoading, isLoading, error, needsCompany, canManage,
+    createRule, updateRule, deleteRule, setRuleActive, changingState } = useAutomationRules();
+  const { activeCompanyId } = useCompany();
+  const stagesQuery = useAutomationStages();
+  const membersQuery = useCompanyMembers(activeCompanyId || undefined);
+  const stages = stagesQuery.data || [];
+  const members = (membersQuery.data || []).filter(member => ["owner", "hr"].includes(member.member_role));
   const [isOpen, setIsOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
-  const [triggerEvent, setTriggerEvent] = useState<AutomationRule["trigger_event"]>("candidate.stage_changed");
-  const [actionType, setActionType] = useState<"send_email" | "send_whatsapp" | "move_stage" | "assign_reviewer">("send_email");
-  const [actionDetail, setActionDetail] = useState("");
+  const [triggerEvent, setTriggerEvent] = useState<AutomationRule["trigger_event"]>("application.created");
+  const [actionType, setActionType] = useState("move_stage");
+  const [targetId, setTargetId] = useState("");
+  const [conditionStage, setConditionStage] = useState("__any");
   const [saving, setSaving] = useState(false);
+  const [activating, setActivating] = useState<AutomationRule | null>(null);
 
-  const handleCreate = async () => {
-    if (!title.trim()) return;
+  useEffect(() => { setIsOpen(false); setActivating(null); }, [activeCompanyId]);
+
+  const reviewerName = (id: unknown) => members.find(member => member.user_id === id)?.profiles?.full_name || String(id || "مراجع غير محدد");
+  const actionDetails = (rule: AutomationRule) => rule.actions.map(action => {
+    if (action.type === "move_stage") return `نقل إلى: ${stages.find(stage => stage.id === action.payload.stage_id)?.name || action.payload.stage_id || "غير محدد"}`;
+    if (action.type === "assign_reviewer") return `المراجع: ${reviewerName(action.payload.reviewer_id)}`;
+    return String(action.payload.details || "مسودة إجراء تحتاج تكاملًا");
+  }).join("، ");
+
+  const openEditor = (rule?: AutomationRule) => {
+    setEditingId(rule?.id || null);
+    setTitle(rule?.title || "");
+    setTriggerEvent(rule?.trigger_event || "application.created");
+    const action = rule?.actions[0];
+    setActionType(action && ["move_stage", "assign_reviewer"].includes(action.type) ? action.type : "move_stage");
+    setTargetId(String(action?.payload.stage_id || action?.payload.reviewer_id || ""));
+    setConditionStage(String(rule?.conditions[0]?.value || "__any"));
+    setIsOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!title.trim() || !targetId) return;
     setSaving(true);
     try {
-      await createRule({
-        title: title.trim(),
-        trigger_event: triggerEvent,
-        conditions: [],
-        actions: [{ type: actionType, payload: { details: actionDetail } }],
-      });
-      setTitle("");
-      setActionDetail("");
+      const draft = {
+        title: title.trim(), trigger_event: triggerEvent, description: rules.find(rule => rule.id === editingId)?.description,
+        conditions: conditionStage === "__any" ? [] : [{ field: "stage", operator: "equals" as const, value: conditionStage }],
+        actions: [{ type: actionType as "move_stage" | "assign_reviewer", payload: actionType === "move_stage" ? { stage_id: targetId } : { reviewer_id: targetId } }],
+      };
+      if (editingId) await updateRule({ id: editingId, draft });
+      else await createRule(draft);
       setIsOpen(false);
-    } catch (err: any) {
-      console.error("Automation rule create error:", err);
-    } finally {
-      setSaving(false);
-    }
+    } catch { /* The mutation displays the database error and leaves the form open. */ }
+    finally { setSaving(false); }
   };
 
-  const getTriggerLabel = (t: string) => {
-    switch (t) {
-      case "candidate.stage_changed": return "تغيير مرحلة المرشح في الكانبان";
-      case "application.created": return "تقديم طلب توظيف جديد";
-      case "offer.sent": return "إرسال عرض عمل للمرشح";
-      case "sla.expired": return "تجاوز المدة الزمنية المحددة (SLA)";
-      default: return t;
-    }
-  };
-
-  const getActionIcon = (type: string) => {
-    switch (type) {
-      case "send_email": return <Mail className="w-4 h-4 text-emerald-500" />;
-      case "send_whatsapp": return <MessageSquare className="w-4 h-4 text-green-500" />;
-      case "assign_reviewer": return <UserCheck className="w-4 h-4 text-blue-500" />;
-      default: return <Zap className="w-4 h-4 text-amber-500" />;
-    }
-  };
-
-  const getActionDetails = (rule: AutomationRule) => {
-    const details = rule.actions[0]?.payload?.details;
-    return typeof details === "string" && details ? details : "مسودة إجراء للمراجعة";
+  const toggleRule = async (rule: AutomationRule, active: boolean) => {
+    try {
+      await setRuleActive({ id: rule.id, active });
+      setActivating(null);
+    } catch { /* Keep the current state; the mutation displays the error. */ }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header & Add Trigger */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-gradient-to-r from-amber-500/10 via-primary/5 to-transparent border border-amber-500/20 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 shrink-0">
-            <Zap className="w-6 h-6 animate-pulse" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-black text-base text-foreground">قواعد الأتمتة</h3>
-              <Badge className="bg-amber-500 text-white text-[10px] px-2 font-bold">مسودات</Badge>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">قواعد محفوظة للمراجعة؛ التنفيذ التلقائي غير متاح حاليًا. إدارة القواعد متاحة لمالك الشركة.</p>
-          </div>
+    <div className="space-y-6" dir="rtl">
+      <Card className="p-6 rounded-3xl flex flex-wrap items-center justify-between gap-4 border-amber-500/20">
+        <div>
+          <h3 className="font-black flex items-center gap-2"><Zap className="w-5 h-5 text-amber-500" /> قواعد الأتمتة</h3>
+          <p className="text-xs text-muted-foreground mt-2">نقل المراحل وتعيين المراجعين تلقائيًا. تُحفظ القاعدة كمسودة ويُفعّلها مالك الشركة بعد مراجعتها.</p>
+          <p className="text-xs text-muted-foreground mt-1">البريد وواتساب والعروض والمهل متاحة كمسودات قديمة فقط؛ تنفيذها غير مدعوم حاليًا.</p>
         </div>
+        <Button disabled={!canManage || needsCompany} onClick={() => openEditor()} className="gap-2 rounded-xl"><Plus className="w-4 h-4" /> إنشاء قاعدة</Button>
+      </Card>
 
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button disabled={!canManage || needsCompany} className="rounded-xl font-bold text-xs gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-md">
-              <Plus className="w-4 h-4" /> إنشاء قاعدة أتمتة جديدة
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px] rounded-3xl" dir="rtl">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-black flex items-center gap-2">
-                <Zap className="w-5 h-5 text-amber-500" /> إضافة سيناريو أتمتة جديد
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-4 py-3">
-              <div>
-                <Label className="text-xs font-bold text-muted-foreground mb-1 block">عنوان السيناريو والقاعدة</Label>
-                <Input
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  placeholder="مثال: إرسال إيميل ترحيبي عند نقل المرشح للمقابلة"
-                  className="rounded-xl h-11 text-xs"
-                />
-              </div>
-
-              <div>
-                <Label className="text-xs font-bold text-muted-foreground mb-1 block">المحفز الذكي (Trigger Event)</Label>
-                <Select value={triggerEvent} onValueChange={(val: any) => setTriggerEvent(val)}>
-                  <SelectTrigger className="rounded-xl h-11 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="candidate.stage_changed">عند تغيير مرحلة المرشح في الكانبان</SelectItem>
-                    <SelectItem value="application.created">عند تقديم طلب جديد عبر بوابة التوظيف</SelectItem>
-                    <SelectItem value="offer.sent">عند إرسال عرض وظيفي للمرشح</SelectItem>
-                    <SelectItem value="sla.expired">عند تجاوز زمن المرحلة المحامي (SLA)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-xs font-bold text-muted-foreground mb-1 block">الإجراء التلقائي (Action)</Label>
-                <Select value={actionType} onValueChange={(val: any) => setActionType(val)}>
-                  <SelectTrigger className="rounded-xl h-11 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="send_email">إرسال بريد إلكتروني تلقائي للمرشح</SelectItem>
-                    <SelectItem value="send_whatsapp">إرسال رسالة واتساب تفاعلية</SelectItem>
-                    <SelectItem value="assign_reviewer">تعيين مسؤول مراجعة أوتوماتيكياً</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-xs font-bold text-muted-foreground mb-1 block">تفاصيل وتعديل الرسالة والإجراء</Label>
-                <Input
-                  value={actionDetail}
-                  onChange={e => setActionDetail(e.target.value)}
-                  placeholder="مثال: مرحباً بك، يسعدنا دعوتك للمقابلة الشخصية..."
-                  className="rounded-xl h-11 text-xs"
-                />
-              </div>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent dir="rtl" className="sm:max-w-lg rounded-2xl">
+          <DialogHeader><DialogTitle>{editingId ? "مراجعة قاعدة الأتمتة" : "قاعدة أتمتة جديدة"}</DialogTitle><DialogDescription>راجع الحدث والشروط والإجراء داخل الشركة الحالية.</DialogDescription></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2"><Label htmlFor="automation-title">اسم القاعدة</Label><Input id="automation-title" value={title} maxLength={255} onChange={event => setTitle(event.target.value)} placeholder="مثال: تعيين مراجع للطلبات الجديدة" /></div>
+            <div className="space-y-2"><Label>الحدث</Label>
+              <Select value={triggerEvent} onValueChange={value => setTriggerEvent(value as AutomationRule["trigger_event"])}>
+                <SelectTrigger aria-label="الحدث"><SelectValue /></SelectTrigger><SelectContent>
+                  <SelectItem value="application.created">عند وصول طلب توظيف جديد</SelectItem>
+                  <SelectItem value="candidate.stage_changed">عند تغيير مرحلة المرشح</SelectItem>
+                  {!["application.created", "candidate.stage_changed"].includes(triggerEvent) && <SelectItem value={triggerEvent} disabled>{triggerLabels[triggerEvent]} — غير مدعوم</SelectItem>}
+                </SelectContent>
+              </Select>
             </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <Button variant="ghost" onClick={() => setIsOpen(false)} className="rounded-xl text-xs">إلغاء</Button>
-              <Button onClick={handleCreate} disabled={saving || !title.trim() || !canManage} className="rounded-xl text-xs font-bold bg-primary gap-1">
-                <Sparkles className="w-3.5 h-3.5" /> حفظ المسودة
-              </Button>
+            <div className="space-y-2"><Label>مرحلة المرشح عند وقوع الحدث</Label>
+              <Select value={conditionStage} onValueChange={setConditionStage}>
+                <SelectTrigger aria-label="شرط المرحلة"><SelectValue /></SelectTrigger><SelectContent>
+                  <SelectItem value="__any">أي مرحلة</SelectItem>
+                  {Array.from(new Set(stages.map(stage => stage.name))).map(name => <SelectItem key={name} value={name}>{name}</SelectItem>)}
+                  {conditionStage !== "__any" && !stages.some(stage => stage.name === conditionStage) && <SelectItem value={conditionStage}>{conditionStage}</SelectItem>}
+                </SelectContent>
+              </Select>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+            <div className="space-y-2"><Label>الإجراء</Label>
+              <Select value={actionType} onValueChange={value => { setActionType(value); setTargetId(""); }}>
+                <SelectTrigger aria-label="الإجراء"><SelectValue /></SelectTrigger><SelectContent>
+                  <SelectItem value="move_stage">نقل المرشح إلى مرحلة</SelectItem>
+                  <SelectItem value="assign_reviewer">تعيين مراجع للمرشح</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2"><Label>{actionType === "move_stage" ? "المرحلة المستهدفة" : "المراجع"}</Label>
+              <Select value={targetId} onValueChange={setTargetId}>
+                <SelectTrigger aria-label="هدف الإجراء"><SelectValue placeholder="اختر من الشركة الحالية" /></SelectTrigger><SelectContent>
+                  {actionType === "move_stage" ? stages.map(stage => <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>) : members.map(member => <SelectItem key={member.user_id} value={member.user_id}>{reviewerName(member.user_id)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {(stagesQuery.error || membersQuery.error) && <p role="alert" className="text-xs text-destructive">تعذر تحميل بعض الخيارات. أعد المحاولة قبل الحفظ.</p>}
+              {actionType === "move_stage" && stages.length === 0 && !stagesQuery.isLoading && <p className="text-xs text-muted-foreground">أنشئ مرحلة نشطة مرتبطة بهذه الشركة أولًا.</p>}
+              {actionType === "assign_reviewer" && members.length === 0 && !membersQuery.isLoading && <p className="text-xs text-muted-foreground">لا يوجد مراجع متاح في هذه الشركة.</p>}
+            </div>
+            <p className="text-xs text-muted-foreground">تغيير الحدث أو الشروط أو الإجراءات يوقف القاعدة حتى مراجعتها وتفعيلها مجددًا. شروط المقابلة والتقييم والاختبار تظل مطلوبة عند النقل.</p>
+            <Button onClick={handleSave} disabled={saving || !canManage || !title.trim() || !targetId} className="w-full">{saving ? "جارٍ الحفظ…" : "حفظ للمراجعة"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-      {/* Rules List */}
-      <div className="space-y-3">
-        {needsCompany ? (
-          <p className="text-sm text-muted-foreground">اختر شركة لعرض قواعد الأتمتة.</p>
-        ) : error ? (
-          <p role="alert" className="text-sm text-destructive">تعذر تحميل قواعد الأتمتة: {error.message}</p>
-        ) : isLoading ? (
-          <div className="p-8 text-center text-xs text-muted-foreground">جاري تحميل قواعد الأتمتة...</div>
-        ) : rules.length === 0 ? (
-          <Card className="p-8 text-center rounded-3xl border-dashed border-border/80 space-y-3">
-            <Zap className="w-10 h-10 text-muted-foreground mx-auto opacity-40" />
-            <h4 className="font-bold text-sm">لا توجد قواعد أتمتة محفوظة</h4>
-            <p className="text-xs text-muted-foreground max-w-sm mx-auto">يمكن لمالك الشركة حفظ سيناريوهات التواصل ومراجعتها هنا.</p>
-          </Card>
-        ) : (
-          rules.map((rule) => (
-            <Card key={rule.id} className="p-4 rounded-2xl border-border/60 hover:border-amber-500/40 transition-all flex items-center justify-between gap-4 shadow-2xs">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 font-bold border border-amber-500/20">
-                  {getActionIcon(rule.actions[0]?.type)}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-black text-sm text-foreground truncate">{rule.title}</h4>
-                    <Badge variant="outline" className="text-[9px] px-2 py-0.5 bg-muted text-muted-foreground font-semibold">
-                      {getTriggerLabel(rule.trigger_event)}
-                    </Badge>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                    {getActionDetails(rule)}
-                  </p>
-                </div>
-              </div>
+      <Dialog open={!!activating} onOpenChange={open => { if (!open) setActivating(null); }}>
+        <DialogContent dir="rtl"><DialogHeader><DialogTitle>تفعيل القاعدة</DialogTitle><DialogDescription>راجع الحدث والشروط والإجراء داخل الشركة الحالية.</DialogDescription></DialogHeader>
+          {activating && <div className="space-y-3">
+            <p className="font-bold">{activating.title}</p><p>{triggerLabels[activating.trigger_event]}</p>
+            <p>{actionDetails(activating)}</p>
+            <p className="text-sm">{activating.conditions.length ? `الشروط: ${activating.conditions.map(condition => `${fieldLabels[condition.field] || condition.field} ${operatorLabels[condition.operator]} ${String(condition.value)}`).join("، ")}` : "تطبق على جميع الأحداث المطابقة داخل الشركة."}</p>
+            <p className="text-xs text-muted-foreground">يبدأ التنفيذ مع الأحداث الجديدة فقط. النقل الناتج عن الأتمتة لا يشغّل قواعد أخرى.</p>
+            <Button disabled={changingState} onClick={() => toggleRule(activating, true)}>تأكيد التفعيل</Button>
+          </div>}
+        </DialogContent>
+      </Dialog>
 
-              <div className="flex items-center gap-3 shrink-0">
-                <Badge variant="outline">مسودة محفوظة</Badge>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={!canManage}
-                  onClick={() => deleteRule(rule.id)}
-                  className="h-8 w-8 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 rounded-lg"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </Card>
-          ))
-        )}
-      </div>
+      {needsCompany ? <p>اختر شركة لعرض قواعد الأتمتة.</p> : error ? <p role="alert" className="text-destructive">تعذر تحميل القواعد: {error.message}</p> : isLoading ? <p>جارٍ تحميل القواعد…</p> : rules.length === 0 ? <Card className="p-8 text-center border-dashed">لا توجد قواعد أتمتة محفوظة</Card> : rules.map(rule => {
+        const blocked = activationBlock(rule);
+        const editable = rule.actions.length <= 1 && (rule.conditions.length === 0 || (rule.conditions.length === 1 && rule.conditions[0].field === "stage" && rule.conditions[0].operator === "equals"));
+        return <Card key={rule.id} className="p-4 rounded-2xl space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div><h4 className="font-bold">{rule.title}</h4><p className="text-xs text-muted-foreground mt-1">{triggerLabels[rule.trigger_event]}</p></div>
+            <Badge variant={rule.is_active ? "default" : "outline"}>{rule.is_active ? "مفعّلة" : "مسودة / متوقفة"}</Badge>
+          </div>
+          <p className="text-sm break-words">{actionDetails(rule)}</p>
+          {blocked && <p className="text-xs text-amber-700 dark:text-amber-400">{blocked}</p>}
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" disabled={!canManage || changingState || (!rule.is_active && !!blocked)} onClick={() => rule.is_active ? toggleRule(rule, false) : setActivating(rule)} className="gap-1">{rule.is_active ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}{rule.is_active ? "إيقاف" : "مراجعة وتفعيل"}</Button>
+            <Button size="sm" variant="ghost" disabled={!canManage || !editable} onClick={() => openEditor(rule)} className="gap-1"><Pencil className="w-4 h-4" /> تعديل</Button>
+            <Button size="sm" variant="ghost" disabled={!canManage} onClick={() => deleteRule(rule.id)} aria-label={`حذف ${rule.title}`}><Trash2 className="w-4 h-4" /></Button>
+          </div>
+        </Card>;
+      })}
+
+      {!needsCompany && <Card className="p-5 rounded-2xl space-y-3">
+        <h4 className="font-bold">آخر عمليات التنفيذ</h4>
+        {logsError ? <p role="alert" className="text-destructive text-sm">تعذر تحميل سجل التنفيذ</p> : logsLoading ? <p className="text-sm">جارٍ تحميل السجل…</p> : logs.length === 0 ? <p className="text-sm text-muted-foreground">لم تُنفّذ قواعد بعد.</p> : logs.map(log => <div key={log.id} className="border-t pt-3 flex flex-wrap justify-between gap-2 text-sm">
+          <div><p className="font-semibold">{rules.find(rule => rule.id === log.rule_id)?.title || "قاعدة أتمتة"}</p><p className={log.status === "failed" ? "text-destructive" : "text-muted-foreground"}>{automationMessages[log.execution_details.code || ""] || statusLabels[log.status] || "نتيجة غير متاحة"}</p>
+            {log.execution_details.candidate_id && <Link className="text-primary underline text-xs" to={`/candidates/${log.execution_details.candidate_id}`}>فتح ملف المرشح</Link>}
+          </div><time className="text-xs text-muted-foreground">{new Date(log.executed_at).toLocaleString("ar-SA")}</time>
+        </div>)}
+      </Card>}
     </div>
   );
 }
