@@ -21,12 +21,12 @@ export function useStageTransitions(candidateId?: string) {
     enabled: !!user && !!candidateId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("stage_transitions" as any)
+        .from("stage_transitions")
         .select("*")
         .eq("candidate_id", candidateId!)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data as any[]) as StageTransition[];
+      return data;
     },
   });
 }
@@ -50,7 +50,7 @@ export function useRecordTransition() {
       notes?: string;
     }) => {
       const { error } = await supabase
-        .from("stage_transitions" as any)
+        .from("stage_transitions")
         .insert({
           candidate_id: candidateId,
           user_id: user!.id,
@@ -58,7 +58,7 @@ export function useRecordTransition() {
           to_stage: toStage,
           moved_by_name: movedByName || user?.email || "غير معروف",
           notes: notes || null,
-        } as any);
+        });
       if (error) throw error;
     },
     onSuccess: (_, vars) => {
