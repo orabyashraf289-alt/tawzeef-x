@@ -1,5 +1,5 @@
 import { recordStageTransition } from "@/services/candidateHistoryService";
-import { updateCandidateStage } from "@/services/candidateStageService";
+import { updateCandidateStage, updateCandidateStatus as persistCandidateStatus } from "@/services/candidateStageService";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPublicBaseUrl } from "@/lib/getPublicUrl";
@@ -869,9 +869,8 @@ export default function StageActions(props: StageActionsProps) {
     setShowRejectDialog(false);
 
     try {
-      const saved = await updateCandidateStage({
-        candidateId, companyId: candidate?.company_id,
-        stage: currentStage, status: "مرفوض",
+      const saved = await persistCandidateStatus({
+        candidateId, companyId: candidate?.company_id, status: "مرفوض",
         ...(rejectionReason ? { notes: `سبب الرفض: ${rejectionReason}` } : {}),
       });
       onStageChange?.(saved.stage, saved.status);
