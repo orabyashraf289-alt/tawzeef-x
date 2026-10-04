@@ -8,6 +8,8 @@ Only `supabase/migrations/*.sql` participates in chronological replay. Historica
 
 The platform setup archive includes company-name-based assignments. The schema-only bootstrap in `20260927124005_restore_candidate_tenant_boundaries.sql` supplies the dependency for subsequent migrations without assigning roles or company flags. The later agency validation migration remains part of replay.
 
+The additive `align_application_candidate_profile_fields` migration supplies the nullable application and candidate profile columns required by `handle_new_application`. It preserves populated values and existing column definitions. The automation execution fixture checks that a newly submitted application's profile fields reach its candidate during clean replay.
+
 ## Isolated checks
 
 The workflow `.github/workflows/supabase-migrations.yml` validates filenames, replays active SQL, and runs these rollback-only fixtures:
