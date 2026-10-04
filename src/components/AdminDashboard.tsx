@@ -89,7 +89,7 @@ function useHiringGoals() {
     queryKey: ["hiring-goals", user?.id, currentMonth],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("hiring_goals" as any)
+        .from("hiring_goals")
         .select("*")
         .eq("user_id", user!.id)
         .eq("month", currentMonth)
