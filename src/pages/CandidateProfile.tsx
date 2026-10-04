@@ -1,3 +1,4 @@
+import { recordStageTransition } from "@/services/candidateHistoryService";
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -39,7 +40,7 @@ import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCompanyContext } from "@/contexts/CompanyContext";
+import { fetchCandidateProfile } from "@/services/candidateProfileService";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Progress } from "@/components/ui/progress";
@@ -155,7 +156,6 @@ function PipelineTracker({
 export default function CandidateProfile() {
   const { id } = useParams();
   const { user } = useAuth();
-  const { activeCompany } = useCompanyContext();
   const { locale } = useI18n();
   const queryClient = useQueryClient();
   const { data: candidates, isLoading: isCandidatesLoading } = useCandidates();
@@ -170,103 +170,12 @@ export default function CandidateProfile() {
   }, [id]);
 
   const { data: fetchedCandidate, isLoading: isFetchingDirect } = useQuery({
-    queryKey: ["candidate-detail-direct", id],
-    enabled: !!id,
+    queryKey: ["candidate-detail-direct", id, user?.id],
+    enabled: !!id && !!user,
     staleTime: 0,           // Always re-fetch after invalidation
     gcTime: 0,              // Don't cache between navigations
     refetchOnMount: "always",
-    queryFn: async () => {
-      if (!id) return null;
-      const cleanId = id.trim();
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
-
-      let candQuery = supabase.from("candidates").select("*, jobs(title)");
-      if (isUuid) candQuery = candQuery.or(`id.eq.${cleanId},tracking_code.ilike.${cleanId}`);
-      else candQuery = candQuery.or(`tracking_code.ilike.${cleanId},email.ilike.${cleanId}`);
-
-      const { data: cand } = await candQuery.maybeSingle();
-      if (cand) return cand;
-
-      let appQuery = supabase.from("applications").select("*, jobs(title)");
-      if (isUuid) appQuery = appQuery.or(`id.eq.${cleanId},tracking_code.ilike.${cleanId}`);
-      else appQuery = appQuery.or(`tracking_code.ilike.${cleanId},email.ilike.${cleanId}`);
-
-      const { data: app } = await appQuery.maybeSingle();
-      if (app) {
-        // Check if there is already a candidate record in candidates table with the same email and job_id
-        if (app.email && app.job_id) {
-          const { data: linkedCand } = await supabase
-            .from("candidates")
-            .select("*, jobs(title)")
-            .eq("job_id", app.job_id)
-            .ilike("email", app.email.trim())
-            .maybeSingle();
-          if (linkedCand) return linkedCand;
-        }
-
-        // If no candidate record exists in candidates, auto-seed one so stage changes persist permanently
-        try {
-          const seedData = {
-            id: app.id,
-            user_id: user?.id || (app as any).user_id || null,
-            company_id: activeCompany?.id || (app as any).company_id || null,
-            job_id: app.job_id,
-            name: app.name,
-            email: app.email,
-            phone: app.phone,
-            role: (app as any).jobs?.title || app.specialty || "متقدم جديد",
-            stage: "تقديم الطلب",
-            status: app.status || "قيد المراجعة",
-            experience: app.experience || null,
-            resume_url: app.resume_url || null,
-            skills: app.skills || null,
-            summary: app.cover_letter || null,
-            source: "رابط التقديم المباشر",
-            tracking_code: (app as any).tracking_code || null,
-            license_number: (app as any).license_number || null,
-            license_expiry: (app as any).license_expiry || null,
-            university_degree: (app as any).university_degree || null,
-            demo_video_url: (app as any).demo_video_url || null,
-          };
-          const { data: newCand, error: seedErr } = await supabase
-            .from("candidates")
-            .upsert(seedData, { onConflict: "id", ignoreDuplicates: true })
-            .select("*, jobs(title)")
-            .maybeSingle();
-
-          if (newCand && !seedErr) return newCand;
-        } catch (e) {
-          console.warn("Auto-seed candidate notice:", e);
-        }
-
-        return {
-          id: app.id,
-          name: app.name,
-          email: app.email,
-          phone: app.phone,
-          job_id: app.job_id,
-          user_id: user?.id || (app as any).user_id || null,
-          company_id: activeCompany?.id || (app as any).company_id || null,
-          role: (app as any).jobs?.title || app.specialty || "متقدم جديد",
-          stage: "تقديم الطلب",
-          status: app.status || "قيد المراجعة",
-          experience: app.experience,
-          resume_url: app.resume_url,
-          skills: app.skills,
-          summary: app.cover_letter,
-          source: "رابط التقديم المباشر",
-          tracking_code: (app as any).tracking_code || null,
-          license_number: (app as any).license_number || null,
-          license_expiry: (app as any).license_expiry || null,
-          university_degree: (app as any).university_degree || null,
-          demo_video_url: (app as any).demo_video_url || null,
-          created_at: app.created_at,
-          candidate_scorecards: [],
-        };
-      }
-
-      return null;
-    },
+    queryFn: () => fetchCandidateProfile(id),
   });
 
   const targetId = (id || "").trim().toLowerCase();
@@ -294,7 +203,7 @@ export default function CandidateProfile() {
       if (!isValidCandidateId) return null;
       try {
         const { data, error } = await supabase
-          .from("talent_pool" as any)
+          .from("talent_pool")
           .select("*")
           .eq("candidate_id", candidate.id)
           .maybeSingle();
@@ -313,10 +222,10 @@ export default function CandidateProfile() {
     mutationFn: async () => {
       if (!candidate) return;
       if (talentEntry) {
-        const { error } = await supabase.from("talent_pool" as any).delete().eq("id", talentEntry.id);
+        const { error } = await supabase.from("talent_pool").delete().eq("id", talentEntry.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("talent_pool" as any).insert({
+        const { error } = await supabase.from("talent_pool").insert({
           candidate_id: candidate.id,
           name: candidate.name,
           role: candidate.role || "غير محدد",
@@ -439,19 +348,20 @@ export default function CandidateProfile() {
 
       // 4. Record stage transition history
       try {
-        await supabase.from("candidate_stage_transitions").insert({
-          candidate_id: candidate.id,
-          from_stage: candidate.stage,
-          to_stage: targetStage,
-          moved_by: user?.id,
-          moved_by_name: user?.email,
+        await recordStageTransition({
+          candidateId: candidate.id,
+          fromStage: candidate.stage,
+          toStage: saved.stage,
+          userId: user?.id,
+          movedByName: user?.email,
         });
-      } catch {
-        // ignore
+        queryClient.invalidateQueries({ queryKey: ["stage_transitions", candidate.id] });
+      } catch (error) {
+        console.warn("Failed saving transition history:", error);
       }
 
       // 5. Direct cache updates
-      queryClient.setQueryData(["candidate-detail-direct", id], (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["candidate-detail-direct", id] }, (old: any) => {
         return { ...(old || candidate), stage: saved.stage, status: saved.status };
       });
       queryClient.setQueryData(["candidate", id], (old: any) => {
@@ -698,7 +608,7 @@ export default function CandidateProfile() {
             />
             <CandidateChecklistPanel
               candidateId={candidate.id}
-              companyId={candidate.company_id || (candidate as any).company?.id || activeCompany?.id}
+              companyId={candidate.company_id}
             />
           </div>
         </div>
