@@ -27,4 +27,6 @@ The client cannot update `is_active` directly, write execution logs, or write re
 
 Apply the new migration individually after source review and database replay checks. Publish the corresponding UI and generated table/function types together. Never replay the archived candidate repairs or use a global database push for this change.
 
-`supabase/tests/automation_runtime.sql` exercises activation boundaries, stage gates, transaction rollback, event deduplication, loop prevention, assignments, and real application-trigger integration using disposable fixtures. `automation_rls.sql` retains the draft-storage and log-isolation checks. Frontend tests cover company switching, failed writes, activation review, and scoped stage creation.
+The additive `align_application_candidate_profile_fields` migration captures the nullable text columns read by the existing application trigger: `license_number`, `license_expiry`, `university_degree`, and `demo_video_url` on applications and candidates. It creates missing columns without rewriting existing values or changing existing column definitions.
+
+`supabase/tests/automation_runtime.sql` exercises activation boundaries, stage gates, transaction rollback, event deduplication, loop prevention, assignments, and real application-trigger integration, including copied profile fields, using disposable fixtures. `automation_rls.sql` retains the draft-storage and log-isolation checks. Frontend tests cover company switching, failed writes, activation review, and scoped stage creation.
