@@ -26,6 +26,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
+import { cn } from "@/lib/utils";
 
 export interface SubtaskItem {
   id: string;
