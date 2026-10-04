@@ -157,33 +157,37 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
 
     try {
       // 1. Check jobs count
-      const { data: compJobs } = await supabase.from("jobs").select("id").eq("company_id", branch.id);
+      const { data: compJobs, error: jobsError } = await supabase.from("jobs").select("id").eq("company_id", branch.id);
+      if (jobsError) throw jobsError;
       const jobsCount = compJobs?.length || 0;
       const jobIds = (compJobs || []).map(j => j.id);
 
-      // 2. Check candidates count
-      let candidatesCount = 0;
-      if (jobIds.length > 0) {
-        const { count } = await supabase.from("candidates").select("id", { count: "exact" }).or(`company_id.eq.${branch.id},job_id.in.(${jobIds.join(",")})`);
-        candidatesCount = count || 0;
-      } else {
-        const { count } = await supabase.from("candidates").select("id", { count: "exact" }).eq("company_id", branch.id);
-        candidatesCount = count || 0;
-      }
+      // 2. Include candidates attached directly to the branch or its jobs.
+      let candidatesQuery = supabase.from("candidates").select("id");
+      candidatesQuery = jobIds.length > 0
+        ? candidatesQuery.or(`company_id.eq.${branch.id},job_id.in.(${jobIds.join(",")})`)
+        : candidatesQuery.eq("company_id", branch.id);
+      const { data: branchCandidates, error: candidatesError } = await candidatesQuery;
+      if (candidatesError) throw candidatesError;
+      const candidateIds = (branchCandidates || []).map((candidate) => candidate.id);
+      const candidatesCount = candidateIds.length;
 
       // 3. Check offers count
       let offersCount = 0;
       if (jobIds.length > 0) {
-        const { count } = await supabase.from("job_offers").select("id", { count: "exact" }).in("job_id", jobIds);
+        const { count, error: offersError } = await supabase.from("job_offers").select("id", { count: "exact" }).in("job_id", jobIds);
+        if (offersError) throw offersError;
         offersCount = count || 0;
       }
 
-      // 4. Check interviews count
-      let interviewsCount = 0;
-      if (jobIds.length > 0) {
-        const { count } = await supabase.from("interviews").select("id", { count: "exact" }).in("job_id", jobIds as any);
-        interviewsCount = count || 0;
-      }
+      // Interviews link to a candidate or company, not a job_id column.
+      let interviewsQuery = supabase.from("interviews").select("id", { count: "exact", head: true });
+      interviewsQuery = candidateIds.length > 0
+        ? interviewsQuery.or(`company_id.eq.${branch.id},candidate_id.in.(${candidateIds.join(",")})`)
+        : interviewsQuery.eq("company_id", branch.id);
+      const { count: interviewCount, error: interviewsError } = await interviewsQuery;
+      if (interviewsError) throw interviewsError;
+      const interviewsCount = interviewCount || 0;
 
       const hasData = jobsCount > 0 || candidatesCount > 0 || offersCount > 0 || interviewsCount > 0;
       setBranchLinkedInfo({
@@ -194,7 +198,8 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
         interviewsCount
       });
     } catch (e) {
-      console.warn("Safety check failed, allowing prompt:", e);
+      setDeletingBranchTarget(null);
+      toast({ title: "تعذر التحقق من بيانات الفرع", description: "أعد المحاولة قبل متابعة الحذف.", variant: "destructive" });
     } finally {
       setCheckingBranchData(false);
     }
@@ -250,7 +255,7 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
 
       // Single high-speed batch insert into companies table
       const { data: insertedCompanies, error: compErr } = await supabase
-        .from("companies" as any)
+        .from("companies")
         .insert(companyPayloads as any)
         .select();
 
@@ -263,7 +268,7 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
           user_id: user.id,
           member_role: "owner",
         }));
-        await supabase.from("company_members" as any).insert(memberPayloads as any);
+        await supabase.from("company_members").insert(memberPayloads as any);
       }
 
       // Invalidate queries ONCE at the end
