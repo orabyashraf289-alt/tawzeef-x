@@ -100,11 +100,16 @@ DO $$ DECLARE n integer; BEGIN
  IF (SELECT count(*) FROM public.automation_logs) <> n THEN RAISE EXCEPTION 'No-op update emitted an event'; END IF;
 END $$;
 -- Actual application trigger creates/links the candidate before automation runs.
-INSERT INTO public.applications (id,job_id,company_id,name,email,phone) VALUES
- ('76000000-0000-0000-0000-000000000001','46000000-0000-0000-0000-000000000001','16000000-0000-0000-0000-000000000001','New fixture','runtime-new@example.test','000');
+INSERT INTO public.applications (id,job_id,company_id,name,email,phone,license_number,license_expiry,university_degree,demo_video_url) VALUES
+ ('76000000-0000-0000-0000-000000000001','46000000-0000-0000-0000-000000000001','16000000-0000-0000-0000-000000000001','New fixture','runtime-new@example.test','000','fixture-license','2027-01-01','Fixture degree','https://example.test/demo');
 DO $$ DECLARE candidate uuid; n integer; BEGIN
  SELECT id INTO candidate FROM public.candidates WHERE email='runtime-new@example.test' AND company_id='16000000-0000-0000-0000-000000000001';
  IF candidate IS NULL OR NOT EXISTS (SELECT 1 FROM public.candidate_reviewer_assignments WHERE candidate_id=candidate) THEN RAISE EXCEPTION 'Application event did not assign reviewer'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM public.candidates WHERE id=candidate
+   AND license_number='fixture-license' AND license_expiry='2027-01-01'
+   AND university_degree='Fixture degree' AND demo_video_url='https://example.test/demo') THEN
+   RAISE EXCEPTION 'Application profile fields were not preserved';
+ END IF;
  IF NOT EXISTS (SELECT 1 FROM public.automation_logs WHERE entity_id='76000000-0000-0000-0000-000000000001' AND status='success') THEN RAISE EXCEPTION 'Application success missing'; END IF;
  PERFORM automation_private.run_rules('16000000-0000-0000-0000-000000000001','application.created',candidate,candidate,'86000000-0000-0000-0000-000000000001');
  SELECT count(*) INTO n FROM public.automation_logs;
