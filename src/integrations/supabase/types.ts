@@ -304,6 +304,10 @@ export type Database = {
           skills: string[] | null
           specialty: string | null
           status: string
+          demo_video_url: string | null
+          license_expiry: string | null
+          license_number: string | null
+          university_degree: string | null
         }
         Insert: {
           company_id?: string | null
@@ -319,6 +323,10 @@ export type Database = {
           skills?: string[] | null
           specialty?: string | null
           status?: string
+          demo_video_url?: string | null
+          license_expiry?: string | null
+          license_number?: string | null
+          university_degree?: string | null
         }
         Update: {
           company_id?: string | null
@@ -334,6 +342,10 @@ export type Database = {
           skills?: string[] | null
           specialty?: string | null
           status?: string
+          demo_video_url?: string | null
+          license_expiry?: string | null
+          license_number?: string | null
+          university_degree?: string | null
         }
         Relationships: [
           {
@@ -754,6 +766,10 @@ export type Database = {
           user_id: string
           expected_salary: string | null
           notes: string | null
+          demo_video_url: string | null
+          license_expiry: string | null
+          license_number: string | null
+          university_degree: string | null
         }
         Insert: {
           agency_id?: string | null
@@ -784,6 +800,10 @@ export type Database = {
           user_id: string
           expected_salary?: string | null
           notes?: string | null
+          demo_video_url?: string | null
+          license_expiry?: string | null
+          license_number?: string | null
+          university_degree?: string | null
         }
         Update: {
           agency_id?: string | null
@@ -814,6 +834,10 @@ export type Database = {
           user_id?: string
           expected_salary?: string | null
           notes?: string | null
+          demo_video_url?: string | null
+          license_expiry?: string | null
+          license_number?: string | null
+          university_degree?: string | null
         }
         Relationships: [
           {
