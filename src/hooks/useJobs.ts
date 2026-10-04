@@ -6,9 +6,12 @@ import { toast } from "@/hooks/use-toast";
 import { generateAndStoreJobQR } from "@/lib/qrCodeService";
 import { loadBrandSettings } from "@/lib/posterBrandSettings";
 import { notifyGoogleIndexing } from "@/lib/googleIndexingService";
+import type { Tables } from "@/integrations/supabase/types";
+
+export type JobRow = Tables<"jobs">;
 
 export interface JobPayload {
-  user_id?: string;
+  user_id: string;
   company_id?: string | null;
   title: string;
   department: string;
@@ -22,7 +25,7 @@ export interface JobPayload {
   approval_chain?: string;
 }
 
-export interface CandidateRow {
+export interface CandidateRow extends Partial<Tables<"candidates">> {
   id: string;
   name: string;
   email: string;
@@ -40,6 +43,7 @@ export interface CandidateRow {
   source: string;
   tracking_code: string | null;
   created_at: string;
+  jobs?: Pick<JobRow, "title"> & Partial<Pick<JobRow, "department" | "location" | "type">> | null;
   candidate_scorecards?: { rating: number }[];
 }
 
@@ -64,12 +68,7 @@ export interface ApplicationRow {
 }
 
 export interface RealtimePayload {
-  new?: {
-    id: string;
-    title?: string;
-    description?: string;
-    type?: string;
-  };
+  new?: Partial<Tables<"notifications">>;
 }
 
 export function getActiveCompanyId(): string | null {
@@ -89,7 +88,7 @@ export async function resolveTenantCompanyScope(userId: string | undefined, spec
   if (cleanActiveId) {
     try {
       const { data: branches } = await supabase
-        .from("companies" as any)
+        .from("companies")
         .select("id")
         .eq("parent_company_id", cleanActiveId);
       const branchIds = (branches || [])
@@ -282,7 +281,7 @@ export function useUpdateJob() {
       experience?: string;
       approvalChain?: string;
     }) => {
-      const payload: JobPayload = {
+      const payload: Omit<JobPayload, "user_id"> = {
         title: job.title,
         department: job.department,
         location: job.location,
@@ -427,14 +426,14 @@ export function useCandidates(specificCompanyId?: string | null) {
       }
 
       // Convert missing applications for this tenant
-      const convertedApps = missingApps.map(a => ({
+      const convertedApps = missingApps.map((a): CandidateRow => ({
         id: a.id,
         name: a.name,
         email: a.email,
         phone: a.phone,
         job_id: a.job_id,
-        user_id: user?.id || null,
-        company_id: scopedCompanyIds[0] || null,
+        user_id: null,
+        company_id: a.company_id || null,
         role: a.jobs?.title || a.specialty || "متقدم جديد",
         stage: "تقديم الطلب",
         status: a.status || "جديد",
@@ -463,23 +462,6 @@ export function usePaginatedCandidates(page = 0, pageSize = 50) {
   return useQuery({
     queryKey: ["candidates-paginated", user?.id, page, pageSize],
     queryFn: async () => {
-      // 1. Repair ownership for any candidate rows attached to user's jobs that have user_id = null
-      if (user?.id) {
-        try {
-          const { data: ownJobs } = await supabase.from("jobs").select("id");
-          const ownJobIds = (ownJobs || []).map(j => j.id);
-          if (ownJobIds.length > 0) {
-            await supabase
-              .from("candidates")
-              .update({ user_id: user.id } as any)
-              .in("job_id", ownJobIds)
-              .is("user_id", null);
-          }
-        } catch (repairErr) {
-          console.warn("Candidate ownership repair warning:", repairErr);
-        }
-      }
-
       const from = page * pageSize;
       const to = from + pageSize - 1;
 
@@ -509,13 +491,14 @@ export function usePaginatedCandidates(page = 0, pageSize = 50) {
         return !existingCandKeys.has(key) && !existingCandIds.has(a.id);
       });
 
-      const convertedApps = missingApps.map(a => ({
+      const convertedApps = missingApps.map((a): CandidateRow => ({
         id: a.id,
         name: a.name,
         email: a.email,
         phone: a.phone,
         job_id: a.job_id,
-        user_id: user?.id || null,
+        user_id: null,
+        company_id: a.company_id,
         role: (a as ApplicationRow).jobs?.title || a.specialty || "متقدم جديد",
         stage: "تقديم الطلب",
         status: a.status || "جديد",
@@ -628,6 +611,7 @@ export function useUpdateInterview() {
       interviewer?: string;
       meeting_url?: string;
       status?: string;
+      notes?: string;
     }) => {
       const { data, error } = await supabase
         .from("interviews")
@@ -816,4 +800,3 @@ export function useDashboardStats(specificCompanyId?: string | null) {
     gcTime: 15 * 60 * 1000,
   });
 }
-
