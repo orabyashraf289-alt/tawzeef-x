@@ -61,7 +61,7 @@ export default function CandidateScorecardSection({ candidateId }: CandidateScor
       if (!isValidCandidateId) return [] as Scorecard[];
       try {
         const { data, error } = await supabase
-          .from("candidate_scorecards" as any)
+          .from("candidate_scorecards")
           .select("*")
           .eq("candidate_id", candidateId)
           .order("created_at", { ascending: false });
@@ -89,7 +89,7 @@ export default function CandidateScorecardSection({ candidateId }: CandidateScor
       setSubmitting(true);
       try {
         const { error } = await supabase
-          .from("candidate_scorecards" as any)
+          .from("candidate_scorecards")
           .upsert(
             {
               candidate_id: candidateId,
@@ -135,7 +135,7 @@ export default function CandidateScorecardSection({ candidateId }: CandidateScor
     mutationFn: async () => {
       try {
         const { error } = await supabase
-          .from("candidate_scorecards" as any)
+          .from("candidate_scorecards")
           .delete()
           .eq("candidate_id", candidateId)
           .eq("reviewer_id", user!.id);
