@@ -1,6 +1,6 @@
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import { useState, useRef, useEffect } from "react";
-import { X, Download, Copy, CheckCircle, Share2, Linkedin, QrCode, Link2, ExternalLink, Loader2, Image as ImageIcon, RefreshCw, FileCode2, Megaphone } from "lucide-react";
+import { X, Download, Copy, CheckCircle, Share2, Linkedin, QrCode, Link2, ExternalLink, Loader2, Image as ImageIcon, RefreshCw, FileCode2, Megaphone, Sparkles } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -61,7 +61,7 @@ export default function ShareJobDialog({ open, onClose, jobTitle, jobId, isNewJo
       const dept = jobData?.department || "التقنية والابتكار";
       const loc = jobData?.location || "الرياض / عن بُعد";
 
-      const prompt = `🚀 نعلن عن فرصة عمل جديدة لدى ${brand?.company_name || 'منظومتنا'}: **${title}**!
+      const prompt = `🚀 نعلن عن فرصة عمل جديدة لدى ${brand?.companyName || 'منظومتنا'}: **${title}**!
 
 📍 **الموقع:** ${loc}
 💼 **القسم:** ${dept}
@@ -89,7 +89,7 @@ ${applyUrl}
   useEffect(() => {
     if (!open || !user) return;
     supabase
-      .from("linkedin_settings" as any)
+      .from("linkedin_settings")
       .select("access_token, linkedin_urn, linkedin_name")
       .eq("user_id", user.id)
       .eq("is_active", true)
