@@ -80,7 +80,7 @@ export function useAuditLog(limit = 100) {
     gcTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("audit_log" as any)
+        .from("audit_log")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(limit);
