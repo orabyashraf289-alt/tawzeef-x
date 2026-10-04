@@ -202,7 +202,7 @@ export default function TeamManagement() {
       for (const p of localPermissions) {
         const updateData: any = { admin: p.admin, recruiter: p.recruiter, reviewer: p.reviewer, updated_at: new Date().toISOString(), updated_by: user?.id };
         await supabase
-          .from("role_permissions" as any)
+          .from("role_permissions")
           .update(updateData)
           .eq("permission_key", p.permission_key);
       }
