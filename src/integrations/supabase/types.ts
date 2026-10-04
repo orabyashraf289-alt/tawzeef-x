@@ -14,6 +14,108 @@ export type Database = {
   }
   public: {
     Tables: {
+      automation_rules: {
+        Row: {
+          id: string
+          company_id: string
+          title: string
+          description: string | null
+          trigger_event: string
+          conditions: Json
+          actions: Json
+          is_active: boolean
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          title: string
+          description?: string | null
+          trigger_event: string
+          conditions?: Json
+          actions?: Json
+          is_active?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          title?: string
+          description?: string | null
+          trigger_event?: string
+          conditions?: Json
+          actions?: Json
+          is_active?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      automation_logs: {
+        Row: {
+          id: string
+          company_id: string
+          rule_id: string | null
+          trigger_event: string
+          entity_id: string | null
+          event_id: string | null
+          status: string
+          execution_details: Json
+          executed_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          rule_id?: string | null
+          trigger_event: string
+          entity_id?: string | null
+          event_id?: string | null
+          status?: string
+          execution_details?: Json
+          executed_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          rule_id?: string | null
+          trigger_event?: string
+          entity_id?: string | null
+          event_id?: string | null
+          status?: string
+          execution_details?: Json
+          executed_at?: string
+        }
+        Relationships: []
+      }
+      candidate_reviewer_assignments: {
+        Row: {
+          candidate_id: string
+          company_id: string
+          reviewer_id: string
+          rule_id: string | null
+          assigned_at: string
+        }
+        Insert: {
+          candidate_id: string
+          company_id: string
+          reviewer_id: string
+          rule_id?: string | null
+          assigned_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          company_id?: string
+          reviewer_id?: string
+          rule_id?: string | null
+          assigned_at?: string
+        }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string
@@ -202,6 +304,10 @@ export type Database = {
           skills: string[] | null
           specialty: string | null
           status: string
+          demo_video_url: string | null
+          license_expiry: string | null
+          license_number: string | null
+          university_degree: string | null
         }
         Insert: {
           company_id?: string | null
@@ -217,6 +323,10 @@ export type Database = {
           skills?: string[] | null
           specialty?: string | null
           status?: string
+          demo_video_url?: string | null
+          license_expiry?: string | null
+          license_number?: string | null
+          university_degree?: string | null
         }
         Update: {
           company_id?: string | null
@@ -232,6 +342,10 @@ export type Database = {
           skills?: string[] | null
           specialty?: string | null
           status?: string
+          demo_video_url?: string | null
+          license_expiry?: string | null
+          license_number?: string | null
+          university_degree?: string | null
         }
         Relationships: [
           {
@@ -652,6 +766,10 @@ export type Database = {
           user_id: string
           expected_salary: string | null
           notes: string | null
+          demo_video_url: string | null
+          license_expiry: string | null
+          license_number: string | null
+          university_degree: string | null
         }
         Insert: {
           agency_id?: string | null
@@ -682,6 +800,10 @@ export type Database = {
           user_id: string
           expected_salary?: string | null
           notes?: string | null
+          demo_video_url?: string | null
+          license_expiry?: string | null
+          license_number?: string | null
+          university_degree?: string | null
         }
         Update: {
           agency_id?: string | null
@@ -712,6 +834,10 @@ export type Database = {
           user_id?: string
           expected_salary?: string | null
           notes?: string | null
+          demo_video_url?: string | null
+          license_expiry?: string | null
+          license_number?: string | null
+          university_degree?: string | null
         }
         Relationships: [
           {
@@ -1572,6 +1698,7 @@ export type Database = {
       }
       pipeline_stages: {
         Row: {
+          company_id: string | null
           assessment_id: string | null
           assigned_user_ids: string[] | null
           automation_rules: Json
@@ -1588,6 +1715,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          company_id?: string | null
           assessment_id?: string | null
           assigned_user_ids?: string[] | null
           automation_rules?: Json
@@ -1604,6 +1732,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          company_id?: string | null
           assessment_id?: string | null
           assigned_user_ids?: string[] | null
           automation_rules?: Json
@@ -2308,6 +2437,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      set_automation_rule_active: {
+        Args: { _company_id: string; _rule_id: string; _is_active: boolean }
+        Returns: Database["public"]["Tables"]["automation_rules"]["Row"]
+      }
       accept_company_invitation: { Args: { _token: string }; Returns: Json }
       apply_ai_evaluations: {
         Args: { _evaluations: Json; _response_id: string }

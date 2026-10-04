@@ -31,6 +31,8 @@ import { useStageTransitions } from "@/hooks/useStageTransitions";
 import { useActiveStages } from "@/hooks/usePipelineStages";
 import AIEvaluationCard from "@/components/AIEvaluationCard";
 import CandidateScorecardSection from "@/components/CandidateScorecardSection";
+import CandidateReviewerBadge from "@/components/CandidateReviewerBadge";
+import { updateCandidateStage } from "@/services/candidateStageService";
 import StageActions, { findStageIndex, DEFAULT_PIPELINE_STAGES } from "@/components/StageActions";
 import { SingleResponseProctoringDialog } from "@/components/question-bank/AssessmentResponsesDialog";
 import { motion } from "framer-motion";
@@ -401,7 +403,6 @@ export default function CandidateProfile() {
 
   const handleStageDirectMove = async (targetStage: string) => {
     if (!candidate || targetStage === candidate.stage) return;
-    const nowIso = new Date().toISOString();
     const newStatus = targetStage === "العرض الوظيفي" ? "مقبول" : candidate.status === "مرفوض" ? "مرفوض" : "قيد المراجعة";
 
     // Instant optimistic update for immediate feedback
@@ -410,57 +411,27 @@ export default function CandidateProfile() {
     setIsChangingStage(true);
 
     try {
-      // 1. Direct update and upsert in candidates table
-      await supabase.from("candidates").upsert({
-        id: candidate.id,
-        user_id: user?.id || (candidate as any).user_id || null,
-        company_id: activeCompany?.id || (candidate as any).company_id || null,
-        job_id: candidate.job_id || null,
-        name: candidate.name,
-        email: candidate.email || null,
-        phone: candidate.phone || null,
-        role: candidate.role || "مرشح",
-        stage: targetStage,
-        status: newStatus,
-        stage_entered_at: nowIso,
-        updated_at: nowIso,
-        tracking_code: (candidate as any).tracking_code || null,
-        license_number: (candidate as any).license_number || null,
-        license_expiry: (candidate as any).license_expiry || null,
-        university_degree: (candidate as any).university_degree || null,
-        demo_video_url: (candidate as any).demo_video_url || null,
-        resume_url: (candidate as any).resume_url || null,
-        skills: (candidate as any).skills || null,
-        experience: (candidate as any).experience || null,
-        source: (candidate as any).source || "رابط التقديم المباشر",
+      const saved = await updateCandidateStage({
+        candidateId: candidate.id, companyId: candidate.company_id,
+        stage: targetStage, status: newStatus,
       });
-
-      // 2. Also update by email and job_id if applicable
-      if (candidate.email && candidate.job_id) {
-        await supabase
-          .from("candidates")
-          .update({
-            stage: targetStage,
-            status: newStatus,
-            stage_entered_at: nowIso,
-            updated_at: nowIso,
-          })
-          .eq("job_id", candidate.job_id)
-          .ilike("email", candidate.email.trim());
-      }
+      setOverrideStage(saved.stage);
+      setOverrideStatus(saved.status);
 
       // 3. Sync applications table status (NO updated_at column in applications!)
       try {
         await supabase
           .from("applications")
-          .update({ status: newStatus })
+          .update({ status: saved.status })
+          .eq("company_id", saved.company_id)
           .eq("id", candidate.id);
         if (candidate.email && candidate.job_id) {
           await supabase
             .from("applications")
-            .update({ status: newStatus })
+            .update({ status: saved.status })
+            .eq("company_id", saved.company_id)
             .eq("job_id", candidate.job_id)
-            .ilike("email", candidate.email.trim());
+            .eq("email", candidate.email.trim());
         }
       } catch (appErr) {
         console.warn("Application status sync notice:", appErr);
@@ -481,12 +452,11 @@ export default function CandidateProfile() {
 
       // 5. Direct cache updates
       queryClient.setQueryData(["candidate-detail-direct", id], (old: any) => {
-        if (!old) return old;
-        return { ...old, stage: targetStage, status: newStatus };
+        return { ...(old || candidate), stage: saved.stage, status: saved.status };
       });
       queryClient.setQueryData(["candidate", id], (old: any) => {
         if (!old) return old;
-        return { ...old, stage: targetStage, status: newStatus };
+        return { ...old, stage: saved.stage, status: saved.status };
       });
 
       await queryClient.invalidateQueries({ queryKey: ["candidates"] });
@@ -495,16 +465,20 @@ export default function CandidateProfile() {
       await queryClient.invalidateQueries({ queryKey: ["applications"] });
 
       toast({
-        title: targetStage === "العرض الوظيفي" ? "تم اعتماد المرشح وقبوله رسمياً! 🏅" : `تم نقل المرشح إلى: ${targetStage} بنجاح ✅`,
-        description: targetStage === "العرض الوظيفي" ? "تم تحديث حالة المرشح إلى مقبول." : undefined,
+        title: `تم تحديث مرحلة المرشح إلى: ${saved.stage || "تقديم الطلب"}`,
+        description: saved.stage !== targetStage ? "طبّقت الأتمتة نقلًا إضافيًا؛ هذه هي المرحلة النهائية المحفوظة." : undefined,
       });
     } catch (err: any) {
+      await queryClient.invalidateQueries({ queryKey: ["candidate-detail-direct", id] });
+      await queryClient.invalidateQueries({ queryKey: ["candidates"] });
       toast({
         title: "خطأ في تحديث المرحلة",
         description: err?.message || "تعذر نقل المرشح للمرحلة المحددة",
         variant: "destructive",
       });
     } finally {
+      setOverrideStage(null);
+      setOverrideStatus(null);
       setIsChangingStage(false);
       setStageToConfirm(null);
     }
@@ -547,6 +521,7 @@ export default function CandidateProfile() {
                 </div>
 
                 <p className="text-sm font-bold text-emerald-600 mb-3">{candidateRole}</p>
+                <CandidateReviewerBadge candidateId={candidate.id} companyId={candidate.company_id} />
 
                 {/* Contact & Saudi License Info */}
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">

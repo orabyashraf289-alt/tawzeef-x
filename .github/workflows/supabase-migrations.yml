@@ -111,6 +111,13 @@ jobs:
           database_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
           test -n "$database_container"
           docker exec -i "$database_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/automation_rls.sql
+      - name: Verify internal automation execution and tenant checks
+        # Execution checks use synthetic records and roll back every change.
+        # No outgoing channel is called by the internal automation runtime.
+        run: |
+          database_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
+          test -n "$database_container"
+          docker exec -i "$database_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/automation_runtime.sql
       - name: Verify indexing log tenant isolation and server-only writes
         run: |
           database_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"

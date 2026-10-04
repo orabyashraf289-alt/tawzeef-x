@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export interface PipelineStage {
   id: string;
@@ -121,18 +122,24 @@ export function useAllSubStages() {
 
 export function useStageMutations() {
   const { user } = useAuth();
+  const { activeCompanyId } = useCompany();
   const qc = useQueryClient();
   const key = ["pipeline_stages", user?.id];
 
   const addStage = useMutation({
     mutationFn: async (stage: { name: string; color: string; icon: string; sort_order: number }) => {
-      const { error } = await supabase.from("pipeline_stages" as any).insert({
-        user_id: user!.id,
+      if (!user || !activeCompanyId) throw new Error("اختر شركة قبل إضافة مرحلة.");
+      const { error } = await supabase.from("pipeline_stages").insert({
+        user_id: user.id,
+        company_id: activeCompanyId,
         ...stage,
-      } as any);
+      });
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: key }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: key });
+      qc.invalidateQueries({ queryKey: ["automation-stages"] });
+    },
   });
 
   const updateStage = useMutation({
