@@ -178,7 +178,7 @@ export default function PerformanceEvaluation() {
       if (!user) return [];
       
       const { data, error } = await supabase
-        .from("performance_evaluations" as any)
+        .from("performance_evaluations")
         .select("*")
         .order("created_at", { ascending: false });
         
@@ -748,7 +748,7 @@ ${activeMember.comments.map(comm => `- [${comm.relationship}]: "${comm.text}"`).
     }) => {
       if (!user) throw new Error("Not authenticated");
       const { data, error } = await supabase
-        .from("performance_evaluations" as any)
+        .from("performance_evaluations")
         .insert([{
           evalee_name: newEval.evaleeName,
           evalee_name_en: newEval.evaleeNameEn,
