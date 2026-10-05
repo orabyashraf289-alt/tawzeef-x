@@ -42,7 +42,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("company_members" as any)
+        .from("company_members")
         .select("member_role, company:company_id(*)")
         .eq("user_id", user!.id);
 
@@ -154,7 +154,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       const targetId = activeCompany?.parent_company_id || activeCompanyId;
       if (!targetId || targetId === "undefined" || targetId === "null") return [];
       const { data, error } = await supabase
-        .from("companies" as any)
+        .from("companies")
         .select("*")
         .eq("parent_company_id", targetId)
         .order("name", { ascending: true });

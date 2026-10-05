@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
@@ -8,7 +9,7 @@ export interface CompanyInvitationRow extends CompanyInvitation {
     name: string;
     name_en: string | null;
     logo_url: string | null;
-  };
+  } | null;
 }
 
 export type InvitationStatus = "pending" | "accepted" | "declined" | "expired";
@@ -27,6 +28,19 @@ export interface CompanyInvitation {
   created_at: string;
 }
 
+function parseInvitation(row: Tables<"company_invitations">): CompanyInvitation {
+  const { member_role, status } = row;
+  if (!["owner", "hr", "viewer"].includes(member_role) ||
+      !["pending", "accepted", "declined", "expired"].includes(status)) {
+    throw new Error("تعذر قراءة حالة الدعوة أو صلاحيتها.");
+  }
+  return {
+    ...row,
+    member_role: member_role as CompanyInvitation["member_role"],
+    status: status as InvitationStatus,
+  };
+}
+
 // List invitations for a company (owner/admin view)
 export function useCompanyInvitations(companyId: string | undefined) {
   return useQuery({
@@ -34,12 +48,12 @@ export function useCompanyInvitations(companyId: string | undefined) {
     staleTime: 3 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("company_invitations" as any)
+        .from("company_invitations")
         .select("*")
         .eq("company_id", companyId!)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as unknown as CompanyInvitation[];
+      return (data || []).map(parseInvitation);
     },
     enabled: !!companyId,
   });
@@ -54,13 +68,22 @@ export function useMyPendingInvitations() {
     queryFn: async () => {
       if (!user?.email) return [];
       const { data, error } = await supabase
-        .from("company_invitations" as any)
-        .select("*, company:company_id(name, name_en, logo_url)")
+        .from("company_invitations")
+        .select("*")
         .eq("email", user.email)
         .eq("status", "pending")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as CompanyInvitationRow[];
+      if (!data?.length) return [];
+      // The deployed table has no company_id foreign key for a PostgREST embed.
+      const companyIds = [...new Set(data.map((invitation) => invitation.company_id))];
+      const { data: companies, error: companyError } = await supabase.from("companies")
+        .select("id, name, name_en, logo_url").in("id", companyIds);
+      if (companyError) throw companyError;
+      return data.map((invitation): CompanyInvitationRow => ({
+        ...parseInvitation(invitation),
+        company: companies?.find((company) => company.id === invitation.company_id) || null,
+      }));
     },
     enabled: !!user?.email,
   });
@@ -85,14 +108,14 @@ export function useCreateCompanyInvitation() {
     }) => {
       // Query company name first
       const { data: companyData } = await supabase
-        .from("companies" as any)
+        .from("companies")
         .select("name")
         .eq("id", companyId)
         .maybeSingle();
       const companyName = companyData ? (companyData as { name?: string })?.name : "شركتنا";
 
       const { data, error } = await supabase
-        .from("company_invitations" as any)
+        .from("company_invitations")
         .insert({
           company_id: companyId,
           branch_id: branchId || null,
@@ -162,7 +185,7 @@ export function useCancelInvitation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("company_invitations" as any).delete().eq("id", id);
+      const { error } = await supabase.from("company_invitations").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

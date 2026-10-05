@@ -1,3 +1,4 @@
+import type { Json } from "@/integrations/supabase/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -56,7 +57,9 @@ export interface AssessmentResponse {
   candidate_email: string;
   started_at: string;
   completed_at: string | null;
-  answers: any[];
+  answers: Json;
+  tab_switches?: number | null;
+  tab_switch_log?: Json;
   total_score: number;
   max_score: number;
   percentage: number;

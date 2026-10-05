@@ -112,7 +112,7 @@ export function useSubscriptionPlans() {
     gcTime: 30 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("subscription_plans" as any)
+        .from("subscription_plans")
         .select("*")
         .eq("is_active", true)
         .order("sort_order");
@@ -137,7 +137,7 @@ export function useMySubscription() {
 
       // 1) Get all company memberships
       const { data: memberRows, error: memberErr } = await supabase
-        .from("company_members" as any)
+        .from("company_members")
         .select("company_id")
         .eq("user_id", user.id);
 
@@ -158,14 +158,14 @@ export function useMySubscription() {
 
       // 2) Get company subscription by company_id OR fallback to user_id
       let { data: subRow, error } = await supabase
-        .from("company_subscriptions" as any)
+        .from("company_subscriptions")
         .select("*")
         .eq("company_id", targetCompanyId)
         .maybeSingle();
 
       if (!subRow) {
         const { data: userSub } = await supabase
-          .from("company_subscriptions" as any)
+          .from("company_subscriptions")
           .select("*")
           .eq("user_id", user.id)
           .maybeSingle();
@@ -175,7 +175,7 @@ export function useMySubscription() {
       // 3) Auto-reconcile with latest paid invoice from company_invoices if present!
       try {
         const { data: latestInvoice } = await supabase
-          .from("company_invoices" as any)
+          .from("company_invoices")
           .select("*")
           .eq("company_id", targetCompanyId)
           .eq("status", "paid")
@@ -192,7 +192,7 @@ export function useMySubscription() {
           if (needsReconcile) {
             // Attempt self-heal in background
             supabase
-              .from("company_subscriptions" as any)
+              .from("company_subscriptions")
               .upsert({
                 company_id: targetCompanyId,
                 user_id: user.id,
@@ -260,7 +260,7 @@ export function useCreateUpgradeRequest() {
       if (!user) throw new Error("المستخدم غير مسجل الدخول");
 
       const { data: memberRows } = await supabase
-        .from("company_members" as any)
+        .from("company_members")
         .select("company_id")
         .eq("user_id", user.id);
 
@@ -281,7 +281,7 @@ export function useCreateUpgradeRequest() {
 
       try {
         const { data, error } = await supabase
-          .from("subscription_upgrade_requests" as any)
+          .from("subscription_upgrade_requests")
           .insert({
             company_id: companyId,
             requested_by_user_id: user.id,
@@ -335,7 +335,7 @@ export function useCreateUpgradeRequest() {
 
         // Check user_roles table for admins
         const { data: adminRoles } = await supabase
-          .from("user_roles" as any)
+          .from("user_roles")
           .select("user_id")
           .eq("role", "admin");
         (adminRoles || []).forEach((r: any) => r.user_id && adminUserIds.add(r.user_id));
@@ -343,8 +343,8 @@ export function useCreateUpgradeRequest() {
         // Check profiles table for admins / super_admins
         const { data: adminProfiles } = await supabase
           .from("profiles")
-          .select("id, user_id, email, role")
-          .or("role.eq.admin,role.eq.super_admin,email.eq.tx@tawzeefx.com,email.eq.ctraining801@gmail.com");
+          .select("user_id, role")
+          .or("role.eq.admin,role.eq.super_admin");
         (adminProfiles || []).forEach((p: any) => {
           const uid = p.user_id || p.id;
           if (uid) adminUserIds.add(uid);
@@ -376,7 +376,7 @@ export function useCreateUpgradeRequest() {
 
         // Activity log
         try {
-          await supabase.from("activity_log" as any).insert({
+          await supabase.from("activity_log").insert({
             user_id: user.id,
             action: "subscription.upgrade_requested",
             entity_type: "company",
@@ -391,13 +391,6 @@ export function useCreateUpgradeRequest() {
       // 2. Dispatch direct EMAIL notification to system admins (tx@tawzeefx.com and ctraining801@gmail.com)
       try {
         const adminEmails = new Set<string>(["tx@tawzeefx.com", "ctraining801@gmail.com"]);
-        const { data: adminProfiles } = await supabase
-          .from("profiles")
-          .select("email, role")
-          .or("role.eq.admin,role.eq.super_admin");
-        (adminProfiles || []).forEach((p) => {
-          if (p.email && p.email.includes("@")) adminEmails.add(p.email);
-        });
 
         const reviewUrl = `${window.location.origin}/admin/companies`;
         const emailSubject = `🚀 طلب ترقية باقة جديد: شركة "${companyName}" — Tawzeef-X`;
@@ -496,7 +489,7 @@ export function useUpgradeRequests() {
       let dbRequests: UpgradeRequestRow[] = [];
       try {
         const { data, error } = await supabase
-          .from("subscription_upgrade_requests" as any)
+          .from("subscription_upgrade_requests")
           .select("*")
           .order("created_at", { ascending: false });
 
@@ -576,7 +569,7 @@ export function useAdminCustomUpgradeSubscription() {
 
       // 1) Update/Upsert company subscription
       const { data: existing } = await supabase
-        .from("company_subscriptions" as any)
+        .from("company_subscriptions")
         .select("id")
         .eq("company_id", companyId)
         .maybeSingle();
@@ -585,7 +578,7 @@ export function useAdminCustomUpgradeSubscription() {
 
       try {
         const { data: upserted, error: upErr } = await supabase
-          .from("company_subscriptions" as any)
+          .from("company_subscriptions")
           .upsert({
             company_id: companyId,
             user_id: activeUserId,
@@ -606,7 +599,7 @@ export function useAdminCustomUpgradeSubscription() {
           console.warn("Upsert on company_subscriptions failed, trying update by ID:", upErr);
           if (existing?.id) {
             await supabase
-              .from("company_subscriptions" as any)
+              .from("company_subscriptions")
               .update({
                 plan_id: planId,
                 job_posts_limit: jobPostsLimit,
@@ -629,7 +622,7 @@ export function useAdminCustomUpgradeSubscription() {
       if (activeUserId) {
         try {
           await supabase
-            .from("company_subscriptions" as any)
+            .from("company_subscriptions")
             .update({ company_id: companyId, plan_id: planId, job_posts_limit: jobPostsLimit, status: "active" } as any)
             .eq("user_id", activeUserId)
             .is("company_id", null);
@@ -645,7 +638,7 @@ export function useAdminCustomUpgradeSubscription() {
         invoiceNum = `INV-${year}-${month}-${invoiceCount}`;
 
         try {
-          await supabase.from("company_invoices" as any).insert({
+          await supabase.from("company_invoices").insert({
             invoice_number: invoiceNum,
             company_id: companyId,
             subscription_id: subId || null,
@@ -668,7 +661,7 @@ export function useAdminCustomUpgradeSubscription() {
       if (requestId) {
         try {
           await supabase
-            .from("subscription_upgrade_requests" as any)
+            .from("subscription_upgrade_requests")
             .update({
               status: "approved",
               updated_at: new Date().toISOString(),
@@ -716,16 +709,6 @@ export function useAdminCustomUpgradeSubscription() {
         }
 
         const effectiveOwnerId = ownerUserId || companyRow?.owner_user_id;
-        if (effectiveOwnerId) {
-          const { data: ownerProfile } = await supabase
-            .from("profiles")
-            .select("email")
-            .eq("user_id", effectiveOwnerId)
-            .maybeSingle();
-          if (ownerProfile?.email && ownerProfile.email.includes("@")) {
-            recipientEmails.add(ownerProfile.email);
-          }
-        }
 
         const dashboardUrl = `${window.location.origin}/dashboard`;
         const emailSubject = `🎉 تهانينا! تم تفعيل باقة "${planNameAr}" بنجاح لشركة ${targetCompanyTitle} — Tawzeef-X`;
@@ -809,6 +792,14 @@ export function useAdminCustomUpgradeSubscription() {
             console.warn(`Could not dispatch approval email to ${email}:`, e);
           }
         }
+        if (effectiveOwnerId) {
+          // Resolve the owner's auth email in the existing server-side sender.
+          const { error: ownerEmailError } = await supabase.functions.invoke("send-email", {
+            body: { to: "", notify_recruiter: true, user_id: effectiveOwnerId, subject: emailSubject, html: emailHtml },
+          });
+          if (ownerEmailError) console.warn("Could not dispatch owner approval email:", ownerEmailError);
+        }
+
       } catch (emailErr) {
         console.warn("Could not dispatch approval email notification:", emailErr);
       }
@@ -834,7 +825,7 @@ export function useRejectUpgradeRequest() {
       // 1. Update in DB
       try {
         await supabase
-          .from("subscription_upgrade_requests" as any)
+          .from("subscription_upgrade_requests")
           .update({
             status: "rejected",
             updated_at: new Date().toISOString(),
@@ -871,20 +862,20 @@ export function useRejectUpgradeRequest() {
         try {
           const { data: ownerProfile } = await supabase
             .from("profiles")
-            .select("email, full_name")
+            .select("full_name")
             .eq("user_id", ownerUserId)
             .maybeSingle();
 
-          if (ownerProfile?.email && ownerProfile.email.includes("@")) {
-            await supabase.functions.invoke("send-email", {
+          const { error: ownerEmailError } = await supabase.functions.invoke("send-email", {
               body: {
-                to: ownerProfile.email,
+                to: "",
+                notify_recruiter: true,
                 subject: `تحديث بشأن طلب ترقية باقة الاشتراك — Tawzeef-X`,
                 html: `
                   <div dir="rtl" style="font-family: 'Cairo', Arial, sans-serif; text-align: right; max-width: 600px; margin: 0 auto; padding: 24px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px;">
                     <h2 style="color: #0f172a; margin-top: 0;">منصة Tawzeef-X</h2>
                     <p style="font-size: 15px; color: #334155; line-height: 1.8;">
-                      مرحباً ${ownerProfile.full_name || "عزيزنا العميل"}،
+                      مرحباً ${ownerProfile?.full_name || "عزيزنا العميل"}،
                     </p>
                     <p style="font-size: 14px; color: #475569; line-height: 1.8;">
                       تمت مراجعة طلب ترقية باقة اشتراككم من قِبل إدارة المنصة.
@@ -895,10 +886,10 @@ export function useRejectUpgradeRequest() {
                     <p style="font-size: 13px; color: #94a3b8;">فريق إدارة Tawzeef-X</p>
                   </div>
                 `,
-                user_id: user.id,
+                user_id: ownerUserId,
               },
             });
-          }
+          if (ownerEmailError) throw ownerEmailError;
         } catch (emErr) {
           console.warn("Could not send rejection email:", emErr);
         }
@@ -922,7 +913,7 @@ export function useCompanyInvoices() {
 
       try {
         const { data, error } = await supabase
-          .from("company_invoices" as any)
+          .from("company_invoices")
           .select("*")
           .order("created_at", { ascending: false });
 

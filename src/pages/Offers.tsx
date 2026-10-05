@@ -1125,7 +1125,7 @@ export default function OffersPage() {
               title={t("offers.noOffers")}
               description="لم يتم تقديم أي عرض وظيفي حتى الآن. ابدأ بإنشاء عرض وظيفي جديد وإرساله للمرشح."
               actionLabel={t("offers.createOffer")}
-              onAction={() => setDialogOpen(true)}
+              onAction={() => setShowCreate(true)}
             />
           )}
 

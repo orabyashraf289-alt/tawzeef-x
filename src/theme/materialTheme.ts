@@ -60,12 +60,15 @@ export function getMaterialTheme(mode: "light" | "dark" = "light") {
             "&:hover": {
               boxShadow: "0 2px 8px rgba(0, 105, 92, 0.2)",
             },
-          },
-          containedPrimary: {
-            background: isDark
-              ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
-              : "linear-gradient(135deg, #00695c 0%, #004d40 100%)",
-            color: "#ffffff",
+            variants: [{
+              props: { variant: "contained", color: "primary" },
+              style: {
+                background: isDark
+                  ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
+                  : "linear-gradient(135deg, #00695c 0%, #004d40 100%)",
+                color: "#ffffff",
+              },
+            }],
           },
         },
       },

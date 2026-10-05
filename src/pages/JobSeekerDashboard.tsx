@@ -148,7 +148,7 @@ export default function JobSeekerDashboard() {
     queryKey: ["seeker-resume", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("resumes" as any)
+        .from("resumes")
         .select("*")
         .eq("user_id", user!.id)
         .maybeSingle();
@@ -188,11 +188,11 @@ export default function JobSeekerDashboard() {
         skills: r.skills ? r.skills.join(", ") : "",
         resumeFileUrl: r.avatar_url || "" 
       });
-      setExperience(r.experience || []);
-      setEducation(r.education || []);
-      setCertifications(r.certifications || []);
-      setLanguages(r.languages || []);
-      setLinks(r.links || []);
+      setExperience(Array.isArray(r.experience) ? r.experience : []);
+      setEducation(Array.isArray(r.education) ? r.education : []);
+      setCertifications(Array.isArray(r.certifications) ? r.certifications : []);
+      setLanguages(Array.isArray(r.languages) ? r.languages : []);
+      setLinks(Array.isArray(r.links) ? r.links : []);
     } else if (user) {
       setForm(prev => ({
         ...prev,
@@ -255,13 +255,13 @@ export default function JobSeekerDashboard() {
       // 2) Upsert resumes table
       if (resumeQuery.data) {
         const { error } = await supabase
-          .from("resumes" as any)
+          .from("resumes")
           .update(resumeData)
           .eq("user_id", user!.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
-          .from("resumes" as any)
+          .from("resumes")
           .insert({
             user_id: user!.id,
             ...resumeData
@@ -841,7 +841,7 @@ export default function JobSeekerDashboard() {
                             <div className="flex items-center gap-2">
                               {cert.file_url && (
                                 <a href={cert.file_url} target="_blank" rel="noreferrer">
-                                  <Button size="xs" variant="outline" className="text-[10px] h-7 px-2">
+                                  <Button size="sm" variant="outline" className="text-[10px] h-7 px-2">
                                     <Eye className="w-3.5 h-3.5 ml-1" /> عرض
                                   </Button>
                                 </a>
@@ -981,7 +981,7 @@ export default function JobSeekerDashboard() {
                         </select>
                         <Input className="text-xs" value={newLink.url} onChange={e => setNewLink({...newLink, url: e.target.value})} placeholder="رابط الحساب / الموقع" />
                       </div>
-                      <Button type="button" size="xs" variant="outline" className="w-full text-[10px]" onClick={addLink}>
+                      <Button type="button" size="sm" variant="outline" className="w-full text-[10px]" onClick={addLink}>
                         إضافة رابط
                       </Button>
                     </div>
@@ -1020,7 +1020,7 @@ export default function JobSeekerDashboard() {
                           <option value="مبتدئ">مبتدئ</option>
                         </select>
                       </div>
-                      <Button type="button" size="xs" variant="outline" className="w-full text-[10px]" onClick={addLanguage}>
+                      <Button type="button" size="sm" variant="outline" className="w-full text-[10px]" onClick={addLanguage}>
                         إضافة لغة
                       </Button>
                     </div>

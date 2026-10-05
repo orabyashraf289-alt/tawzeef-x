@@ -24,8 +24,6 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/contexts/I18nContext";
 import { TalentPoolSkeleton } from "@/components/Skeletons";
 
-import { TalentPoolSkeleton } from "@/components/Skeletons";
-
 export default function TalentPool() {
   const { user } = useAuth();
   const { t, locale, dir } = useI18n();

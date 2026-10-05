@@ -1,3 +1,4 @@
+import { readAssessmentAnswers, readProctoringLog, type AnswerEntry } from "@/lib/assessmentResponseData";
 import { useState } from "react";
 import { useAssessmentResponses } from "@/hooks/useQuestionBank";
 import { useI18n } from "@/contexts/I18nContext";
@@ -13,23 +14,13 @@ import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { Brain, Eye, ArrowLeft, Send, ThumbsUp, Lightbulb, CheckCircle, Loader2, Edit2, Save, ShieldAlert, Activity, ClipboardCheck, AlertTriangle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 
 interface Props {
   assessmentId: string;
   open: boolean;
   onOpenChange: (o: boolean) => void;
-}
-
-interface AnswerEntry {
-  question_id: string;
-  answer: string;
-  is_correct: boolean;
-  points_earned: number;
-  ai_evaluated?: boolean;
-  ai_feedback?: string;
-  ai_strengths?: string;
-  ai_improvements?: string;
 }
 
 export default function AssessmentResponsesDialog({ assessmentId, open, onOpenChange }: Props) {
@@ -49,7 +40,7 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
     const response = responses.find(r => r.id === responseId);
     if (!response) return;
 
-    const answers = (response.answers || []) as AnswerEntry[];
+    const answers = readAssessmentAnswers(response.answers);
     const qIds = answers.map(a => a.question_id).filter(Boolean);
 
     if (qIds.length > 0) {
@@ -186,11 +177,11 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
               <div>{selected.candidate_email}</div>
               <div>{format(new Date(selected.started_at), "yyyy/MM/dd HH:mm")}</div>
             </div>
-            {(selected as any).tab_switches > 0 && (
+            {selected.tab_switches > 0 && (
               <>
                 <Separator orientation="vertical" className="h-10" />
                 <div className="text-center">
-                  <div className="text-xl font-bold text-destructive">{(selected as any).tab_switches}</div>
+                  <div className="text-xl font-bold text-destructive">{selected.tab_switches}</div>
                   <div className="text-[10px] text-destructive/80">⚠️ مغادرات</div>
                 </div>
               </>
@@ -201,17 +192,15 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
           {(() => {
             if (!selected) return null;
             
-            const rawLog = (selected as any).tab_switch_log;
-            const proctoringLog = rawLog 
-              ? (typeof rawLog === "string" ? JSON.parse(rawLog) : rawLog)
-              : null;
-            
-            const proctoringData = proctoringLog || ((selected as any).tab_switches > 0 ? {
-              cheat_score: Math.min(100, (selected as any).tab_switches * 15),
-              cheat_level: (selected as any).tab_switches >= 5 ? "high" : (selected as any).tab_switches >= 3 ? "medium" : "low",
+            const rawLog = selected.tab_switch_log;
+            const proctoringLog = readProctoringLog(rawLog);
+
+            const proctoringData = proctoringLog || (selected.tab_switches > 0 ? {
+              cheat_score: Math.min(100, selected.tab_switches * 15),
+              cheat_level: selected.tab_switches >= 5 ? "high" : selected.tab_switches >= 3 ? "medium" : "low",
               counters: {
-                visibility: (selected as any).tab_switches,
-                blur: (selected as any).tab_switches,
+                visibility: selected.tab_switches,
+                blur: selected.tab_switches,
                 copy: 0,
                 cut: 0,
                 paste: 0,
@@ -493,8 +482,7 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
             <TableBody>
               {responses.map(r => {
                 const log = r.tab_switch_log;
-                const parsed = log ? (typeof log === "string" ? JSON.parse(log) : log) : null;
-                const cheat = r.integrity_score ?? parsed?.cheat_score;
+                const cheat = readProctoringLog(log)?.cheat_score;
                 return (
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">{r.candidate_name}</TableCell>
@@ -567,7 +555,7 @@ export function SingleResponseProctoringDialog({ responseId, open, onClose }: Si
       if (error) throw error;
 
       // Load question bank detail mapping
-      const answers = (data.answers || []) as AnswerEntry[];
+      const answers = readAssessmentAnswers(data.answers);
       const qIds = answers.map(a => a.question_id).filter(Boolean);
       if (qIds.length > 0) {
         const { data: qData } = await supabase
@@ -681,10 +669,8 @@ export function SingleResponseProctoringDialog({ responseId, open, onClose }: Si
             {/* Proctoring & Integrity Panel */}
             {(() => {
               const rawLog = response.tab_switch_log;
-              const proctoringLog = rawLog 
-                ? (typeof rawLog === "string" ? JSON.parse(rawLog) : rawLog)
-                : null;
-              
+              const proctoringLog = readProctoringLog(rawLog);
+
               const proctoringData = proctoringLog || (response.tab_switches > 0 ? {
                 cheat_score: Math.min(100, response.tab_switches * 15),
                 cheat_level: response.tab_switches >= 5 ? "high" : response.tab_switches >= 3 ? "medium" : "low",

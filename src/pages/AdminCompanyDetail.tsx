@@ -36,7 +36,7 @@ export default function AdminCompanyDetail() {
     queryKey: ["admin-subscription-plans"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("subscription_plans" as any)
+        .from("subscription_plans")
         .select("*")
         .eq("is_active", true)
         .order("sort_order");
@@ -50,7 +50,7 @@ export default function AdminCompanyDetail() {
     queryKey: ["admin-company-subscription", id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("company_subscriptions" as any)
+        .from("company_subscriptions")
         .select("*, subscription_plans(name, name_ar)")
         .eq("company_id", id)
         .maybeSingle();
@@ -84,7 +84,7 @@ export default function AdminCompanyDetail() {
       }
 
       const { error } = await supabase
-        .from("company_subscriptions" as any)
+        .from("company_subscriptions")
         .upsert({
           company_id: id,
           plan_id: selectedPlanId,

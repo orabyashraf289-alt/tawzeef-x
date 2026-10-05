@@ -57,7 +57,7 @@ function useCompaniesList() {
 
       // Get company members for main companies
       const { data: members } = await supabase
-        .from("company_members" as any)
+        .from("company_members")
         .select("company_id, user_id, member_role")
         .in("company_id", mainCompanyIds);
 
@@ -74,13 +74,13 @@ function useCompaniesList() {
 
       // Get subscriptions for main companies
       const { data: subs } = await supabase
-        .from("company_subscriptions" as any)
+        .from("company_subscriptions")
         .select("*")
         .in("company_id", mainCompanyIds);
 
       // Get plans
       const { data: plans } = await supabase
-        .from("subscription_plans" as any)
+        .from("subscription_plans")
         .select("*");
 
       return mainCompanies.map((c) => {
@@ -116,7 +116,7 @@ function useUpdatePlan() {
   return useMutation({
     mutationFn: async ({ planId, updates }: { planId: string; updates: Record<string, any> }) => {
       const { error } = await supabase
-        .from("subscription_plans" as any)
+        .from("subscription_plans")
         .update({ ...updates, updated_at: new Date().toISOString() } as any)
         .eq("id", planId);
       if (error) throw error;

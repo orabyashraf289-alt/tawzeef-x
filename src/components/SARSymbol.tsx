@@ -16,6 +16,6 @@ export default function SARSymbol({ className = "w-4 h-4 inline-block" }: { clas
 }
 
 /** Format salary with the new SAR symbol */
-export function formatSAR(amount: number): string {
-  return new Intl.NumberFormat("ar-SA").format(amount);
+export function formatSAR(amount: number, locale: string = "ar"): string {
+  return new Intl.NumberFormat(locale === "ar" ? "ar-SA" : "en-US").format(amount);
 }

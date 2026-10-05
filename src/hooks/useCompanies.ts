@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json, Tables } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -9,65 +10,22 @@ import {
   reactivateCompany,
 } from "@/services/companyDeletionService";
 
-export interface CompanyRow {
-  id: string;
-  parent_company_id?: string | null;
-  manager_user_id?: string | null;
-  status: string;
-  [key: string]: unknown;
-}
+export type CompanyRow = Tables<"companies">;
+export type CompanyMemberRow = Tables<"company_members">;
+export type ProfileRow = Pick<Tables<"profiles">, "user_id" | "full_name" | "job_title" | "avatar_url">;
 
-export interface ProfileRow {
-  user_id: string;
-  full_name: string | null;
-  job_title: string | null;
-  avatar_url: string | null;
-}
-
-export interface CompanyMemberRow {
-  id: string;
-  company_id: string;
-  user_id: string;
-  member_role: string;
-  company?: Company;
-}
-
-export interface Company {
-  id: string;
-  name: string;
-  name_en: string | null;
-  logo_url: string | null;
-  contact_email: string | null;
-  contact_phone: string | null;
-  website: string | null;
-  industry: string | null;
-  country: string | null;
-  city: string | null;
+export interface Company extends CompanyRow {
   address?: string | null;
-  owner_user_id: string | null;
-  manager_user_id?: string | null;
   manager_profile?: {
     full_name: string | null;
     job_title?: string | null;
     avatar_url?: string | null;
     email?: string | null;
   } | null;
-  status: string;
-  created_at: string;
-  parent_company_id?: string | null;
 }
 
-export interface CompanyMember {
-  id: string;
-  company_id: string;
-  user_id: string;
-  member_role: "owner" | "hr" | "viewer" | "admin";
-  joined_at: string;
-  profiles?: {
-    full_name: string | null;
-    job_title?: string | null;
-    avatar_url?: string | null;
-  } | null;
+export interface CompanyMember extends CompanyMemberRow {
+  profiles?: ProfileRow | null;
 }
 
 // Helper to encode custom company metadata into DB-safe notes JSON
@@ -116,16 +74,20 @@ export function prepareCompanyPayload(input: Record<string, any>, existingNotes?
 }
 
 // Helper to decode DB row notes JSON back into full Company object
-export function parseCompanyRow(c: Record<string, any>): Company {
-  if (!c) return c as Company;
-  let meta: Record<string, any> = {};
+export function parseCompanyRow(c: CompanyRow): Company {
+  let meta: Record<string, Json | undefined> = {};
   let isJsonNotes = false;
 
-  if (c.notes && typeof c.notes === "string" && c.notes.startsWith("{")) {
+  if (c.notes?.trimStart().startsWith("{")) {
     try {
-      meta = JSON.parse(c.notes);
-      isJsonNotes = typeof meta === "object" && meta !== null;
-    } catch {}
+      const parsed: unknown = JSON.parse(c.notes);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        meta = parsed as Record<string, Json>;
+        isJsonNotes = true;
+      }
+    } catch {
+      // Legacy notes may contain free text rather than metadata.
+    }
   }
 
   const cleanNotes = isJsonNotes
@@ -135,14 +97,14 @@ export function parseCompanyRow(c: Record<string, any>): Company {
   return {
     ...c,
     notes: cleanNotes,
-    parent_company_id: c.parent_company_id || meta.parent_company_id || null,
-    manager_user_id: c.manager_user_id || meta.manager_user_id || null,
-    address: c.address || meta.address || cleanNotes || null,
-    e2e_encryption: c.e2e_encryption || meta.e2e_encryption || false,
-    brand_settings: c.brand_settings || meta.brand_settings || null,
-  } as Company;
+    parent_company_id: c.parent_company_id || (typeof meta.parent_company_id === "string" ? meta.parent_company_id : null),
+    manager_user_id: c.manager_user_id || (typeof meta.manager_user_id === "string" ? meta.manager_user_id : null),
+    address: typeof meta.address === "string" ? meta.address : cleanNotes,
+    // Legacy settings writes store this flag in notes while the DB column is false.
+    e2e_encryption: c.e2e_encryption || meta.e2e_encryption === true,
+    brand_settings: c.brand_settings ?? meta.brand_settings ?? null,
+  };
 }
-
 
 // Admin: list all companies
 export function useAllCompanies() {
@@ -152,7 +114,7 @@ export function useAllCompanies() {
     gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("companies" as any)
+        .from("companies")
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -169,7 +131,7 @@ export function useCompany(id: string | undefined) {
     queryFn: async () => {
       if (!isValidId) return null;
       const { data, error } = await supabase
-        .from("companies" as any)
+        .from("companies")
         .select("*")
         .eq("id", id!)
         .maybeSingle();
@@ -189,14 +151,14 @@ export function useMyCompanies() {
     gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("company_members" as any)
+        .from("company_members")
         .select("member_role, company:company_id(*)")
         .eq("user_id", user!.id);
       if (error) throw error;
-      return (data as CompanyMemberRow[]).map((r) => ({
-        ...parseCompanyRow(r.company as any),
+      return (data || []).flatMap((r) => r.company ? [{
+        ...parseCompanyRow(r.company),
         member_role: r.member_role,
-      })) as (Company & { member_role: string })[];
+      }] : []);
     },
     enabled: !!user,
   });
@@ -210,25 +172,25 @@ export function useCompanyMembers(companyId: string | undefined) {
     queryFn: async () => {
       if (!isValidCompanyId) return [];
       const { data, error } = await supabase
-        .from("company_members" as any)
+        .from("company_members")
         .select("*")
         .eq("company_id", companyId!);
       if (error) throw error;
       if (!data || data.length === 0) return [];
 
-      const userIds = Array.from(new Set(data.map((m: CompanyMemberRow) => m.user_id)));
+      const userIds = Array.from(new Set(data.map((m) => m.user_id)));
       const { data: profiles } = await supabase
         .from("profiles")
         .select("user_id, full_name, job_title, avatar_url")
         .in("user_id", userIds);
 
-      return data.map((m: CompanyMemberRow) => {
+      return data.map((m) => {
         const pr = (profiles || []).find((p: ProfileRow) => p.user_id === m.user_id);
         return {
           ...m,
           profiles: pr || null,
         };
-      }) as CompanyMember[];
+      });
     },
     enabled: isValidCompanyId,
   });
@@ -245,7 +207,7 @@ export function useMyCompanyRole(companyId: string | null | undefined) {
       if (!isValidCompanyId || !user?.id) return null;
       try {
         const { data, error } = await supabase
-          .from("company_members" as any)
+          .from("company_members")
           .select("member_role")
           .eq("company_id", companyId!)
           .eq("user_id", user.id)
@@ -267,7 +229,7 @@ export function useAddCompanyMember() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ companyId, userId, role }: { companyId: string; userId: string; role: "owner" | "hr" | "viewer" | "admin" }) => {
-      const { error } = await supabase.from("company_members" as any).insert({
+      const { error } = await supabase.from("company_members").insert({
         company_id: companyId,
         user_id: userId,
         member_role: role,
@@ -286,7 +248,7 @@ export function useRemoveCompanyMember() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("company_members" as any).delete().eq("id", id);
+      const { error } = await supabase.from("company_members").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -322,7 +284,7 @@ export function useCreateCompany() {
     mutationFn: async (input: Partial<Company>) => {
       const payload = prepareCompanyPayload(input);
       const { data, error } = await supabase
-        .from("companies" as any)
+        .from("companies")
         .insert(payload as any)
         .select()
         .single();
@@ -374,13 +336,13 @@ export function useUpdateCompany() {
   return useMutation({
     mutationFn: async ({ id, ...input }: Partial<Company> & { id: string }) => {
       const { data: existing } = await supabase
-        .from("companies" as any)
+        .from("companies")
         .select("notes")
         .eq("id", id)
         .maybeSingle();
 
       const payload = prepareCompanyPayload(input, existing?.notes);
-      const { error } = await supabase.from("companies" as any).update(payload as any).eq("id", id);
+      const { error } = await supabase.from("companies").update(payload as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: (_, v) => {
@@ -502,7 +464,7 @@ export function useCompanyBranches(parentId: string | undefined) {
 
       // Server-side filter on the actual parent_company_id column (fast, indexed)
       const { data, error } = await supabase
-        .from("companies" as any)
+        .from("companies")
         .select("*")
         .eq("parent_company_id", parentId!)
         .order("created_at", { ascending: false });
@@ -551,7 +513,7 @@ export function useCreateCompanyBranch() {
 
       // 1) Insert branch company
       const { data: comp, error: compErr } = await supabase
-        .from("companies" as any)
+        .from("companies")
         .insert(payload as any)
         .select()
         .single();
@@ -562,7 +524,7 @@ export function useCreateCompanyBranch() {
 
       if (user) {
         await supabase
-          .from("company_members" as any)
+          .from("company_members")
           .insert({
             company_id: comp.id,
             user_id: user.id,
@@ -573,7 +535,7 @@ export function useCreateCompanyBranch() {
       // 3) Add assigned branch manager to company_members if specified and not user
       if (input.manager_user_id && input.manager_user_id !== user?.id) {
         await supabase
-          .from("company_members" as any)
+          .from("company_members")
           .insert({
             company_id: comp.id,
             user_id: input.manager_user_id,

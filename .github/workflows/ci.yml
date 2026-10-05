@@ -50,10 +50,7 @@ jobs:
       - name: Check Node tooling types
         run: npx tsc -p tsconfig.node.json --noEmit
 
-      # The frontend has existing TypeScript errors. Report the real check
-      # without presenting the empty root tsconfig as a passing type check.
-      - name: Report frontend TypeScript errors
-        continue-on-error: true
+      - name: Check frontend types
         run: npx tsc -p tsconfig.app.json --noEmit
 
       - name: Run Unit & Integration Tests

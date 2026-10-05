@@ -83,7 +83,7 @@ class SpeechService {
 
   subscribe(l: Listener) {
     this.listeners.add(l);
-    return () => this.listeners.delete(l);
+    return () => { this.listeners.delete(l); };
   }
   private emit() { this.listeners.forEach((l) => l()); }
 
@@ -424,4 +424,3 @@ class SpeechService {
 }
 
 export const speechService = new SpeechService();
-
