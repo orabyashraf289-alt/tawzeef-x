@@ -5,7 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import AutomationBuilder from "@/components/AutomationBuilder";
 
 const mocks = vi.hoisted(() => ({
-  companyId: "company-a", owner: true, type: "move_stage", activate: vi.fn(),
+  companyId: "company-a", owner: true, type: "move_stage", activate: vi.fn(), event: "application.created", conditions: [] as { field: string; operator: string; value: string }[],
 }));
 vi.mock("@/contexts/CompanyContext", () => ({ useCompany: () => ({ activeCompanyId: mocks.companyId }) }));
 vi.mock("@/hooks/useCompanies", () => ({ useCompanyMembers: () => ({ data: [] }) }));
@@ -15,18 +15,40 @@ vi.mock("@/hooks/useAutomation", async importOriginal => {
     ...original,
     useAutomationStages: () => ({ data: [{ id: "stage-a", name: "المقابلة" }] }),
     useAutomationRules: () => ({
-      rules: [{ id: "rule-a", company_id: "company-a", title: "مراجعة الطلب", trigger_event: "application.created",
-        conditions: [], actions: [{ type: mocks.type, payload: mocks.type === "move_stage" ? { stage_id: "stage-a" } : { details: "رسالة قديمة" } }], is_active: false }],
+      rules: [{ id: "rule-a", company_id: "company-a", title: "مراجعة الطلب", trigger_event: mocks.event,
+        conditions: mocks.conditions, actions: [{ type: mocks.type, payload: mocks.type === "move_stage" ? { stage_id: "stage-a" } : { details: "رسالة قديمة" } }], is_active: false }],
       logs: [], needsCompany: false, canManage: mocks.owner, setRuleActive: mocks.activate,
       createRule: vi.fn(), updateRule: vi.fn(), deleteRule: vi.fn(), changingState: false,
     }),
   };
 });
 const view = () => <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><AutomationBuilder /></MemoryRouter>;
-beforeEach(() => { mocks.companyId = "company-a"; mocks.owner = true; mocks.type = "move_stage"; mocks.activate.mockReset().mockResolvedValue({ is_active: true }); });
+beforeEach(() => { mocks.companyId = "company-a"; mocks.owner = true; mocks.type = "move_stage"; mocks.event = "application.created"; mocks.conditions = []; mocks.activate.mockReset().mockResolvedValue({ is_active: true }); });
 afterEach(cleanup);
 
 describe("Automation activation review", () => {
+  it("allows review of a first recorded offer event", () => {
+    mocks.event = "offer.sent";
+    render(view());
+    fireEvent.click(screen.getByRole("button", { name: "مراجعة وتفعيل" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("عند تسجيل إرسال عرض عمل");
+    expect(mocks.activate).not.toHaveBeenCalled();
+  });
+  it("requires a specific stage before reviewing an SLA rule", () => {
+    mocks.event = "sla.expired";
+    render(view());
+    expect(screen.getByRole("button", { name: "مراجعة وتفعيل" })).toBeDisabled();
+    expect(screen.getByText("اختر شرطًا يساوي مرحلة محددة لقاعدة المهلة")).toBeInTheDocument();
+  });
+  it("explains the SLA activation boundary before confirmation", () => {
+    mocks.event = "sla.expired";
+    mocks.conditions = [{ field: "stage", operator: "equals", value: "المقابلة" }];
+    render(view());
+    fireEvent.click(screen.getByRole("button", { name: "مراجعة وتفعيل" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("لن تُعالج مدد المراحل التي بدأت قبل هذا التفعيل");
+    expect(mocks.activate).not.toHaveBeenCalled();
+  });
+
   it("shows an actionable review and activates only after the owner confirms", async () => {
     render(view());
     expect(mocks.activate).not.toHaveBeenCalled();

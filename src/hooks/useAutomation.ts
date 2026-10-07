@@ -22,9 +22,10 @@ export interface AutomationRule {
   }>;
   is_active: boolean;
   created_at?: string;
+  activated_at?: string | null;
 }
 
-export type AutomationRuleDraft = Omit<AutomationRule, "id" | "company_id" | "is_active" | "created_at">;
+export type AutomationRuleDraft = Omit<AutomationRule, "id" | "company_id" | "is_active" | "created_at" | "activated_at">;
 
 export interface AutomationLog {
   id: string;
@@ -45,6 +46,9 @@ export const automationMessages: Record<string, string> = {
   invalid_configuration: "راجع إعدادات القاعدة",
   invalid_condition: "شرط غير صالح أو وظيفة خارج الشركة",
   invalid_action: "اختر إجراءً قابلًا للتنفيذ",
+  sla_stage_required: "اختر شرطًا يساوي مرحلة محددة لقاعدة المهلة",
+  invalid_sla_stage: "يلزم اسم مرحلة نشطة غير مكرر داخل الشركة ومهلة من ساعة إلى 8760 ساعة",
+  offer_candidate_mismatch: "العرض والمرشح والوظيفة يجب أن يتبعوا الشركة نفسها",
   invalid_stage: "المرحلة غير نشطة أو لا تتبع الشركة",
   invalid_reviewer: "المراجع يجب أن يكون مالكًا أو مسؤول توظيف في الشركة",
   rule_not_found: "القاعدة غير موجودة في الشركة المختارة",
