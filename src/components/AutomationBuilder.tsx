@@ -15,7 +15,7 @@ import { Zap, Plus, Trash2, Pencil, Play, Pause } from "lucide-react";
 const triggerLabels: Record<string, string> = {
   "candidate.stage_changed": "عند تغيير مرحلة المرشح",
   "application.created": "عند وصول طلب توظيف جديد",
-  "offer.sent": "عند إرسال عرض عمل",
+  "offer.sent": "عند تسجيل إرسال عرض عمل",
   "sla.expired": "عند تجاوز مهلة المرحلة",
 };
 const fieldLabels: Record<string, string> = { stage: "المرحلة", status: "الحالة", source: "المصدر", job_id: "الوظيفة", ai_score: "درجة التقييم" };
@@ -23,7 +23,8 @@ const operatorLabels: Record<string, string> = { equals: "تساوي", contains:
 const statusLabels: Record<string, string> = { success: "تم التنفيذ", failed: "تعذر التنفيذ", skipped: "لم تتحقق الشروط", running: "جارٍ التنفيذ" };
 
 function activationBlock(rule: AutomationRule): string | null {
-  if (!["candidate.stage_changed", "application.created"].includes(rule.trigger_event)) return automationMessages.unsupported_event;
+  if (!["candidate.stage_changed", "application.created", "offer.sent", "sla.expired"].includes(rule.trigger_event)) return automationMessages.unsupported_event;
+  if (rule.trigger_event === "sla.expired" && rule.conditions.filter(condition => condition.field === "stage" && condition.operator === "equals" && typeof condition.value === "string" && condition.value).length !== 1) return automationMessages.sla_stage_required;
   if (!rule.actions.length) return "اختر إجراءً من خلال تعديل المسودة";
   for (const action of rule.actions) {
     if (!["move_stage", "assign_reviewer"].includes(action.type)) return automationMessages.unsupported_action;
@@ -72,7 +73,7 @@ export default function AutomationBuilder() {
   };
 
   const handleSave = async () => {
-    if (!title.trim() || !targetId) return;
+    if (!title.trim() || !targetId || (triggerEvent === "sla.expired" && conditionStage === "__any")) return;
     setSaving(true);
     try {
       const draft = {
@@ -100,7 +101,7 @@ export default function AutomationBuilder() {
         <div>
           <h3 className="font-black flex items-center gap-2"><Zap className="w-5 h-5 text-amber-500" /> قواعد الأتمتة</h3>
           <p className="text-xs text-muted-foreground mt-2">نقل المراحل وتعيين المراجعين تلقائيًا. تُحفظ القاعدة كمسودة ويُفعّلها مالك الشركة بعد مراجعتها.</p>
-          <p className="text-xs text-muted-foreground mt-1">البريد وواتساب والعروض والمهل متاحة كمسودات قديمة فقط؛ تنفيذها غير مدعوم حاليًا.</p>
+          <p className="text-xs text-muted-foreground mt-1">تدعم الأحداث تسجيل إرسال العروض وتجاوز مهلة المرحلة. إرسال البريد وواتساب وWebhooks غير مدعوم حاليًا.</p>
         </div>
         <Button disabled={!canManage || needsCompany} onClick={() => openEditor()} className="gap-2 rounded-xl"><Plus className="w-4 h-4" /> إنشاء قاعدة</Button>
       </Card>
@@ -115,19 +116,22 @@ export default function AutomationBuilder() {
                 <SelectTrigger aria-label="الحدث"><SelectValue /></SelectTrigger><SelectContent>
                   <SelectItem value="application.created">عند وصول طلب توظيف جديد</SelectItem>
                   <SelectItem value="candidate.stage_changed">عند تغيير مرحلة المرشح</SelectItem>
-                  {!["application.created", "candidate.stage_changed"].includes(triggerEvent) && <SelectItem value={triggerEvent} disabled>{triggerLabels[triggerEvent]} — غير مدعوم</SelectItem>}
+                  <SelectItem value="offer.sent">عند تسجيل إرسال عرض عمل</SelectItem>
+                  <SelectItem value="sla.expired">عند تجاوز مهلة المرحلة</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2"><Label>مرحلة المرشح عند وقوع الحدث</Label>
               <Select value={conditionStage} onValueChange={setConditionStage}>
                 <SelectTrigger aria-label="شرط المرحلة"><SelectValue /></SelectTrigger><SelectContent>
-                  <SelectItem value="__any">أي مرحلة</SelectItem>
+                  <SelectItem value="__any" disabled={triggerEvent === "sla.expired"}>{triggerEvent === "sla.expired" ? "اختر مرحلة محددة" : "أي مرحلة"}</SelectItem>
                   {Array.from(new Set(stages.map(stage => stage.name))).map(name => <SelectItem key={name} value={name}>{name}</SelectItem>)}
                   {conditionStage !== "__any" && !stages.some(stage => stage.name === conditionStage) && <SelectItem value={conditionStage}>{conditionStage}</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
+            {triggerEvent === "sla.expired" && <p className="text-xs text-muted-foreground">اختر مرحلة لها مهلة بين ساعة و8760 ساعة في إعدادات المراحل. تُحسب المدة بالساعات المتصلة وتُراجع كل دقيقة. تطبق القاعدة على دخول المرحلة بعد تفعيلها فقط.</p>}
+            {triggerEvent === "offer.sent" && <p className="text-xs text-muted-foreground">ينفذ الحدث مرة واحدة عند تسجيل العرض كمرسل، ولا يعد تأكيدًا لوصول البريد إلى المرشح.</p>}
             <div className="space-y-2"><Label>الإجراء</Label>
               <Select value={actionType} onValueChange={value => { setActionType(value); setTargetId(""); }}>
                 <SelectTrigger aria-label="الإجراء"><SelectValue /></SelectTrigger><SelectContent>
@@ -147,7 +151,7 @@ export default function AutomationBuilder() {
               {actionType === "assign_reviewer" && members.length === 0 && !membersQuery.isLoading && <p className="text-xs text-muted-foreground">لا يوجد مراجع متاح في هذه الشركة.</p>}
             </div>
             <p className="text-xs text-muted-foreground">تغيير الحدث أو الشروط أو الإجراءات يوقف القاعدة حتى مراجعتها وتفعيلها مجددًا. شروط المقابلة والتقييم والاختبار تظل مطلوبة عند النقل.</p>
-            <Button onClick={handleSave} disabled={saving || !canManage || !title.trim() || !targetId} className="w-full">{saving ? "جارٍ الحفظ…" : "حفظ للمراجعة"}</Button>
+            <Button onClick={handleSave} disabled={saving || !canManage || !title.trim() || !targetId || (triggerEvent === "sla.expired" && conditionStage === "__any")} className="w-full">{saving ? "جارٍ الحفظ…" : "حفظ للمراجعة"}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -159,6 +163,7 @@ export default function AutomationBuilder() {
             <p>{actionDetails(activating)}</p>
             <p className="text-sm">{activating.conditions.length ? `الشروط: ${activating.conditions.map(condition => `${fieldLabels[condition.field] || condition.field} ${operatorLabels[condition.operator]} ${String(condition.value)}`).join("، ")}` : "تطبق على جميع الأحداث المطابقة داخل الشركة."}</p>
             <p className="text-xs text-muted-foreground">يبدأ التنفيذ مع الأحداث الجديدة فقط. النقل الناتج عن الأتمتة لا يشغّل قواعد أخرى.</p>
+            {activating.trigger_event === "sla.expired" && <p className="text-xs text-muted-foreground">لن تُعالج مدد المراحل التي بدأت قبل هذا التفعيل. تُحتسب المهلة بالساعات المتصلة وتُراجع كل دقيقة.</p>}
             <Button disabled={changingState} onClick={() => toggleRule(activating, true)}>تأكيد التفعيل</Button>
           </div>}
         </DialogContent>
