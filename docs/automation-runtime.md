@@ -6,8 +6,10 @@ Owners can save structured drafts and explicitly activate or pause them. Activat
 | --- | --- |
 | Candidate stage changes | Move stage; assign reviewer |
 | Application is created | Move stage; assign reviewer |
+| Offer first recorded as sent | Move stage; assign reviewer |
+| Configured stage SLA expires | Move stage; assign reviewer |
 
-Email, WhatsApp, outbound webhooks, offers, and SLA events are not implemented by this runtime. Their historical drafts remain readable but cannot be activated. Free-text descriptions are never interpreted as executable configuration.
+Email, WhatsApp, and outbound webhooks are not implemented by this runtime. Their historical drafts remain readable but cannot be activated. Free-text descriptions are never interpreted as executable configuration.
 
 ## Execution
 
@@ -30,3 +32,13 @@ Apply the new migration individually after source review and database replay che
 The additive `align_application_candidate_profile_fields` migration captures the nullable text columns read by the existing application trigger: `license_number`, `license_expiry`, `university_degree`, and `demo_video_url` on applications and candidates. It creates missing columns without rewriting existing values or changing existing column definitions.
 
 `supabase/tests/automation_runtime.sql` exercises activation boundaries, stage gates, transaction rollback, event deduplication, loop prevention, assignments, and real application-trigger integration, including copied profile fields, using disposable fixtures. `automation_rls.sql` retains the draft-storage and log-isolation checks. Frontend tests cover company switching, failed writes, activation review, and scoped stage creation.
+
+## Offer and SLA events (October 7 extension)
+
+An offer event runs once when an offer is first recorded with status `sent` and a non-null `sent_at`. It is a recorded business event, not an email delivery receipt. Timestamp edits, viewing, accepting and resending do not repeat the event. Its candidate, optional job and company must agree; mismatches are logged without acting on a foreign candidate. Historical offers are not replayed.
+
+SLA rules require equality with one unambiguous active stage in the same company, with `sla_hours` between 1 and 8760. These are elapsed wall-clock hours, not business-day hours. The server maintains `stage_entered_at` on real stage or company changes; no-op edits cannot restart or backdate it.
+
+Activation records a server-owned timestamp. Only stage entries starting after activation qualify, including after pause/resume. Enabling a rule never processes an old backlog. The private Cron worker runs each minute, handles at most 100 due rule/candidate pairs per pass, skips locked candidates and serializes overlapping scans. Excess work continues in later passes. Each rule/activation/stage entry gets one attempt, including failed or skipped attempts. Reentering a stage creates a new attempt. A previous rule that moves a candidate invalidates later attempts for the old entry. Scheduled moves preserve the no-chaining contract.
+
+The private deduplication ledger is inaccessible to browser roles and follows the rule/candidate lifetime. The migration registers `automation-sla-expiry` without activating rules or defining stage deadlines. `automation_offer_sla.sql` verifies deadline boundaries, deduplication, no historical replay, cross-company rejection, activation access, clock protection, and no chaining. Full Supabase CI verifies scheduler registration; local PGlite verification excludes pg_cron.
