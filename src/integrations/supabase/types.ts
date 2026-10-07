@@ -519,6 +519,7 @@ export type Database = {
       }
       automation_rules: {
         Row: {
+          activated_at: string | null
           actions: Json
           company_id: string
           conditions: Json
@@ -532,6 +533,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          activated_at?: string | null
           actions?: Json
           company_id: string
           conditions?: Json
@@ -545,6 +547,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          activated_at?: string | null
           actions?: Json
           company_id?: string
           conditions?: Json
