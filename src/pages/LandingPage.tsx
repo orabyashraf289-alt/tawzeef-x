@@ -1,3 +1,6 @@
+import TalentOrbit from "@/components/three/TalentOrbit";
+import { useLandingMotion } from "@/hooks/useLandingMotion";
+import AnimatedCounter from "@/components/motion/AnimatedCount";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import { Link } from "react-router-dom";
 import {
@@ -10,7 +13,7 @@ import {
   KeyRound, HelpCircle, Eye, ArrowUpRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { motion, AnimatePresence, useInView, useMotionValue, useSpring } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -123,27 +126,6 @@ const RECENT_SYSTEM_EVENTS = [
   { text: "مزامنة مشفرة لسجلات التدقيق الأمني", icon: ShieldCheck, time: "منذ 22 دقيقة", color: "text-purple-500" },
 ];
 
-function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-50px" });
-  const motionVal = useMotionValue(0);
-  const spring = useSpring(motionVal, { stiffness: 80, damping: 20 });
-  const [display, setDisplay] = useState("0");
-
-  useEffect(() => {
-    if (inView) motionVal.set(value);
-  }, [inView, value, motionVal]);
-
-  useEffect(() => {
-    const unsub = spring.on("change", (v) => {
-      setDisplay(value % 1 !== 0 ? v.toFixed(1) : Math.round(v).toString());
-    });
-    return unsub;
-  }, [spring, value]);
-
-  return <span ref={ref}>{display}{suffix}</span>;
-}
-
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
   visible: {
@@ -159,6 +141,8 @@ const staggerContainer = {
 };
 
 export default function LandingPage() {
+  const motionScope = useRef<HTMLDivElement>(null);
+  useLandingMotion(motionScope);
   const { theme, setTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeModule, setActiveModule] = useState("ai-screening");
@@ -215,7 +199,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-md-surface text-md-on-surface overflow-x-hidden w-full max-w-full font-sans antialiased selection:bg-md-primary selection:text-md-on-primary" dir="rtl">
+    <div ref={motionScope} className="min-h-screen bg-md-surface text-md-on-surface overflow-x-hidden w-full max-w-full font-sans antialiased selection:bg-md-primary selection:text-md-on-primary" dir="rtl">
       <SEO
         title="TawzeefX | وظائف وفرص عمل ومنصة توظيف ذكية"
         description="اكتشف أحدث الوظائف وفرص العمل مع TawzeefX، منصة توظيف ذكية تساعد الباحثين عن عمل على الوصول للفرص المناسبة وتساعد الشركات على العثور على أفضل المرشحين."
@@ -383,7 +367,7 @@ export default function LandingPage() {
       </AnimatePresence>
 
       {/* ── 1. Hero Section ── */}
-      <section className="relative min-h-[92vh] pt-32 lg:pt-36 pb-16 overflow-hidden flex items-center">
+      <section data-hero className="relative min-h-[92vh] pt-32 lg:pt-36 pb-16 overflow-hidden flex items-center">
         {/* Dynamic Glowing Ambient Blobs */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10">
           <div className="absolute -top-[10%] right-0 w-[50vw] h-[50vw] rounded-full bg-md-primary-container/35 blur-[140px]" />
@@ -395,62 +379,60 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 w-full">
           <div className="grid lg:grid-cols-12 gap-12 lg:gap-8 items-center">
             {/* Right: Text & Content */}
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={staggerContainer}
+            <div
               className="lg:col-span-7 text-center lg:text-right"
             >
-              <motion.div variants={fadeUp} className="inline-flex mb-5">
+              <div data-hero-reveal className="inline-flex mb-5">
                 <div className="bg-md-primary-container text-md-on-primary-container rounded-md3-full px-4 py-1.5 flex items-center gap-2 border border-md-primary/20 shadow-sm">
                   <Sparkles className="w-4 h-4 text-md-primary animate-spin-slow" />
                   <span className="text-md3-label-sm font-black">الجيل القادم من أنظمة التوظيف وإدارة المواهب</span>
                 </div>
-              </motion.div>
+              </div>
 
-              <motion.h1
-                variants={fadeUp}
+              <h1
+                data-hero-reveal
                 className="text-4xl sm:text-5xl lg:text-[54px] font-black leading-[1.22] text-md-on-surface mb-6 tracking-normal"
               >
                 منصة توظيف ذكية للباحثين عن عمل والشركات <br />
-                <span className="text-md-primary relative inline-block">
+                <span lang="en" dir="ltr" className="font-sans text-lg sm:text-xl lg:text-2xl leading-relaxed text-md-primary relative inline-block mt-3">
                   Smart Recruitment &amp; Job Search Platform
                   <span className="absolute left-0 bottom-1 w-full h-2.5 bg-md-primary-container/60 -z-10 rounded-full" />
                 </span>
-              </motion.h1>
+              </h1>
 
-              <motion.p
-                variants={fadeUp}
+              <p
+                data-hero-reveal
                 className="text-md3-body-lg text-md-on-surface-variant max-w-xl mx-auto lg:mx-0 mb-8 leading-relaxed font-medium"
               >
                 منظومة توظيف سحابية ذكية: تصفح أحدث الوظائف وفرص العمل المعتمدة، وفرز السير الذاتية بالذكاء الاصطناعي، ومقابلات الفيديو المدمجة، وإدارة استقطاب الكفاءات للشركات بكل سهولة.
-              </motion.p>
+              </p>
 
               {/* CTAs */}
-              <motion.div
-                variants={fadeUp}
+              <div
+                data-hero-reveal
                 className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start mb-8"
               >
                 <Link
+                  data-magnetic
                   to="/careers"
-                  className="w-full sm:w-auto bg-md-primary text-md-on-primary rounded-md3-full h-14 px-9 text-md3-title-sm font-bold flex items-center justify-center gap-2.5 shadow-md3-2 hover:shadow-md3-4 hover:scale-105 transition-all"
+                  className="w-full sm:w-auto bg-md-primary text-md-on-primary rounded-md3-full h-14 px-9 text-md3-title-sm font-bold flex items-center justify-center gap-2.5 shadow-md3-2 hover:shadow-md3-4 transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-md-primary"
                 >
                   <Briefcase className="w-4 h-4" />
                   <span>تصفح أحدث الوظائف</span>
                 </Link>
 
                 <Link
+                  data-magnetic
                   to="/auth?mode=signup"
-                  className="w-full sm:w-auto bg-md-secondary-container text-md-on-secondary-container rounded-md3-full h-14 px-8 text-md3-title-sm font-bold flex items-center justify-center gap-2 hover:bg-md-secondary-container/80 transition-all border border-md-outline-variant/80"
+                  className="w-full sm:w-auto bg-md-secondary-container text-md-on-secondary-container rounded-md3-full h-14 px-8 text-md3-title-sm font-bold flex items-center justify-center gap-2 hover:bg-md-secondary-container/80 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-md-primary border border-md-outline-variant/80"
                 >
                   <Building2 className="w-4 h-4" />
                   <span>انضم كصاحب عمل وابدأ التوظيف</span>
                 </Link>
-              </motion.div>
+              </div>
 
               {/* Live Status Indicators */}
-              <motion.div variants={fadeUp} className="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-xs">
+              <div data-hero-reveal className="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-xs">
                 <div className="flex items-center gap-2 bg-md-surface-container px-3.5 py-1.5 rounded-md3-full border border-md-outline-variant">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="font-bold text-md-on-surface">استجابة حية لنظام التوظيف</span>
@@ -459,17 +441,16 @@ export default function LandingPage() {
                   <Lock className="w-3.5 h-3.5 text-md-primary" />
                   <span>عزل مشفر لبيانات المنشآت RLS</span>
                 </div>
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
 
             {/* Left: Floating Animated System Teaser */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.94 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.7, delay: 0.2 }}
+            <div
+              data-hero-visual
               className="lg:col-span-5 relative"
             >
               <div className="bg-md-surface-container rounded-md3-2xl p-4 shadow-md3-4 border border-md-outline-variant relative">
+                <TalentOrbit />
                 {/* Header Mockup */}
                 <div className="bg-md-surface rounded-md3-xl p-5 border border-md-outline-variant/60 space-y-4">
                   <div className="flex justify-between items-center">
@@ -507,10 +488,9 @@ export default function LandingPage() {
                     </div>
 
                     <div className="w-full bg-md-surface rounded-full h-2 overflow-hidden border border-md-outline-variant/30">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: "94%" }}
-                        transition={{ duration: 1.5, ease: "easeOut" }}
+                      <div
+                        data-hero-score
+                        style={{ width: "94%" }}
                         className="h-full bg-gradient-to-r from-md-primary via-indigo-500 to-emerald-500 rounded-full"
                       />
                     </div>
@@ -546,9 +526,8 @@ export default function LandingPage() {
                 </div>
 
                 {/* Floating Widget 1: Real-time AI Match */}
-                <motion.div
-                  animate={{ y: [0, -8, 0] }}
-                  transition={{ repeat: Infinity, duration: 3.5, ease: "easeInOut" }}
+                <div
+                  data-hero-float
                   className="absolute -top-4 -right-4 bg-md-surface px-4 py-3 rounded-md3-xl shadow-md3-3 border border-md-outline-variant flex items-center gap-3"
                 >
                   <div className="w-9 h-9 rounded-md3-full bg-md-primary-container text-md-on-primary-container flex items-center justify-center">
@@ -558,12 +537,11 @@ export default function LandingPage() {
                     <div className="text-[10px] text-md-on-surface-variant font-bold">فحص السير الذاتية</div>
                     <div className="text-xs font-black text-md-primary">تطابق جدارات 96%</div>
                   </div>
-                </motion.div>
+                </div>
 
                 {/* Floating Widget 2: Certified E-Sign */}
-                <motion.div
-                  animate={{ y: [0, 8, 0] }}
-                  transition={{ repeat: Infinity, duration: 4, ease: "easeInOut", delay: 1 }}
+                <div
+                  data-hero-float
                   className="absolute -bottom-4 -left-4 bg-md-surface px-4 py-3 rounded-md3-xl shadow-md3-3 border border-md-outline-variant flex items-center gap-3"
                 >
                   <div className="w-9 h-9 rounded-md3-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center">
@@ -573,9 +551,9 @@ export default function LandingPage() {
                     <div className="text-[10px] text-md-on-surface-variant font-bold">العروض الموقعة</div>
                     <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">توقيع رقمي موثق</div>
                   </div>
-                </motion.div>
+                </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
@@ -688,7 +666,7 @@ export default function LandingPage() {
       {/* ── 3. Interactive System Showcase: Explore Tawzeef-X from Inside ── */}
       <section id="showcase" className="py-24 bg-md-surface">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center max-w-3xl mx-auto mb-16">
+          <div data-scroll-reveal className="text-center max-w-3xl mx-auto mb-16">
             <div className="inline-flex items-center gap-2 bg-md-primary-container text-md-on-primary-container text-xs font-black px-4 py-1.5 rounded-md3-full mb-4">
               <Sparkles className="w-3.5 h-3.5" />
               <span>مختبر تجربة النظام الحي</span>
@@ -1144,7 +1122,7 @@ export default function LandingPage() {
       {/* ── 4. Core Features Grid (MD3 Cards) ── */}
       <section id="features" className="py-24 bg-md-surface-container-low border-t border-md-outline-variant">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center max-w-2xl mx-auto mb-16">
+          <div data-scroll-reveal className="text-center max-w-2xl mx-auto mb-16">
             <span className="inline-block bg-md-primary-container text-md-on-primary-container text-md3-label-sm font-black px-4 py-1.5 rounded-md3-full mb-4">
               المميزات والحلول الشاملة
             </span>
@@ -1192,7 +1170,7 @@ export default function LandingPage() {
       {/* ── 5. Dynamic Pricing Section (Connected Directly to Supabase subscription_plans) ── */}
       <section id="pricing" className="py-24 bg-md-surface">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center max-w-2xl mx-auto mb-16">
+          <div data-scroll-reveal className="text-center max-w-2xl mx-auto mb-16">
             <div className="inline-flex items-center gap-2 bg-md-primary-container text-md-on-primary-container text-xs font-black px-4 py-1.5 rounded-md3-full mb-4">
               <Database className="w-3.5 h-3.5" />
               <span>الباقات المعتمدة والمحدثة بالنظام</span>

@@ -1672,10 +1672,10 @@ export default function ConvertedOrders() {
               <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-600 flex items-center justify-center border border-red-500/20 shadow-sm">
                 <AlertCircle className="w-6 h-6 animate-pulse" />
               </div>
-              <AlertDialogTitle className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <AlertDialogTitle className="text-lg font-bold text-foreground">
                 تأكيد حذف أمر التحويل
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed">
                 هل أنت متأكد من رغبتك في حذف أمر التحويل رقم{" "}
                 <span className="font-bold text-foreground underline decoration-red-500/40">{orderToDelete?.order_number}</span>
                 {orderToDelete?.candidate_name ? (

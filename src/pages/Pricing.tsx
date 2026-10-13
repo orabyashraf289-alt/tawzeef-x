@@ -47,13 +47,13 @@ export default function Pricing() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
             <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
-            <span className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+            <span className="text-lg font-bold text-foreground">
               Tawzeef-X <span className="text-primary">منصة التوظيف</span>
             </span>
           </Link>
           <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors">
             <ArrowLeft className="w-4 h-4" />
-            <span style={{ fontFamily: "'Cairo', sans-serif" }}>تسجيل الدخول</span>
+            <span>تسجيل الدخول</span>
           </Link>
         </div>
       </header>
@@ -68,10 +68,10 @@ export default function Pricing() {
           <Badge variant="outline" className="mb-4 px-4 py-1.5 text-sm font-semibold">
             💰 خطط الأسعار والاشتراكات
           </Badge>
-          <h1 className="text-4xl md:text-5xl font-black text-foreground mb-4" style={{ fontFamily: "'Cairo', sans-serif" }}>
+          <h1 className="text-4xl md:text-5xl font-black text-foreground mb-4">
             اختر الباقة المناسبة لشركتك
           </h1>
-          <p className="text-lg text-muted-foreground max-w-xl mx-auto" style={{ fontFamily: "'Cairo', sans-serif" }}>
+          <p className="text-lg text-muted-foreground max-w-xl mx-auto">
             ابدأ مجاناً وقدم طلب ترقية الباقة حسب احتياجاتك ليقوم فريق الإدارة بتفعيلها فوراً.
           </p>
         </motion.div>
@@ -114,33 +114,33 @@ export default function Pricing() {
                     }`}>
                       <Icon className="w-6 h-6" />
                     </div>
-                    <h3 className="text-xl font-bold text-foreground mb-1" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                    <h3 className="text-xl font-bold text-foreground mb-1">
                       {plan.name_ar}
                     </h3>
-                    <p className="text-sm text-muted-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                    <p className="text-sm text-muted-foreground">
                       {plan.description}
                     </p>
                   </div>
 
                   <div className="mb-6">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-black text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                      <span className="text-4xl font-black text-foreground">
                         {plan.price === 0 ? "مجاني" : plan.price}
                       </span>
                       {plan.price > 0 && (
-                        <span className="text-sm text-muted-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                        <span className="text-sm text-muted-foreground">
                           {plan.currency} / شهرياً
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                    <p className="text-xs text-muted-foreground mt-1">
                       {plan.job_posts_limit === -1 ? "منشورات غير محدودة" : `${plan.job_posts_limit} منشور توظيف`}
                     </p>
                   </div>
 
                   <ul className="space-y-3 mb-8 flex-1">
                     {plan.features.map((feature: string, fi: number) => (
-                      <li key={fi} className="flex items-start gap-2.5 text-sm" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                      <li key={fi} className="flex items-start gap-2.5 text-sm">
                         <Check className={`w-4 h-4 mt-0.5 shrink-0 ${isPro ? "text-primary" : "text-green-500"}`} />
                         <span className="text-foreground/80">{feature}</span>
                       </li>
@@ -164,7 +164,6 @@ export default function Pricing() {
                           : ""
                       }`}
                       variant={isPro || isBasic ? "default" : "outline"}
-                      style={{ fontFamily: "'Cairo', sans-serif" }}
                     >
                       {plan.price === 0 ? "الباقة الحالية" : "طلب ترقية الباقة 🚀"}
                     </Button>
@@ -179,7 +178,6 @@ export default function Pricing() {
                             : ""
                         }`}
                         variant={isPro || isBasic ? "default" : "outline"}
-                        style={{ fontFamily: "'Cairo', sans-serif" }}
                       >
                         {plan.price === 0 ? "ابدأ مجاناً" : "اشترك الآن"}
                       </Button>
@@ -198,7 +196,7 @@ export default function Pricing() {
           transition={{ delay: 0.6 }}
           className="text-center mt-16"
         >
-          <p className="text-muted-foreground text-sm" style={{ fontFamily: "'Cairo', sans-serif" }}>
+          <p className="text-muted-foreground text-sm">
             تحتاج باقة مخصصة بحدود خاصة؟{" "}
             <a href="mailto:support@tawzeef-x.com" className="text-primary font-semibold hover:underline">
               تواصل مع فريق إدارة Tawzeef-X

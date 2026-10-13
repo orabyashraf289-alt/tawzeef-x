@@ -1,3 +1,4 @@
+import { printWithFonts } from "@/lib/documentFonts";
 import { useState, useMemo, useCallback, useRef } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useQuery } from "@tanstack/react-query";
@@ -1101,7 +1102,7 @@ export default function AuditLog() {
       </body></html>
     `;
     const win = window.open("", "_blank");
-    if (win) { win.document.write(html); win.document.close(); win.print(); }
+    if (win) { win.document.write(html); win.document.close(); void printWithFonts(win); }
   };
 
   const uniqueEventTypes = Object.entries(EVENT_TYPES).reduce((acc, [key, val]) => {

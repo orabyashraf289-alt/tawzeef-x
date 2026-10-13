@@ -102,20 +102,18 @@ export default function ResetPassword() {
             >
               <h1
                 className="text-[28px] font-black text-[hsl(222,25%,14%)] mb-2 leading-tight"
-                style={{ fontFamily: "'Cairo', sans-serif" }}
               >
                 تعيين كلمة مرور جديدة 🔑
               </h1>
               <p
                 className="text-[hsl(222,12%,52%)] text-[15px] font-medium mb-8"
-                style={{ fontFamily: "'Cairo', sans-serif" }}
               >
                 أدخل كلمة المرور الجديدة لحسابك
               </p>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-[13px] font-bold text-[hsl(222,15%,40%)] mb-2 block" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                  <label className="text-[13px] font-bold text-[hsl(222,15%,40%)] mb-2 block">
                     كلمة المرور الجديدة
                   </label>
                   <div className="relative">
@@ -128,7 +126,6 @@ export default function ResetPassword() {
                       onBlur={() => setFocusedField(null)}
                       placeholder="••••••••"
                       className={inputCls("password")}
-                      style={{ fontFamily: "'Cairo', sans-serif" }}
                       dir="ltr"
                       minLength={6}
                       required
@@ -144,7 +141,7 @@ export default function ResetPassword() {
                 </div>
 
                 <div>
-                  <label className="text-[13px] font-bold text-[hsl(222,15%,40%)] mb-2 block" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                  <label className="text-[13px] font-bold text-[hsl(222,15%,40%)] mb-2 block">
                     تأكيد كلمة المرور
                   </label>
                   <div className="relative">
@@ -157,7 +154,6 @@ export default function ResetPassword() {
                       onBlur={() => setFocusedField(null)}
                       placeholder="••••••••"
                       className={inputCls("confirm")}
-                      style={{ fontFamily: "'Cairo', sans-serif" }}
                       dir="ltr"
                       minLength={6}
                       required
@@ -168,7 +164,6 @@ export default function ResetPassword() {
                       initial={{ opacity: 0, y: -5 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="text-[12px] text-[hsl(0,68%,50%)] mt-1.5 font-medium"
-                      style={{ fontFamily: "'Cairo', sans-serif" }}
                     >
                       كلمات المرور غير متطابقة
                     </motion.p>
@@ -180,7 +175,6 @@ export default function ResetPassword() {
                     type="submit"
                     disabled={loading || password !== confirmPassword}
                     className="w-full h-[52px] rounded-2xl text-[16px] font-bold border-0 transition-all duration-300 bg-[hsl(222,65%,46%)] hover:bg-[hsl(222,65%,40%)] hover:shadow-[0_8px_25px_-5px_hsl(222_65%_46%/0.35)] text-white"
-                    style={{ fontFamily: "'Cairo', sans-serif" }}
                   >
                     {loading ? (
                       <span className="inline-flex items-center gap-2.5">
@@ -209,10 +203,10 @@ export default function ResetPassword() {
               >
                 <CheckCircle2 className="w-8 h-8 text-[hsl(152,56%,40%)]" />
               </motion.div>
-              <h2 className="text-[22px] font-black text-[hsl(222,25%,14%)] mb-2" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <h2 className="text-[22px] font-black text-[hsl(222,25%,14%)] mb-2">
                 تم التحديث بنجاح ✅
               </h2>
-              <p className="text-[hsl(222,12%,52%)] text-[15px] font-medium" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <p className="text-[hsl(222,12%,52%)] text-[15px] font-medium">
                 جاري تحويلك إلى لوحة التحكم...
               </p>
             </motion.div>

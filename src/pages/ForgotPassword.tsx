@@ -44,7 +44,6 @@ export default function ForgotPassword() {
           <Link
             to="/auth"
             className="inline-flex items-center gap-1.5 text-[13px] text-[hsl(222,12%,55%)] hover:text-[hsl(222,20%,35%)] transition-colors font-medium"
-            style={{ fontFamily: "'Cairo', sans-serif" }}
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             العودة لتسجيل الدخول
@@ -61,13 +60,11 @@ export default function ForgotPassword() {
             >
               <h1
                 className="text-[28px] font-black text-[hsl(222,25%,14%)] mb-2 leading-tight"
-                style={{ fontFamily: "'Cairo', sans-serif" }}
               >
                 نسيت كلمة المرور؟
               </h1>
               <p
                 className="text-[hsl(222,12%,52%)] text-[15px] font-medium mb-8"
-                style={{ fontFamily: "'Cairo', sans-serif" }}
               >
                 أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين
               </p>
@@ -76,7 +73,6 @@ export default function ForgotPassword() {
                 <div>
                   <label
                     className="text-[13px] font-bold text-[hsl(222,15%,40%)] mb-2 block"
-                    style={{ fontFamily: "'Cairo', sans-serif" }}
                   >
                     البريد الإلكتروني
                   </label>
@@ -94,7 +90,6 @@ export default function ForgotPassword() {
                           ? "bg-white border-[hsl(222,65%,50%)] shadow-[0_0_0_4px_hsl(222_65%_50%/0.06)]"
                           : "bg-[hsl(220,25%,97.5%)] border-[hsl(220,18%,90%)] hover:border-[hsl(220,18%,82%)]"
                       } text-[hsl(222,25%,18%)] placeholder:text-[hsl(222,10%,68%)]`}
-                      style={{ fontFamily: "'Cairo', sans-serif" }}
                       dir="ltr"
                       required
                     />
@@ -106,7 +101,6 @@ export default function ForgotPassword() {
                     type="submit"
                     disabled={loading}
                     className="w-full h-[52px] rounded-2xl text-[16px] font-bold border-0 transition-all duration-300 bg-[hsl(222,65%,46%)] hover:bg-[hsl(222,65%,40%)] hover:shadow-[0_8px_25px_-5px_hsl(222_65%_46%/0.35)] text-white"
-                    style={{ fontFamily: "'Cairo', sans-serif" }}
                   >
                     {loading ? (
                       <span className="inline-flex items-center gap-2.5">
@@ -137,13 +131,11 @@ export default function ForgotPassword() {
               </motion.div>
               <h2
                 className="text-[22px] font-black text-[hsl(222,25%,14%)] mb-2"
-                style={{ fontFamily: "'Cairo', sans-serif" }}
               >
                 تم إرسال الرابط ✉️
               </h2>
               <p
                 className="text-[hsl(222,12%,52%)] text-[15px] font-medium mb-6 max-w-[320px] mx-auto"
-                style={{ fontFamily: "'Cairo', sans-serif" }}
               >
                 تحقق من بريدك الإلكتروني <span className="font-bold text-[hsl(222,25%,20%)]" dir="ltr">{email}</span> واتبع الرابط لإعادة تعيين كلمة المرور
               </p>
@@ -151,7 +143,6 @@ export default function ForgotPassword() {
                 <Button
                   variant="outline"
                   className="rounded-2xl h-[48px] px-8 text-[14px] font-semibold"
-                  style={{ fontFamily: "'Cairo', sans-serif" }}
                 >
                   العودة لتسجيل الدخول
                 </Button>
