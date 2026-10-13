@@ -1,3 +1,4 @@
+import "@/styles/landing-motion.css";
 import TalentOrbit from "@/components/three/TalentOrbit";
 import { useLandingMotion } from "@/hooks/useLandingMotion";
 import AnimatedCounter from "@/components/motion/AnimatedCount";
@@ -237,6 +238,7 @@ export default function LandingPage() {
 
       {/* ── Top App Bar (MD3 Header) ── */}
       <header className="fixed top-0 inset-x-0 z-50 bg-md-surface/85 backdrop-blur-xl border-b border-md-outline-variant/60 shadow-sm transition-all">
+        <div data-page-progress aria-hidden="true" className="landing-progress" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           {/* Brand Logo */}
           <Link to="/" className="flex items-center gap-3 group">
@@ -390,11 +392,10 @@ export default function LandingPage() {
               </div>
 
               <h1
-                data-hero-reveal
                 className="text-4xl sm:text-5xl lg:text-[54px] font-black leading-[1.22] text-md-on-surface mb-6 tracking-normal"
               >
-                منصة توظيف ذكية للباحثين عن عمل والشركات <br />
-                <span lang="en" dir="ltr" className="font-sans text-lg sm:text-xl lg:text-2xl leading-relaxed text-md-primary relative inline-block mt-3">
+                <span data-hero-reveal className="block">منصة توظيف ذكية للباحثين عن عمل والشركات</span>
+                <span data-hero-reveal lang="en" dir="ltr" className="font-sans text-lg sm:text-xl lg:text-2xl leading-relaxed text-md-primary relative inline-block mt-3">
                   Smart Recruitment &amp; Job Search Platform
                   <span className="absolute left-0 bottom-1 w-full h-2.5 bg-md-primary-container/60 -z-10 rounded-full" />
                 </span>
@@ -414,6 +415,7 @@ export default function LandingPage() {
               >
                 <Link
                   data-magnetic
+                  data-button-sheen
                   to="/careers"
                   className="w-full sm:w-auto bg-md-primary text-md-on-primary rounded-md3-full h-14 px-9 text-md3-title-sm font-bold flex items-center justify-center gap-2.5 shadow-md3-2 hover:shadow-md3-4 transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-md-primary"
                 >
@@ -423,6 +425,7 @@ export default function LandingPage() {
 
                 <Link
                   data-magnetic
+                  data-button-sheen
                   to="/auth?mode=signup"
                   className="w-full sm:w-auto bg-md-secondary-container text-md-on-secondary-container rounded-md3-full h-14 px-8 text-md3-title-sm font-bold flex items-center justify-center gap-2 hover:bg-md-secondary-container/80 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-md-primary border border-md-outline-variant/80"
                 >
@@ -470,7 +473,7 @@ export default function LandingPage() {
                   </div>
 
                   {/* AI Match Scorecard Sample Card */}
-                  <div className="bg-md-surface-container p-4 rounded-md3-lg border border-md-outline-variant/60 space-y-3">
+                  <div data-hero-detail className="bg-md-surface-container p-4 rounded-md3-lg border border-md-outline-variant/60 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full bg-md-primary-container text-md-on-primary-container font-black text-xs flex items-center justify-center">
@@ -503,7 +506,7 @@ export default function LandingPage() {
                   </div>
 
                   {/* Dynamic Interactive Pipeline Stages */}
-                  <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-bold">
+                  <div data-hero-stages className="grid grid-cols-3 gap-2 text-center text-[11px] font-bold">
                     <div className="bg-md-surface-container p-2.5 rounded-md3-md border border-md-outline-variant/50">
                       <div className="text-md-on-surface-variant text-[10px]">فرز AI</div>
                       <div className="text-sm font-black text-md-on-surface mt-0.5">
@@ -687,6 +690,7 @@ export default function LandingPage() {
                 <button
                   key={mod.id}
                   onClick={() => setActiveModule(mod.id)}
+                  aria-pressed={isSelected}
                   className={`flex items-center gap-2.5 px-5 py-3 rounded-md3-xl text-xs font-bold transition-all duration-200 ${
                     isSelected
                       ? "bg-md-primary text-md-on-primary shadow-md3-2 scale-105"
@@ -1135,35 +1139,30 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-80px" }}
-            variants={staggerContainer}
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
-          >
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {FEATURES_LIST.map((f, idx) => (
-              <motion.div
-                key={idx}
-                variants={fadeUp}
-                className="bg-md-surface shadow-md3-1 hover:shadow-md3-3 hover:-translate-y-1.5 transition-all duration-300 rounded-md3-2xl p-7 flex flex-col border border-md-outline-variant/70 group"
-              >
-                <div className={`w-14 h-14 rounded-md3-xl flex items-center justify-center mb-6 ${f.color} shadow-sm group-hover:scale-110 transition-transform`}>
-                  <f.icon className="w-7 h-7" />
+              <div key={idx} data-feature-reveal className="landing-card-shell">
+                <div
+                  data-card-tilt
+                  className="landing-feature-card h-full bg-md-surface shadow-md3-1 hover:shadow-md3-3 rounded-md3-2xl p-7 flex flex-col border border-md-outline-variant/70 group"
+                >
+                  <div className={`w-14 h-14 rounded-md3-xl flex items-center justify-center mb-6 ${f.color} shadow-sm`}>
+                    <f.icon className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-md3-title-lg font-black text-md-on-surface mb-3">{f.title}</h3>
+                  <p className="text-md3-body-md text-md-on-surface-variant flex-1 leading-relaxed font-normal">
+                    {f.description}
+                  </p>
+                  <div className="mt-6 pt-4 border-t border-md-outline-variant/50">
+                    <span className="bg-md-primary-container text-md-on-primary-container text-xs font-black rounded-md3-full px-3.5 py-1.5 inline-flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      {f.highlight}
+                    </span>
+                  </div>
                 </div>
-                <h3 className="text-md3-title-lg font-black text-md-on-surface mb-3">{f.title}</h3>
-                <p className="text-md3-body-md text-md-on-surface-variant flex-1 leading-relaxed font-normal">
-                  {f.description}
-                </p>
-                <div className="mt-6 pt-4 border-t border-md-outline-variant/50">
-                  <span className="bg-md-primary-container text-md-on-primary-container text-xs font-black rounded-md3-full px-3.5 py-1.5 inline-flex items-center gap-2">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {f.highlight}
-                  </span>
-                </div>
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
@@ -1300,7 +1299,7 @@ export default function LandingPage() {
       {/* ── 6. Security & Enterprise Compliance ── */}
       <section id="security" className="py-20 bg-md-surface-container-low border-t border-md-outline-variant">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="bg-gradient-to-br from-md-surface via-md-surface-container-high to-md-surface rounded-md3-2xl p-8 lg:p-12 border border-md-outline-variant shadow-sm">
+          <div data-scroll-reveal className="bg-gradient-to-br from-md-surface via-md-surface-container-high to-md-surface rounded-md3-2xl p-8 lg:p-12 border border-md-outline-variant shadow-sm">
             <div className="grid lg:grid-cols-12 gap-8 items-center">
               <div className="lg:col-span-8">
                 <div className="inline-flex items-center gap-2 bg-md-primary-container text-md-on-primary-container text-xs font-bold px-3 py-1 rounded-md3-full mb-4">
@@ -1328,7 +1327,7 @@ export default function LandingPage() {
               <div className="lg:col-span-4 flex justify-center lg:justify-end">
                 <Link
                   to="/auth?mode=signup"
-                  className="bg-md-primary text-md-on-primary rounded-md3-full px-8 py-4 text-sm font-bold shadow-md3-2 hover:shadow-md3-4 hover:scale-105 transition-all text-center"
+                  className="bg-md-primary text-md-on-primary rounded-md3-full px-8 py-4 text-sm font-bold shadow-md3-2 hover:shadow-md3-4 transition-shadow text-center"
                 >
                   إنشاء حساب مسؤولي المنشأة
                 </Link>
@@ -1341,7 +1340,7 @@ export default function LandingPage() {
       {/* ── 7. Final Executive CTA ── */}
       <section className="py-20 bg-md-surface">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
-          <div className="bg-gradient-to-br from-md-primary-container via-md-secondary-container/40 to-md-tertiary-container/30 rounded-md3-2xl p-12 lg:p-16 border border-md-primary/20 shadow-md3-3">
+          <div data-scroll-reveal className="bg-gradient-to-br from-md-primary-container via-md-secondary-container/40 to-md-tertiary-container/30 rounded-md3-2xl p-12 lg:p-16 border border-md-primary/20 shadow-md3-3">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-md-on-primary-container mb-6 leading-tight">
               ابدأ تحويل منظومة الاستقطاب <br />
               في منشأتك اليوم
@@ -1351,8 +1350,10 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
+                data-magnetic
+                data-button-sheen
                 to="/auth?mode=signup"
-                className="w-full sm:w-auto bg-md-primary text-md-on-primary rounded-md3-full h-14 px-10 text-md3-title-sm font-bold flex items-center justify-center gap-2 shadow-md3-2 hover:shadow-md3-4 hover:scale-105 transition-all"
+                className="w-full sm:w-auto bg-md-primary text-md-on-primary rounded-md3-full h-14 px-10 text-md3-title-sm font-bold flex items-center justify-center gap-2 shadow-md3-2 hover:shadow-md3-4 transition-shadow"
               >
                 <span>إنشاء حساب والبدء فوراً</span>
                 <ArrowLeft className="w-4 h-4" />
