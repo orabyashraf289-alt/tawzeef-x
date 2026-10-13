@@ -284,8 +284,8 @@ export default function Jobs() {
   // Step 2: confirm from preview -> actually publish (using possibly-edited data from preview)
   const handleConfirmPublish = (finalData: JobPreviewData) => {
     addJobMutation.mutate(finalData, {
-      onSuccess: async (data) => {
-        await supabase.rpc("increment_job_posts_used" as any, { _user_id: (await supabase.auth.getUser()).data.user?.id });
+      onSuccess: (data) => {
+        // The database increments the selected company's counter with the INSERT.
         queryClient.invalidateQueries({ queryKey: ["my-subscription"] });
         setPreviewOpen(false);
         setPreviewData(null);
