@@ -413,10 +413,10 @@ export default function Notifications() {
               <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-600 flex items-center justify-center border border-red-500/20 shadow-sm">
                 <Trash2 className="w-6 h-6 animate-pulse" />
               </div>
-              <AlertDialogTitle className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <AlertDialogTitle className="text-lg font-bold text-foreground">
                 مسح جميع الإشعارات
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed">
                 هل أنت متأكد من رغبتك في مسح كافة الإشعارات في النظام نهائياً؟
                 <span className="text-xs text-red-600 dark:text-red-400 font-medium block mt-3 bg-red-50 dark:bg-red-950/40 p-2.5 rounded-xl border border-red-200 dark:border-red-900/40">
                   ⚠️ لن تتمكن من استرجاع أي إشعار تم حذفه بعد تأكيد هذا الإجراء.

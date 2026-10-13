@@ -1,3 +1,4 @@
+import PageTransition from "@/components/PageTransition";
 import { ReactNode } from "react";
 import PublicNav from "./PublicNav";
 import PublicFooter from "./PublicFooter";
@@ -8,7 +9,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background flex flex-col" dir={dir}>
       <PublicNav />
-      <main className="flex-1 pt-20">{children}</main>
+      <main className="flex-1 pt-20"><PageTransition>{children}</PageTransition></main>
       <PublicFooter />
     </div>
   );

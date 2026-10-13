@@ -25,7 +25,7 @@ export const templates: { id: TemplateId; name: string; description: string }[] 
   { id: "minimal", name: "بسيط", description: "تصميم مختصر يركز على المحتوى الأساسي" },
 ];
 
-const font = { fontFamily: "'Cairo', sans-serif" };
+const font = { fontFamily: "var(--font-ui)" };
 
 // ─── Classic Template ───
 function ClassicTemplate({ resume }: { resume: ResumeData }) {

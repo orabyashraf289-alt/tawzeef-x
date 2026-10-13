@@ -1,3 +1,4 @@
+import { printWithFonts } from "@/lib/documentFonts";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
@@ -451,14 +452,12 @@ ${scorecardNotes || "لا توجد ملاحظات إضافية."}`;
           <div>اعتماد إدارة الموارد البشرية: __________________</div>
         </div>
 
-        <script>
-          window.onload = function() { window.print(); }
-        </script>
       </body>
       </html>
     `;
     printWin.document.write(reportHtml);
     printWin.document.close();
+    void printWithFonts(printWin);
   };
 
   const handleAIAnalysis = async () => {

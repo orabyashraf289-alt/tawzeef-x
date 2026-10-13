@@ -1,0 +1,63 @@
+/* Official hosted assets used by https://font.thmanyah.com/.
+   Do not copy or redistribute the font binaries. See docs/visual-system.md. */
+@font-face {
+  font-family: "Thmanyah Sans";
+  src: url("https://framerusercontent.com/assets/Lh8puxCFq405qBv7dKpg9NsHZNk.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Thmanyah Sans";
+  src: url("https://framerusercontent.com/assets/x6EBzvXf1Fi35XhsRoHxePDVo.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Thmanyah Sans";
+  src: url("https://framerusercontent.com/assets/oE98mOPE28KTzUeptOLRIaqW1I.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Thmanyah Sans";
+  src: url("https://framerusercontent.com/assets/LZvgFRUsP7pGWYj3tKxMUrKuhSY.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Thmanyah Sans";
+  src: url("https://framerusercontent.com/assets/ulQLGTktcl2Qq4AmD6RuVgELZKg.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Thmanyah Serif Display";
+  src: url("https://framerusercontent.com/assets/s1q2LvVNWBbqzMxMBxsexY73tE.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Thmanyah Serif Display";
+  src: url("https://framerusercontent.com/assets/AAY5hsAWwWmVC7qlScZUGjzCgE8.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Thmanyah Serif Display";
+  src: url("https://framerusercontent.com/assets/a9r2dKNoQcqFiTkwxTUnXgAfjws.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-ui: "Thmanyah Sans", "Segoe UI", Tahoma, Arial, sans-serif;
+  --font-display: "Thmanyah Serif Display", "Thmanyah Sans", Tahoma, serif;
+}

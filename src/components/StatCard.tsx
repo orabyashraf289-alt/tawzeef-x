@@ -1,7 +1,8 @@
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo } from "react";
+import AnimatedCount from "@/components/motion/AnimatedCount";
 import { Muted, Small } from "@/components/typography";
 
 interface StatCardProps {
@@ -14,32 +15,6 @@ interface StatCardProps {
   index?: number;
   sparklineData?: number[];
   sparklineColor?: string;
-}
-
-function AnimatedNumber({ value }: { value: number }) {
-  const [display, setDisplay] = useState(0);
-  const ref = useRef<number>();
-
-  useEffect(() => {
-    const duration = 800;
-    const start = ref.current ?? 0;
-    const diff = value - start;
-    if (diff === 0) return;
-    const startTime = performance.now();
-    const tick = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const current = Math.round(start + diff * eased);
-      setDisplay(current);
-      if (progress < 1) requestAnimationFrame(tick);
-      else ref.current = value;
-    };
-    requestAnimationFrame(tick);
-    ref.current = value;
-  }, [value]);
-
-  return <>{display}</>;
 }
 
 function MiniSparkline({ data, color = "hsl(var(--primary))" }: { data: number[]; color?: string }) {
@@ -111,7 +86,7 @@ function StatCardImpl({ title, value, change, changeType = "neutral", icon: Icon
           <Muted as="p" className="font-medium text-sm text-muted-foreground/80">{title}</Muted>
           <div className="flex items-end gap-3 mt-1.5">
             <p className="text-2xl font-bold text-foreground tracking-tight tabular-nums [line-height:1.4]">
-              {numericValue !== null ? <AnimatedNumber value={numericValue} /> : value}
+              {numericValue !== null ? <AnimatedCount value={numericValue} /> : value}
             </p>
             {sparklineData && sparklineData.length > 1 && (
               <div className="pb-1">

@@ -131,10 +131,10 @@ export default function Onboarding() {
           >
             <Sparkles className="w-7 h-7 text-primary" />
           </motion.div>
-          <h1 className="text-[28px] font-black text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+          <h1 className="text-[28px] font-black text-foreground">
             مرحباً بك في Tawzeef-X 👋
           </h1>
-          <p className="text-muted-foreground text-[15px] font-medium mt-2" style={{ fontFamily: "'Cairo', sans-serif" }}>
+          <p className="text-muted-foreground text-[15px] font-medium mt-2">
             دعنا نعدّ حسابك في دقيقة واحدة
           </p>
         </div>
@@ -144,7 +144,7 @@ export default function Onboarding() {
           {steps.map((s) => (
             <div key={s.id} className="flex-1">
               <div className={`h-1.5 rounded-full transition-all duration-500 ${step >= s.id ? "bg-primary" : "bg-border"}`} />
-              <p className={`text-[11px] font-bold mt-2 transition-colors ${step >= s.id ? "text-primary" : "text-muted-foreground"}`} style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <p className={`text-[11px] font-bold mt-2 transition-colors ${step >= s.id ? "text-primary" : "text-muted-foreground"}`}>
                 {s.title}
               </p>
             </div>
@@ -163,7 +163,7 @@ export default function Onboarding() {
               className="space-y-4"
             >
               <div>
-                <label className="text-[13px] font-bold text-muted-foreground mb-2 block" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                <label className="text-[13px] font-bold text-muted-foreground mb-2 block">
                   الاسم الكامل
                 </label>
                 <div className="relative">
@@ -175,13 +175,12 @@ export default function Onboarding() {
                     onBlur={() => setFocusedField(null)}
                     placeholder="أدخل اسمك الكامل"
                     className={inputCls("name")}
-                    style={{ fontFamily: "'Cairo', sans-serif" }}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[13px] font-bold text-muted-foreground mb-2 block" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                <label className="text-[13px] font-bold text-muted-foreground mb-2 block">
                   المسمى الوظيفي
                 </label>
                 <div className="relative">
@@ -193,7 +192,6 @@ export default function Onboarding() {
                     onBlur={() => setFocusedField(null)}
                     placeholder="مثال: مدير الموارد البشرية"
                     className={inputCls("title")}
-                    style={{ fontFamily: "'Cairo', sans-serif" }}
                   />
                 </div>
               </div>
@@ -203,7 +201,6 @@ export default function Onboarding() {
                   onClick={() => setStep(2)}
                   disabled={!form.fullName}
                   className="w-full h-[52px] rounded-2xl text-[16px] font-bold border-0 transition-all duration-300 gradient-primary text-primary-foreground"
-                  style={{ fontFamily: "'Cairo', sans-serif" }}
                 >
                   التالي
                 </Button>
@@ -222,7 +219,7 @@ export default function Onboarding() {
             >
               {/* Company Logo Upload */}
               <div>
-                <label className="text-[13px] font-bold text-muted-foreground mb-2 block" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                <label className="text-[13px] font-bold text-muted-foreground mb-2 block">
                   شعار الشركة
                 </label>
                 <input
@@ -259,7 +256,7 @@ export default function Onboarding() {
                     )}
                   </motion.button>
                   <div className="flex-1">
-                    <p className="text-[12px] text-muted-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                    <p className="text-[12px] text-muted-foreground">
                       ارفع شعار شركتك ليظهر في المنصة وصفحات التقديم
                     </p>
                     <p className="text-[10px] text-muted-foreground/50 mt-1">PNG, JPG — حد أقصى 2MB</p>
@@ -268,7 +265,7 @@ export default function Onboarding() {
               </div>
 
               <div>
-                <label className="text-[13px] font-bold text-muted-foreground mb-2 block" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                <label className="text-[13px] font-bold text-muted-foreground mb-2 block">
                   اسم الشركة
                 </label>
                 <div className="relative">
@@ -280,13 +277,12 @@ export default function Onboarding() {
                     onBlur={() => setFocusedField(null)}
                     placeholder="اسم الشركة أو المؤسسة"
                     className={inputCls("company")}
-                    style={{ fontFamily: "'Cairo', sans-serif" }}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[13px] font-bold text-muted-foreground mb-2 block" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                <label className="text-[13px] font-bold text-muted-foreground mb-2 block">
                   القسم
                 </label>
                 <div className="relative">
@@ -298,7 +294,6 @@ export default function Onboarding() {
                     onBlur={() => setFocusedField(null)}
                     placeholder="مثال: الموارد البشرية"
                     className={inputCls("dept")}
-                    style={{ fontFamily: "'Cairo', sans-serif" }}
                   />
                 </div>
               </div>
@@ -308,7 +303,6 @@ export default function Onboarding() {
                   variant="outline"
                   onClick={() => setStep(1)}
                   className="h-[52px] rounded-2xl text-[14px] font-semibold px-6 flex items-center gap-2"
-                  style={{ fontFamily: "'Cairo', sans-serif" }}
                 >
                   <ArrowLeft className="w-4 h-4" />
                   رجوع
@@ -318,7 +312,6 @@ export default function Onboarding() {
                     onClick={handleFinish}
                     disabled={loading || uploadingLogo}
                     className="w-full h-[52px] rounded-2xl text-[16px] font-bold border-0 transition-all duration-300 gradient-primary text-primary-foreground"
-                    style={{ fontFamily: "'Cairo', sans-serif" }}
                   >
                     {loading || uploadingLogo ? (
                       <span className="inline-flex items-center gap-2.5">
@@ -340,7 +333,6 @@ export default function Onboarding() {
                     navigate("/dashboard");
                   }}
                   className="text-[13px] text-muted-foreground hover:text-foreground transition-colors font-medium"
-                  style={{ fontFamily: "'Cairo', sans-serif" }}
                 >
                   تخطي هذه الخطوة
                 </button>

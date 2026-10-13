@@ -1,3 +1,4 @@
+import { getAnimationsEnabled, setAnimationsEnabled as saveAnimationsEnabled } from "@/lib/motionPreferences";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -1153,7 +1154,7 @@ function CompanySection() {
 
   const [brandPrimary, setBrandPrimary] = useState("#0d9488");
   const [brandAccent, setBrandAccent] = useState("#14b8a6");
-  const [brandFont, setBrandFont] = useState("Cairo, sans-serif");
+  const [brandFont, setBrandFont] = useState("Thmanyah Sans, sans-serif");
   const [brandQrForeground, setBrandQrForeground] = useState("#0f172a");
 
   useEffect(() => {
@@ -1192,7 +1193,7 @@ function CompanySection() {
                   const bs = compData.brand_settings;
                   setBrandPrimary(bs.primaryColor || "#0d9488");
                   setBrandAccent(bs.accentColor || "#14b8a6");
-                  setBrandFont(bs.fontFamily || "Cairo, sans-serif");
+                  setBrandFont(bs.fontFamily || "Thmanyah Sans, sans-serif");
                   setBrandQrForeground(bs.qrForeground || "#0f172a");
                 }
 
@@ -1587,7 +1588,8 @@ function CompanySection() {
               onChange={e => setBrandFont(e.target.value)}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 mt-1.5"
             >
-              <option value="Cairo, sans-serif">Cairo (الافتراضي)</option>
+              <option value="Thmanyah Sans, sans-serif">ثمانية (الافتراضي)</option>
+              <option value="Cairo, sans-serif">Cairo</option>
               <option value="Tajawal, sans-serif">Tajawal</option>
               <option value="Inter, sans-serif">Inter</option>
               <option value="Outfit, sans-serif">Outfit</option>
@@ -1866,16 +1868,14 @@ function CompanyMembersSection({ companyId, memberRole, isAdmin }: { companyId: 
 function PreferencesSection() {
   const { t, locale, setLocale } = useI18n();
   const { theme, setTheme } = useTheme();
-  const [animationsEnabled, setAnimationsEnabled] = useState(() => {
-    return localStorage.getItem("workspace-animations") !== "false";
-  });
+  const [animationsEnabled, setAnimationsEnabled] = useState(getAnimationsEnabled);
   const [shortcutsEnabled, setShortcutsEnabled] = useState(() => {
     return localStorage.getItem("workspace-shortcuts") !== "false";
   });
 
   const handleAnimationsChange = (checked: boolean) => {
     setAnimationsEnabled(checked);
-    localStorage.setItem("workspace-animations", String(checked));
+    saveAnimationsEnabled(checked);
     toast({
       title: locale === "en" ? "Animations Updated" : "تم تحديث المؤثرات الحركية",
       description: locale === "en" ? "Page transitions have been updated." : "تم حفظ تفضيلات حركة الصفحات بنجاح."

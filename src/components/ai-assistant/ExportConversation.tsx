@@ -1,3 +1,4 @@
+import { printWithFonts } from "@/lib/documentFonts";
 import { Button } from "@/components/ui/button";
 import { Download, FileText, Code, FileDown, Printer } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -99,17 +100,11 @@ export default function ExportConversation({ messages, title = "محادثة ا�
               <div class="content">${m.content}</div>
             </div>
           `).join("")}
-          <script>
-            window.onload = function() {
-              window.print();
-              // Do not immediately close to let the print dialog settle
-              setTimeout(function() { window.close(); }, 500);
-            }
-          </script>
         </body>
       </html>
     `);
     printWindow.document.close();
+    void printWithFonts(printWindow);
     toast({ title: isAr ? "تم تجهيز ملف الطباعة/PDF ✅" : "Print/PDF layout loaded ✅" });
   };
 

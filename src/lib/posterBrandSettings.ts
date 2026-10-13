@@ -20,7 +20,7 @@ export interface PosterBrandSettings {
   workspaceBgOpacity: number;
   /** Overlay opacity for custom login background image (0.1 to 0.9) */
   loginBgOverlayOpacity: number;
-  /** Font family name (must already be available, e.g. Cairo, Inter, Tajawal) */
+  /** Font family name (must already be available, e.g. Thmanyah Sans, Inter, Tajawal) */
   fontFamily: string;
   /** Foreground (modules) color for the QR itself */
   qrForeground: string;
@@ -37,7 +37,7 @@ export const DEFAULT_BRAND: PosterBrandSettings = {
   workspaceBgUrl: null,
   workspaceBgOpacity: 0.15,
   loginBgOverlayOpacity: 0.5,
-  fontFamily: "Cairo, sans-serif",
+  fontFamily: "Thmanyah Sans, sans-serif",
   qrForeground: "#0f172a",
 };
 

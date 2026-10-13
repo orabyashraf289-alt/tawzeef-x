@@ -1413,10 +1413,10 @@ export default function OffersPage() {
               <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center border border-amber-500/20 shadow-sm">
                 <Undo2 className="w-6 h-6 animate-pulse" />
               </div>
-              <AlertDialogTitle className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <AlertDialogTitle className="text-lg font-bold text-foreground">
                 تأكيد سحب العرض الوظيفي
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed">
                 هل أنت متأكد من رغبتك في سحب هذا العرض الوظيفي؟
                 <span className="text-xs text-amber-700 dark:text-amber-400 font-medium block mt-3 bg-amber-50 dark:bg-amber-950/40 p-2.5 rounded-xl border border-amber-200 dark:border-amber-900/40">
                   ⚠️ سيتم تغيير حالة العرض إلى "مسحوب" ولن يتمكن المرشح من قبوله أو التوقيع عليه، وسيتم إشعاره بهذا الإجراء.
@@ -1450,10 +1450,10 @@ export default function OffersPage() {
               <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-600 flex items-center justify-center border border-red-500/20 shadow-sm">
                 <Trash2 className="w-6 h-6 animate-pulse" />
               </div>
-              <AlertDialogTitle className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <AlertDialogTitle className="text-lg font-bold text-foreground">
                 تأكيد حذف العرض الوظيفي
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed">
                 هل أنت متأكد من حذف العرض الوظيفي لوظيفة <strong className="text-foreground">"{offerToDelete?.position}"</strong>؟
                 <span className="text-xs text-red-600 dark:text-red-400 font-medium block mt-3 bg-red-50 dark:bg-red-950/40 p-2.5 rounded-xl border border-red-200 dark:border-red-900/40">
                   ⚠️ سيتم حذف العرض وتفاصيله نهائياً من سجلات التوظيف.

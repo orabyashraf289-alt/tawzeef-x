@@ -420,10 +420,10 @@ export default function AdminCompanies() {
               <div className="w-12 h-12 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center border border-destructive/20 shadow-sm">
                 <Trash2 className="w-6 h-6 animate-pulse" />
               </div>
-              <AlertDialogTitle className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <AlertDialogTitle className="text-lg font-bold text-foreground">
                 تأكيد حذف شركة العميل وجميع توابعها
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed space-y-3" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed space-y-3">
                 <div>
                   أنت على وشك حذف شركة <strong className="text-foreground">"{companyToDelete?.name}"</strong> بشكل دائم لا يمكن التراجع عنه.
                 </div>

@@ -137,7 +137,7 @@ export default function Careers() {
       logoUrl: settings.logoUrl || companyBranding.logo_url,
       primaryColor: settings.primaryColor || "#0d9488",
       accentColor: settings.accentColor || "#14b8a6",
-      fontFamily: settings.fontFamily || "Cairo, sans-serif",
+      fontFamily: settings.fontFamily || "Thmanyah Sans, sans-serif",
     };
   }, [companyBranding]);
 

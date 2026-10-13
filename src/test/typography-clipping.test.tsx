@@ -67,9 +67,9 @@ describe("typography clipping guards", () => {
     );
   });
 
-  it("Arabic body uses IBM Plex Sans Arabic stack", () => {
-    expect(indexCss).toMatch(/IBM Plex Sans Arabic/);
-    expect(indexCss).toMatch(/Tajawal/);
+  it("Arabic body and headings use the shared typography tokens", () => {
+    expect(indexCss).toMatch(/font-family: var\(--font-ui\)/);
+    expect(indexCss).toMatch(/font-family: var\(--font-display\)/);
   });
 
   it("headings get extra padding-block-start to protect tall diacritics", () => {

@@ -1,4 +1,5 @@
 import type { Options as Html2CanvasOptions } from "html2canvas";
+import { waitForDocumentFonts } from "@/lib/documentFonts";
 
 export interface PdfExportOptions {
   filename?: string;
@@ -29,6 +30,7 @@ export async function exportReportElementToPdf(
     const { default: html2canvas } = await import("html2canvas");
     const { default: jsPDF } = await import("jspdf");
 
+    await waitForDocumentFonts();
     onProgress?.(35, "جاري التقاط صفحات التقرير بدقة عالية...");
 
     // Capture with enhanced settings for crisp text and graphics

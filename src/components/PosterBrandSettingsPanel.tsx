@@ -15,6 +15,7 @@ import { DEFAULT_BRAND, type PosterBrandSettings } from "@/lib/posterBrandSettin
 import { toast } from "@/hooks/use-toast";
 
 const FONT_OPTIONS = [
+  { label: "ثمانية (الافتراضي)", value: "Thmanyah Sans, sans-serif" },
   { label: "Cairo (عربي)", value: "Cairo, sans-serif" },
   { label: "Tajawal (عربي)", value: "Tajawal, sans-serif" },
   { label: "Inter (English)", value: "Inter, sans-serif" },

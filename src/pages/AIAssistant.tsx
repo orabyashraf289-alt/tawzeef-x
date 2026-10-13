@@ -1,3 +1,4 @@
+import { printWithFonts } from "@/lib/documentFonts";
 import { useSpeechService } from "@/hooks/useSpeechService";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
@@ -492,9 +493,7 @@ const InterviewGuideCard = ({ guide }: { guide: InterviewGuideData }) => {
 
     printWindow.document.write(html);
     printWindow.document.close();
-    setTimeout(() => {
-      printWindow.print();
-    }, 250);
+    void printWithFonts(printWindow);
   };
 
   return (
@@ -1041,9 +1040,7 @@ const InteractiveOfferCard = ({ offer }: { offer: OfferData }) => {
     
     printWindow.document.write(html);
     printWindow.document.close();
-    setTimeout(() => {
-      printWindow.print();
-    }, 250);
+    void printWithFonts(printWindow);
   };
 
   return (
