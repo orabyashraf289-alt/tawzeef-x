@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export interface SubscriptionPlanRow {
   id: string;
@@ -127,106 +128,25 @@ export function useSubscriptionPlans() {
 
 export function useMySubscription() {
   const { user } = useAuth();
+  const { activeCompany, isLoading: companyLoading } = useCompany();
+  const companyId = activeCompany?.parent_company_id || activeCompany?.id;
 
   return useQuery({
-    queryKey: ["my-subscription", user?.id],
+    queryKey: ["my-subscription", user?.id, companyId],
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
     queryFn: async () => {
-      if (!user) return null;
-
-      // 1) Get all company memberships
-      const { data: memberRows, error: memberErr } = await supabase
-        .from("company_members")
-        .select("company_id")
-        .eq("user_id", user.id);
-
-      if (memberErr || !memberRows || memberRows.length === 0) return null;
-
-      const companyIds = memberRows.map((r: CompanyMemberRow) => r.company_id);
-      const { data: companiesData } = await supabase
-        .from("companies")
-        .select("id, parent_company_id")
-        .in("id", companyIds);
-
-      if (!companiesData || companiesData.length === 0) return null;
-
-      // Prefer main company (parent_company_id is null)
-      const mainCompany = companiesData.find((c) => !c.parent_company_id);
-      const activeCompany = mainCompany || companiesData[0];
-      const targetCompanyId = activeCompany.parent_company_id || activeCompany.id;
-
-      // 2) Get company subscription by company_id OR fallback to user_id
-      let { data: subRow, error } = await supabase
+      if (!user || !companyId) return null;
+      // Reading billing state must never activate or rewrite a subscription.
+      const { data, error } = await supabase
         .from("company_subscriptions")
         .select("*")
-        .eq("company_id", targetCompanyId)
+        .eq("company_id", companyId)
         .maybeSingle();
-
-      if (!subRow) {
-        const { data: userSub } = await supabase
-          .from("company_subscriptions")
-          .select("*")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        subRow = userSub;
-      }
-
-      // 3) Auto-reconcile with latest paid invoice from company_invoices if present!
-      try {
-        const { data: latestInvoice } = await supabase
-          .from("company_invoices")
-          .select("*")
-          .eq("company_id", targetCompanyId)
-          .eq("status", "paid")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (latestInvoice) {
-          const needsReconcile =
-            !subRow ||
-            subRow.plan_id !== latestInvoice.plan_id ||
-            subRow.job_posts_limit !== latestInvoice.job_posts_limit;
-
-          if (needsReconcile) {
-            // Attempt self-heal in background
-            supabase
-              .from("company_subscriptions")
-              .upsert({
-                company_id: targetCompanyId,
-                user_id: user.id,
-                plan_id: latestInvoice.plan_id,
-                job_posts_limit: latestInvoice.job_posts_limit,
-                job_posts_used: subRow?.job_posts_used || 0,
-                status: "active",
-                starts_at: latestInvoice.starts_at,
-                expires_at: latestInvoice.expires_at,
-                updated_at: new Date().toISOString(),
-              } as any, { onConflict: "company_id" })
-              .then(() => {});
-
-            return {
-              id: subRow?.id || latestInvoice.subscription_id || latestInvoice.id,
-              user_id: user.id,
-              company_id: targetCompanyId,
-              plan_id: latestInvoice.plan_id,
-              status: "active",
-              job_posts_limit: latestInvoice.job_posts_limit,
-              job_posts_used: subRow?.job_posts_used || 0,
-              starts_at: latestInvoice.starts_at,
-              expires_at: latestInvoice.expires_at,
-            } as CompanySubscription;
-          }
-        }
-      } catch (invErr) {
-        console.warn("Could not check company_invoices for auto-reconciliation:", invErr);
-      }
-
-      if (error && !subRow) throw error;
-      return (subRow as unknown) as CompanySubscription | null;
+      if (error) throw error;
+      return data as CompanySubscription | null;
     },
-    enabled: !!user,
+    enabled: !!user && !!companyId && !companyLoading,
   });
 }
 
@@ -254,28 +174,15 @@ export function useCanPostJob() {
 export function useCreateUpgradeRequest() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { activeCompany, myCompanies, isLoading: companyLoading } = useCompany();
 
   return useMutation({
     mutationFn: async ({ targetPlanId, targetPlanName, notes }: { targetPlanId: string; targetPlanName: string; notes?: string }) => {
       if (!user) throw new Error("المستخدم غير مسجل الدخول");
 
-      const { data: memberRows } = await supabase
-        .from("company_members")
-        .select("company_id")
-        .eq("user_id", user.id);
-
-      if (!memberRows || memberRows.length === 0) throw new Error("لم يتم العثور على شركة مرتبطة بالحساب");
-
-      const companyIds = memberRows.map((r: any) => r.company_id);
-      const { data: companiesData } = await supabase
-        .from("companies")
-        .select("id, name, parent_company_id")
-        .in("id", companyIds);
-
-      const mainCompany = (companiesData || []).find((c) => !c.parent_company_id);
-      const activeCompany = mainCompany || (companiesData && companiesData[0]);
-      const companyId = activeCompany?.parent_company_id || activeCompany?.id || companyIds[0];
-      const companyName = activeCompany?.name || "الشركة";
+      if (companyLoading || !activeCompany) throw new Error("اختر شركة أولاً");
+      const companyId = activeCompany.parent_company_id || activeCompany.id;
+      const companyName = myCompanies.find(c => c.id === companyId)?.name || activeCompany.name;
 
       let insertedRecord: any = null;
 
@@ -297,9 +204,7 @@ export function useCreateUpgradeRequest() {
         insertedRecord = data;
       } catch (err: any) {
         const isTableMissing =
-          err?.code === "PGRST205" ||
-          err?.message?.includes("schema cache") ||
-          err?.message?.includes("subscription_upgrade_requests");
+          err?.code === "PGRST205" || err?.code === "42P01";
 
         if (isTableMissing) {
           console.warn("Table subscription_upgrade_requests is missing in Supabase. Using fallback notification and local storage queue.");
@@ -903,45 +808,31 @@ export function useRejectUpgradeRequest() {
   });
 }
 
-export function useCompanyInvoices() {
+export function useCompanyInvoices({ allCompanies = false } = {}) {
   const { user } = useAuth();
+  const { activeCompany, isLoading: companyLoading } = useCompany();
+  const companyId = activeCompany?.parent_company_id || activeCompany?.id;
 
   return useQuery({
-    queryKey: ["company-invoices", user?.id],
+    queryKey: ["company-invoices", user?.id, allCompanies ? "all" : companyId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user || (!allCompanies && !companyId)) return [];
+      // The admin view opts into all rows permitted by RLS; tenant views are scoped.
+      const query = supabase.from("company_invoices").select("*");
+      if (!allCompanies) query.eq("company_id", companyId!);
+      const { data, error } = await query.order("created_at", { ascending: false });
+      if (error) throw error;
+      if (!data?.length) return [];
 
-      try {
-        const { data, error } = await supabase
-          .from("company_invoices")
-          .select("*")
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          const isTableMissing =
-            error.code === "PGRST205" ||
-            error.message?.includes("schema cache") ||
-            error.message?.includes("company_invoices");
-          if (isTableMissing) return [];
-          throw error;
-        }
-        if (!data || data.length === 0) return [];
-
-        const companyIds = Array.from(new Set(data.map((i: InvoiceRow) => i.company_id)));
-        const { data: cos } = await supabase.from("companies").select("id, name").in("id", companyIds);
-
-        return data.map((inv: InvoiceRow) => {
-          const co = (cos || []).find((c) => c.id === inv.company_id);
-          return {
-            ...inv,
-            company_name: co?.name || "شركة غير معرفة",
-          } as CompanyInvoice;
-        });
-      } catch (err) {
-        console.warn("Table company_invoices query skipped:", err);
-        return [];
-      }
+      const companyIds = Array.from(new Set(data.map((i: InvoiceRow) => i.company_id)));
+      const { data: companies, error: companyError } = await supabase
+        .from("companies").select("id, name").in("id", companyIds);
+      if (companyError) throw companyError;
+      return data.map((invoice: InvoiceRow) => ({
+        ...invoice,
+        company_name: companies?.find(c => c.id === invoice.company_id)?.name || "شركة غير معرفة",
+      })) as CompanyInvoice[];
     },
-    enabled: !!user,
+    enabled: !!user && (allCompanies || (!!companyId && !companyLoading)),
   });
 }

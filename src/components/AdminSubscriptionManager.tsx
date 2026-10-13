@@ -133,7 +133,7 @@ export default function AdminSubscriptionManager() {
   const { data: plans, isLoading: plansLoading } = useSubscriptionPlans();
   const { data: companies, isLoading: companiesLoading } = useCompaniesList();
   const { data: upgradeRequests, isLoading: requestsLoading } = useUpgradeRequests();
-  const { data: invoices } = useCompanyInvoices();
+  const { data: invoices } = useCompanyInvoices({ allCompanies: true });
   const updatePlan = useUpdatePlan();
   const customUpgrade = useAdminCustomUpgradeSubscription();
   const rejectUpgrade = useRejectUpgradeRequest();
