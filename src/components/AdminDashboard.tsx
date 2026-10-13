@@ -1,3 +1,4 @@
+import AnimatedCount from "@/components/motion/AnimatedCount";
 import { useDashboardStats, useCandidates, useInterviews, useJobs, useNotifications } from "@/hooks/useJobs";
 import { useAllUserRoles } from "@/hooks/useUserRole";
 import { useOffers } from "@/hooks/useOffers";
@@ -16,7 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useMemo, useState, useEffect, useCallback, useRef, memo } from "react";
+import { useMemo, useState, useEffect, useCallback, memo } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend, RadialBarChart, RadialBar } from "recharts";
 import { cn } from "@/lib/utils";
 import KPIDetailsDialog from "@/components/KPIDetailsDialog";
@@ -39,32 +40,8 @@ const chartTooltipStyle = {
   boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
 };
 
-function useCountUp(target: number, duration = 1200) {
-  const [count, setCount] = useState(0);
-  const prevTarget = useRef(0);
-  useEffect(() => {
-    if (target === prevTarget.current) return;
-    prevTarget.current = target;
-    const startTime = performance.now();
-    const step = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.round(target * eased));
-      if (progress < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [target, duration]);
-  return count;
-}
-
-const AnimatedValue = memo(function AnimatedValue({ value, delay = 0, className = "" }: { value: number; delay?: number; className?: string }) {
-  const count = useCountUp(value, 1200);
-  return (
-    <motion.span className={cn("tabular-nums", className)} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}>
-      {count}
-    </motion.span>
-  );
+const AnimatedValue = memo(function AnimatedValue({ value, className = "" }: { value: number; className?: string }) {
+  return <span className={cn("tabular-nums", className)}><AnimatedCount value={value} /></span>;
 });
 
 // Memoized — its 1Hz tick must not re-render the dashboard tree.
@@ -530,7 +507,7 @@ export default function AdminDashboard() {
                 <motion.div key={i} whileHover={{ scale: 1.04, y: -2 }} transition={{ type: "spring", stiffness: 300, damping: 15 }}
                   className={cn("rounded-md3-xl p-2.5 text-center cursor-default border transition-all duration-200 shadow-xs", m.bg)}>
                   <m.icon className={cn("w-4 h-4 mx-auto mb-1", m.color)} />
-                  <p className={cn("text-lg font-black", m.color)}><AnimatedValue value={m.value} delay={i * 0.05} /></p>
+                  <p className={cn("text-lg font-black", m.color)}><AnimatedValue value={m.value} /></p>
                   <p className="text-[9px] text-muted-foreground font-semibold leading-tight">{m.label}</p>
                 </motion.div>
               ))}
@@ -614,7 +591,7 @@ export default function AdminDashboard() {
                   >
                     <m.icon className={`w-4 h-4 mx-auto mb-1.5 ${m.color}`} />
                     <p className={`text-xl font-bold tabular-nums ${m.color}`}>
-                      {(m as any).prefix || ""}<AnimatedValue value={m.value} delay={i * 0.06} />{(m as any).suffix || ""}
+                      {(m as any).prefix || ""}<AnimatedValue value={m.value} />{(m as any).suffix || ""}
                     </p>
                     <p className="text-[9px] text-muted-foreground leading-tight mt-0.5">{m.label}</p>
                   </motion.div>

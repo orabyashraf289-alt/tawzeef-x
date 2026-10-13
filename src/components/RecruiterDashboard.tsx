@@ -1,3 +1,4 @@
+import AnimatedCount from "@/components/motion/AnimatedCount";
 import { useDashboardStats, useInterviews, useCandidates, useJobs, useNotifications } from "@/hooks/useJobs";
 import { useOffers } from "@/hooks/useOffers";
 import { useI18n } from "@/contexts/I18nContext";
@@ -11,7 +12,7 @@ import {
   MessageSquare, PhoneCall, Mail
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
-import { useState, useMemo, useEffect, useRef, memo } from "react";
+import { useState, useMemo, useEffect, memo } from "react";
 import { cn } from "@/lib/utils";
 import KPIDetailsDialog from "@/components/KPIDetailsDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,32 +34,8 @@ const STAGES = ["تقديم الطلب", "مراجعة السيرة", "فحص ه
 const container = stagger(0.04);
 const item = fadeUp;
 
-function useCountUp(target: number, duration = 1200) {
-  const [count, setCount] = useState(0);
-  const prevTarget = useRef(0);
-  useEffect(() => {
-    if (target === prevTarget.current) return;
-    prevTarget.current = target;
-    const startTime = performance.now();
-    const step = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.round(target * eased));
-      if (progress < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [target, duration]);
-  return count;
-}
-
-const AnimatedStatValue = memo(function AnimatedStatValue({ value, delay }: { value: number; delay: number }) {
-  const count = useCountUp(value, 1200);
-  return (
-    <motion.p className="text-3xl font-bold text-foreground tabular-nums" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}>
-      {count}
-    </motion.p>
-  );
+const AnimatedStatValue = memo(function AnimatedStatValue({ value }: { value: number }) {
+  return <p className="text-3xl font-bold text-foreground tabular-nums"><AnimatedCount value={value} /></p>;
 });
 
 // Memoized so its 1Hz tick doesn't re-render the entire dashboard tree.
@@ -499,7 +476,7 @@ export default function RecruiterDashboard() {
                 </div>
 
                 <div className="mt-4 space-y-1">
-                  <AnimatedStatValue value={stat.value} delay={i * 0.1 + 0.2} />
+                  <AnimatedStatValue value={stat.value} />
                   <p className="text-sm font-black text-foreground">{stat.title}</p>
                   <p className="text-xs text-muted-foreground font-medium">{stat.subtitle}</p>
                 </div>

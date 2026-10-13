@@ -1,20 +1,8 @@
-import { motion } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
-import {
-  Plus,
-  Briefcase,
-  Calendar,
-  FileCheck2,
-  Award,
-  Archive,
-  FileSpreadsheet,
-  Zap,
-  Users,
-  Building2,
-  Sparkles,
-  ArrowUpRight
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useRef } from "react";
+import { gsap, useGSAP } from "@/lib/gsap";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useNavigate } from "react-router-dom";
+import { Plus, Calendar, FileCheck2, Award, Archive, FileSpreadsheet } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +17,47 @@ export default function DashboardQuickActions({
 }: DashboardQuickActionsProps) {
   const { locale, dir } = useI18n();
   const navigate = useNavigate();
+  const scope = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion();
+
+  useGSAP(() => {
+    if (reduced || !scope.current) return;
+    const select = gsap.utils.selector(scope);
+    // Animate wrappers so entry and button hover never compete for transforms.
+    const entrance = gsap.from(select("[data-action-entry]"), {
+      opacity: 0, y: 10, duration: 0.38, stagger: 0.045,
+      ease: "power3.out", clearProps: "opacity,transform",
+    });
+    // Keyboard navigation must never land on an invisible entering action.
+    const showActions = () => { entrance.progress(1); };
+    const root = scope.current;
+    root.addEventListener("focusin", showActions);
+    const media = gsap.matchMedia();
+    media.add("(hover: hover) and (pointer: fine)", () => {
+      const cleanups = select("[data-quick-action]").map((button: HTMLButtonElement) => {
+        const icon = button.querySelector("[data-action-icon]");
+        const lift = gsap.quickTo(button, "y", { duration: 0.22, ease: "power2.out" });
+        const turn = gsap.quickTo(icon, "rotation", { duration: 0.25, ease: "power2.out" });
+        const enter = (event: PointerEvent) => {
+          if (event.pointerType !== "mouse") return;
+          lift(-3); turn(dir === "rtl" ? -6 : 6);
+        };
+        const reset = () => { lift(0); turn(0); };
+        button.addEventListener("pointerenter", enter);
+        button.addEventListener("pointerleave", reset);
+        button.addEventListener("blur", reset);
+        window.addEventListener("blur", reset);
+        return () => {
+          button.removeEventListener("pointerenter", enter);
+          button.removeEventListener("pointerleave", reset);
+          button.removeEventListener("blur", reset);
+          window.removeEventListener("blur", reset);
+        };
+      });
+      return () => cleanups.forEach((cleanup: () => void) => cleanup());
+    });
+    return () => { root.removeEventListener("focusin", showActions); media.revert(); };
+  }, { scope, dependencies: [reduced, dir], revertOnUpdate: true });
 
   const actions = [
     {
@@ -97,7 +126,7 @@ export default function DashboardQuickActions({
   ];
 
   return (
-    <div className={cn("space-y-2.5", className)} dir={dir}>
+    <div ref={scope} className={cn("space-y-2.5", className)} dir={dir}>
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -111,38 +140,38 @@ export default function DashboardQuickActions({
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-        {actions.map((act, i) => {
+        {actions.map((act) => {
           const Icon = act.icon;
           return (
-            <motion.button
-              key={act.id}
-              type="button"
-              onClick={act.onClick}
-              whileHover={{ scale: 1.03, y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              className={cn(
-                "p-3 rounded-2xl border border-border/70 bg-card/80 backdrop-blur-sm text-right transition-all flex flex-col justify-between group shadow-xs hover:shadow-md",
-                act.bgHover
-              )}
-            >
-              <div className="flex items-center justify-between gap-1 mb-2">
-                <div className={cn("w-8 h-8 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-xs", act.color)}>
-                  <Icon className="w-4 h-4" />
+            <div key={act.id} data-action-entry className="min-w-0">
+              <button
+                data-quick-action
+                type="button"
+                onClick={act.onClick}
+                className={cn(
+                  "w-full h-full p-3 rounded-2xl border border-border/70 bg-card/80 backdrop-blur-sm text-start transition-[background-color,border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 flex flex-col justify-between group shadow-xs hover:shadow-md",
+                  act.bgHover
+                )}
+              >
+                <div className="flex items-center justify-between gap-1 mb-2">
+                  <div data-action-icon className={cn("w-8 h-8 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-xs", act.color)}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-muted/60 text-muted-foreground border border-border/40">
+                    {act.badge}
+                  </span>
                 </div>
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-muted/60 text-muted-foreground border border-border/40">
-                  {act.badge}
-                </span>
-              </div>
 
-              <div>
-                <p className="text-xs font-black text-foreground group-hover:text-primary transition-colors truncate">
-                  {act.title}
-                </p>
-                <p className="text-[9px] text-muted-foreground truncate mt-0.5">
-                  {act.subtitle}
-                </p>
-              </div>
-            </motion.button>
+                <div>
+                  <p className="text-xs font-black text-foreground group-hover:text-primary transition-colors truncate">
+                    {act.title}
+                  </p>
+                  <p className="text-[9px] text-muted-foreground truncate mt-0.5">
+                    {act.subtitle}
+                  </p>
+                </div>
+              </button>
+            </div>
           );
         })}
       </div>

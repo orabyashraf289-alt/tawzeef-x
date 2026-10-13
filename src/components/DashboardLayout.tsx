@@ -1,3 +1,4 @@
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import PageTransition from "@/components/PageTransition";
 import { ReactNode, useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -97,6 +98,7 @@ import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   useRealtimeSync();
+  const reduced = useReducedMotion();
   const { data: brandSettings } = useBrandSettings();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [navLoading, setNavLoading] = useState(false);
@@ -216,7 +218,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     return () => clearTimeout(tm);
   }, [location.pathname]);
 
-  const SidebarContent = () => (
+  const renderSidebarContent = (mobile = false) => (
     <div className="flex flex-col h-full bg-md-surface-container border-r border-md-outline-variant/60 text-md-on-surface">
       {/* 1. Header & Organization Identity */}
       <div className="flex items-center justify-between gap-3 px-4 h-16 border-b border-md-outline-variant/60 shrink-0 bg-md-surface/60 backdrop-blur-md">
@@ -275,7 +277,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   initial={{ opacity: 0, y: -6, scale: 0.96 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.96 }}
-                  transition={{ duration: 0.15 }}
+                  transition={{ duration: reduced ? 0 : 0.18, ease: "easeOut" }}
                   className="absolute top-full mt-1.5 w-full bg-md-surface border border-md-outline-variant shadow-md3-3 rounded-md3-xl p-1.5 z-50 flex flex-col gap-1"
                 >
                   <button
@@ -307,7 +309,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
       {/* 3. Navigation Groups (MD3 Drawer) */}
       <nav className="flex-1 py-3 px-2 space-y-4 overflow-y-auto custom-scrollbar" data-tour="sidebar">
-        {navGroups.map((group) => {
+        {navGroups.map((group, groupIndex) => {
           const visibleItems = group.items.filter((item) => {
             const itemWorkspaces = item.workspaces || ["recruitment"];
             const allowedRoles = item.roles || ["admin", "recruiter", "reviewer"];
@@ -319,7 +321,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           if (visibleItems.length === 0) return null;
 
           return (
-            <div key={group.id} className="space-y-1">
+            <motion.div
+              key={group.id}
+              initial={mobile && !reduced ? { opacity: 0, x: dir === "rtl" ? 8 : -8 } : false}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: reduced ? 0 : 0.2, delay: mobile && !reduced ? groupIndex * 0.025 : 0 }}
+              className="space-y-1"
+            >
               <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-md-on-surface-variant/70">
                 {locale === "en" ? group.labelEn : group.labelAr}
               </div>
@@ -330,6 +338,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     <Link
                       key={item.path}
                       to={item.path}
+                      aria-current={isActive ? "page" : undefined}
                       className="block relative group"
                       data-tour={tourIdMap[item.path]}
                       onMouseEnter={() => prefetchRoute(item.path)}
@@ -365,7 +374,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   );
                 })}
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </nav>
@@ -428,7 +437,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         "hidden lg:flex fixed top-0 z-40 h-screen w-64 flex-col",
         dir === "rtl" ? "right-0" : "left-0"
       )}>
-        <SidebarContent />
+        {renderSidebarContent()}
       </aside>
 
       {/* Mobile Drawer */}
@@ -436,23 +445,24 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         {mobileOpen && (
           <div className="fixed inset-0 z-50 lg:hidden">
             <motion.div
-              initial={{ opacity: 0 }}
+              initial={{ opacity: reduced ? 1 : 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: reduced ? 0 : 0.18 }}
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
               onClick={() => setMobileOpen(false)}
             />
             <motion.aside
-              initial={{ x: dir === "rtl" ? "100%" : "-100%" }}
+              initial={{ x: reduced ? 0 : dir === "rtl" ? "100%" : "-100%" }}
               animate={{ x: 0 }}
-              exit={{ x: dir === "rtl" ? "100%" : "-100%" }}
-              transition={{ type: "spring", stiffness: 300, damping: 28 }}
+              exit={{ x: reduced ? 0 : dir === "rtl" ? "100%" : "-100%" }}
+              transition={{ duration: reduced ? 0 : 0.26, ease: [0.22, 1, 0.36, 1] }}
               className={cn(
                 "absolute top-0 h-full w-72 shadow-2xl z-50",
                 dir === "rtl" ? "right-0" : "left-0"
               )}
             >
-              <SidebarContent />
+              {renderSidebarContent(true)}
             </motion.aside>
           </div>
         )}
