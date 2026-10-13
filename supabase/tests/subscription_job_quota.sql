@@ -12,7 +12,8 @@ INSERT INTO public.companies (id, name, owner_user_id, is_platform_company) VALU
   ('11000000-0000-0000-0000-000000000003','Platform fixture','21000000-0000-0000-0000-000000000001',true);
 INSERT INTO public.companies (id, name, owner_user_id, parent_company_id) VALUES
   ('11000000-0000-0000-0000-000000000004','Tenant A branch','21000000-0000-0000-0000-000000000001','11000000-0000-0000-0000-000000000001'),
-  ('11000000-0000-0000-0000-000000000005','Platform branch','21000000-0000-0000-0000-000000000001','11000000-0000-0000-0000-000000000003');
+  ('11000000-0000-0000-0000-000000000005','Platform branch one','21000000-0000-0000-0000-000000000001','11000000-0000-0000-0000-000000000003'),
+  ('11000000-0000-0000-0000-000000000008','Platform branch two','21000000-0000-0000-0000-000000000001','11000000-0000-0000-0000-000000000003');
 INSERT INTO public.companies (id, name) VALUES
   ('11000000-0000-0000-0000-000000000006','Tenant pending owner');
 UPDATE public.companies SET owner_user_id='21000000-0000-0000-0000-000000000002'
@@ -20,11 +21,12 @@ WHERE id='11000000-0000-0000-0000-000000000006';
 
 DO $$ BEGIN
   IF (SELECT count(*) FROM public.company_subscriptions
-      WHERE company_id IN ('11000000-0000-0000-0000-000000000001','11000000-0000-0000-0000-000000000002','11000000-0000-0000-0000-000000000006')) <> 3
+      WHERE company_id IN ('11000000-0000-0000-0000-000000000001','11000000-0000-0000-0000-000000000002','11000000-0000-0000-0000-000000000003','11000000-0000-0000-0000-000000000006')) <> 4
      OR EXISTS (SELECT 1 FROM public.company_subscriptions
-                WHERE company_id IN ('11000000-0000-0000-0000-000000000003','11000000-0000-0000-0000-000000000004','11000000-0000-0000-0000-000000000005'))
+                WHERE company_id IN ('11000000-0000-0000-0000-000000000004','11000000-0000-0000-0000-000000000005','11000000-0000-0000-0000-000000000008'))
      OR EXISTS (SELECT 1 FROM public.company_subscriptions s JOIN public.subscription_plans p ON p.id=s.plan_id
-                WHERE s.company_id='11000000-0000-0000-0000-000000000001' AND (p.name<>'free' OR p.price<>0 OR s.job_posts_limit<>p.job_posts_limit))
+                WHERE s.company_id IN ('11000000-0000-0000-0000-000000000001','11000000-0000-0000-0000-000000000003')
+                  AND (p.name<>'free' OR p.price<>0 OR s.job_posts_limit<>p.job_posts_limit))
   THEN RAISE EXCEPTION 'Incorrect free subscription provisioning'; END IF;
 END $$;
 
@@ -47,8 +49,9 @@ CREATE TEMP TABLE quota_probe (company_id uuid NOT NULL);
 CREATE TRIGGER trg_quota_probe BEFORE INSERT ON quota_probe
 FOR EACH ROW EXECUTE FUNCTION public.enforce_job_subscription_quota();
 UPDATE public.company_subscriptions SET job_posts_limit=1
-WHERE company_id IN ('11000000-0000-0000-0000-000000000001','11000000-0000-0000-0000-000000000002');
+WHERE company_id IN ('11000000-0000-0000-0000-000000000001','11000000-0000-0000-0000-000000000002','11000000-0000-0000-0000-000000000003');
 INSERT INTO quota_probe VALUES ('11000000-0000-0000-0000-000000000004');
+INSERT INTO quota_probe VALUES ('11000000-0000-0000-0000-000000000005');
 DO $$ BEGIN
   BEGIN
     INSERT INTO quota_probe VALUES ('11000000-0000-0000-0000-000000000001');
@@ -57,12 +60,19 @@ DO $$ BEGIN
     IF SQLERRM <> 'subscription_limit_reached' THEN RAISE; END IF;
   END;
   BEGIN
-    INSERT INTO quota_probe VALUES ('11000000-0000-0000-0000-000000000005');
-    RAISE EXCEPTION 'Platform branch posted without a subscription';
+    INSERT INTO quota_probe VALUES ('11000000-0000-0000-0000-000000000008');
+    RAISE EXCEPTION 'Platform branches received separate quotas';
+  EXCEPTION WHEN check_violation THEN
+    IF SQLERRM <> 'subscription_limit_reached' THEN RAISE; END IF;
+  END;
+  BEGIN
+    INSERT INTO quota_probe VALUES ('11000000-0000-0000-0000-000000000003');
+    RAISE EXCEPTION 'Platform parent bypassed the shared quota';
   EXCEPTION WHEN check_violation THEN
     IF SQLERRM <> 'subscription_limit_reached' THEN RAISE; END IF;
   END;
   IF (SELECT job_posts_used FROM public.company_subscriptions WHERE company_id='11000000-0000-0000-0000-000000000001') <> 1
+     OR (SELECT job_posts_used FROM public.company_subscriptions WHERE company_id='11000000-0000-0000-0000-000000000003') <> 1
      OR (SELECT job_posts_used FROM public.company_subscriptions WHERE company_id='11000000-0000-0000-0000-000000000002') <> 0
   THEN RAISE EXCEPTION 'Quota updated a different tenant or counted a rejected job'; END IF;
 END $$;
@@ -99,7 +109,16 @@ DO $$ BEGIN
 END $$;
 
 INSERT INTO public.company_members (company_id,user_id,member_role) VALUES
-  ('11000000-0000-0000-0000-000000000001','21000000-0000-0000-0000-000000000001','owner');
+  ('11000000-0000-0000-0000-000000000001','21000000-0000-0000-0000-000000000001','owner'),
+  ('11000000-0000-0000-0000-000000000005','21000000-0000-0000-0000-000000000002','viewer');
+SELECT set_config('request.jwt.claim.sub','21000000-0000-0000-0000-000000000002',true);
+SET LOCAL ROLE authenticated;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.company_subscriptions
+                 WHERE company_id='11000000-0000-0000-0000-000000000003')
+  THEN RAISE EXCEPTION 'Platform branch member cannot read shared subscription'; END IF;
+END $$;
+RESET ROLE;
 SELECT set_config('request.jwt.claim.sub','21000000-0000-0000-0000-000000000001',true);
 SET LOCAL ROLE authenticated;
 DO $$ BEGIN
