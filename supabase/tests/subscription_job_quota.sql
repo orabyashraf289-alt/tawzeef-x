@@ -103,9 +103,18 @@ INSERT INTO public.company_members (company_id,user_id,member_role) VALUES
 SELECT set_config('request.jwt.claim.sub','21000000-0000-0000-0000-000000000001',true);
 SET LOCAL ROLE authenticated;
 DO $$ BEGIN
-  UPDATE public.company_subscriptions SET job_posts_limit=500
-  WHERE company_id='11000000-0000-0000-0000-000000000001';
-  IF FOUND THEN RAISE EXCEPTION 'Tenant owner changed their own quota'; END IF;
+  BEGIN
+    UPDATE public.company_subscriptions SET job_posts_limit=500
+    WHERE company_id='11000000-0000-0000-0000-000000000001';
+    IF FOUND THEN RAISE EXCEPTION 'Tenant owner changed their own quota'; END IF;
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL; -- Table-level privilege denial is also the expected protection.
+  END;
 END $$;
 RESET ROLE;
+DO $$ BEGIN
+  IF (SELECT job_posts_limit FROM public.company_subscriptions
+      WHERE company_id='11000000-0000-0000-0000-000000000001') <> 1
+  THEN RAISE EXCEPTION 'Tenant owner changed their own quota'; END IF;
+END $$;
 ROLLBACK;
