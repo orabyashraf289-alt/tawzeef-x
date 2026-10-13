@@ -133,7 +133,7 @@ export default function AdminSubscriptionManager() {
   const { data: plans, isLoading: plansLoading } = useSubscriptionPlans();
   const { data: companies, isLoading: companiesLoading } = useCompaniesList();
   const { data: upgradeRequests, isLoading: requestsLoading } = useUpgradeRequests();
-  const { data: invoices } = useCompanyInvoices();
+  const { data: invoices } = useCompanyInvoices({ allCompanies: true });
   const updatePlan = useUpdatePlan();
   const customUpgrade = useAdminCustomUpgradeSubscription();
   const rejectUpgrade = useRejectUpgradeRequest();
@@ -644,10 +644,10 @@ export default function AdminSubscriptionManager() {
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center border border-amber-500/20 shadow-sm">
               <X className="w-6 h-6 animate-pulse" />
             </div>
-            <AlertDialogTitle className="text-lg font-bold text-foreground">
+            <AlertDialogTitle className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
               تأكيد رفض طلب ترقية الباقة
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed">
+            <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
               هل أنت متأكد من رغبتك في رفض طلب ترقية الباقة المقدم من شركة <strong className="text-foreground">"{rejectDialog?.companyName}"</strong>؟
               <span className="text-xs text-amber-700 dark:text-amber-400 font-medium block mt-3 bg-amber-50 dark:bg-amber-950/40 p-2.5 rounded-xl border border-amber-200 dark:border-amber-900/40">
                 ⚠️ سيتم تحديث حالة الطلب إلى "مرفوض" وإشعار مسؤولي الشركة عبر الإشعارات الفورية في النظام.
