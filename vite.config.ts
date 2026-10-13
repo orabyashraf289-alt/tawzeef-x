@@ -41,6 +41,8 @@ export default defineConfig(({ mode }) => ({
           'vendor-pdf': ['jspdf', 'html2canvas'],
           'vendor-xlsx': ['xlsx'],
           'vendor-motion': ['framer-motion'],
+          'vendor-gsap': ['gsap', '@gsap/react'],
+          'vendor-three': ['three'],
           'vendor-supabase': ['@supabase/supabase-js'],
           'vendor-query': ['@tanstack/react-query'],
           'vendor-radix': [

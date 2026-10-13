@@ -14,10 +14,10 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["IBM Plex Sans Arabic", "Inter", "system-ui", "sans-serif"],
-        display: ["Tajawal", "Inter", "system-ui", "sans-serif"],
-        arabic: ["IBM Plex Sans Arabic", "Tajawal", "sans-serif"],
-        latin: ["Inter", "system-ui", "sans-serif"],
+        sans: ["var(--font-ui)"],
+        display: ["var(--font-display)"],
+        arabic: ["var(--font-ui)"],
+        latin: ["var(--font-ui)"],
       },
       colors: {
         border: "hsl(var(--border))",
