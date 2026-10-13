@@ -152,10 +152,12 @@ export function useMySubscription() {
 
 export function useCanPostJob() {
   const sub = useMySubscription();
-  
-  const canPost = sub.data 
-    ? sub.data.job_posts_limit === -1 || sub.data.job_posts_used < sub.data.job_posts_limit
-    : false;
+  const now = Date.now();
+  const active = !!sub.data && sub.data.status === "active" &&
+    new Date(sub.data.starts_at).getTime() <= now &&
+    (!sub.data.expires_at || new Date(sub.data.expires_at).getTime() > now);
+  const canPost = active && !!sub.data &&
+    (sub.data.job_posts_limit === -1 || sub.data.job_posts_used < sub.data.job_posts_limit);
   
   const remaining = sub.data
     ? sub.data.job_posts_limit === -1 ? Infinity : sub.data.job_posts_limit - sub.data.job_posts_used
