@@ -2,7 +2,7 @@ import React from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useCompanyInvoices, useCreateUpgradeRequest, useMySubscription } from "@/hooks/useSubscription";
+import { useCanPostJob, useCompanyInvoices, useCreateUpgradeRequest, useMySubscription } from "@/hooks/useSubscription";
 import BillingHistory from "@/components/BillingHistory";
 
 const mocks = vi.hoisted(() => ({
@@ -75,6 +75,20 @@ it("uses the parent subscription for a selected branch", async () => {
   mocks.active = { id: "branch", name: "Branch", parent_company_id: "b" };
   const { result } = renderHook(useMySubscription, { wrapper: wrapper() });
   await waitFor(() => expect(result.current.data?.id).toBe("sub-b"));
+});
+it.each([
+  { status: "active", expires_at: null, used: 2, limit: 3, expected: true },
+  { status: "active", expires_at: null, used: 3, limit: 3, expected: false },
+  { status: "cancelled", expires_at: null, used: 0, limit: 3, expected: false },
+  { status: "active", expires_at: "2020-01-01T00:00:00Z", used: 0, limit: 3, expected: false },
+])("allows posting only within an active subscription: $status $used/$limit", async ({ status, expires_at, used, limit, expected }) => {
+  mocks.rows.company_subscriptions[1] = {
+    ...mocks.rows.company_subscriptions[1], status, expires_at,
+    starts_at: "2020-01-01T00:00:00Z", job_posts_used: used, job_posts_limit: limit,
+  };
+  const { result } = renderHook(useCanPostJob, { wrapper: wrapper() });
+  await waitFor(() => expect(result.current.subscription).toBeTruthy());
+  expect(result.current.canPost).toBe(expected);
 });
 it("does not substitute another owned subscription or activate from an invoice", async () => {
   mocks.rows.company_subscriptions = [mocks.rows.company_subscriptions[0]];

@@ -1749,8 +1749,7 @@ export default function AIAssistant() {
         salaryMax: (jobData.salary_max !== null && jobData.salary_max !== undefined) ? String(jobData.salary_max) : undefined,
       });
 
-      // Call RPC to increment job posts used
-      await supabase.rpc("increment_job_posts_used" as any, { _user_id: session.user.id });
+      // Job creation updates the selected company's counter transactionally.
       queryClient.invalidateQueries({ queryKey: ["my-subscription"] });
 
       const confirmedPreview = { ...msg.jobPreview, status: "confirmed" as const };
