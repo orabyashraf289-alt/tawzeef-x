@@ -1,8 +1,10 @@
+@import "./styles/fonts.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Fonts are now preconnected & loaded in index.html for ~200-400ms faster FCP */
+/* Thmanyah faces load on demand; Material Symbols remain independent. */
 
 /* Google Material Symbols Font Utility Rules */
 .material-symbols-outlined,
@@ -238,7 +240,7 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'IBM Plex Sans Arabic', 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: var(--font-ui);
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -247,21 +249,23 @@
     line-height: 1.65;
   }
 
-  /* Latin (LTR) uses Inter as primary */
+  /* Keep the bilingual typeface when the interface changes direction. */
   html[lang="en"] body,
   html[dir="ltr"] body {
-    font-family: 'Inter', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+    font-family: var(--font-ui);
     line-height: 1.6;
   }
 
-  /* Display font for headings — Tajawal renders Arabic diacritics & tall glyphs cleanly */
+  /* Sans keeps dense UI headings readable; display serif marks page titles. */
   :where(h1, h2, h3, h4, h5, h6) {
-    font-family: 'Tajawal', 'Inter', system-ui, sans-serif;
+    font-family: var(--font-ui);
     font-feature-settings: "kern", "liga", "calt", "ss01";
+  }
+  :where(h1, h2) {
+    font-family: var(--font-display);
   }
   html[lang="en"] :where(h1, h2, h3, h4, h5, h6),
   html[dir="ltr"] :where(h1, h2, h3, h4, h5, h6) {
-    font-family: 'Inter', 'Tajawal', system-ui, sans-serif;
     letter-spacing: -0.02em;
   }
 
@@ -313,11 +317,10 @@
      RTL / Arabic typography safety net
      Neutralizes Tailwind utilities that clip Arabic diacritics
      (leading-tight/none, tracking-tight/tighter) without forcing
-     edits across dozens of components. Also overrides leftover
-     inline `font-family: 'Cairo'` from older code.
+     edits across dozens of components.
      ============================================================ */
   html[lang="ar"], html[dir="rtl"] {
-    font-family: 'IBM Plex Sans Arabic', 'ArabicSystemFallback', 'Tajawal', system-ui, sans-serif;
+    font-family: var(--font-ui);
   }
 
   /* Bulletproof RTL letter-spacing safety net */
@@ -355,16 +358,19 @@
     letter-spacing: normal !important;
   }
 
-  /* Force any inline Cairo font-family to use the unified Arabic stack */
-  html[lang="ar"] [style*="Cairo"],
-  html[dir="rtl"] [style*="Cairo"] {
-    font-family: 'IBM Plex Sans Arabic', 'Tajawal', system-ui, sans-serif !important;
-  }
-
   /* Tiny extra block-start so fatha/shadda above tall glyphs never clip
      when parent has overflow-hidden (cards, badges, dialog headers). */
   html[lang="ar"] :where(h1, h2, h3) {
     padding-block-start: 0.05em;
+  }
+
+  html[data-motion="reduced"] *,
+  html[data-motion="reduced"] *::before,
+  html[data-motion="reduced"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 
   /* Reduced motion */
@@ -373,6 +379,7 @@
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
     }
   }
 
@@ -838,3 +845,28 @@
 }
 
 
+
+/* Decorative talent network: fixed geometry keeps layout stable while Three loads. */
+.talent-orbit {
+  position: relative;
+  height: clamp(180px, 22vw, 230px);
+  width: 100%;
+  color: hsl(var(--md-primary));
+  overflow: hidden;
+  border-radius: 20px;
+  background: radial-gradient(ellipse at 50% 55%, hsl(var(--md-primary-container) / 0.5), transparent 68%);
+}
+.talent-orbit-fallback,
+.talent-orbit-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.talent-orbit-fallback {
+  transition: opacity 300ms ease;
+}
+.talent-orbit[data-scene-status="ready"] .talent-orbit-fallback {
+  opacity: 0;
+}

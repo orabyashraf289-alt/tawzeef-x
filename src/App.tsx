@@ -1,3 +1,4 @@
+import MotionProvider from "@/components/motion/MotionProvider";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -196,22 +197,24 @@ const App = () => {
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <I18nProvider>
-          <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-              <CompanyProvider>
-                <TooltipProvider>
-                  <SessionManager />
-                  <Toaster />
-                  <Sonner />
-                  <BrowserRouter>
-                    <AnimatedRoutes />
-                  </BrowserRouter>
-                </TooltipProvider>
-              </CompanyProvider>
-            </AuthProvider>
-          </QueryClientProvider>
-        </I18nProvider>
+        <MotionProvider>
+          <I18nProvider>
+            <QueryClientProvider client={queryClient}>
+              <AuthProvider>
+                <CompanyProvider>
+                  <TooltipProvider>
+                    <SessionManager />
+                    <Toaster />
+                    <Sonner />
+                    <BrowserRouter>
+                      <AnimatedRoutes />
+                    </BrowserRouter>
+                  </TooltipProvider>
+                </CompanyProvider>
+              </AuthProvider>
+            </QueryClientProvider>
+          </I18nProvider>
+        </MotionProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

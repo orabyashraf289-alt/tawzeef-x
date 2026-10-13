@@ -2,11 +2,10 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { prefetchRoute, getTopRoutes, prefetchTopRoutes } from "@/lib/routePrefetch";
-import { autoPreloadFonts, watchLangChange } from "@/lib/fontPreload";
+import { autoPreloadFonts } from "@/lib/fontPreload";
 
-// Detect <html lang/dir> and preload only the relevant font subset (Arabic vs Latin).
+// Thmanyah supports both interface languages.
 autoPreloadFonts();
-watchLangChange();
 
 createRoot(document.getElementById("root")!).render(<App />);
 
