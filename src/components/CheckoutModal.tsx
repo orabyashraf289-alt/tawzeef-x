@@ -71,10 +71,10 @@ export default function CheckoutModal({
               <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-2">
                 <Sparkles className="w-5 h-5" />
               </div>
-              <DialogTitle className="text-xl font-bold" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <DialogTitle className="text-xl font-bold">
                 طلب ترقية الباقة إلى <span className="text-primary">{planNameAr}</span>
               </DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <DialogDescription className="text-sm text-muted-foreground">
                 أرسل طلب ترقية الباقة إلى إدارة المنصة ليتم التفعيل وتوليد الفاتورة المخصصة لشركتك.
               </DialogDescription>
             </DialogHeader>
@@ -147,10 +147,10 @@ export default function CheckoutModal({
             </motion.div>
 
             <div className="space-y-2">
-              <h3 className="text-xl font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <h3 className="text-xl font-bold text-foreground">
                 تم إرسال الطلب بنجاح! 🚀
               </h3>
-              <p className="text-sm text-muted-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              <p className="text-sm text-muted-foreground">
                 تم تسجيل طلب الترقية إلى باقة <span className="text-primary font-bold">{planNameAr}</span>. سيتم مراجعة الطلب بواسطة إدارة المنصة وتأكيد التفعيل فوراً.
               </p>
             </div>

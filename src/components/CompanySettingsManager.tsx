@@ -73,7 +73,7 @@ export default function CompanySettingsManager() {
   // Brand Colors & Custom Backgrounds
   const [brandPrimary, setBrandPrimary] = useState("#0d9488");
   const [brandAccent, setBrandAccent] = useState("#14b8a6");
-  const [brandFont, setBrandFont] = useState("Cairo, sans-serif");
+  const [brandFont, setBrandFont] = useState("Thmanyah Sans, sans-serif");
   const [brandQrForeground, setBrandQrForeground] = useState("#0f172a");
   const [loginBgUrl, setLoginBgUrl] = useState<string | null>(null);
   const [workspaceBgUrl, setWorkspaceBgUrl] = useState<string | null>(null);
@@ -187,7 +187,7 @@ export default function CompanySettingsManager() {
                   const bs = compData.brand_settings;
                   setBrandPrimary(bs.primaryColor || "#0d9488");
                   setBrandAccent(bs.accentColor || "#14b8a6");
-                  setBrandFont(bs.fontFamily || "Cairo, sans-serif");
+                  setBrandFont(bs.fontFamily || "Thmanyah Sans, sans-serif");
                   setBrandQrForeground(bs.qrForeground || "#0f172a");
                   setLoginBgUrl(bs.loginBgUrl || null);
                   setWorkspaceBgUrl(bs.workspaceBgUrl || null);
@@ -1188,10 +1188,10 @@ export default function CompanySettingsManager() {
             <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-600 flex items-center justify-center border border-red-500/20 shadow-sm">
               <Trash2 className="w-6 h-6 animate-pulse" />
             </div>
-            <AlertDialogTitle className="text-lg font-bold text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+            <AlertDialogTitle className="text-lg font-bold text-foreground">
               تأكيد حذف الفرع
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+            <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed">
               هل أنت متأكد من رغبتك في حذف فرع <strong className="text-foreground">"{branchToDelete?.name}"</strong>؟
               <span className="text-xs text-red-600 dark:text-red-400 font-medium block mt-3 bg-red-50 dark:bg-red-950/40 p-2.5 rounded-xl border border-red-200 dark:border-red-900/40">
                 ⚠️ سيؤدي حذف هذا الفرع إلى إلغاء ربطه بالموظفين والوظائف المرتبطة به.
