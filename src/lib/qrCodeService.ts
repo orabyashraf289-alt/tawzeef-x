@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getApplyUrl } from "@/lib/getPublicUrl";
 import { loadBrandSettings, type PosterBrandSettings } from "@/lib/posterBrandSettings";
+import { waitForDocumentFonts } from "@/lib/documentFonts";
 
 interface QRGenParams {
   jobId: string;
@@ -16,6 +17,7 @@ export async function generateJobQRCode(params: QRGenParams): Promise<string> {
   const { jobId, jobTitle } = params;
   const brand = params.brand ?? loadBrandSettings();
   const applyUrl = getApplyUrl(jobId);
+  await waitForDocumentFonts(document, [`400 16px ${brand.fontFamily}`, `700 22px ${brand.fontFamily}`]);
 
   const QRCode = (await import("qrcode")).default;
   const qrDataUrl = await QRCode.toDataURL(applyUrl, {

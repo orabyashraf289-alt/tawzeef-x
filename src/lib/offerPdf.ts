@@ -1,4 +1,5 @@
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
+import { waitForDocumentFonts } from "@/lib/documentFonts";
 
 interface OfferForPdf {
   position: string;
@@ -53,7 +54,7 @@ export async function generateOfferPdf(offer: OfferForPdf) {
   container.style.padding = "40px";
   container.style.backgroundColor = "#ffffff";
   container.style.color = "#1f2937";
-  container.style.fontFamily = "system-ui, -apple-system, sans-serif";
+  container.style.fontFamily = "var(--font-ui)";
   container.style.boxSizing = "border-box";
 
   // Parse salary breakdown & GOSI if present
@@ -241,6 +242,8 @@ export async function generateOfferPdf(offer: OfferForPdf) {
       import("html2canvas"),
       import("jspdf"),
     ]);
+
+    await waitForDocumentFonts();
 
     // Generate high-resolution canvas using html2canvas
     const canvas = await html2canvas(container, {

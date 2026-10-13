@@ -160,5 +160,5 @@ export const chartTooltipStyle = {
   fontSize: "12px",
   color: "hsl(var(--foreground))",
   boxShadow: "var(--shadow-lg)",
-  fontFamily: "'Cairo', sans-serif",
+  fontFamily: "var(--font-ui)",
 };
