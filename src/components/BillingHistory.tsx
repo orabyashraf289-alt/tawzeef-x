@@ -1,3 +1,4 @@
+import { printWithFonts } from "@/lib/documentFonts";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCompanyInvoices } from "@/hooks/useSubscription";
@@ -107,16 +108,17 @@ export default function BillingHistory() {
     <p style="margin-top:8px;">للاستفسارات: support@tawzeef-x.com</p>
   </div>
 </div>
-<script>window.onload = () => window.print();</script>
 </body>
 </html>`;
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, "_blank");
+    const win = window.open("", "_blank");
     if (!win) {
       toast({ title: "يرجى السماح بفتح نوافذ جديدة في المتصفح", variant: "destructive" });
     }
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      void printWithFonts(win);
+    }
   };
 
   if (isInvoicesLoading) {
