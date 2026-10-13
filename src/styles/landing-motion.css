@@ -1,0 +1,45 @@
+/* Motion layers are opt-in so other application screens retain their own behavior. */
+.landing-progress {
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 2px;
+  background: hsl(var(--md-primary));
+  transform: scaleX(0);
+  transform-origin: right center;
+  pointer-events: none;
+}
+.landing-card-shell { perspective: 900px; }
+.landing-feature-card {
+  position: relative;
+  isolation: isolate;
+  transition: box-shadow 250ms ease, border-color 250ms ease;
+}
+.landing-feature-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(360px circle at var(--spot-x, 50%) var(--spot-y, 50%), hsl(var(--md-primary) / 0.09), transparent 70%);
+  opacity: 0;
+  transition: opacity 250ms ease;
+  pointer-events: none;
+  z-index: -1;
+}
+[data-button-sheen] { position: relative; isolation: isolate; overflow: hidden; }
+[data-button-sheen]::after {
+  content: "";
+  position: absolute;
+  inset: -50% -30%;
+  background: linear-gradient(110deg, transparent 40%, rgb(255 255 255 / 0.22) 50%, transparent 60%);
+  transform: translateX(100%);
+  pointer-events: none;
+}
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  html:not([data-motion="reduced"]) .landing-card-shell:hover .landing-feature-card::before { opacity: 1; }
+  html:not([data-motion="reduced"]) [data-button-sheen]:hover::after {
+    transform: translateX(-100%);
+    transition: transform 700ms ease;
+  }
+}
+html[data-motion="reduced"] .landing-progress { display: none; }
+@media (prefers-reduced-motion: reduce) { .landing-progress { display: none; } }
