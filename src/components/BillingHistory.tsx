@@ -1,80 +1,19 @@
-import { printWithFonts } from "@/lib/documentFonts";
-import { CreditCard, FileText, Download, CheckCircle2, Package, Crown, Calendar, TrendingUp } from "lucide-react";
-import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/contexts/AuthContext";
-import { useMySubscription, useSubscriptionPlans, useCompanyInvoices, type CompanyInvoice } from "@/hooks/useSubscription";
-import { useMemo } from "react";
+import { useCompanyInvoices } from "@/hooks/useSubscription";
 import { toast } from "@/hooks/use-toast";
 
 export default function BillingHistory() {
-  const { user } = useAuth();
-  const { data: activeSub, isLoading: isSubLoading } = useMySubscription();
-  const { data: plans, isLoading: isPlansLoading } = useSubscriptionPlans();
-  const { data: dbInvoices, isLoading: isInvoicesLoading } = useCompanyInvoices();
-
-  // Resolve current active plan details
-  const currentPlan = useMemo(() => {
-    if (!plans || !activeSub) return null;
-    return plans.find(p => p.id === activeSub.plan_id) || plans.find(p => p.name === "free") || null;
-  }, [plans, activeSub]);
-
-  // Use database invoices if available, otherwise generate dynamic invoices fallback
-  const invoicesList = useMemo(() => {
-    if (dbInvoices && dbInvoices.length > 0) {
-      return dbInvoices.map((inv) => ({
-        id: inv.invoice_number || inv.id,
-        date: inv.created_at,
-        amount: inv.amount,
-        plan: inv.plan_name_ar,
-        companyName: inv.company_name,
-        jobPostsLimit: inv.job_posts_limit,
-        status: inv.status === "paid" ? "Paid" : "Pending",
-      }));
-    }
-
-    if (!activeSub || !currentPlan) return [];
-
-    const list: Array<{
-      id: string;
-      date: string;
-      amount: number;
-      plan: string;
-      companyName?: string;
-      jobPostsLimit: number;
-      status: string;
-    }> = [];
-
-    const startDate = new Date(activeSub.starts_at || new Date());
-    const currentDate = new Date();
-
-    let tempDate = new Date(startDate);
-    let index = 1;
-
-    let iterations = 0;
-    while (tempDate <= currentDate && iterations < 100) {
-      iterations++;
-      const year = tempDate.getFullYear();
-      const month = String(tempDate.getMonth() + 1).padStart(2, "0");
-      const day = String(tempDate.getDate()).padStart(2, "0");
-
-      list.unshift({
-        id: `INV-${year}-${month}-${String(index).padStart(3, "0")}`,
-        date: `${year}-${month}-${day}`,
-        amount: currentPlan.price,
-        plan: currentPlan.name_ar || currentPlan.name,
-        jobPostsLimit: currentPlan.job_posts_limit,
-        status: "Paid",
-      });
-
-      tempDate.setMonth(tempDate.getMonth() + 1);
-      index++;
-    }
-
-    return list;
-  }, [dbInvoices, activeSub, currentPlan]);
+  const { data: dbInvoices, isLoading: isInvoicesLoading, isError } = useCompanyInvoices();
+  const invoicesList = (dbInvoices || []).map(inv => ({
+    id: inv.invoice_number || inv.id,
+    date: inv.created_at,
+    amount: inv.amount,
+    plan: inv.plan_name_ar,
+    companyName: inv.company_name,
+    jobPostsLimit: inv.job_posts_limit,
+    status: inv.status === "paid" ? "Paid" : inv.status === "cancelled" ? "Cancelled" : "Pending",
+  }));
 
   const handleDownloadInvoice = (inv: { id: string; date: string; amount: number; plan: string; companyName?: string; jobPostsLimit: number; status: string }) => {
     const html = `<!DOCTYPE html>
@@ -123,7 +62,7 @@ export default function BillingHistory() {
     <div class="invoice-meta">
       <div class="invoice-num">${inv.id}</div>
       <div class="invoice-date">التاريخ: ${new Date(inv.date).toLocaleDateString("ar-SA", { year: "numeric", month: "long", day: "numeric" })}</div>
-      <div class="badge">${inv.status === "Paid" ? "✅ تم الدفع" : "⏳ معلق"}</div>
+      <div class="badge">${inv.status === "Paid" ? "✅ تم الدفع" : inv.status === "Cancelled" ? "ملغاة" : "⏳ معلق"}</div>
     </div>
   </div>
 
@@ -168,22 +107,23 @@ export default function BillingHistory() {
     <p style="margin-top:8px;">للاستفسارات: support@tawzeef-x.com</p>
   </div>
 </div>
+<script>window.onload = () => window.print();</script>
 </body>
 </html>`;
-    const win = window.open("", "_blank");
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
     if (!win) {
       toast({ title: "يرجى السماح بفتح نوافذ جديدة في المتصفح", variant: "destructive" });
     }
-    if (win) {
-      win.document.write(html);
-      win.document.close();
-      void printWithFonts(win);
-    }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
 
-  if (isSubLoading || isPlansLoading || isInvoicesLoading) {
+  if (isInvoicesLoading) {
     return <div className="text-center py-6 text-xs text-muted-foreground">جاري تحميل سجل الفواتير...</div>;
   }
+
+  if (isError) return <div role="alert">تعذر تحميل الفواتير. يرجى المحاولة مرة أخرى.</div>;
 
   return (
     <div className="space-y-6">
@@ -213,7 +153,7 @@ export default function BillingHistory() {
                       <td className="p-3 font-bold text-foreground">{inv.amount} SAR</td>
                       <td className="p-3">
                         <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800">
-                          {inv.status === "Paid" ? "تم الدفع" : "معلق"}
+                          {inv.status === "Paid" ? "تم الدفع" : inv.status === "Cancelled" ? "ملغاة" : "معلق"}
                         </span>
                       </td>
                       <td className="p-3 text-left">
