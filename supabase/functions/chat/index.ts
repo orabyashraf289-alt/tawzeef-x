@@ -1152,7 +1152,7 @@ ${userContext}
         headers: aiHeaders,
         body: JSON.stringify({ model: effectiveFastModel, messages: [{ role: "system", content: systemPrompt }, ...actualMessages, choice.message, ...toolResults], stream: false }),
       });
-      if (!followUp.ok) return new Response(JSON.stringify({ error: "تم تنفيذ الإجراء، لكن تعذر صياغة الرد. راجع البيانات قبل إعادة المحاولة." }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (!followUp.ok) return new Response(JSON.stringify(buildNonStreamResponse("تم تنفيذ الإجراء، لكن تعذر صياغة الملخص. راجع بطاقة النتيجة في هذه المحادثة قبل إعادة أي طلب.", actions)), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const followUpData = await followUp.json();
       const finalContent = followUpData.choices?.[0]?.message?.content || "راجع نتيجة الإجراء في النظام.";
       return new Response(JSON.stringify(buildNonStreamResponse(finalContent, actions)), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
