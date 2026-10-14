@@ -48,7 +48,10 @@ Deno.serve(async (req) => {
     const endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
     const jobReview = input.mode === "job_review";
-    const toolName = jobReview ? "review_job_ad" : "build_interview_scorecard";
+    const scorecard = input.mode === "interview_scorecard";
+    const checklist = input.mode === "screening_checklist";
+    const workflow = input.mode === "hiring_workflow";
+    const toolName = jobReview ? "review_job_ad" : scorecard ? "build_interview_scorecard" : checklist ? "build_screening_checklist" : workflow ? "plan_hiring_workflow" : "draft_candidate_outreach";
     const parameters = jobReview ? {
       type: "object",
       properties: {
@@ -58,7 +61,7 @@ Deno.serve(async (req) => {
         }, required: ["finding", "suggestion"] } },
         revisedDraft: { type: "string" },
       }, required: ["strengths", "issues", "revisedDraft"],
-    } : {
+    } : scorecard ? {
       type: "object",
       properties: {
         criteria: { type: "array", items: { type: "object", properties: {
@@ -66,10 +69,36 @@ Deno.serve(async (req) => {
         }, required: ["name", "evidence", "ratingGuide"] } },
         interviewerNotes: { type: "array", items: { type: "string" } },
       }, required: ["criteria", "interviewerNotes"],
+    } : checklist ? {
+      type: "object",
+      properties: {
+        requirements: { type: "array", items: { type: "object", properties: {
+          criterion: { type: "string" }, evidence: { type: "string" },
+        }, required: ["criterion", "evidence"] } },
+        verificationQuestions: { type: "array", items: { type: "string" } },
+        reviewNotes: { type: "array", items: { type: "string" } },
+      }, required: ["requirements", "verificationQuestions", "reviewNotes"],
+    } : workflow ? {
+      type: "object",
+      properties: {
+        stages: { type: "array", items: { type: "object", properties: {
+          name: { type: "string" }, purpose: { type: "string" }, completionSignal: { type: "string" },
+        }, required: ["name", "purpose", "completionSignal"] } },
+        planningNotes: { type: "array", items: { type: "string" } },
+      }, required: ["stages", "planningNotes"],
+    } : {
+      type: "object",
+      properties: {
+        invitation: { type: "string" }, followUp: { type: "string" },
+        placeholders: { type: "array", items: { type: "string" } },
+      }, required: ["invitation", "followUp", "placeholders"],
     };
     const instruction = jobReview
       ? "Review the job advertisement for clarity, concrete requirements, accessibility and avoidable exclusion. Give strengths, specific issues with actionable suggestions, and a revised draft. Do not invent pay, benefits, employer facts or legal guarantees."
-      : "Build a structured interview scorecard with 4-6 job-related criteria. Each criterion needs observable evidence and a 1-5 rating guide. Add interviewer notes for consistent assessment. Do not infer protected traits or make hiring decisions.";
+      : scorecard ? "Build a structured interview scorecard with 4-6 job-related criteria. Each criterion needs observable evidence and a 1-5 rating guide. Add interviewer notes for consistent assessment. Do not infer protected traits or make hiring decisions."
+      : checklist ? "Draft a job-related initial screening checklist. Separate observable requirements from assumptions; give evidence to request and verification questions. Only use requirements explicitly in the job text, and flag missing details for human review. Never score, rank, accept or reject candidates; do not infer protected traits."
+      : workflow ? "Draft a practical hiring workflow with 4-6 stages, the purpose and a clear completion signal for each stage. Add planning notes. Do not invent timelines, headcount, budget, legal requirements or employer policies. Keep decisions and approvals with the hiring team."
+      : "Draft two short candidate communication templates: an invitation to discuss the role and a polite follow-up. Use bracketed placeholders for candidate name, employer name, scheduling link and details not supplied. Do not assert facts, compensation, promises or hiring outcomes not in the job text. Never send messages.";
 
     const ai = await fetch(endpoint, {
       method: "POST",
