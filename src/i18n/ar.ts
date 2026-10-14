@@ -13,6 +13,7 @@ const ar: Record<string, string> = {
   "nav.hiringPlan": "خطة التوظيف",
   "nav.notifications": "الإشعارات",
   "nav.aiAssistant": "مساعد AI",
+  "nav.aiTools": "أدوات التوظيف الذكية",
   "nav.team": "إدارة الفريق",
   "nav.settings": "الإعدادات",
   "nav.signOut": "تسجيل الخروج",
