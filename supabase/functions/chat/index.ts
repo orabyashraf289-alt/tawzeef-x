@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
+import { requestChatCompletion } from "./provider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -946,7 +947,7 @@ serve(async (req) => {
 
     const { messages, resume_text, attached_files_text, model_override, disable_tools, stream } = await req.json();
     if (!Array.isArray(messages) || !messages.length || messages.length > 40 ||
-        messages.some((m) => !m || !(["user", "assistant"].includes(m.role) || (disable_tools === true && m.role === "system")) || typeof m.content !== "string" || m.content.length > 16000) ||
+        messages.some((m) => !m || !["user", "assistant"].includes(m.role) || typeof m.content !== "string" || m.content.length > 16000) ||
         messages[messages.length - 1].role !== "user" ||
         (resume_text !== undefined && (typeof resume_text !== "string" || resume_text.length > 30000)) ||
         (attached_files_text !== undefined && (typeof attached_files_text !== "string" || attached_files_text.length > 40000))) {
@@ -1031,36 +1032,17 @@ ${userContext}
    - يُمنع منعاً باتاً طباعة وسوم النظام مثل "&lt;thinking&gt;", "&lt;tool_code&gt;", "&lt;tool_call&gt;" أو أكواد برمجية مثل print(...) داخل ردك النصي.
    - كافّة الردود الموجهة للمستخدم يجب أن تقتصر على النص العربي المنظم بالتنسيق التنفيذي فقط دون أي حقول أو أكواد تقنية داخلية.
 
-5. 🚀 **التفاعل الفوري لإنشاء ونشر الوظائف**:
-   - عند طلب البحث عن وظيفة أو اقتراح/صياغة وظيفة جديدة، ادمج كافّة معلومات الأدوات المتاحة (نطاق الراتب بالريال السعودي، القسم، الخبرة، الجدارات) وقدم ردك متضمناً المفاتيح الصريحة التالية لتفعيل كارت الإضافة الفورية التفاعلي فوراً:
+5. 🚀 **معاينة الوظائف قبل حفظها**:
+   - عند طلب اقتراح/صياغة وظيفة جديدة، اذكر المعلومات التي قدمها المستخدم فقط. لا تخمّن نطاق الراتب أو الخبرة أو المدينة أو الجدارات. قدم ردك متضمناً المفاتيح التالية عند توفر بياناتها لتفعيل بطاقة المعاينة:
      - المسمى الوظيفي: [اسم الوظيفة]
      - القسم: [اسم القسم]
      - الموقع: [المدينة/الرياض]
      - نوع التوظيف: [دوام كامل/جزئي]
      - مستوى الخبرة: [السنوات]
-     - الراتب المتوقع: [الحد الأدنى - الحد الأقصى ر.س]`;
+     - الراتب المتوقع: [الحد الأدنى - الحد الأقصى والعملة، فقط إذا ذكرهما المستخدم]`;
 
 
-    async function fetchWithRetry(url: string, opts: any, retries = 3, delayMs = 800): Promise<Response> {
-      let r = await fetch(url, opts);
-      let attempt = 0;
-      while (r.status === 429 && attempt < retries) {
-        attempt++;
-        await new Promise((res) => setTimeout(res, delayMs * attempt));
-        r = await fetch(url, opts);
-      }
-      if (r.status === 429) {
-        // Try the fast model once if the pro model is rate limited.
-        try {
-          const bodyObj = JSON.parse(opts.body || "{}");
-          bodyObj.model = isDirectGemini ? MODEL_FAST : `google/${MODEL_FAST}`;
-          r = await fetch(url, { ...opts, body: JSON.stringify(bodyObj) });
-        } catch (err) {
-          console.warn("Could not apply fallback model for 429 response:", err);
-        }
-      }
-      return r;
-    }
+    const fetchWithRetry = (url: string, opts: RequestInit) => requestChatCompletion(url, opts, isDirectGemini);
 
     // ========== Compare-mode / disable_tools: pure streaming text ==========
     if (toolsDisabled) {
@@ -1165,7 +1147,7 @@ ${userContext}
 
     if (!followUpStream.ok || !followUpStream.body) {
       // Fallback to FAST non-stream
-      const followUp = await fetch(API_URL, {
+      const followUp = await fetchWithRetry(API_URL, {
         method: "POST",
         headers: aiHeaders,
         body: JSON.stringify({ model: effectiveFastModel, messages: [{ role: "system", content: systemPrompt }, ...actualMessages, choice.message, ...toolResults], stream: false }),
