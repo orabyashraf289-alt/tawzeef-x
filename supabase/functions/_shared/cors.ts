@@ -4,6 +4,7 @@
 export const ALLOWED_ORIGINS = [
   "https://www.tawzeefx.com",
   "https://tawzeefx.com",
+  "https://tawzeef-x.vercel.app",
   "https://tx-hire-buddy-22-main.vercel.app",
 ];
 
@@ -25,6 +26,7 @@ export function isOriginAllowed(origin: string): boolean {
   if (isDev && DEV_ORIGINS.includes(origin)) return true;
   // Allow official Vercel preview deployments for the Tawzeef project
   if (/^https:\/\/tx-hire-buddy-[a-zA-Z0-9_-]+\.vercel\.app$/.test(origin)) return true;
+  if (/^https:\/\/tawzeef-x-git-[a-zA-Z0-9_-]+-tawzeef-xs-projects\.vercel\.app$/.test(origin)) return true;
   return false;
 }
 
