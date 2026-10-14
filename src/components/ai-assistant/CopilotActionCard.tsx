@@ -364,7 +364,7 @@ export default function CopilotActionCard({
           <div className="space-y-3 bg-card/80 p-3 rounded-xl border border-border/50">
             <div className="flex items-center justify-between">
               <span className="font-bold text-foreground">
-                المواهب المطابقة {actionData.filterPayload.job_title && `لـ: ${actionData.filterPayload.job_title}`}
+                ملفات المرشحين {actionData.filterPayload.job_title && `لـ: ${actionData.filterPayload.job_title}`}
               </span>
               <span className="text-[10px] text-muted-foreground font-mono">
                 {actionData.filterPayload.matched_candidates?.length || 0} مرشح
@@ -388,9 +388,9 @@ export default function CopilotActionCard({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
+                    {typeof cand.match_score === "number" && <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
                       {cand.match_score}% تطابق
-                    </Badge>
+                    </Badge>}
                     <Button
                       variant="ghost"
                       size="sm"
