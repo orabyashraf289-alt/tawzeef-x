@@ -14,11 +14,15 @@ type Checklist = { mode: "screening_checklist"; requirements: { criterion: strin
 type Workflow = { mode: "hiring_workflow"; stages: { name: string; purpose: string; completionSignal: string }[]; planningNotes: string[] };
 type Outreach = { mode: "candidate_outreach"; invitation: string; followUp: string; placeholders: string[] };
 type Result = Review | Scorecard | Checklist | Workflow | Outreach;
+const modes: Mode[] = ["job_review", "interview_scorecard", "screening_checklist", "hiring_workflow", "candidate_outreach"];
 
 export default function AIRecruitmentTools() {
   const { locale } = useI18n();
   const ar = locale === "ar";
-  const [mode, setMode] = useState<Mode>("job_review");
+  const [mode, setMode] = useState<Mode>(() => {
+    const requested = new URLSearchParams(window.location.search).get("mode") as Mode;
+    return modes.includes(requested) ? requested : "job_review";
+  });
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [result, setResult] = useState<Result | null>(null);
