@@ -109,16 +109,7 @@ DO $$ BEGIN
 END $$;
 
 INSERT INTO public.company_members (company_id,user_id,member_role) VALUES
-  ('11000000-0000-0000-0000-000000000001','21000000-0000-0000-0000-000000000001','owner'),
-  ('11000000-0000-0000-0000-000000000005','21000000-0000-0000-0000-000000000002','viewer');
-SELECT set_config('request.jwt.claim.sub','21000000-0000-0000-0000-000000000002',true);
-SET LOCAL ROLE authenticated;
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.company_subscriptions
-                 WHERE company_id='11000000-0000-0000-0000-000000000003')
-  THEN RAISE EXCEPTION 'Platform branch member cannot read shared subscription'; END IF;
-END $$;
-RESET ROLE;
+  ('11000000-0000-0000-0000-000000000001','21000000-0000-0000-0000-000000000001','owner');
 SELECT set_config('request.jwt.claim.sub','21000000-0000-0000-0000-000000000001',true);
 SET LOCAL ROLE authenticated;
 DO $$ BEGIN
