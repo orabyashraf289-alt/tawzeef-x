@@ -91,6 +91,8 @@ import { AnimatedDashboardBackground } from "@/components/AnimatedBackground";
 import SpeakButton from "@/components/ai-assistant/SpeakButton";
 import { extractTextFromPDF, extractTextFromDocx } from "@/lib/fileParser";
 import { cleanAIMessageContent } from "@/lib/cleanAiMessage";
+import AssistantServicesDialog from "@/components/ai-assistant/AssistantServicesDialog";
+import type { AssistantService } from "@/lib/assistantServices";
 
 const messageAnimation = {
   hidden: (role: "user" | "assistant") => ({
@@ -265,8 +267,8 @@ function extractJobFromMessage(content: string): JobData | null {
     type,
     experience_level,
     description: content.slice(0, 1000),
-    salary_min: salary_min ?? 6000,
-    salary_max: salary_max ?? 9500,
+    salary_min,
+    salary_max,
   };
 }
 
@@ -1209,6 +1211,7 @@ export default function AIAssistant() {
   const [messages, setMessages] = useState<Message[]>([]);
 
   const [input, setInput] = useState("");
+  const [servicesOpen, setServicesOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [qrDialog, setQrDialog] = useState<{ open: boolean; jobId: string; jobTitle: string }>({ open: false, jobId: "", jobTitle: "" });
   const [editJobModal, setEditJobModal] = useState<{ open: boolean; data: any | null; msgIndex: number | null }>({ open: false, data: null, msgIndex: null });
@@ -1226,6 +1229,16 @@ export default function AIAssistant() {
   const savingRef = useRef(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const selectAssistantService = (service: AssistantService) => {
+    if (service.mode) {
+      navigate(`/ai-tools?mode=${service.mode}`);
+      return;
+    }
+    if (service.prompt) {
+      setInput(service.prompt);
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  };
   const { data: jobs = [] } = useJobs();
   const { data: candidates = [] } = useCandidates();
   const activeStages = useActiveStages();
@@ -2102,6 +2115,10 @@ export default function AIAssistant() {
           <div className="px-4 py-2 border-b border-border/30 bg-card/60 backdrop-blur-md flex items-center justify-between text-xs gap-3 overflow-x-auto no-scrollbar">
             <CopilotCommandBar onLaunch={handleLaunchCopilotCommand} disabled={isLoading} />
 
+            <Button type="button" variant="outline" size="sm" onClick={() => setServicesOpen(true)} className="shrink-0 gap-1.5" aria-label="عرض خدمات مساعد AI">
+              <Sparkles className="h-4 w-4" /> خدمات AI
+            </Button>
+
             <div className="flex items-center gap-2 shrink-0 border-r border-border/40 pr-3 mr-1">
               <span className="flex h-2 w-2 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -2516,6 +2533,8 @@ export default function AIAssistant() {
         originalReply={compareDialog.reply}
         originalModelLabel={compareDialog.modelLabel}
       />
+
+      <AssistantServicesDialog open={servicesOpen} onOpenChange={setServicesOpen} onSelect={selectAssistantService} canManage={role === "admin" || role === "recruiter"} />
 
       <AddJobDialog
         open={editJobModal.open}
