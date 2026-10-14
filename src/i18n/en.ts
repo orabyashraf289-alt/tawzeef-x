@@ -13,6 +13,7 @@ const en: Record<string, string> = {
   "nav.hiringPlan": "Hiring Plan",
   "nav.notifications": "Notifications",
   "nav.aiAssistant": "AI Assistant",
+  "nav.aiTools": "Recruitment AI Tools",
   "nav.team": "Team Management",
   "nav.settings": "Settings",
   "nav.signOut": "Sign Out",
