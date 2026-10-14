@@ -10,8 +10,11 @@ describe("recruitment AI tool boundary", () => {
     expect(canUseTool(false, true, false)).toBe(false);
     expect(canUseTool(false, false, true)).toBe(true);
   });
-  it("accepts only the two supported modules with bounded text", () => {
+  it("accepts only supported modules with bounded text", () => {
     expect(parseToolInput({ mode: "job_review", title: " HR specialist ", description, language: "ar" })?.title).toBe("HR specialist");
+    for (const mode of ["screening_checklist", "hiring_workflow", "candidate_outreach"]) {
+      expect(parseToolInput({ mode, title: "HR", description, language: "en" })?.mode).toBe(mode);
+    }
     expect(parseToolInput({ mode: "make_hiring_decision", title: "HR", description, language: "ar" })).toBeNull();
     expect(parseToolInput({ mode: "interview_scorecard", title: "HR", description: "short", language: "en" })).toBeNull();
     expect(parseToolInput({ mode: "job_review", title: "HR", description: "x".repeat(6001), language: "en" })).toBeNull();
@@ -42,5 +45,32 @@ describe("recruitment AI tool boundary", () => {
       criteria: [{ name: "Collaboration", evidence: "Examples of teamwork", ratingGuide: "1-5 based on examples" }],
       interviewerNotes: ["Use the same questions for everyone"],
     });
+  });
+
+  it("filters incomplete checklist and workflow entries", () => {
+    expect(normalizeToolOutput("screening_checklist", {
+      requirements: [{ criterion: "Experience" }, { criterion: "Role-specific skill", evidence: "Relevant work sample", decision: "reject" }],
+      verificationQuestions: ["Which tools have you used?"],
+    })).toEqual({
+      mode: "screening_checklist",
+      requirements: [{ criterion: "Role-specific skill", evidence: "Relevant work sample" }],
+      verificationQuestions: ["Which tools have you used?"],
+      reviewNotes: [],
+    });
+    expect(normalizeToolOutput("hiring_workflow", {
+      stages: [{ name: "Screening", purpose: "Check the stated requirements", completionSignal: "Human review is complete" }, { name: "Missing" }],
+      planningNotes: ["Agree on owners"],
+    })).toEqual({
+      mode: "hiring_workflow",
+      stages: [{ name: "Screening", purpose: "Check the stated requirements", completionSignal: "Human review is complete" }],
+      planningNotes: ["Agree on owners"],
+    });
+  });
+
+  it("requires both editable outreach drafts", () => {
+    expect(normalizeToolOutput("candidate_outreach", { invitation: "Hello", followUp: "" })).toBeNull();
+    expect(normalizeToolOutput("candidate_outreach", {
+      invitation: "Hello [Candidate Name]", followUp: "Following up", placeholders: ["[Candidate Name]"], recipientEmail: "hidden",
+    })).toEqual({ mode: "candidate_outreach", invitation: "Hello [Candidate Name]", followUp: "Following up", placeholders: ["[Candidate Name]"] });
   });
 });
