@@ -8,7 +8,7 @@ import {
   Users, Bot, ArrowLeft, TrendingUp, Shield, Globe, CheckCircle2, Zap,
   Briefcase, FileText, Video, Sparkles, Award, Play, Layout,
   Calendar, Menu, X, Sun, Moon, Check, Building2, Lock, Cpu,
-  Activity, Layers, Server, Database, MessageSquare, CheckSquare,
+  Layers, Server, Database, MessageSquare, CheckSquare,
   FileCheck, Flame, ChevronLeft, ChevronRight, PenTool,
   Volume2, ShieldCheck, PieChart, BarChart3, Star, Clock, Laptop,
   KeyRound, HelpCircle, Eye, ArrowUpRight
@@ -119,14 +119,6 @@ const COMPLIANCE_ITEMS = [
   { label: "مصفوفة صلاحيات دقيقة للأدوار", icon: KeyRound },
 ];
 
-const RECENT_SYSTEM_EVENTS = [
-  { text: "تم فرز سيرة ذاتية بنجاح بنسبة تطابق 94%", icon: Bot, time: "منذ دقيقة", color: "text-md-primary" },
-  { text: "تم اعتماد توقيع عرض وظيفي رقمي", icon: FileCheck, time: "منذ 4 دقائق", color: "text-emerald-500" },
-  { text: "جلسة مقابلة فيديو مدمجة اكتملت بتفريغ نصي", icon: Video, time: "منذ 8 دقائق", color: "text-blue-500" },
-  { text: "تم تحديث أهداف الاستقطاب الشهرية", icon: TrendingUp, time: "منذ 15 دقيقة", color: "text-amber-500" },
-  { text: "مزامنة مشفرة لسجلات التدقيق الأمني", icon: ShieldCheck, time: "منذ 22 دقيقة", color: "text-purple-500" },
-];
-
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
   visible: {
@@ -148,16 +140,13 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeModule, setActiveModule] = useState("ai-screening");
 
-  // Telemetry from Supabase
+  // Publicly visible counts only; private recruiting records cannot be counted by visitors.
   const [systemStats, setSystemStats] = useState({
     activeJobs: 0,
-    candidates: 0,
-    interviews: 0,
-    companiesCount: 0,
     isLoaded: false,
+    hasError: false,
   });
 
-  const [realCompanies, setRealCompanies] = useState<Array<{ id: string; name: string; logo_url: string | null }>>([]);
   const { data: dbPlans, isLoading: plansLoading } = useSubscriptionPlans();
 
   // Interactive Live Module Simulation States
@@ -169,27 +158,20 @@ export default function LandingPage() {
   useEffect(() => {
     async function fetchPlatformData() {
       try {
-        const [jobsRes, candRes, interRes, compRes] = await Promise.all([
-          supabase.from("jobs").select("id", { count: "exact", head: true }).eq("status", "نشطة"),
-          supabase.from("candidates").select("id", { count: "exact", head: true }),
-          supabase.from("interviews").select("id", { count: "exact", head: true }),
-          supabase.from("companies").select("id, name, logo_url, status"),
-        ]);
+        const jobsRes = await supabase.from("jobs").select("id", { count: "exact", head: true }).eq("status", "نشطة");
 
-        const approvedComps = (compRes.data || []).filter((c: any) => c.status === "approved" || c.name);
+        if (jobsRes.error || jobsRes.count === null) {
+          throw jobsRes.error || new Error("Public job count unavailable");
+        }
 
         setSystemStats({
-          activeJobs: jobsRes.count ?? 0,
-          candidates: candRes.count ?? 0,
-          interviews: interRes.count ?? 0,
-          companiesCount: approvedComps.length,
+          activeJobs: jobsRes.count,
           isLoaded: true,
+          hasError: false,
         });
-
-        setRealCompanies(approvedComps);
       } catch (err) {
         console.warn("Failed to fetch live telemetry:", err);
-        setSystemStats((prev) => ({ ...prev, isLoaded: true }));
+        setSystemStats((prev) => ({ ...prev, isLoaded: true, hasError: true }));
       }
     }
     fetchPlatformData();
@@ -467,8 +449,8 @@ export default function LandingPage() {
                       </div>
                     </div>
                     <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-md3-full flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                      نشط الآن
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      عرض تجريبي
                     </span>
                   </div>
 
@@ -510,19 +492,19 @@ export default function LandingPage() {
                     <div className="bg-md-surface-container p-2.5 rounded-md3-md border border-md-outline-variant/50">
                       <div className="text-md-on-surface-variant text-[10px]">فرز AI</div>
                       <div className="text-sm font-black text-md-on-surface mt-0.5">
-                        <AnimatedCounter value={systemStats.candidates > 0 ? systemStats.candidates : 34} />
+                        <AnimatedCounter value={34} />
                       </div>
                     </div>
                     <div className="bg-md-primary-container/40 p-2.5 rounded-md3-md border border-md-primary/30">
                       <div className="text-md-primary text-[10px]">المقابلات</div>
                       <div className="text-sm font-black text-md-primary mt-0.5">
-                        <AnimatedCounter value={systemStats.interviews > 0 ? systemStats.interviews : 12} />
+                        <AnimatedCounter value={12} />
                       </div>
                     </div>
                     <div className="bg-emerald-500/10 p-2.5 rounded-md3-md border border-emerald-500/20">
-                      <div className="text-emerald-600 dark:text-emerald-400 text-[10px]">العروض الرقمية</div>
+                      <div className="text-emerald-600 dark:text-emerald-400 text-[10px]">الشواغر</div>
                       <div className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
-                        <AnimatedCounter value={systemStats.activeJobs > 0 ? systemStats.activeJobs : 8} />
+                        <AnimatedCounter value={8} />
                       </div>
                     </div>
                   </div>
@@ -561,63 +543,42 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── 2. Real System Metrics & Live Platform Telemetry ── */}
+      {/* ── 2. Public active jobs ── */}
       <section className="bg-md-surface-container-low border-y border-md-outline-variant py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8 pb-6 border-b border-md-outline-variant/60">
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-emerald-500 animate-ping" />
+              <div className={`w-3 h-3 rounded-full ${systemStats.isLoaded && !systemStats.hasError ? "bg-emerald-500" : "bg-md-outline"}`} />
               <div>
                 <h3 className="text-md3-title-md font-black text-md-on-surface flex items-center gap-2">
-                  <span>إحصائيات ومؤشرات النظام الحية</span>
+                  <span>الشواغر المتاحة للزوار</span>
                   <span className="text-xs font-normal text-md-primary bg-md-primary-container px-2.5 py-0.5 rounded-md3-full font-mono">
-                    Live Database Telemetry
+                    Live Public Jobs
                   </span>
                 </h3>
                 <p className="text-xs text-md-on-surface-variant">
-                  قراءات حقيقية تعكس حركة الاستقطاب والمعالجة النشطة في منصة Tawzeef-X
+                  عدد الوظائف النشطة الظاهرة للعامة الآن
                 </p>
               </div>
             </div>
             <div className="text-xs text-md-on-surface-variant font-mono bg-md-surface px-3 py-1.5 rounded-md3-md border border-md-outline-variant">
-              حالة الخوادم: متصلة ونشطة • التشفير: مفعل
+              {systemStats.hasError ? "تعذّر تحديث عدد الوظائف" : systemStats.isLoaded ? "تم تحديث عدد الوظائف" : "جارٍ تحديث عدد الوظائف"}
             </div>
           </div>
 
-          <motion.div
+          {!systemStats.hasError && systemStats.isLoaded && <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
-            className="grid grid-cols-2 lg:grid-cols-4 gap-6"
+            className="max-w-sm mx-auto"
           >
             {[
               {
-                label: "الشواغر النشطة بالنظام",
+                label: "الشواغر النشطة المتاحة للزائر",
                 value: systemStats.activeJobs,
                 icon: Briefcase,
-                desc: "وظيفة قيد الاستقطاب والمعالجة",
-                color: "text-md-primary",
-              },
-              {
-                label: "إجمالي ملفات المرشحين",
-                value: systemStats.candidates,
-                icon: Users,
-                desc: "سيرة ذاتية مفروزة ومفهرسة بالـ AI",
-                color: "text-md-secondary",
-              },
-              {
-                label: "جلسات المقابلات المسجلة",
-                value: systemStats.interviews,
-                icon: Video,
-                desc: "مقابلة منجزة أو مجدولة بالنظام",
-                color: "text-md-tertiary",
-              },
-              {
-                label: "المنشآت المسجلة",
-                value: systemStats.companiesCount > 0 ? systemStats.companiesCount : 1,
-                icon: Building2,
-                desc: "شركة ومؤسسة تستخدم المنصة",
+                desc: "وظيفة ظاهرة وفق صلاحيات العرض العام",
                 color: "text-md-primary",
               },
             ].map((stat, idx) => (
@@ -640,29 +601,7 @@ export default function LandingPage() {
                 </div>
               </motion.div>
             ))}
-          </motion.div>
-
-          {/* Real-time System Milestone Ticker */}
-          <div className="mt-8 pt-6 border-t border-md-outline-variant/60">
-            <div className="text-[11px] font-bold text-md-on-surface-variant mb-3 flex items-center gap-2">
-              <Activity className="w-3.5 h-3.5 text-md-primary" />
-              <span>نبض العمليات الأخيرة في المنظومة:</span>
-            </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {RECENT_SYSTEM_EVENTS.slice(0, 3).map((evt, i) => (
-                <div
-                  key={i}
-                  className="bg-md-surface p-3 rounded-md3-lg border border-md-outline-variant/70 flex items-center justify-between text-xs"
-                >
-                  <div className="flex items-center gap-2">
-                    <evt.icon className={`w-4 h-4 ${evt.color}`} />
-                    <span className="font-bold text-md-on-surface">{evt.text}</span>
-                  </div>
-                  <span className="text-[10px] text-md-on-surface-variant font-mono">{evt.time}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          </motion.div>}
         </div>
       </section>
 
