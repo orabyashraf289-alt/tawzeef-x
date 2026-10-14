@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ClipboardCheck, FileSearch, Loader2, Sparkles } from "lucide-react";
+import { ClipboardCheck, FileSearch, ListChecks, Loader2, Mail, Route, Sparkles } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,10 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/contexts/I18nContext";
 import { supabase } from "@/integrations/supabase/client";
 
-type Mode = "job_review" | "interview_scorecard";
+type Mode = "job_review" | "interview_scorecard" | "screening_checklist" | "hiring_workflow" | "candidate_outreach";
 type Review = { mode: "job_review"; strengths: string[]; issues: { finding: string; suggestion: string }[]; revisedDraft: string };
 type Scorecard = { mode: "interview_scorecard"; criteria: { name: string; evidence: string; ratingGuide: string }[]; interviewerNotes: string[] };
-type Result = Review | Scorecard;
+type Checklist = { mode: "screening_checklist"; requirements: { criterion: string; evidence: string }[]; verificationQuestions: string[]; reviewNotes: string[] };
+type Workflow = { mode: "hiring_workflow"; stages: { name: string; purpose: string; completionSignal: string }[]; planningNotes: string[] };
+type Outreach = { mode: "candidate_outreach"; invitation: string; followUp: string; placeholders: string[] };
+type Result = Review | Scorecard | Checklist | Workflow | Outreach;
 
 export default function AIRecruitmentTools() {
   const { locale } = useI18n();
@@ -54,13 +57,16 @@ export default function AIRecruitmentTools() {
         <div>
           <div className="flex items-center gap-2 text-primary text-sm font-bold mb-2"><Sparkles className="h-4 w-4" />{ar ? "وحدات الذكاء الاصطناعي" : "AI modules"}</div>
           <h1 className="text-2xl sm:text-3xl font-black">{ar ? "أدوات التوظيف الذكية" : "Recruitment AI tools"}</h1>
-          <p className="text-muted-foreground mt-2">{ar ? "راجع إعلانك، أو حضّر بطاقة تقييم موحدة للمقابلة. كل نتيجة مسودة تحتاج مراجعتك قبل الاستخدام." : "Review a job ad or prepare a consistent interview scorecard. Review every draft before use."}</p>
+          <p className="text-muted-foreground mt-2">{ar ? "اختر الأداة المناسبة للوظيفة. كل نتيجة مسودة تحتاج مراجعتك قبل الاستخدام." : "Choose a tool for the role. Review every draft before use."}</p>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-3" role="group" aria-label={ar ? "اختر الوحدة" : "Choose a tool"}>
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3" role="group" aria-label={ar ? "اختر الوحدة" : "Choose a tool"}>
           {([
             { id: "job_review" as const, icon: FileSearch, name: ar ? "مراجع جودة الإعلان" : "Job ad review", detail: ar ? "وضوح المتطلبات وصياغة شاملة مع اقتراحات محددة" : "Clarity and inclusive wording with concrete suggestions" },
             { id: "interview_scorecard" as const, icon: ClipboardCheck, name: ar ? "بطاقة تقييم المقابلة" : "Interview scorecard", detail: ar ? "معايير مرتبطة بالوظيفة وأدلة قابلة للملاحظة" : "Job-related criteria and observable evidence" },
+            { id: "screening_checklist" as const, icon: ListChecks, name: ar ? "قائمة الفرز الأولي" : "Screening checklist", detail: ar ? "متطلبات قابلة للتحقق وأسئلة متابعة" : "Verifiable requirements and follow-up questions" },
+            { id: "hiring_workflow" as const, icon: Route, name: ar ? "خطة مراحل التوظيف" : "Hiring workflow", detail: ar ? "مراحل عملية ومعيار واضح لإتمام كل مرحلة" : "Practical stages and clear completion signals" },
+            { id: "candidate_outreach" as const, icon: Mail, name: ar ? "مسودات التواصل" : "Candidate outreach drafts", detail: ar ? "دعوة للحديث ومتابعة مهنية قابلة للتحرير" : "Editable invitation and follow-up messages" },
           ]).map((tool) => (
             <button key={tool.id} type="button" disabled={loading} aria-pressed={mode === tool.id} onClick={() => changeMode(tool.id)} className={`text-start rounded-xl border p-5 transition-colors ${mode === tool.id ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/50"}`}>
               <tool.icon className="w-6 h-6 text-primary mb-3" />
@@ -73,11 +79,11 @@ export default function AIRecruitmentTools() {
         <section className="rounded-xl border bg-card p-5 sm:p-6 space-y-4" aria-label={ar ? "تفاصيل الوظيفة" : "Job details"}>
           <div>
             <label htmlFor="ai-job-title" className="block font-semibold mb-2">{ar ? "المسمى الوظيفي" : "Job title"}</label>
-            <Input id="ai-job-title" value={title} maxLength={150} onChange={(event) => setTitle(event.target.value)} placeholder={ar ? "مثال: أخصائي موارد بشرية" : "Example: HR specialist"} />
+            <Input id="ai-job-title" value={title} maxLength={150} onChange={(event) => { setTitle(event.target.value); setResult(null); }} placeholder={ar ? "مثال: أخصائي موارد بشرية" : "Example: HR specialist"} />
           </div>
           <div>
             <label htmlFor="ai-job-description" className="block font-semibold mb-2">{ar ? "وصف الوظيفة والمتطلبات" : "Job description and requirements"}</label>
-            <Textarea id="ai-job-description" value={description} maxLength={6000} rows={9} onChange={(event) => setDescription(event.target.value)} placeholder={ar ? "اكتب الوصف والمتطلبات الحالية هنا (40 حرفًا على الأقل)" : "Paste the current description and requirements (at least 40 characters)"} />
+            <Textarea id="ai-job-description" value={description} maxLength={6000} rows={9} onChange={(event) => { setDescription(event.target.value); setResult(null); }} placeholder={ar ? "اكتب الوصف والمتطلبات الحالية هنا (40 حرفًا على الأقل)" : "Paste the current description and requirements (at least 40 characters)"} />
             <p className="text-xs text-muted-foreground mt-2">{description.length}/6000 · {ar ? "لا تضع بيانات مرشحين أو معلومات شخصية في الوصف." : "Do not include candidate or personal data."}</p>
           </div>
           <Button onClick={generate} disabled={!canSubmit || loading} className="gap-2">
@@ -93,9 +99,20 @@ export default function AIRecruitmentTools() {
             {result.strengths.length > 0 && <div><h3 className="font-bold mb-2">{ar ? "نقاط القوة" : "Strengths"}</h3><ul className="list-disc list-inside space-y-1 text-sm">{result.strengths.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
             {result.issues.length > 0 && <div><h3 className="font-bold mb-2">{ar ? "تحسينات مقترحة" : "Suggested improvements"}</h3><div className="grid gap-3">{result.issues.map((item, index) => <div key={index} className="rounded-lg border p-3"><p className="font-semibold">{item.finding}</p><p className="text-sm text-muted-foreground mt-1">{item.suggestion}</p></div>)}</div></div>}
             {result.revisedDraft && <div><h3 className="font-bold mb-2">{ar ? "صياغة مقترحة" : "Suggested wording"}</h3><p className="whitespace-pre-wrap rounded-lg bg-muted/50 p-4 text-sm leading-relaxed">{result.revisedDraft}</p></div>}
-          </> : <>
+          </> : result.mode === "interview_scorecard" ? <>
             <div className="grid gap-3">{result.criteria.map((item, index) => <div key={index} className="rounded-lg border p-4 space-y-2"><h3 className="font-bold">{index + 1}. {item.name}</h3><p className="text-sm"><span className="font-semibold">{ar ? "الدليل:" : "Evidence:"} </span>{item.evidence}</p><p className="text-sm"><span className="font-semibold">{ar ? "دليل التقدير (1–5):" : "Rating guide (1–5):"} </span>{item.ratingGuide}</p></div>)}</div>
             {result.interviewerNotes.length > 0 && <div><h3 className="font-bold mb-2">{ar ? "إرشادات للمحاور" : "Interviewer notes"}</h3><ul className="list-disc list-inside space-y-1 text-sm">{result.interviewerNotes.map((note, index) => <li key={index}>{note}</li>)}</ul></div>}
+          </> : result.mode === "screening_checklist" ? <>
+            <div className="grid gap-3">{result.requirements.map((item, index) => <div key={index} className="rounded-lg border p-4 space-y-2"><h3 className="font-bold">{index + 1}. {item.criterion}</h3><p className="text-sm"><span className="font-semibold">{ar ? "طريقة التحقق:" : "Evidence to check:"} </span>{item.evidence}</p></div>)}</div>
+            {result.verificationQuestions.length > 0 && <div><h3 className="font-bold mb-2">{ar ? "أسئلة متابعة" : "Follow-up questions"}</h3><ul className="list-disc list-inside space-y-1 text-sm">{result.verificationQuestions.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
+            {result.reviewNotes.length > 0 && <div><h3 className="font-bold mb-2">{ar ? "نقاط للمراجعة البشرية" : "Human review notes"}</h3><ul className="list-disc list-inside space-y-1 text-sm">{result.reviewNotes.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
+          </> : result.mode === "hiring_workflow" ? <>
+            <div className="grid gap-3">{result.stages.map((item, index) => <div key={index} className="rounded-lg border p-4 space-y-2"><h3 className="font-bold">{index + 1}. {item.name}</h3><p className="text-sm">{item.purpose}</p><p className="text-sm"><span className="font-semibold">{ar ? "إتمام المرحلة:" : "Completion signal:"} </span>{item.completionSignal}</p></div>)}</div>
+            {result.planningNotes.length > 0 && <div><h3 className="font-bold mb-2">{ar ? "ملاحظات للتخطيط" : "Planning notes"}</h3><ul className="list-disc list-inside space-y-1 text-sm">{result.planningNotes.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
+          </> : <>
+            <div><h3 className="font-bold mb-2">{ar ? "مسودة الدعوة" : "Invitation draft"}</h3><p className="whitespace-pre-wrap rounded-lg bg-muted/50 p-4 text-sm leading-relaxed">{result.invitation}</p></div>
+            <div><h3 className="font-bold mb-2">{ar ? "مسودة المتابعة" : "Follow-up draft"}</h3><p className="whitespace-pre-wrap rounded-lg bg-muted/50 p-4 text-sm leading-relaxed">{result.followUp}</p></div>
+            {result.placeholders.length > 0 && <p className="text-sm text-muted-foreground">{ar ? "املأ البيانات الناقصة قبل الاستخدام:" : "Fill in before use:"} {result.placeholders.join("، ")}</p>}
           </>}
           <p className="text-xs text-muted-foreground border-t pt-4">{ar ? "المخرجات مساعدات تحريرية فقط، وليست تقييمًا لمرشح أو قرار توظيف. لا تُحفظ تلقائيًا في النظام." : "These are editable aids, not a candidate assessment or hiring decision. Results are not saved automatically."}</p>
         </section>}
