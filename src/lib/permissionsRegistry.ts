@@ -103,6 +103,11 @@ export const SCREEN_PERMISSIONS: Record<string, { key: string; description: stri
     description: "مساعد الذكاء الاصطناعي",
     defaultAllowed: ["admin", "recruiter", "reviewer"],
   },
+  "/ai-tools": {
+    key: "screen.ai_assistant",
+    description: "أدوات التوظيف الذكية",
+    defaultAllowed: ["admin", "recruiter"],
+  },
   "/reports": {
     key: "screen.reports",
     description: "التقارير والإحصائيات",
