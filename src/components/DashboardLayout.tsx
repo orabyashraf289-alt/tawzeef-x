@@ -63,6 +63,7 @@ const navGroups = [
     labelEn: "AI & Intelligence",
     items: [
       { icon: Bot, labelKey: "nav.aiAssistant", path: "/ai-assistant", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
+      { icon: Sparkles, labelKey: "nav.aiTools", path: "/ai-tools", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
       { icon: LibraryBig, labelKey: "nav.systemLibrary", path: "/library", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment", "enterprise"] },
       { icon: Star, labelKey: "nav.talentPool", path: "/talent-pool", roles: ["admin", "recruiter"], workspaces: ["recruitment"] },
       { icon: Archive, labelKey: "nav.resumeArchive", path: "/resume-archive", roles: ["admin", "recruiter", "reviewer"], workspaces: ["recruitment"] },
