@@ -6,7 +6,6 @@ import {
   Filter,
   MessageCircle,
   Zap,
-  Sparkles,
 } from "lucide-react";
 import type { CopilotActionType } from "@/types/copilotActions";
 
@@ -18,7 +17,7 @@ interface CopilotCommandBarProps {
 const commands = [
   {
     type: "create_job" as CopilotActionType,
-    label: "طرح شاغر فوري",
+    label: "صياغة شاغر",
     icon: Briefcase,
     color: "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/15",
   },
@@ -36,13 +35,13 @@ const commands = [
   },
   {
     type: "filter_candidates" as CopilotActionType,
-    label: "فرز ومطابقة المواهب",
+    label: "استعراض المرشحين",
     icon: Filter,
     color: "border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 hover:bg-amber-500/15",
   },
   {
     type: "whatsapp_dispatch" as CopilotActionType,
-    label: "تواصل واتساب",
+    label: "مسودة واتساب",
     icon: MessageCircle,
     color: "border-green-500/30 text-green-600 dark:text-green-400 bg-green-500/5 hover:bg-green-500/15",
   },
@@ -51,11 +50,11 @@ const commands = [
 export default function CopilotCommandBar({ onLaunch, disabled }: CopilotCommandBarProps) {
   return (
     <div className="py-1 px-1 flex items-center gap-2 overflow-x-auto scrollbar-hide select-none" dir="rtl">
-      {/* Live Copilot Badge */}
+      {/* Command shortcuts */}
       <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-extrabold shadow-2xs">
         <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
         <Zap className="w-3 h-3" />
-        <span>الوكيل التنفيذي</span>
+        <span>أوامر المساعد</span>
       </div>
 
       {/* Action Chips */}

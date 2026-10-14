@@ -31,7 +31,7 @@ export default function ModelCompareDialog({
   originalModelLabel,
 }: Props) {
   const [selectedModel, setSelectedModel] = useState<ModelChoice>(
-    "openai/gpt-5-mini"
+    "google/gemini-2.5-pro"
   );
   const [loading, setLoading] = useState(false);
   const [altReply, setAltReply] = useState("");
@@ -41,7 +41,8 @@ export default function ModelCompareDialog({
     setAltReply("");
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const token = session?.access_token;
+      if (!token) throw new Error("Authentication required");
 
       const resp = await fetch(CHAT_URL, {
         method: "POST",

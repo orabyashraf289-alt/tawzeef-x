@@ -57,7 +57,6 @@ import CopilotActionCard from "@/components/ai-assistant/CopilotActionCard";
 import CopilotCommandBar from "@/components/ai-assistant/CopilotCommandBar";
 import type { CopilotActionData, CopilotActionType } from "@/types/copilotActions";
 import {
-  detectCopilotActionFromText,
   executeCopilotAction,
   rollbackCopilotAction,
 } from "@/lib/copilotActionEngine";
@@ -69,6 +68,7 @@ import { getPublicBaseUrl } from "@/lib/getPublicUrl";
 import { getApplyUrl } from "@/lib/getPublicUrl";
 import { useI18n } from "@/contexts/I18nContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import VoiceInputButton from "@/components/ai-assistant/VoiceInputButton";
 import AIChatHeader from "@/components/ai-assistant/AIChatHeader";
 import AIChatBubble from "@/components/ai-assistant/AIChatBubble";
@@ -1204,6 +1204,7 @@ const InteractiveOfferCard = ({ offer }: { offer: OfferData }) => {
 export default function AIAssistant() {
   const { t } = useI18n();
   const { user } = useAuth();
+  const { role } = useUserRole();
   const addJobMutation = useAddJob();
   const [messages, setMessages] = useState<Message[]>([]);
 
@@ -1221,6 +1222,8 @@ export default function AIAssistant() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const inFlightRef = useRef(false);
+  const savingRef = useRef(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { data: jobs = [] } = useJobs();
@@ -1275,6 +1278,7 @@ export default function AIAssistant() {
 
   // Load conversation messages
   const loadConversation = async (convId: string) => {
+    if (inFlightRef.current || savingRef.current) { toast({ title: "انتظر حفظ الرد الحالي أولاً" }); return; }
     const { data, error } = await supabase
       .from("chat_messages")
       .select("*")
@@ -1293,7 +1297,7 @@ export default function AIAssistant() {
   };
 
   // Save messages to conversation
-  const saveMessages = async (msgs: Message[], convId?: string | null) => {
+  const saveMessages = useCallback(async (msgs: Message[], convId?: string | null) => {
     if (!user) return null;
     const userMessages = msgs.filter(m => m.role === "user");
     if (userMessages.length === 0) return convId;
@@ -1308,20 +1312,17 @@ export default function AIAssistant() {
         .insert({ user_id: user.id, title })
         .select()
         .single();
-      if (error) { console.error("Failed to create conversation:", error); return null; }
+      if (error) { toast({ title: "تعذر حفظ المحادثة", variant: "destructive" }); return null; }
       conversationId = data.id;
       setActiveConversationId(conversationId);
     } else {
       await supabase.from("chat_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
     }
 
-    // Save the last two messages (user + assistant)
-    const lastTwo = msgs.slice(-2);
-    const updatedMsgs = [...msgs];
-    let changed = false;
+    const unsaved = msgs.filter(m => !m.id && !m.isStreaming);
+    const savedIds = new Map<Message, string>();
 
-    for (const msg of lastTwo) {
-      if (msg.id) continue; // Skip if already saved and has an ID
+    for (const msg of unsaved) {
 
       const { id, jobCreated, jobUpdated, jobPreview, candidateMoved, interviewScheduled, offerCreated, statsReport, proactiveInsights, emailSent, bulkMoved, candidateComparison, interviewGuide, whatsappSms, voiceBriefing, copilotAction, isStreaming, ...rest } = msg;
       const metadata: any = {};
@@ -1350,25 +1351,33 @@ export default function AIAssistant() {
       }).select("id").single();
 
       if (!error && data) {
-        const originalIdx = msgs.indexOf(msg);
-        if (originalIdx !== -1) {
-          updatedMsgs[originalIdx] = { ...msg, id: data.id };
-          changed = true;
-        }
+        savedIds.set(msg, data.id);
       } else if (error) {
         console.error("Failed to insert message:", error);
+        toast({ title: "تعذر حفظ بعض الرسائل", variant: "destructive" });
       }
     }
 
-    if (changed) {
-      setMessages(updatedMsgs);
-    }
+    if (savedIds.size) setMessages(current => current.map(m => savedIds.has(m) ? { ...m, id: savedIds.get(m) } : m));
 
     refetchConversations();
     return conversationId;
-  };
+  }, [user, refetchConversations]);
+
+  useEffect(() => {
+    if (isLoading || savingRef.current || !user || !messages.some(m => m.role === "user") || messages[messages.length - 1]?.role !== "assistant" ||
+        messages[messages.length - 1]?.isStreaming || !messages.slice(-2).some(m => !m.id)) return;
+    const timer = window.setTimeout(async () => {
+      if (savingRef.current) return;
+      savingRef.current = true;
+      try { await saveMessages(messages, activeConversationId); }
+      finally { savingRef.current = false; }
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [messages, isLoading, activeConversationId, user, saveMessages]);
 
   const handleNewChat = () => {
+    if (inFlightRef.current || savingRef.current) { toast({ title: "انتظر حفظ الرد الحالي أولاً" }); return; }
     setMessages([]);
     setActiveConversationId(null);
     setSidebarOpen(false);
@@ -1466,10 +1475,11 @@ export default function AIAssistant() {
         if (!line.startsWith("data: ")) continue;
 
         const jsonStr = line.slice(6).trim();
-        if (jsonStr === "[DONE]") break;
+        if (jsonStr === "[DONE]") continue;
 
         try {
           const parsed = JSON.parse(jsonStr);
+          if (parsed.error) throw new Error(typeof parsed.error === "string" ? parsed.error : "تعذر إكمال الرد");
           if (parsed.type === "actions" && parsed.actions) { onActions(parsed.actions); continue; }
           const content = parsed.choices?.[0]?.delta?.content as string | undefined;
           if (content) {
@@ -1483,13 +1493,14 @@ export default function AIAssistant() {
               return [...prev, { role: "assistant", content: cleanedText, isStreaming: true }];
             });
           }
-        } catch {
-          textBuffer = line + "\n" + textBuffer;
-          break;
+        } catch (error) {
+          if (error instanceof SyntaxError) continue;
+          throw error;
         }
       }
     }
 
+    if (!assistantSoFar.trim()) throw new Error("وصل رد فارغ من خدمة الذكاء الاصطناعي. حاول مجددًا.");
     setMessages(prev => prev.map((m, i) => i === prev.length - 1 && m.isStreaming ? { ...m, content: cleanAIMessageContent(m.content), isStreaming: false } : m));
     return cleanAIMessageContent(assistantSoFar);
   }, []);
@@ -1517,8 +1528,11 @@ export default function AIAssistant() {
     }
   };
 
-  const handleSend = async () => {
-    if ((!input.trim() && attachedFiles.length === 0) || isLoading) return;
+  const handleSend = async (promptOverride?: string) => {
+    const prompt = promptOverride ?? input;
+    if ((!prompt.trim() && attachedFiles.length === 0 && !resumeFile) || inFlightRef.current || savingRef.current) return;
+    inFlightRef.current = true;
+    setIsLoading(true);
 
     if (attachedFiles.length > 0 || resumeFile) {
       toast({ title: "جاري قراءة الملفات المرفقة...", description: "الرجاء الانتظار حتى يستخرج المساعد النصوص تلقائياً." });
@@ -1552,26 +1566,18 @@ export default function AIAssistant() {
     const filesText = fileSummaries.join("\n\n");
     const fileLabels = attachedFiles.map(f => `📎 ${f.file.name}`).join(" ");
 
-    const userPromptRaw = input.trim();
-    const detectedCopilotAction = detectCopilotActionFromText(userPromptRaw, {
-      jobs,
-      candidates,
-      stages: activeStages,
-      currentUserId: user?.id,
-    });
-
-    const userContent = input.trim() + (resumeFile ? ` 📎 ${resumeFile.name}` : "") + (fileLabels ? ` ${fileLabels}` : "");
+    const userContent = prompt.trim() + (resumeFile ? ` 📎 ${resumeFile.name}` : "") + (fileLabels ? ` ${fileLabels}` : "");
     const userMsg: Message = { role: "user", content: userContent || "تحليل الملفات المرفقة" };
     setInput("");
     setAttachedFiles([]);
     setMessages(prev => [...prev, userMsg]);
-    setIsLoading(true);
 
-    const allMessages = [...messages, userMsg].filter(m => m.role === "user" || m.role === "assistant");
+    const allMessages = [...messages, userMsg].filter(m => m.role === "user" || m.role === "assistant").slice(-40);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const token = session?.access_token;
+      if (!token) throw new Error("انتهت الجلسة. سجل دخولك ثم أعد المحاولة.");
 
       let resp = await fetch(CHAT_URL, {
         method: "POST",
@@ -1624,7 +1630,7 @@ export default function AIAssistant() {
           try {
             const txt = await resp.text();
             if (txt) errorMessage = txt.slice(0, 150);
-          } catch {}
+          } catch { /* Use the generic request error. */ }
         }
         throw new Error(errorMessage);
       }
@@ -1657,19 +1663,7 @@ export default function AIAssistant() {
                 if (action.type === "whatsapp_sms_template" && action.dispatcher) { msg.whatsappSms = action.dispatcher; }
                 if (action.type === "voice_briefing_generated" && action.briefing) { msg.voiceBriefing = action.briefing; }
               }
-              if (detectedCopilotAction && !msg.copilotAction) {
-                msg.copilotAction = detectedCopilotAction;
-              }
               updated[lastIdx] = msg;
-            }
-            return updated;
-          });
-        } else if (detectedCopilotAction) {
-          setMessages(prev => {
-            const updated = [...prev];
-            const lastIdx = updated.length - 1;
-            if (lastIdx >= 0 && updated[lastIdx].role === "assistant" && !updated[lastIdx].copilotAction) {
-              updated[lastIdx] = { ...updated[lastIdx], copilotAction: detectedCopilotAction };
             }
             return updated;
           });
@@ -1689,17 +1683,15 @@ export default function AIAssistant() {
         else if (data.type === "interview_guide_generated" && data.guide) { newMsg.interviewGuide = data.guide; }
         else if (data.type === "whatsapp_sms_template" && data.dispatcher) { newMsg.whatsappSms = data.dispatcher; }
         else if (data.type === "voice_briefing_generated" && data.briefing) { newMsg.voiceBriefing = data.briefing; }
-        if (detectedCopilotAction && !newMsg.copilotAction) { newMsg.copilotAction = detectedCopilotAction; }
         setMessages(prev => [...prev, newMsg]);
       }
 
-      // Auto-save after response
-      setMessages(prev => {
-        setTimeout(() => saveMessages(prev, activeConversationId), 500);
-        return prev;
-      });
     } catch (e) {
       console.error(e);
+      setMessages(prev => {
+        const withoutPartial = prev.filter(m => !(m.role === "assistant" && m.isStreaming));
+        return [...withoutPartial, { role: "assistant", content: "تعذر إكمال الرد. يمكنك إعادة إرسال طلبك." }];
+      });
       const msg = e instanceof Error ? e.message : "Failed";
       toast({
         title: msg === "Failed" ? "خطأ في الاتصال" : "خطأ في مساعد AI",
@@ -1707,6 +1699,7 @@ export default function AIAssistant() {
         variant: "destructive",
       });
     } finally {
+      inFlightRef.current = false;
       setIsLoading(false);
     }
   };
@@ -1934,141 +1927,15 @@ export default function AIAssistant() {
   };
 
   const handleLaunchCopilotCommand = (type: CopilotActionType) => {
-    let action: CopilotActionData | null = null;
-    let introText = "";
-
-    switch (type) {
-      case "create_job": {
-        introText = "لقد جهزت لك مسودة طرح شاغر وظيفي جديد بناءً على المعايير المعتمدة. يمكنك مراجعة الشاغر وتأكيد نشره في النظام فوراً:";
-        action = {
-          id: `action_job_${Date.now()}`,
-          type: "create_job",
-          title: "طرح شاغر: مهندس حلول ذكاء اصطناعي",
-          description: "مراجعة وتأكيد نشر الوظيفة في النظام وتوليد رابط تقديم مباشر مع رمز QR.",
-          status: "pending_review",
-          jobPayload: {
-            title: "مهندس حلول ذكاء اصطناعي",
-            department: "التقنية والابتكار",
-            location: "الرياض",
-            type: "دوام كامل",
-            salary_min: 14000,
-            salary_max: 22000,
-            experience_level: "متوسط إلى خبير (3-6 سنوات)",
-            description: "نبحث عن مهندس ذكاء اصطناعي لقيادة مشاريع التعلم الآلي وأتمتة نماذج اللغة الكبيرة في بيئات الإنتاج.",
-            requirements: ["إتقان Python و PyTorch أو TensorFlow", "خبرة في نشر نماذج LLM و Vector DBs", "مهارات تطوير برمجيات احترافية"],
-          },
-        };
-        break;
-      }
-      case "schedule_interview": {
-        const topCand = candidates[0];
-        const candName = topCand ? topCand.name : "أحمد الشمري";
-        const candRole = topCand ? topCand.role : "مطور واجهات أمامية";
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const dateStr = tomorrow.toISOString().split("T")[0];
-        const roomId = `room-${Math.random().toString(36).substring(2, 10)}`;
-        const meetingUrl = `${window.location.origin}/video-room?room=${roomId}&role=recruiter`;
-
-        introText = `لقد قمت بإعداد أمر حجز مقابلة فيديو ذكية للمرشح "${candName}". يرجى تأكيد الموعد لتوليد الغرفة وحفظها في جدول المقابلات:`;
-        action = {
-          id: `action_interview_${Date.now()}`,
-          type: "schedule_interview",
-          title: `جدولة مقابلة مع: ${candName}`,
-          description: "حجز المقابلة في النظام وتوليد رابط غرفة المقابلة الذكية التفاعلية.",
-          status: "pending_review",
-          interviewPayload: {
-            candidate_id: topCand?.id,
-            candidate_name: candName,
-            position: candRole,
-            date: dateStr,
-            time: "11:00",
-            type: "فيديو أونلاين",
-            meeting_url: meetingUrl,
-            interviewer: "مدير التوظيف",
-          },
-        };
-        break;
-      }
-      case "move_candidate": {
-        const topCand = candidates[0];
-        const candName = topCand ? topCand.name : "سارة القحطاني";
-        const currentStg = topCand?.stage || "فرز أولي";
-        const targetStg = "مقابلة تقنية";
-
-        introText = `لقد جهزت أمر نقل المرشح "${candName}" إلى مرحلة جديدة. يمكنك تحديد المرحلة والنقر على تنفيذ فوري لتحديث خط الأنابيب:`;
-        action = {
-          id: `action_move_${Date.now()}`,
-          type: "move_candidate",
-          title: `نقل مرحلة المرشح: ${candName}`,
-          description: "تغيير حالة ومرحلة المرشح في خط أنابيب التوظيف وقاعدة البيانات مباشرة.",
-          status: "pending_review",
-          movePayload: {
-            candidate_id: topCand?.id || "cand-1",
-            candidate_name: candName,
-            current_stage: currentStg,
-            target_stage: targetStg,
-            previous_stage: currentStg,
-          },
-        };
-        break;
-      }
-      case "filter_candidates": {
-        introText = "إليك تحليل ترشيح ومطابقة المواهب الأعلى توافقاً مع شواغر الشركة الحالية بناءً على الذكاء الاصطناعي:";
-        const matched = candidates.slice(0, 5).map((c, i) => ({
-          id: c.id,
-          name: c.name,
-          role: c.role || "مرشح",
-          stage: c.stage || "تقديم جديد",
-          match_score: Math.max(78, 96 - i * 4),
-          phone: c.phone,
-          email: c.email,
-          skills: c.skills || [],
-        }));
-        action = {
-          id: `action_filter_${Date.now()}`,
-          type: "filter_candidates",
-          title: "ترشيح ومطابقة أفضل المواهب",
-          description: "فرز آلي للمرشحين حسب نسبة التطابق وتسهيل الانتقال المباشر للملفات.",
-          status: "pending_review",
-          filterPayload: {
-            job_title: jobs[0]?.title || "الوظائف المفتوحة",
-            matched_candidates: matched,
-          },
-        };
-        break;
-      }
-      case "whatsapp_dispatch": {
-        const topCand = candidates[0];
-        const candName = topCand ? topCand.name : "محمد الشهري";
-        const phone = topCand?.phone || "966501234567";
-
-        introText = `لقد جهزت قالب التواصل السريع عبر واتساب للمرشح "${candName}". انقر على تأكيد لتشغيل الإرسال الفوري:`;
-        action = {
-          id: `action_wa_${Date.now()}`,
-          type: "whatsapp_dispatch",
-          title: `تواصل واتساب مع: ${candName}`,
-          description: "فتح محادثة WhatsApp مباشرة مع المرشح برسالة ترحيبية مخصصة.",
-          status: "pending_review",
-          whatsappPayload: {
-            candidate_id: topCand?.id,
-            candidate_name: candName,
-            phone,
-            message: `السلام عليكم ${candName}، معكم فريق التوظيف في منصة Tawzeef-X. يسعدنا إبلاغكم باجتياز مرحلة الفرز الأولي، ونرغب في تحديد موعد للمقابلة القادمة.`,
-          },
-        };
-        break;
-      }
-    }
-
-    if (action) {
-      const newMsg: Message = {
-        role: "assistant",
-        content: introText,
-        copilotAction: action,
-      };
-      setMessages(prev => [...prev, newMsg]);
-    }
+    const prompts: Partial<Record<CopilotActionType, string>> = {
+      create_job: "ساعدني في صياغة وظيفة جديدة. المسمى الوظيفي: ",
+      schedule_interview: "ساعدني في جدولة مقابلة. اسم المرشح والموعد: ",
+      move_candidate: "ساعدني في نقل مرشح إلى مرحلة أخرى. اسم المرشح والمرحلة: ",
+      filter_candidates: "اعرض المرشحين الحاليين للوظيفة التالية مع الأدلة المتاحة دون اتخاذ قرار: ",
+      whatsapp_dispatch: "اكتب مسودة رسالة واتساب لمرشح، ولا ترسلها. اسم المرشح والغرض: ",
+    };
+    setInput(prompts[type] || "");
+    inputRef.current?.focus();
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2272,12 +2139,24 @@ export default function AIAssistant() {
                 </p>
 
                 <AISuggestionChips
-                  onSelectSuggestion={(prompt) => {
-                    setInput(prompt);
-                    setTimeout(() => handleSend(), 50);
-                  }}
+                  onSelectSuggestion={(prompt) => { void handleSend(prompt); }}
                   className="w-full"
                 />
+                {(role === "admin" || role === "recruiter") && <div className="w-full mt-6 text-right">
+                  <p className="text-xs font-bold text-foreground mb-2">وحدات متخصصة للوظائف</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {[
+                      ["job_review", "مراجعة الإعلان"],
+                      ["interview_scorecard", "بطاقة المقابلة"],
+                      ["screening_checklist", "الفرز الأولي"],
+                      ["hiring_workflow", "خطة التوظيف"],
+                      ["candidate_outreach", "مسودات التواصل"],
+                    ].map(([mode, label]) => (
+                      <Button key={mode} variant="outline" className="text-xs h-auto min-h-10 whitespace-normal" onClick={() => navigate(`/ai-tools?mode=${mode}`)}>{label}</Button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-2">هذه الوحدات تصنع مسودات للمراجعة؛ لا ترسل رسائل أو تتخذ قرار توظيف.</p>
+                </div>}
               </motion.div>
             ) : (
               <AnimatePresence>
@@ -2593,7 +2472,7 @@ export default function AIAssistant() {
               onSelect={(cmd: SlashCommand) => {
                 setInput(cmd.prompt);
                 if (cmd.autoSend) {
-                  setTimeout(() => handleSend(), 50);
+                  void handleSend(cmd.prompt);
                 }
               }}
             />
@@ -2616,10 +2495,10 @@ export default function AIAssistant() {
               />
 
               <Input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleSend()}
+                onKeyDown={e => { if (e.key === "Enter") void handleSend(); }}
                 placeholder="اكتب أمرك للمساعد الذكي أو / للأوامر السريعة..."
                 className="flex-1 rounded-full bg-transparent border-0 ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-xs sm:text-sm shadow-none" />
-              <Button onClick={handleSend} disabled={(!input.trim() && attachedFiles.length === 0) || isLoading}
+              <Button onClick={() => void handleSend()} disabled={(!input.trim() && attachedFiles.length === 0 && !resumeFile) || isLoading}
                 size="icon" className="bg-primary text-primary-foreground hover:bg-primary/90 w-10 h-10 rounded-full shrink-0 shadow-sm hover:scale-105 transition-transform duration-200">
                 <Send className="w-4 h-4" />
               </Button>
