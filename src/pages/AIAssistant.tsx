@@ -69,6 +69,7 @@ import { getApplyUrl } from "@/lib/getPublicUrl";
 import { useI18n } from "@/contexts/I18nContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useScreenPermissions } from "@/hooks/useScreenPermissions";
 import VoiceInputButton from "@/components/ai-assistant/VoiceInputButton";
 import AIChatHeader from "@/components/ai-assistant/AIChatHeader";
 import AIChatBubble from "@/components/ai-assistant/AIChatBubble";
@@ -1208,6 +1209,7 @@ export default function AIAssistant() {
   const { t } = useI18n();
   const { user } = useAuth();
   const { role } = useUserRole();
+  const { hasActionPermission } = useScreenPermissions();
   const addJobMutation = useAddJob();
   const [messages, setMessages] = useState<Message[]>([]);
 
@@ -2539,7 +2541,7 @@ export default function AIAssistant() {
         originalModelLabel={compareDialog.modelLabel}
       />
 
-      <AssistantServicesDialog open={servicesOpen} onOpenChange={setServicesOpen} onSelect={selectAssistantService} canManage={role === "admin" || role === "recruiter"} />
+      <AssistantServicesDialog open={servicesOpen} onOpenChange={setServicesOpen} onSelect={selectAssistantService} canManage={role === "admin" || role === "recruiter"} canScheduleInterviews={hasActionPermission("action.create_interviews")} />
 
       <AddJobDialog
         open={editJobModal.open}
