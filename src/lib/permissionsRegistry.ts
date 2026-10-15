@@ -279,15 +279,31 @@ export const ACTION_PERMISSIONS: Record<string, { key: string; description: stri
     description: "دعوة عضو جديد لفريق العمل",
     tenantAdminOnly: true,
   },
-  "action.jobs.delete": {
-    key: "action.jobs.delete",
+  "action.edit_jobs": {
+    key: "action.edit_jobs",
+    description: "تعديل الوظائف",
+  },
+  "action.delete_jobs": {
+    key: "action.delete_jobs",
     description: "حذف إعلان وظيفي",
     tenantAdminOnly: true,
+  },
+  "action.edit_candidates": {
+    key: "action.edit_candidates",
+    description: "تعديل بيانات المرشحين",
   },
   "action.candidates.delete": {
     key: "action.candidates.delete",
     description: "حذف مرشح",
     tenantAdminOnly: true,
+  },
+  "action.create_interviews": {
+    key: "action.create_interviews",
+    description: "جدولة مقابلة",
+  },
+  "action.edit_interviews": {
+    key: "action.edit_interviews",
+    description: "تعديل وتقييم المقابلات",
   },
   "action.google_indexing.submit": {
     key: "action.google_indexing.submit",
