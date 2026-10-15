@@ -11,15 +11,18 @@ const groups = [
   { id: "operations", title: "إجراءات التوظيف", icon: BriefcaseBusiness },
 ] as const;
 
-export default function AssistantServicesDialog({ open, onOpenChange, onSelect, canManage }: {
+export default function AssistantServicesDialog({ open, onOpenChange, onSelect, canManage, canScheduleInterviews }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (service: AssistantService) => void;
   canManage: boolean;
+  canScheduleInterviews: boolean;
 }) {
   const [query, setQuery] = useState("");
   const visible = assistantServices.filter(service =>
-    (!service.staffOnly || canManage) && `${service.title} ${service.description}`.includes(query.trim())
+    (!service.staffOnly || canManage) &&
+    (service.id !== "interview" || canScheduleInterviews) &&
+    `${service.title} ${service.description}`.includes(query.trim())
   );
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
