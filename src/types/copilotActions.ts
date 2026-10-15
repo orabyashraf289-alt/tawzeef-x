@@ -48,7 +48,7 @@ export interface CopilotMatchedCandidate {
   name: string;
   role: string;
   stage: string;
-  match_score: number;
+  match_score?: number;
   phone?: string;
   email?: string;
   skills?: string[];

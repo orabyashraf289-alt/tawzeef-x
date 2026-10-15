@@ -135,8 +135,6 @@ export function detectCopilotActionFromText(
         department: "التقنية والتطوير",
         location,
         type: "دوام كامل",
-        salary_min: 8000,
-        salary_max: 14000,
         experience_level: "متوسط (2-4 سنوات)",
         description: `نحن نبحث عن ${title} موهوب للانضمام إلى فريق عملنا والمساهمة في تطوير حلول تقنية متقدمة.`,
         requirements: ["خبرة عملية لا تقل عن سنتين", "مهارات تواصل ممتازة", "القدرة على العمل ضمن فريق"],
@@ -151,12 +149,11 @@ export function detectCopilotActionFromText(
     normalized.includes("فرز المرشحين") ||
     normalized.includes("مطابقة المواهب")
   ) {
-    const matchedCandidates = context.candidates.slice(0, 5).map((c, i) => ({
+    const matchedCandidates = context.candidates.slice(0, 5).map((c) => ({
       id: c.id,
       name: c.name,
       role: c.role || "مرشح",
       stage: c.stage || "تقديم جديد",
-      match_score: Math.max(75, 95 - i * 5),
       phone: c.phone,
       email: c.email,
       skills: c.skills || [],
@@ -165,8 +162,8 @@ export function detectCopilotActionFromText(
     return {
       id: `action_filter_${Date.now()}`,
       type: "filter_candidates",
-      title: "مطابقة وترشيح أفضل المواهب",
-      description: "تحليل ذكي لقاعدة بيانات المرشحين وترتيبهم حسب التوافق مع إمكانية الترقية الفورية.",
+      title: "استعراض المرشحين",
+      description: "استعراض ملفات المرشحين المتاحة. لم تُحسب نسبة توافق أو ترتيب آلي.",
       status: "pending_review",
       filterPayload: {
         job_title: context.jobs[0]?.title || "الوظائف المفتوحة",
@@ -183,9 +180,9 @@ export function detectCopilotActionFromText(
   ) {
     const matchedCandidate = context.candidates.find(c =>
       normalized.includes(c.name.toLowerCase())
-    ) || context.candidates[0];
+    );
 
-    if (matchedCandidate) {
+    if (matchedCandidate?.phone) {
       return {
         id: `action_wa_${Date.now()}`,
         type: "whatsapp_dispatch",
@@ -195,7 +192,7 @@ export function detectCopilotActionFromText(
         whatsappPayload: {
           candidate_id: matchedCandidate.id,
           candidate_name: matchedCandidate.name,
-          phone: matchedCandidate.phone || "966500000000",
+          phone: matchedCandidate.phone,
           message: `السلام عليكم ${matchedCandidate.name}، نود إبلاغكم باهتمامنا بملفكم المهني في Tawzeef-X، وسعداء بالتواصل معكم بشأن الخطوة القادمة.`,
         },
       };
@@ -307,6 +304,7 @@ export async function executeCopilotAction(
       if (!action.whatsappPayload) throw new Error("بيانات التواصل غير مكتملة");
       const p = action.whatsappPayload;
       const cleanPhone = p.phone.replace(/[^0-9]/g, "");
+      if (cleanPhone.length < 8) throw new Error("رقم هاتف المرشح غير صالح");
       const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(p.message)}`;
       window.open(waUrl, "_blank");
 
@@ -319,7 +317,7 @@ export async function executeCopilotAction(
     case "filter_candidates": {
       return {
         success: true,
-        details: "تم فرز وتصفية المرشحين حسب التوافق بنجاح.",
+        details: "تم استعراض ملفات المرشحين. راجع متطلبات الوظيفة قبل أي قرار.",
         resultUrl: "/pipeline",
       };
     }
