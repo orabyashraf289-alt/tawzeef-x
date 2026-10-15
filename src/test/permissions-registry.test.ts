@@ -154,6 +154,27 @@ describe("Permissions Registry & Deny-by-Default Architecture (PROMPT 03)", () =
   });
 
   describe("Deny-by-Default Action Evaluation", () => {
+    it("registers every action checked by a recruitment screen", () => {
+      for (const screen of ["Jobs.tsx", "JobDetails.tsx", "Candidates.tsx", "Interviews.tsx"]) {
+        const source = fs.readFileSync(path.resolve(__dirname, `../pages/${screen}`), "utf-8");
+        for (const [, key] of source.matchAll(/hasActionPermission\("([^"]+)"\)/g)) {
+          expect(ACTION_PERMISSIONS, `${screen} checks unregistered ${key}`).toHaveProperty(key);
+        }
+      }
+    });
+
+    it("allows configured hiring actions to staff and keeps reviewers out", () => {
+      const keys = ["action.edit_jobs", "action.edit_candidates", "action.create_interviews", "action.edit_interviews"];
+      const permissions = keys.map(permission_key => ({ permission_key, description: "", admin: true, recruiter: true, reviewer: false }));
+      for (const actionKey of keys) {
+        expect(evaluateActionPermission({ actionKey, role: "admin", isPlatformSuperAdmin: false, permissions })).toBe(true);
+        expect(evaluateActionPermission({ actionKey, role: "recruiter", isPlatformSuperAdmin: false, permissions })).toBe(true);
+        expect(evaluateActionPermission({ actionKey, role: "reviewer", isPlatformSuperAdmin: false, permissions })).toBe(false);
+      }
+      expect(evaluateActionPermission({ actionKey: "action.delete_jobs", role: "recruiter", isPlatformSuperAdmin: false, permissions })).toBe(false);
+      expect(evaluateActionPermission({ actionKey: "action.create_interviews", role: "recruiter", isPlatformSuperAdmin: false })).toBe(false);
+    });
+
     it("DENIES action.company.delete to Tenant Admins, allows ONLY Platform Super Admins", () => {
       const tenantAdminAllowed = evaluateActionPermission({
         actionKey: "action.company.delete",
