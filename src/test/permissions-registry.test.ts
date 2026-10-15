@@ -172,6 +172,7 @@ describe("Permissions Registry & Deny-by-Default Architecture (PROMPT 03)", () =
         expect(evaluateActionPermission({ actionKey, role: "reviewer", isPlatformSuperAdmin: false, permissions })).toBe(false);
       }
       expect(evaluateActionPermission({ actionKey: "action.delete_jobs", role: "recruiter", isPlatformSuperAdmin: false, permissions })).toBe(false);
+      expect(evaluateActionPermission({ actionKey: "action.create_interviews", role: "recruiter", isPlatformSuperAdmin: false })).toBe(false);
     });
 
     it("DENIES action.company.delete to Tenant Admins, allows ONLY Platform Super Admins", () => {
