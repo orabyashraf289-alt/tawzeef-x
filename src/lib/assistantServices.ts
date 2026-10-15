@@ -4,6 +4,7 @@ export type AssistantService = {
   title: string;
   description: string;
   prompt?: string;
+  route?: string;
   mode?: "job_review" | "interview_scorecard" | "screening_checklist" | "hiring_workflow" | "candidate_outreach";
   staffOnly?: boolean;
 };
@@ -24,7 +25,7 @@ export const assistantServices: AssistantService[] = [
   { id: "questions", group: "drafts", title: "أسئلة المقابلة", description: "دليل أسئلة لوظيفة محددة", prompt: "أنشئ أسئلة مقابلة لوظيفة: " },
   { id: "resume", group: "drafts", title: "قراءة سيرة ذاتية", description: "أرفق PDF أو DOCX أو TXT واسأل عن محتواه", prompt: "حلل السيرة الذاتية المرفقة، واستخرج المهارات والخبرات دون اتخاذ قرار توظيف" },
   { id: "create_job", group: "operations", title: "إنشاء وظيفة", description: "معاينة الوظيفة قبل حفظها", prompt: "أنشئ مسودة وظيفة بعنوان: ", staffOnly: true },
-  { id: "interview", group: "operations", title: "جدولة مقابلة", description: "حدد المرشح والموعد في طلبك", prompt: "جدول مقابلة للمرشح: ", staffOnly: true },
-  { id: "move", group: "operations", title: "نقل مرحلة مرشح", description: "حدد الاسم والمرحلة المطلوبة", prompt: "انقل المرشح إلى مرحلة: ", staffOnly: true },
-  { id: "offer", group: "operations", title: "مسودة عرض وظيفي", description: "حدد المرشح والمنصب والراتب", prompt: "أنشئ مسودة عرض وظيفي للمرشح: ", staffOnly: true },
+  { id: "interview", group: "operations", title: "جدولة مقابلة", description: "راجع المرشح والموعد في شاشة المقابلات", route: "/interviews", staffOnly: true },
+  { id: "move", group: "operations", title: "نقل مرحلة مرشح", description: "راجع المرحلة المطلوبة في مسار التوظيف", route: "/pipeline", staffOnly: true },
+  { id: "offer", group: "operations", title: "مسودة عرض وظيفي", description: "راجع التفاصيل في شاشة العروض", route: "/offers", staffOnly: true },
 ];
