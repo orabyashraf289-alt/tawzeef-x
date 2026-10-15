@@ -242,10 +242,11 @@ function extractJobFromMessage(content: string): JobData | null {
   const title = getField(["المسمى الوظيفي", "عنوان الوظيفة", "الوظيفة", "المسمى", "Title"]);
   if (!title) return null;
 
-  const department = getField(["القسم", "الإدارة", "Department"]) || "العامة";
-  const location = getField(["الموقع", "المدينة", "Location"]) || "الرياض";
-  const type = getField(["نوع التوظيف", "نوع الدوام", "النوع", "Type"]) || "دوام كامل";
-  const experience_level = getField(["الخبرة", "مستوى الخبرة", "Experience"]) || "3-5 سنوات";
+  const department = getField(["القسم", "الإدارة", "Department"]);
+  const location = getField(["الموقع", "المدينة", "Location"]);
+  const type = getField(["نوع التوظيف", "نوع الدوام", "النوع", "Type"]);
+  if (!department || !location || !type) return null;
+  const experience_level = getField(["الخبرة", "مستوى الخبرة", "Experience"]);
   const salaryStr = getField(["الراتب", "نطاق الراتب", "Salary"]);
 
   let salary_min: number | undefined = undefined;
@@ -1234,6 +1235,10 @@ export default function AIAssistant() {
       navigate(`/ai-tools?mode=${service.mode}`);
       return;
     }
+    if (service.route) {
+      navigate(service.route);
+      return;
+    }
     if (service.prompt) {
       setInput(service.prompt);
       requestAnimationFrame(() => inputRef.current?.focus());
@@ -1720,15 +1725,15 @@ export default function AIAssistant() {
   const handleConfirmJob = async (msgIndex: number, overrideData?: any) => {
     const msg = messages[msgIndex];
     const rawJob = overrideData || msg.jobPreview?.data || extractJobFromMessage(msg.content);
-    if (!rawJob || !rawJob.title) {
-      toast({ title: "لم يتم التعرف على مسمى الشاغر", description: "يرجى تحديد مسمى الوظيفة والمكان قبل النشر", variant: "destructive" });
+    if (!rawJob?.title || !rawJob.department || !rawJob.location || !rawJob.type) {
+      toast({ title: "بيانات الشاغر غير مكتملة", description: "راجع المسمى والقسم والموقع ونوع الدوام قبل النشر", variant: "destructive" });
       return;
     }
     const jobData = {
       title: rawJob.title,
-      department: rawJob.department || "العامة",
-      location: rawJob.location || "الرياض",
-      type: rawJob.type || "دوام كامل",
+      department: rawJob.department,
+      location: rawJob.location,
+      type: rawJob.type,
       description: rawJob.description || undefined,
       requirements: rawJob.requirements,
       experience_level: rawJob.experience_level || rawJob.experience || undefined,
