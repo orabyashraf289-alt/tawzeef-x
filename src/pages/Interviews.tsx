@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import AIInterviewQuestions from "@/components/AIInterviewQuestions";
 import SentimentBadge from "@/components/SentimentBadge";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -22,7 +22,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { stagger, fadeUp } from "@/lib/motion";
 import { useI18n } from "@/contexts/I18nContext";
 import { useScreenPermissions } from "@/hooks/useScreenPermissions";
@@ -124,7 +124,8 @@ export default function Interviews() {
   const addInterview = useAddInterview();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { hasActionPermission } = useScreenPermissions();
+  const location = useLocation();
+  const { hasActionPermission, isLoading: permissionsLoading } = useScreenPermissions();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [ratingDialog, setRatingDialog] = useState<any | null>(null);
   const [ratingValue, setRatingValue] = useState(0);
@@ -144,6 +145,14 @@ export default function Interviews() {
     type: "عن بُعد", interviewer: "", meeting_type: "jitsi" as "jitsi" | "external",
     external_link: "",
   });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("action") !== "new" || permissionsLoading) return;
+    if (hasActionPermission("action.create_interviews")) setDialogOpen(true);
+    params.delete("action");
+    navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash }, { replace: true });
+  }, [location.pathname, location.search, location.hash, permissionsLoading, hasActionPermission, navigate]);
 
   const filteredInterviews = useMemo(() => {
     let list = interviews || [];
@@ -195,7 +204,7 @@ export default function Interviews() {
   };
 
   const handleAdd = async () => {
-    if (!form.candidate_name || !form.position || !form.date || !form.time) return;
+    if (addInterview.isPending || !form.candidate_name || !form.position || !form.date || !form.time) return;
 
     let meetingUrl = "";
     if (form.type === "عن بُعد") {
@@ -207,29 +216,15 @@ export default function Interviews() {
       }
     }
 
-    // Use the existing addInterview then update with meeting_url
     addInterview.mutate(
-      { candidate_name: form.candidate_name, position: form.position, date: form.date, time: form.time, type: form.type, interviewer: form.interviewer },
+      { candidate_name: form.candidate_name, position: form.position, date: form.date, time: form.time, type: form.type, interviewer: form.interviewer, meeting_url: meetingUrl || undefined },
       {
-        onSuccess: async () => {
-          // Update the latest interview with meeting_url
-          if (meetingUrl) {
-            const { data: latest } = await supabase
-              .from("interviews")
-              .select("id")
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .single();
-            if (latest) {
-              await supabase.from("interviews").update({ meeting_url: meetingUrl } as any).eq("id", latest.id);
-              queryClient.invalidateQueries({ queryKey: ["interviews"] });
-            }
-          }
+        onSuccess: () => {
+          setDialogOpen(false);
+          setForm({ candidate_name: "", position: "", date: "", time: "", type: "عن بُعد", interviewer: "", meeting_type: "jitsi", external_link: "" });
         }
       }
     );
-    setDialogOpen(false);
-    setForm({ candidate_name: "", position: "", date: "", time: "", type: "عن بُعد", interviewer: "", meeting_type: "jitsi", external_link: "" });
   };
 
   const handleRate = async () => {
@@ -722,7 +717,7 @@ export default function Interviews() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
-            <Button onClick={handleAdd} className="bg-primary text-primary-foreground hover:bg-primary/90">{t("common.save")}</Button>
+            <Button onClick={handleAdd} disabled={addInterview.isPending} className="bg-primary text-primary-foreground hover:bg-primary/90">{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
