@@ -26,6 +26,6 @@ export const assistantServices: AssistantService[] = [
   { id: "resume", group: "drafts", title: "قراءة سيرة ذاتية", description: "أرفق PDF أو DOCX أو TXT واسأل عن محتواه", prompt: "حلل السيرة الذاتية المرفقة، واستخرج المهارات والخبرات دون اتخاذ قرار توظيف" },
   { id: "create_job", group: "operations", title: "إنشاء وظيفة", description: "معاينة الوظيفة قبل حفظها", prompt: "أنشئ مسودة وظيفة بعنوان: ", staffOnly: true },
   { id: "interview", group: "operations", title: "جدولة مقابلة", description: "راجع المرشح والموعد في شاشة المقابلات", route: "/interviews?action=new", staffOnly: true },
-  { id: "move", group: "operations", title: "نقل مرحلة مرشح", description: "راجع المرحلة المطلوبة في مسار التوظيف", route: "/pipeline", staffOnly: true },
+  { id: "move", group: "operations", title: "نقل مرحلة مرشح", description: "اختر المرشح والمرحلة، ثم راجع النقل قبل تأكيده", route: "/pipeline?action=move", staffOnly: true },
   { id: "offer", group: "operations", title: "مسودة عرض وظيفي", description: "راجع التفاصيل في نموذج العرض قبل حفظ المسودة", route: "/offers?action=new", staffOnly: true },
 ];
