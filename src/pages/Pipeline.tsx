@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, memo } from "react";
+import { useState, useMemo, useCallback, useEffect, memo } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useI18n } from "@/contexts/I18nContext";
 import { useCandidates, useJobs, useInterviews } from "@/hooks/useJobs";
@@ -23,7 +23,7 @@ import PipelineAnalytics from "@/components/PipelineAnalytics";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { PipelineSkeleton } from "@/components/Skeletons";
 import {
   DndContext,
@@ -140,8 +140,9 @@ export default function Pipeline() {
   const activeStages = useActiveStages();
   const { data: allStages } = usePipelineStages();
   const { user } = useAuth();
-  const { role, isAdmin, isRecruiter } = useUserRole();
+  const { role, isAdmin, isRecruiter, isLoading: isRoleLoading } = useUserRole();
   const canMoveCandidates = isAdmin || isRecruiter;
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Fetch assessment responses for gating
   const { data: assessmentResponses } = useQuery({
@@ -193,8 +194,20 @@ export default function Pipeline() {
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; candidateId: string; candidateName: string; stageId: string; stageLabel: string } | null>(null);
   const [transitionDialog, setTransitionDialog] = useState<{ open: boolean; candidateId: string; candidateName: string; fromStage: string; toStage: string; toStageLabel: string } | null>(null);
   const [transitionNote, setTransitionNote] = useState("");
+  const [isMoveReviewOpen, setIsMoveReviewOpen] = useState(false);
+  const [moveCandidateId, setMoveCandidateId] = useState("");
+  const [moveTargetStage, setMoveTargetStage] = useState("");
+  const [moveCandidateSearch, setMoveCandidateSearch] = useState("");
   const [assessmentDialog, setAssessmentDialog] = useState<{ open: boolean; candidateId: string; candidateName: string; candidateEmail: string | null; assessmentId: string; assessmentToken: string; assessmentTitle: string } | null>(null);
   const [sendingEmail, setSendingEmail] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("action") !== "move" || isRoleLoading) return;
+    if (canMoveCandidates) setIsMoveReviewOpen(true);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("action");
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams, isRoleLoading, canMoveCandidates]);
 
   // Fetch email tracking data for candidates
   const { data: emailTracking, refetch: refetchTracking } = useQuery({
@@ -250,6 +263,14 @@ export default function Pipeline() {
       return matchesSearch && matchesJob && matchesScore && !isRejected && !isDeferred;
     });
   }, [candidates, search, jobFilter, scoreFilter, statusFilter]);
+
+  const movableCandidates = useMemo(() => (candidates || []).filter(c =>
+    c.is_deferred !== true && c.status !== "مؤجل" && c.status !== "مرفوض" && c.stage !== "مرفوض"
+  ), [candidates]);
+  const moveCandidate = movableCandidates.find(c => c.id === moveCandidateId);
+  const matchingMoveCandidates = movableCandidates.filter(c =>
+    c.id === moveCandidateId || c.name.toLowerCase().includes(moveCandidateSearch.trim().toLowerCase())
+  ).slice(0, 50);
 
   const grouped = useMemo(() => {
     const map: Record<string, any[]> = {};
@@ -598,6 +619,7 @@ export default function Pipeline() {
   }, []);
 
   const handleMoveCandidate = useCallback((candidateId: string, newStage: string) => {
+    if (!canMoveCandidates || !STAGES.some(s => s.id === newStage)) return;
     const candidate = (candidates || []).find((c) => c.id === candidateId);
     if (!candidate || candidate.stage === newStage) return;
 
@@ -613,6 +635,12 @@ export default function Pipeline() {
       return;
     }
 
+    const ruleViolation = checkTransitionRules(candidate, newStage);
+    if (ruleViolation) {
+      handleTransitionBlock(candidate, ruleViolation);
+      return;
+    }
+
     const oldStage = candidate.stage || "تقديم الطلب";
     const stageInfo = STAGES.find((s) => s.id === newStage);
 
@@ -625,7 +653,7 @@ export default function Pipeline() {
       toStageLabel: stageInfo?.label || newStage,
     });
     setTransitionNote("");
-  }, [STAGES, candidates, deferCandidate]);
+  }, [STAGES, candidates, deferCandidate, canMoveCandidates, checkTransitionRules, handleTransitionBlock]);
 
   const handleBulkMove = useCallback(async () => {
     if (!bulkTargetStage || selectedCandidateIds.length === 0) return;
@@ -1110,6 +1138,56 @@ export default function Pipeline() {
           </div>
         )}
       </div>
+
+      {/* Assistant move review: selection only; the existing transition dialog confirms the update. */}
+      <Dialog open={isMoveReviewOpen && canMoveCandidates} onOpenChange={setIsMoveReviewOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>نقل مرحلة مرشح</DialogTitle>
+            <DialogDescription>اختر المرشح والمرحلة الجديدة. ستراجع النقل وتؤكده قبل حفظ أي تغيير.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="move-candidate-search">المرشح</label>
+              <Input id="move-candidate-search" value={moveCandidateSearch} onChange={e => setMoveCandidateSearch(e.target.value)} placeholder="ابحث باسم المرشح" />
+              <Select value={moveCandidateId} onValueChange={value => { setMoveCandidateId(value); setMoveTargetStage(""); }}>
+                <SelectTrigger aria-label="اختر المرشح"><SelectValue placeholder={isLoading ? "جاري تحميل المرشحين..." : "اختر مرشحًا"} /></SelectTrigger>
+                <SelectContent>
+                  {matchingMoveCandidates.map(candidate => (
+                    <SelectItem key={candidate.id} value={candidate.id}>
+                      {candidate.name} — {candidate.jobs?.title || candidate.stage || "تقديم الطلب"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!isLoading && movableCandidates.length === 0 && <p className="text-sm text-muted-foreground">لا يوجد مرشحون نشطون للنقل.</p>}
+              {!isLoading && movableCandidates.length > 0 && matchingMoveCandidates.length === 0 && <p className="text-sm text-muted-foreground">لا توجد نتائج لهذا البحث.</p>}
+            </div>
+            {moveCandidate && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">المرحلة الحالية: {moveCandidate.stage || "تقديم الطلب"}</p>
+                <label className="text-sm font-medium">المرحلة الجديدة</label>
+                <Select value={moveTargetStage} onValueChange={setMoveTargetStage}>
+                  <SelectTrigger aria-label="اختر المرحلة الجديدة"><SelectValue placeholder="اختر المرحلة" /></SelectTrigger>
+                  <SelectContent>
+                    {STAGES.filter(stage => stage.id !== moveCandidate.stage && stage.id !== "مرفوض" && stage.id !== "مؤجل").map(stage => (
+                      <SelectItem key={stage.id} value={stage.id}>{stage.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsMoveReviewOpen(false)}>إلغاء</Button>
+            <Button disabled={!canMoveCandidates || !moveCandidate || !moveTargetStage || moveTargetStage === moveCandidate.stage} onClick={() => {
+              if (!moveCandidate || !moveTargetStage) return;
+              setIsMoveReviewOpen(false);
+              handleMoveCandidate(moveCandidate.id, moveTargetStage);
+            }}>مراجعة النقل</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Transition Note Dialog */}
       <Dialog open={!!transitionDialog?.open} onOpenChange={(open) => { if (!open) { setTransitionDialog(null); setTransitionNote(""); } }}>
