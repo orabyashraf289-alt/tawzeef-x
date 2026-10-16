@@ -23,4 +23,14 @@ describe("assistant services catalog", () => {
     expect(screen.getByText("بطاقة المقابلة")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /جدولة مقابلة راجع المرشح/ })).not.toBeInTheDocument();
   });
+
+  it("offers read-only analytics to reviewers and sends the selected report prompt", () => {
+    const onSelect = vi.fn();
+    render(<AssistantServicesDialog open onOpenChange={() => {}} onSelect={onSelect} canManage={false} canScheduleInterviews={false} />);
+    for (const title of ["تقرير مسار التوظيف", "تحليل العروض الوظيفية", "مصادر المرشحين", "الاتجاه الشهري"]) {
+      expect(screen.getByText(title)).toBeInTheDocument();
+    }
+    fireEvent.click(screen.getByRole("button", { name: /مصادر المرشحين/ }));
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: "candidate_sources", prompt: expect.stringContaining("sources") }));
+  });
 });
