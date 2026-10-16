@@ -1228,6 +1228,7 @@ export default function AIAssistant() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const selectedReportRef = useRef<{ type: NonNullable<AssistantService["reportType"]>; prompt: string } | null>(null);
   const inFlightRef = useRef(false);
   const savingRef = useRef(false);
   const queryClient = useQueryClient();
@@ -1242,6 +1243,7 @@ export default function AIAssistant() {
       return;
     }
     if (service.prompt) {
+      selectedReportRef.current = service.reportType ? { type: service.reportType, prompt: service.prompt } : null;
       setInput(service.prompt);
       requestAnimationFrame(() => inputRef.current?.focus());
     }
@@ -1551,6 +1553,9 @@ export default function AIAssistant() {
   const handleSend = async (promptOverride?: string) => {
     const prompt = promptOverride ?? input;
     if ((!prompt.trim() && attachedFiles.length === 0 && !resumeFile) || inFlightRef.current || savingRef.current) return;
+    const reportType = selectedReportRef.current?.prompt === prompt && !attachedFiles.length && !resumeFile
+      ? selectedReportRef.current.type : undefined;
+    selectedReportRef.current = null;
     inFlightRef.current = true;
     setIsLoading(true);
 
@@ -1598,16 +1603,18 @@ export default function AIAssistant() {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (!token) throw new Error("انتهت الجلسة. سجل دخولك ثم أعد المحاولة.");
+      const requestBody = JSON.stringify({
+        messages: allMessages.map(m => ({ role: m.role, content: m.content })),
+        ...(resumeText ? { resume_text: resumeText } : {}),
+        ...(filesText ? { attached_files_text: filesText } : {}),
+        ...(modelChoice !== "auto" ? { model_override: modelChoice } : {}),
+        ...(reportType ? { report_type: reportType } : {}),
+      });
 
       let resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          messages: allMessages.map(m => ({ role: m.role, content: m.content })),
-          ...(resumeText ? { resume_text: resumeText } : {}),
-          ...(filesText ? { attached_files_text: filesText } : {}),
-          ...(modelChoice !== "auto" ? { model_override: modelChoice } : {}),
-        }),
+        body: requestBody,
       });
 
       // Silent automated exponential retries on 429 rate limit (up to 3 attempts)
@@ -1618,12 +1625,7 @@ export default function AIAssistant() {
         resp = await fetch(CHAT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            messages: allMessages.map(m => ({ role: m.role, content: m.content })),
-            ...(resumeText ? { resume_text: resumeText } : {}),
-            ...(filesText ? { attached_files_text: filesText } : {}),
-            ...(modelChoice !== "auto" ? { model_override: modelChoice } : {}),
-          }),
+          body: requestBody,
         });
       }
 
@@ -2518,7 +2520,7 @@ export default function AIAssistant() {
                 disabled={isLoading}
               />
 
-              <Input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
+              <Input ref={inputRef} value={input} onChange={e => { selectedReportRef.current = null; setInput(e.target.value); }}
                 onKeyDown={e => { if (e.key === "Enter") void handleSend(); }}
                 placeholder="اكتب أمرك للمساعد الذكي أو / للأوامر السريعة..."
                 className="flex-1 rounded-full bg-transparent border-0 ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-xs sm:text-sm shadow-none" />

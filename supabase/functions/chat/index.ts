@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 import { requestChatCompletion } from "./provider.ts";
 import { allowedChatTools } from "./toolPolicy.ts";
+import { formatAnalyticsReport, isAnalyticsReportType } from "./analyticsReport.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -598,10 +599,13 @@ async function handleToolCall(tc: any, userId: string): Promise<{ result: string
 
     case "get_stats": {
       const reportType = args.report_type || "overview";
-      const { data: jobs } = await admin.from("jobs").select("id, title, status, department, created_at").eq("user_id", userId);
-      const { data: candidates } = await admin.from("candidates").select("id, name, stage, status, source, ai_score, created_at, updated_at").eq("user_id", userId);
-      const { data: interviews } = await admin.from("interviews").select("id, status, date, created_at").eq("user_id", userId);
-      const { data: offers } = await admin.from("job_offers").select("id, status, salary, currency, position, created_at").eq("user_id", userId);
+      const [{ data: jobs, error: jobsError }, { data: candidates, error: candidatesError }, { data: interviews, error: interviewsError }, { data: offers, error: offersError }] = await Promise.all([
+        admin.from("jobs").select("id, title, status, department, created_at").eq("user_id", userId),
+        admin.from("candidates").select("id, name, stage, status, source, ai_score, created_at, updated_at").eq("user_id", userId),
+        admin.from("interviews").select("id, status, date, created_at").eq("user_id", userId),
+        admin.from("job_offers").select("id, status, salary, currency, position, created_at").eq("user_id", userId),
+      ]);
+      if (jobsError || candidatesError || interviewsError || offersError) throw new Error("تعذر تحميل إحصاءات التوظيف.");
 
       const allJobs = jobs || [];
       const allCandidates = candidates || [];
@@ -943,36 +947,15 @@ serve(async (req) => {
     const user = /^Bearer\s+\S+$/i.test(authHeader) ? await getUser(authHeader) : null;
     if (!user || user.is_anonymous) return new Response(JSON.stringify({ error: "Authentication required" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const { messages, resume_text, attached_files_text, model_override, disable_tools, stream } = await req.json();
+    const { messages, resume_text, attached_files_text, model_override, disable_tools, stream, report_type } = await req.json();
     if (!Array.isArray(messages) || !messages.length || messages.length > 40 ||
         messages.some((m) => !m || !["user", "assistant"].includes(m.role) || typeof m.content !== "string" || m.content.length > 16000) ||
         messages[messages.length - 1].role !== "user" ||
         (resume_text !== undefined && (typeof resume_text !== "string" || resume_text.length > 30000)) ||
-        (attached_files_text !== undefined && (typeof attached_files_text !== "string" || attached_files_text.length > 40000))) {
+        (attached_files_text !== undefined && (typeof attached_files_text !== "string" || attached_files_text.length > 40000)) ||
+        (report_type !== undefined && (!isAnalyticsReportType(report_type) || disable_tools === true || resume_text || attached_files_text))) {
       return new Response(JSON.stringify({ error: "Invalid chat input" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const geminiKey = (Deno.env.get("GEMINI_API_KEY") || "").trim();
-    const lovableKey = (Deno.env.get("LOVABLE_API_KEY") || "").trim();
-    const LOVABLE_API_KEY = geminiKey || lovableKey;
-    if (!LOVABLE_API_KEY) throw new Error("GEMINI_API_KEY or LOVABLE_API_KEY is not configured");
-    const isDirectGemini = Boolean(geminiKey) || LOVABLE_API_KEY.startsWith("AIza") || LOVABLE_API_KEY.startsWith("AQ.");
-    const API_URL = isDirectGemini
-      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-      : "https://api.lovable.dev/v1/chat/completions";
-
-    const aiHeaders: Record<string, string> = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-    };
-
-    // Resolve model names safely for both direct Gemini and Lovable Gateway
-    const supportedModels = ["auto", `google/${MODEL_FAST}`, `google/${MODEL_PRO}`];
-    const selected = supportedModels.includes(model_override) ? model_override : "auto";
-    const fastName = selected === `google/${MODEL_PRO}` ? MODEL_PRO : MODEL_FAST;
-    const effectiveFastModel = isDirectGemini ? fastName : `google/${fastName}`;
-    const synthesisName = selected === `google/${MODEL_FAST}` ? MODEL_FAST : MODEL_PRO;
-    const effectiveProModel = isDirectGemini ? synthesisName : `google/${synthesisName}`;
-    const toolsDisabled = disable_tools === true;
     const db = getAdminClient();
     const [roles, memberships, admins] = await Promise.all([
       db.from("user_roles").select("role").eq("user_id", user.id).in("role", ["admin", "recruiter", "reviewer"]),
@@ -984,6 +967,34 @@ serve(async (req) => {
     const staff = superAdmin || Boolean(memberships.data?.length && roles.data?.some((r) => r.role === "admin" || r.role === "recruiter"));
     const reviewer = Boolean(memberships.data?.length && roles.data?.some((r) => r.role === "reviewer"));
     if (!staff && !reviewer) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (isAnalyticsReportType(report_type)) {
+      const { action } = await handleToolCall({ function: { name: "get_stats", arguments: JSON.stringify({ report_type }) } }, user.id);
+      const stats = action?.stats;
+      if (!stats) throw new Error("تعذر تحميل إحصاءات التوظيف.");
+      return new Response(JSON.stringify(buildNonStreamResponse(formatAnalyticsReport(report_type, stats), [action])), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const geminiKey = (Deno.env.get("GEMINI_API_KEY") || "").trim();
+    const lovableKey = (Deno.env.get("LOVABLE_API_KEY") || "").trim();
+    const LOVABLE_API_KEY = geminiKey || lovableKey;
+    if (!LOVABLE_API_KEY) throw new Error("GEMINI_API_KEY or LOVABLE_API_KEY is not configured");
+    const isDirectGemini = Boolean(geminiKey) || LOVABLE_API_KEY.startsWith("AIza") || LOVABLE_API_KEY.startsWith("AQ.");
+    const API_URL = isDirectGemini
+      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+      : "https://api.lovable.dev/v1/chat/completions";
+    const aiHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+    };
+    const supportedModels = ["auto", `google/${MODEL_FAST}`, `google/${MODEL_PRO}`];
+    const selected = supportedModels.includes(model_override) ? model_override : "auto";
+    const fastName = selected === `google/${MODEL_PRO}` ? MODEL_PRO : MODEL_FAST;
+    const effectiveFastModel = isDirectGemini ? fastName : `google/${fastName}`;
+    const synthesisName = selected === `google/${MODEL_FAST}` ? MODEL_FAST : MODEL_PRO;
+    const effectiveProModel = isDirectGemini ? synthesisName : `google/${synthesisName}`;
+    const toolsDisabled = disable_tools === true;
     const availableTools = allowedChatTools(tools, staff ? "staff" : "reviewer");
 
     const actualMessages = messages.map((m) => ({ role: m.role, content: m.content }));
