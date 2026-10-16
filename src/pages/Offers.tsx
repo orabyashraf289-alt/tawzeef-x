@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import SARSymbol from "@/components/SARSymbol";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useCandidates, useJobs } from "@/hooks/useJobs";
@@ -83,6 +83,8 @@ import { OffersSkeleton } from "@/components/Skeletons";
 
 export default function OffersPage() {
   const { t, locale } = useI18n();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { data: offers, isLoading } = useOffers();
   const { data: candidates } = useCandidates();
   const { data: jobs } = useJobs();
@@ -94,6 +96,14 @@ export default function OffersPage() {
   const withdrawOffer = useWithdrawOffer();
 
   const [showCreate, setShowCreate] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("action") !== "new") return;
+    setShowCreate(true);
+    params.delete("action");
+    navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash }, { replace: true });
+  }, [location.pathname, location.search, location.hash, navigate]);
   const [editingOffer, setEditingOffer] = useState<JobOffer | null>(null);
   const [salaryBreakdown, setSalaryBreakdown] = useState(false);
   const [employeeNationality, setEmployeeNationality] = useState<"saudi" | "non-saudi" | "none">("none");
