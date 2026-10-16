@@ -4,6 +4,7 @@ export type AssistantService = {
   title: string;
   description: string;
   prompt?: string;
+  reportType?: "pipeline" | "offers" | "sources" | "monthly";
   route?: string;
   mode?: "job_review" | "interview_scorecard" | "screening_checklist" | "hiring_workflow" | "candidate_outreach";
   staffOnly?: boolean;
@@ -12,10 +13,10 @@ export type AssistantService = {
 // Only list capabilities backed by an existing chat tool or recruitment draft module.
 export const assistantServices: AssistantService[] = [
   { id: "overview", group: "insights", title: "ملخص التوظيف", description: "إحصاءات الوظائف والمرشحين والمقابلات والعروض من النظام", prompt: "اعرض إحصائيات التوظيف الحالية" },
-  { id: "pipeline_stats", group: "insights", title: "تقرير مسار التوظيف", description: "أعداد المرشحين في كل مرحلة من بيانات النظام", prompt: "اعرض تقرير مسار التوظيف الحالي باستخدام إحصاءات النظام لنوع التقرير pipeline، واذكر عدد المرشحين في كل مرحلة دون اتخاذ قرار بشأنهم." },
-  { id: "offer_stats", group: "insights", title: "تحليل العروض الوظيفية", description: "حالات العروض ومعدل القبول من بيانات النظام", prompt: "اعرض إحصاءات العروض الوظيفية الحالية لنوع التقرير offers، بما فيها الحالات ومعدل القبول، ووضح نطاق البيانات المتاح." },
-  { id: "candidate_sources", group: "insights", title: "مصادر المرشحين", description: "توزيع المرشحين حسب مصدر التقديم", prompt: "اعرض إحصاءات مصادر المرشحين الحالية لنوع التقرير sources من بيانات النظام، مع عدد المرشحين لكل مصدر دون ترتيب المرشحين أنفسهم." },
-  { id: "monthly_trends", group: "insights", title: "الاتجاه الشهري", description: "أعداد المرشحين والمقابلات والعروض حسب الشهر", prompt: "اعرض التقرير الشهري الحالي لنوع التقرير monthly من بيانات النظام، وقارن أعداد المرشحين والمقابلات والعروض حسب الشهر دون اختلاق أشهر أو بيانات مفقودة." },
+  { id: "pipeline_stats", group: "insights", title: "تقرير مسار التوظيف", description: "أعداد المرشحين في كل مرحلة من بيانات النظام", reportType: "pipeline", prompt: "اعرض تقرير مسار التوظيف الحالي باستخدام إحصاءات النظام لنوع التقرير pipeline، واذكر عدد المرشحين في كل مرحلة دون اتخاذ قرار بشأنهم." },
+  { id: "offer_stats", group: "insights", title: "تحليل العروض الوظيفية", description: "حالات العروض ومعدل القبول من بيانات النظام", reportType: "offers", prompt: "اعرض إحصاءات العروض الوظيفية الحالية لنوع التقرير offers، بما فيها الحالات ومعدل القبول، ووضح نطاق البيانات المتاح." },
+  { id: "candidate_sources", group: "insights", title: "مصادر المرشحين", description: "توزيع المرشحين حسب مصدر التقديم", reportType: "sources", prompt: "اعرض إحصاءات مصادر المرشحين الحالية لنوع التقرير sources من بيانات النظام، مع عدد المرشحين لكل مصدر دون ترتيب المرشحين أنفسهم." },
+  { id: "monthly_trends", group: "insights", title: "الاتجاه الشهري", description: "أعداد المرشحين والمقابلات والعروض حسب الشهر", reportType: "monthly", prompt: "اعرض التقرير الشهري الحالي لنوع التقرير monthly من بيانات النظام، وقارن أعداد المرشحين والمقابلات والعروض حسب الشهر دون اختلاق أشهر أو بيانات مفقودة." },
   { id: "insights", group: "insights", title: "ما يحتاج انتباهي", description: "الوظائف بلا متقدمين والمقابلات المقبلة والعروض المعلقة", prompt: "اعرض الرؤى الاستباقية لهذا الأسبوع" },
   { id: "jobs", group: "insights", title: "البحث في الوظائف", description: "قائمة الوظائف الحالية وحالتها", prompt: "اعرض الوظائف النشطة الحالية" },
   { id: "candidates", group: "insights", title: "البحث في المرشحين", description: "ابحث بالاسم أو الدور أو مرحلة التوظيف", prompt: "ابحث عن المرشح: " },
