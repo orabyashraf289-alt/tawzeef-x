@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
   const admin = createClient(url, serviceKey);
   let insertedCandidateId: string | undefined;
   try {
-    const { agencyId, name, email, phone, role, resumeUrl } = await req.json();
+    const { agencyId, companyId: requestedCompanyId, name, email, phone, role, experience, location, notes, resumeUrl } = await req.json();
     if (typeof agencyId !== "string" || !/^[0-9a-f-]{36}$/i.test(agencyId) ||
         typeof name !== "string" || !name.trim() || name.length > 150 ||
         typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
@@ -37,20 +37,25 @@ Deno.serve(async (req) => {
     if (agencyError) throw agencyError;
     if (agency?.status !== "active") return reply({ error: "Agency is inactive" }, 403);
 
+    if (requestedCompanyId && (typeof requestedCompanyId !== "string" || !/^[0-9a-f-]{36}$/i.test(requestedCompanyId))) {
+      return reply({ error: "Invalid company" }, 400);
+    }
     const { data: assignments, error: assignmentsError } = await admin.from("agency_assignments")
-      .select("company_id").eq("agency_id", agencyId).eq("scope", "company").eq("status", "active")
-      .order("created_at", { ascending: true }).limit(1);
+      .select("company_id").eq("agency_id", agencyId)
+      .eq("scope", "company").eq("status", "active");
     if (assignmentsError) throw assignmentsError;
-    const companyId = assignments?.[0]?.company_id;
-    if (!companyId) return reply({ error: "No active company assignment" }, 403);
+    const companyId = requestedCompanyId || (assignments?.length === 1 ? assignments[0].company_id : null);
+    if (!companyId || !assignments?.some(item => item.company_id === companyId)) {
+      return reply({ error: "Select an assigned company" }, 403);
+    }
     const { data: company, error: companyError } = await admin.from("companies")
       .select("owner_user_id, status").eq("id", companyId).single();
     if (companyError) throw companyError;
     if (company.status !== "active" || !company.owner_user_id) return reply({ error: "Company is unavailable" }, 403);
 
     const filePath = typeof resumeUrl === "string" &&
-      resumeUrl.startsWith(`agency_${user.id}/`) &&
-      /^agency_[0-9a-f-]{36}\/[a-zA-Z0-9_.-]+\.(pdf|doc|docx)$/i.test(resumeUrl)
+      resumeUrl.startsWith(`${user.id}/`) &&
+      /^[0-9a-f-]{36}\/agency_candidate_[0-9a-f-]{36}\.(pdf|doc|docx)$/i.test(resumeUrl)
       ? resumeUrl : null;
     if (resumeUrl && !filePath) return reply({ error: "Invalid resume path" }, 400);
 
@@ -62,6 +67,9 @@ Deno.serve(async (req) => {
       email: email.trim().toLowerCase(),
       phone: typeof phone === "string" ? phone.trim().slice(0, 50) : null,
       role: typeof role === "string" && role.trim() ? role.trim().slice(0, 150) : "مرشح مكتب توظيف",
+      experience: typeof experience === "string" ? experience.trim().slice(0, 500) : null,
+      location: typeof location === "string" ? location.trim().slice(0, 150) : null,
+      summary: typeof notes === "string" ? notes.trim().slice(0, 2000) : null,
       resume_url: filePath,
       stage: "تقديم الطلب",
       status: "جديد",
