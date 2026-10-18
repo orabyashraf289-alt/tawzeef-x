@@ -20,6 +20,26 @@ Deno.serve(async (req) => {
   if (authError || !user) return reply({ error: "Authentication required" }, 401);
 
   const admin = createClient(url, serviceKey);
+  const createInvitation = async (email: string, name: string) => {
+    const options = {
+      redirectTo: `${(Deno.env.get("APP_URL") || "https://www.tawzeefx.com").replace(/\/$/, "")}/reset-password?invite=agency`,
+      data: { full_name: name, user_type: "agency", role: "recruiter" },
+    };
+    const { data: invitation, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, options);
+    if (!inviteError && invitation.user) return { userId: invitation.user.id, invitationLink: null };
+    // SMTP outages must not block account setup. The fallback link is a bearer
+    // credential: only return it to the already authorized administrator.
+    if (!inviteError || (inviteError.status || 0) < 500) {
+      throw inviteError || new Error("Invitation could not be created");
+    }
+    const { data: generated, error: generateError } = await admin.auth.admin.generateLink({
+      type: "invite", email, options,
+    });
+    if (generateError || !generated?.user || !generated.properties?.action_link) {
+      throw generateError || new Error("Invitation link could not be created");
+    }
+    return { userId: generated.user.id, invitationLink: generated.properties.action_link };
+  };
   let invitedUserId: string | undefined;
   let createdAgencyId: string | undefined;
   let activatedAgencyId: string | undefined;
@@ -62,12 +82,8 @@ Deno.serve(async (req) => {
       if (membersError) throw membersError;
       if (members?.length) return reply({ error: "Agency account is already active" }, 409);
 
-      const { data: invitation, error: inviteError } = await admin.auth.admin.inviteUserByEmail(agencyEmail, {
-        redirectTo: `${(Deno.env.get("APP_URL") || "https://www.tawzeefx.com").replace(/\/$/, "")}/reset-password?invite=agency`,
-        data: { full_name: agency.name, user_type: "agency", role: "recruiter" },
-      });
-      if (inviteError || !invitation.user) return reply({ error: inviteError?.message || "Invitation could not be sent" }, 400);
-      invitedUserId = invitation.user.id;
+      const invitation = await createInvitation(agencyEmail, agency.name);
+      invitedUserId = invitation.userId;
       activatedAgencyId = agencyId;
       previousOwnerId = agency.owner_user_id;
 
@@ -94,7 +110,7 @@ Deno.serve(async (req) => {
       createdAssignmentId = undefined;
       createdMemberId = undefined;
       invitedUserId = undefined;
-      return reply({ success: true, agencyId, email: agencyEmail });
+      return reply({ success: true, agencyId, email: agencyEmail, invitationLink: invitation.invitationLink });
     }
 
     if (action === "remove") {
@@ -113,6 +129,12 @@ Deno.serve(async (req) => {
     const email = String(body.email || "").trim().toLowerCase();
     if (!name || name.length > 150 || (action === "create" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
       return reply({ error: "Valid agency name and email required" }, 400);
+    }
+    if (action === "create") {
+      const { data: existing, error: existingError } = await admin.from("agencies")
+        .select("id").eq("contact_email", email).limit(1);
+      if (existingError) throw existingError;
+      if (existing?.length) return reply({ error: "Office email already exists; activate the existing office" }, 409);
     }
     const notes = String(body.notes || "").replace(/\[PASS:[^\]]*\]/gi, "").trim().slice(0, 2000);
     const data = {
@@ -138,12 +160,8 @@ Deno.serve(async (req) => {
 
     // An email invitation lets the recipient choose their own password. Never
     // overwrite an existing Auth user or store a password in agency notes.
-    const { data: invitation, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${(Deno.env.get("APP_URL") || "https://www.tawzeefx.com").replace(/\/$/, "")}/reset-password?invite=agency`,
-      data: { full_name: name, user_type: "agency", role: "recruiter" },
-    });
-    if (inviteError || !invitation.user) return reply({ error: inviteError?.message || "Invitation could not be sent" }, 400);
-    invitedUserId = invitation.user.id;
+    const invitation = await createInvitation(email, name);
+    invitedUserId = invitation.userId;
 
     const { data: agency, error: agencyError } = await admin.from("agencies").insert({
       ...data, contact_email: email, owner_user_id: invitedUserId, status: "active",
@@ -160,7 +178,7 @@ Deno.serve(async (req) => {
     });
     if (agencyMemberError) throw agencyMemberError;
 
-    return reply({ success: true, agencyId: agency.id, email });
+    return reply({ success: true, agencyId: agency.id, email, invitationLink: invitation.invitationLink });
   } catch (error) {
     if (activatedAgencyId) {
       if (createdMemberId) await admin.from("agency_members").delete().eq("id", createdMemberId);
