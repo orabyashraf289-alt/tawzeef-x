@@ -38,6 +38,7 @@ export default function CompanyAgencies() {
 
   const [createdCredentials, setCreatedCredentials] = useState<AgencyInvitation | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [renewingAgencyId, setRenewingAgencyId] = useState<string | null>(null);
 
   // Form State
   const [form, setForm] = useState({
@@ -168,6 +169,27 @@ export default function CompanyAgencies() {
       notes: (agency.notes || "").replace(/\[PASS:[^\]]*\]/gi, "").trim()
     });
     setOpenEditDialog(true);
+  };
+
+  const handleRenewInvitation = async (agency: any) => {
+    if (!companyId) {
+      toast({ title: "اختر الشركة المرتبطة بالمكتب أولًا", variant: "destructive" });
+      return;
+    }
+    setRenewingAgencyId(agency.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-agency-account", {
+        body: { action: "renew-invitation", companyId, agencyId: agency.id },
+      });
+      if (error || !data?.success) throw await agencyFunctionError(error, data);
+      setSelectedAgencyDetails(null);
+      setCreatedCredentials({ name: agency.name, email: data.email, invitationLink: data.invitationLink, isRenewal: true });
+      toast({ title: "تم إصدار رابط جديد للمكتب" });
+    } catch (err: any) {
+      toast({ title: "تعذر إصدار رابط جديد", description: err.message, variant: "destructive" });
+    } finally {
+      setRenewingAgencyId(null);
+    }
   };
 
   // Save Edit Agency
@@ -423,6 +445,16 @@ export default function CompanyAgencies() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={renewingAgencyId === selectedAgencyDetails.id}
+                      onClick={() => handleRenewInvitation(selectedAgencyDetails)}
+                      className="rounded-xl h-9 text-xs font-bold gap-1.5"
+                    >
+                      {renewingAgencyId === selectedAgencyDetails.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Key className="w-3.5 h-3.5" />}
+                      إصدار رابط دخول جديد
+                    </Button>
                     <Button 
                       variant="outline"
                       size="sm"
