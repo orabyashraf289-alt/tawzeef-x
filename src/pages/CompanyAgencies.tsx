@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAgencyCandidates, useUpdateAgency, useDeleteAgency } from "@/hooks/useAgencies";
 import { toast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import AgencyHandoffQueue from "@/components/agency/AgencyHandoffQueue";
 
 export default function CompanyAgencies() {
   const { user } = useAuth();
@@ -290,12 +291,14 @@ export default function CompanyAgencies() {
                 <Users className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-semibold">حسابات الدخول المجهزة</p>
-                <h3 className="text-2xl font-black text-foreground mt-0.5">{agencies.length}</h3>
+                <p className="text-xs text-muted-foreground font-semibold">مكاتب لها بريد تواصل</p>
+                <h3 className="text-2xl font-black text-foreground mt-0.5">{agencies.filter(a => !!a.contact_email).length}</h3>
               </div>
             </CardContent>
           </Card>
         </div>
+
+        <AgencyHandoffQueue companyId={companyId} />
 
         {/* Offices List */}
         <div className="space-y-4">
@@ -309,7 +312,7 @@ export default function CompanyAgencies() {
               <Building2 className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
               <h3 className="text-base font-bold text-foreground mb-1">لا يوجد مكاتب توظيف مضافة لشركتك بعد</h3>
               <p className="text-xs text-muted-foreground max-w-md mx-auto mb-4">
-                قم بإضافة مكاتب التوظيف والعمل الخارجي المزودة لشركتك، وسيتم إنشاء اسم مستخدم وكلمة مرور للمكتب فوراً لدخول النظام ورفع المرشحين.
+                أضف مكتب التوظيف وسيصل إلى بريده رابط دعوة ليحدد مسؤول المكتب كلمة مروره ويرفع ملفات المرشحين.
               </p>
               <Button onClick={() => setOpenAddDialog(true)} className="rounded-xl h-10 px-4 text-xs font-bold gap-2">
                 <Plus className="w-4 h-4" />
