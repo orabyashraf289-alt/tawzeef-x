@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import ReactMarkdown from "react-markdown";
+import AssistantMessageContent from "./AssistantMessageContent";
 import { Bot, User, Copy, Check, Sparkles } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -79,9 +79,7 @@ export default function AIChatBubble({
           {isUser ? (
             <p className="whitespace-pre-wrap font-medium">{displayContent}</p>
           ) : (
-            <div className="prose prose-xs dark:prose-invert max-w-none prose-headings:font-bold prose-headings:text-foreground prose-table:border prose-table:border-border prose-th:bg-muted/40 prose-th:p-2 prose-td:p-2 prose-td:border-t prose-td:border-border/40">
-              <ReactMarkdown>{displayContent}</ReactMarkdown>
-            </div>
+            <AssistantMessageContent content={displayContent} />
           )}
 
           {/* Action Toolbar on Hover */}
