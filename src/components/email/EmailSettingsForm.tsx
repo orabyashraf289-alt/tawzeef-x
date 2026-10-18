@@ -19,6 +19,17 @@ const CONFIG_TYPES = [
   { id: "support", label: "الدعم الفني والشكاوى" },
 ];
 
+async function smtpFunctionError(error: unknown, data?: { error?: string } | null): Promise<Error> {
+  let message = data?.error;
+  const context = (error as { context?: Response } | null)?.context;
+  if (!message && context && typeof context.clone === "function") {
+    try {
+      message = (await context.clone().json())?.error;
+    } catch { /* The function may have returned a non-JSON error. */ }
+  }
+  return new Error(message || (error as Error | null)?.message || "تعذر اختبار البريد الإلكتروني");
+}
+
 export default function EmailSettingsForm() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -93,7 +104,7 @@ export default function EmailSettingsForm() {
         body: { action: "save", settings: payload, config_type: configType },
       });
 
-      if (error) throw error;
+      if (error || !data?.success) throw await smtpFunctionError(error, data);
       setExists(true);
       setPasswordChanged(false);
       toast({ title: "تم حفظ إعدادات البريد بنجاح ✅" });
@@ -105,10 +116,14 @@ export default function EmailSettingsForm() {
 
   const handleTest = async () => {
     if (!user?.email) return;
+    if (passwordChanged) {
+      toast({ title: "احفظ كلمة مرور التطبيق أولًا", description: "الاختبار يستخدم إعدادات SMTP المحفوظة.", variant: "destructive" });
+      return;
+    }
     setTesting(true);
     try {
       const typeLabel = CONFIG_TYPES.find(t => t.id === configType)?.label || configType;
-      const { error } = await supabase.functions.invoke("send-email", {
+      const { data, error } = await supabase.functions.invoke("send-email", {
         body: {
           to: user.email,
           subject: `اختبار إعدادات البريد الإلكتروني: ${typeLabel}`,
@@ -118,9 +133,10 @@ export default function EmailSettingsForm() {
           </div>`,
           user_id: user.id,
           email_type: configType,
+          test_smtp: true,
         },
       });
-      if (error) throw error;
+      if (error || !data?.success) throw await smtpFunctionError(error, data);
       toast({ title: "تم إرسال بريد الاختبار بنجاح ✅", description: `تحقق من صندوق الوارد: ${user.email}` });
     } catch (err: any) {
       toast({ title: "فشل الاختبار", description: err.message, variant: "destructive" });
@@ -283,6 +299,7 @@ export default function EmailSettingsForm() {
             </Button>
           )}
         </div>
+        {exists && <p className="text-xs text-muted-foreground">الاختبار يرسل إلى بريد حسابك باستخدام إعدادات SMTP المحفوظة لهذا النوع. احفظ أي تعديل قبل الاختبار.</p>}
       </form>
     </div>
   );

@@ -41,6 +41,7 @@ interface EmailRequest {
   user_id?: string;
   notify_recruiter?: boolean;
   email_type?: string;
+  test_smtp?: boolean;
   variables?: Record<string, string>;
   attachments?: Array<{ filename: string; path: string }>;
 }
@@ -65,6 +66,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const isServiceCall = token === serviceKey;
     let callerId: string | null = null;
+    let callerEmail: string | null = null;
     let callerClient: ReturnType<typeof createClient> | null = null;
 
     if (!isServiceCall) {
@@ -79,11 +81,21 @@ Deno.serve(async (req) => {
         });
       }
       callerId = user.id;
+      callerEmail = user.email || null;
     }
 
     const body = (await req.json()) as EmailRequest;
+    const isSmtpTest = body.test_smtp === true;
     const { subject, html, user_id, notify_recruiter, email_type, variables, attachments } = body;
     let { to } = body;
+
+    // A configuration test can only send to its signed-in owner. It must use
+    // that owner's saved SMTP settings, not Resend or the system fallback.
+    if (isSmtpTest && (!callerId || !callerEmail || user_id !== callerId || to?.toLowerCase() !== callerEmail.toLowerCase())) {
+      return new Response(JSON.stringify({ error: "اختبار SMTP متاح لصاحب الإعدادات فقط" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if ((!subject || !html) && (!user_id || !email_type)) {
       return new Response(
@@ -158,7 +170,7 @@ Deno.serve(async (req) => {
     let emailSubject = subject || "";
     let emailHtml = html || "";
 
-    if (smtpUserId && email_type) {
+    if (smtpUserId && email_type && !isSmtpTest) {
       const { data: dbTemplate } = await supabase
         .from("email_templates")
         .select("subject, body_html")
@@ -207,7 +219,7 @@ Deno.serve(async (req) => {
         .eq("is_active", true)
         .maybeSingle();
 
-      if (!settings && configType !== "general") {
+      if (!settings && configType !== "general" && !isSmtpTest) {
         const { data: generalSettings } = await supabase
           .from("email_settings")
           .select("*")
@@ -232,6 +244,12 @@ Deno.serve(async (req) => {
         const encKey = await deriveKey(serviceKey);
         smtpPass = await decrypt(settings.smtp_password, encKey);
       }
+    }
+
+    if (isSmtpTest && (!hasCustomSettings || !smtpUser || !smtpPass)) {
+      return new Response(JSON.stringify({ error: "لا توجد إعدادات SMTP مفعلة ومحفوظة لهذا النوع. احفظها أولًا ثم أعد الاختبار." }), {
+        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Map attachments if provided
@@ -321,7 +339,7 @@ function htmlToPlainText(htmlStr: string): string {
 
     // Priority 1: Ultra-High Deliverability Resend API (Guarantees Primary Inbox delivery when RESEND_API_KEY is present)
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (resendApiKey) {
+    if (resendApiKey && !isSmtpTest) {
       try {
         const fromAddress = (hasCustomSettings && smtpUser) ? smtpUser : "tx@tawzeefx.com";
         const resendResp = await fetch("https://api.resend.com/emails", {
@@ -390,7 +408,17 @@ function htmlToPlainText(htmlStr: string): string {
         emailSent = true;
         console.log(`Email sent successfully to ${to} via custom SMTP ${smtpHost}`);
       } catch (err: any) {
-        console.warn(`Custom SMTP sending failed (${err.message}). Falling back to system default SMTP...`);
+        console.warn(`Custom SMTP sending failed (${err.message}).`);
+        if (isSmtpTest) {
+          const authFailed = err.code === "EAUTH" || err.responseCode === 535;
+          return new Response(JSON.stringify({
+            error: authFailed
+              ? "رفض Gmail بيانات الدخول (535). تحقق من البريد وكلمة مرور التطبيق، ثم احفظ الإعدادات وأعد الاختبار."
+              : "تعذر الاتصال بخادم SMTP أو إرسال رسالة الاختبار. تحقق من الخادم والمنفذ والاتصال الآمن.",
+            code: authFailed ? "SMTP_AUTH_FAILED" : "SMTP_TEST_FAILED",
+          }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        console.warn("Falling back to system default SMTP...");
       }
     }
 
