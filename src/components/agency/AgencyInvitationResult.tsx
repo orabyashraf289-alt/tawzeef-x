@@ -17,7 +17,9 @@ export default function AgencyInvitationResult({ result, onClose }: {
       <DialogHeader className="text-right">
         <DialogTitle>تم تجهيز حساب {result?.name}</DialogTitle>
         <DialogDescription>
-          {manual
+          {result?.isRenewal
+            ? "تم إصدار رابط جديد لتعيين كلمة المرور. انسخه وشاركه مع مسؤول المكتب فقط عبر قناة موثوقة. الرابط السابق لا يصلح للاستخدام مرة ثانية."
+            : manual
             ? "تعذر إرسال البريد تلقائيًا. انسخ رابط الدعوة المؤقت وشاركه مع مسؤول المكتب فقط عبر قناة موثوقة."
             : "أُرسلت الدعوة إلى بريد مسؤول المكتب ليحدد كلمة مروره."}
         </DialogDescription>
