@@ -22,10 +22,14 @@ Deno.serve(async (req) => {
   const admin = createClient(url, serviceKey);
   let invitedUserId: string | undefined;
   let createdAgencyId: string | undefined;
+  let activatedAgencyId: string | undefined;
+  let createdAssignmentId: string | undefined;
+  let createdMemberId: string | undefined;
+  let previousOwnerId: string | null | undefined;
   try {
     const body = await req.json();
     const { action, companyId, agencyId } = body;
-    if (typeof companyId !== "string" || !/^[0-9a-f-]{36}$/i.test(companyId) || !["create", "update", "remove"].includes(action)) {
+    if (typeof companyId !== "string" || !/^[0-9a-f-]{36}$/i.test(companyId) || !["create", "update", "remove", "activate"].includes(action)) {
       return reply({ error: "Invalid company or action" }, 400);
     }
 
@@ -40,6 +44,58 @@ Deno.serve(async (req) => {
       .select("id, status").eq("id", companyId).maybeSingle();
     if (companyError) throw companyError;
     if (!company || company.status !== "active") return reply({ error: "Company is not active" }, 403);
+
+    if (action === "activate") {
+      // Only a platform administrator can attach a legacy office to a new
+      // company. A company owner must not be able to claim an arbitrary office.
+      if (!role) return reply({ error: "Platform administrator access required" }, 403);
+      if (typeof agencyId !== "string" || !/^[0-9a-f-]{36}$/i.test(agencyId)) return reply({ error: "Invalid agency" }, 400);
+      const { data: agency, error: agencyError } = await admin.from("agencies")
+        .select("id,name,contact_email,owner_user_id,status").eq("id", agencyId).maybeSingle();
+      if (agencyError) throw agencyError;
+      const agencyEmail = agency?.contact_email?.trim().toLowerCase() || "";
+      if (!agency || agency.status !== "active" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(agencyEmail)) {
+        return reply({ error: "An active agency with a valid contact email is required" }, 400);
+      }
+      const { data: members, error: membersError } = await admin.from("agency_members")
+        .select("id").eq("agency_id", agencyId).limit(1);
+      if (membersError) throw membersError;
+      if (members?.length) return reply({ error: "Agency account is already active" }, 409);
+
+      const { data: invitation, error: inviteError } = await admin.auth.admin.inviteUserByEmail(agencyEmail, {
+        redirectTo: `${(Deno.env.get("APP_URL") || "https://www.tawzeefx.com").replace(/\/$/, "")}/reset-password?invite=agency`,
+        data: { full_name: agency.name, user_type: "agency", role: "recruiter" },
+      });
+      if (inviteError || !invitation.user) return reply({ error: inviteError?.message || "Invitation could not be sent" }, 400);
+      invitedUserId = invitation.user.id;
+      activatedAgencyId = agencyId;
+      previousOwnerId = agency.owner_user_id;
+
+      const { data: existingAssignments, error: assignmentLookupError } = await admin.from("agency_assignments")
+        .select("id").eq("agency_id", agencyId).eq("company_id", companyId)
+        .eq("scope", "company").eq("status", "active").limit(1);
+      if (assignmentLookupError) throw assignmentLookupError;
+      if (!existingAssignments?.length) {
+        const { data: assignment, error: assignmentError } = await admin.from("agency_assignments").insert({
+          agency_id: agencyId, company_id: companyId, scope: "company", status: "active", assigned_by: user.id,
+        }).select("id").single();
+        if (assignmentError) throw assignmentError;
+        createdAssignmentId = assignment.id;
+      }
+      const { data: member, error: memberError } = await admin.from("agency_members").insert({
+        agency_id: agencyId, user_id: invitedUserId, member_role: "owner", invited_by: user.id,
+      }).select("id").single();
+      if (memberError) throw memberError;
+      createdMemberId = member.id;
+      const { error: ownerError } = await admin.from("agencies").update({ owner_user_id: invitedUserId })
+        .eq("id", agencyId);
+      if (ownerError) throw ownerError;
+      activatedAgencyId = undefined;
+      createdAssignmentId = undefined;
+      createdMemberId = undefined;
+      invitedUserId = undefined;
+      return reply({ success: true, agencyId, email: agencyEmail });
+    }
 
     if (action === "remove") {
       if (typeof agencyId !== "string" || !/^[0-9a-f-]{36}$/i.test(agencyId)) return reply({ error: "Invalid agency" }, 400);
@@ -106,6 +162,11 @@ Deno.serve(async (req) => {
 
     return reply({ success: true, agencyId: agency.id, email });
   } catch (error) {
+    if (activatedAgencyId) {
+      if (createdMemberId) await admin.from("agency_members").delete().eq("id", createdMemberId);
+      if (createdAssignmentId) await admin.from("agency_assignments").delete().eq("id", createdAssignmentId);
+      if (previousOwnerId !== undefined) await admin.from("agencies").update({ owner_user_id: previousOwnerId }).eq("id", activatedAgencyId);
+    }
     if (createdAgencyId) await admin.from("agencies").delete().eq("id", createdAgencyId);
     if (invitedUserId) await admin.auth.admin.deleteUser(invitedUserId);
     console.error("manage-agency-account:", error);
