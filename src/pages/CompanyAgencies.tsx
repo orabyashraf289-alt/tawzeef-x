@@ -12,6 +12,8 @@ import { Building2, Plus, Users, Mail, Phone, MapPin, ShieldCheck, Key, Copy, Ey
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useAgencyCandidates, useUpdateAgency, useDeleteAgency } from "@/hooks/useAgencies";
 import { toast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
@@ -21,7 +23,10 @@ import { agencyFunctionError, type AgencyInvitation } from "@/lib/agencyInvitati
 
 export default function CompanyAgencies() {
   const { user } = useAuth();
+  const { activeCompanyId } = useCompany();
+  const { isPlatformSuperAdmin } = useUserRole();
   const qc = useQueryClient();
+  const [adminCompanyId, setAdminCompanyId] = useState("");
   
   // Dialog States
   const [openAddDialog, setOpenAddDialog] = useState(false);
@@ -60,53 +65,44 @@ export default function CompanyAgencies() {
     notes: ""
   });
 
-  // Query company ID of current logged in user
-  const companyQuery = useQuery({
-    queryKey: ["my-company-id", user?.id],
+  // Platform admins can attach an office to a company even without membership.
+  const adminCompaniesQuery = useQuery({
+    queryKey: ["agency-admin-companies", user?.id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("company_members")
-        .select("company_id")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      return data?.company_id || null;
+      const { data, error } = await supabase.from("companies")
+        .select("id,name,parent_company_id")
+        .eq("status", "active")
+        .order("name");
+      if (error) throw error;
+      return data || [];
     },
-    enabled: !!user,
+    enabled: !!user && isPlatformSuperAdmin,
   });
 
-  const companyId = companyQuery.data;
+  const adminCompanies = adminCompaniesQuery.data || [];
+  const parentCompanies = adminCompanies.filter(company => !company.parent_company_id);
+  const defaultAdminCompanyId = parentCompanies.length === 1 ? parentCompanies[0].id : null;
+  const companyId = isPlatformSuperAdmin
+    ? adminCompanyId || activeCompanyId || defaultAdminCompanyId
+    : activeCompanyId;
 
   // Query assigned agencies for current company & direct agencies
   const agenciesQuery = useQuery({
     queryKey: ["company-agencies", companyId, user?.id],
     queryFn: async () => {
-      const { data: directAgencies, error: directErr } = await supabase
-        .from("agencies" as any)
-        .select("*")
+      const { data: assignments, error } = await supabase
+        .from("agency_assignments" as any)
+        .select("id,status,agency:agency_id(*)")
+        .eq("company_id", companyId!)
         .order("created_at", { ascending: false });
-
-      if (!directErr && directAgencies && directAgencies.length > 0) {
-        return directAgencies as any[];
-      }
-
-      if (companyId) {
-        const { data: assignments } = await supabase
-          .from("agency_assignments" as any)
-          .select("*, agency:agency_id(*)")
-          .eq("company_id", companyId)
-          .order("created_at", { ascending: false });
-        if (assignments) {
-          return assignments.map((row: any) => ({
-            assignment_id: row.id,
-            status: row.status,
-            ...row.agency
-          }));
-        }
-      }
-
-      return [];
+      if (error) throw error;
+      return (assignments || []).filter((row: any) => row.agency).map((row: any) => ({
+        ...row.agency,
+        assignment_id: row.id,
+        assignment_status: row.status,
+      }));
     },
-    enabled: !!user,
+    enabled: !!user && !!companyId,
   });
 
   const agencies = agenciesQuery.data || [];
@@ -114,8 +110,12 @@ export default function CompanyAgencies() {
   // Create an agency through the authenticated, company-scoped server function.
   const handleAddAgency = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.email || !companyId) {
-      toast({ title: "يرجى تعبئة كافة الحقول الأساسية", variant: "destructive" });
+    if (!form.name.trim() || !form.email.trim()) {
+      toast({ title: "يرجى إدخال اسم المكتب والبريد الإلكتروني", variant: "destructive" });
+      return;
+    }
+    if (!companyId) {
+      toast({ title: "يرجى اختيار الشركة التي سيتبعها المكتب", variant: "destructive" });
       return;
     }
 
@@ -465,6 +465,24 @@ export default function CompanyAgencies() {
             </DialogHeader>
 
             <form onSubmit={handleAddAgency} className="space-y-4 text-right pt-2">
+              {isPlatformSuperAdmin && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="agencyCompany" className="text-xs font-bold">الشركة التي سيتبعها المكتب *</Label>
+                  <select
+                    id="agencyCompany"
+                    value={companyId || ""}
+                    onChange={e => setAdminCompanyId(e.target.value)}
+                    required
+                    className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-xs"
+                  >
+                    <option value="">اختر الشركة</option>
+                    {adminCompanies.map(company => (
+                      <option key={company.id} value={company.id}>{company.name}</option>
+                    ))}
+                  </select>
+                  {adminCompaniesQuery.isError && <p className="text-xs text-destructive">تعذر تحميل الشركات، يرجى إعادة المحاولة.</p>}
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label htmlFor="agencyName" className="text-xs font-bold">اسم مكتب العمل / التوظيف *</Label>
                 <Input 
