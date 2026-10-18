@@ -17,8 +17,9 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { Sun, Moon, Monitor } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
+import { validateFile } from "@/lib/fileValidation";
 
 function useJobSeekerData() {
   const { user } = useAuth();
@@ -85,6 +86,7 @@ function useJobSeekerData() {
 
   return {
     applications: applications.data || [],
+    applicationsLoaded: !applications.isLoading,
     candidates: candidates.data || [],
     interviews: interviews.data || [],
     offers: offers.data || [],
@@ -109,7 +111,9 @@ export default function JobSeekerDashboard() {
   const { user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const qc = useQueryClient();
-  const { applications, candidates, interviews, offers, isLoading } = useJobSeekerData();
+  const { applications, applicationsLoaded, candidates, interviews, offers, isLoading } = useJobSeekerData();
+  const initializedUserId = useRef<string | null>(null);
+  const resumeRecordId = useRef<string | null>(null);
 
   // Resume & Profile states
   const [uploading, setUploading] = useState(false);
@@ -176,32 +180,43 @@ export default function JobSeekerDashboard() {
     if (profileQuery.data?.avatar_url) {
       setAvatarUrl(profileQuery.data.avatar_url);
     }
+  }, [profileQuery.data?.avatar_url]);
+
+  useEffect(() => {
+    if (!user || initializedUserId.current === user.id || !applicationsLoaded || resumeQuery.isLoading || profileQuery.isLoading) return;
+    initializedUserId.current = user.id;
+    const latestApplication = applications[0];
     if (resumeQuery.data) {
       const r = resumeQuery.data;
+      resumeRecordId.current = r.id;
       setForm({
-        fullName: r.full_name || profileQuery.data?.full_name || "",
-        jobTitle: r.job_title || profileQuery.data?.job_title || "",
-        phone: r.phone || "",
-        email: r.email || user?.email || "",
+        fullName: r.full_name || profileQuery.data?.full_name || latestApplication?.name || "",
+        jobTitle: r.job_title || profileQuery.data?.job_title || latestApplication?.specialty || "",
+        phone: r.phone || latestApplication?.phone || "",
+        email: user.email || "",
         location: r.location || "",
-        summary: r.summary || "",
-        skills: r.skills ? r.skills.join(", ") : "",
-        resumeFileUrl: r.avatar_url || "" 
+        summary: r.summary || latestApplication?.cover_letter || "",
+        skills: r.skills?.length ? r.skills.join(", ") : (latestApplication?.skills || []).join(", "),
+        resumeFileUrl: r.avatar_url || latestApplication?.resume_url || "",
       });
       setExperience(Array.isArray(r.experience) ? r.experience : []);
       setEducation(Array.isArray(r.education) ? r.education : []);
       setCertifications(Array.isArray(r.certifications) ? r.certifications : []);
       setLanguages(Array.isArray(r.languages) ? r.languages : []);
       setLinks(Array.isArray(r.links) ? r.links : []);
-    } else if (user) {
-      setForm(prev => ({
-        ...prev,
+    } else {
+      setForm({
+        fullName: profileQuery.data?.full_name || latestApplication?.name || "",
+        jobTitle: profileQuery.data?.job_title || latestApplication?.specialty || "",
+        phone: latestApplication?.phone || "",
         email: user.email || "",
-        fullName: profileQuery.data?.full_name || "",
-        jobTitle: profileQuery.data?.job_title || "",
-      }));
+        location: "",
+        summary: latestApplication?.cover_letter || "",
+        skills: (latestApplication?.skills || []).join(", "),
+        resumeFileUrl: latestApplication?.resume_url || "",
+      });
     }
-  }, [resumeQuery.data, profileQuery.data, user]);
+  }, [user?.id, applicationsLoaded, applications, resumeQuery.isLoading, resumeQuery.data, profileQuery.isLoading, profileQuery.data]);
 
   const handleUploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -253,20 +268,23 @@ export default function JobSeekerDashboard() {
       if (profErr) throw profErr;
 
       // 2) Upsert resumes table
-      if (resumeQuery.data) {
+      const existingResumeId = resumeRecordId.current || resumeQuery.data?.id;
+      if (existingResumeId) {
         const { error } = await supabase
           .from("resumes")
           .update(resumeData)
+          .eq("id", existingResumeId)
           .eq("user_id", user!.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("resumes")
           .insert({
             user_id: user!.id,
             ...resumeData
-          } as any);
+          } as any).select("id").single();
         if (error) throw error;
+        resumeRecordId.current = data.id;
       }
     },
     onSuccess: () => {
@@ -306,31 +324,46 @@ export default function JobSeekerDashboard() {
   const handleUploadResume = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!validateFile(file, "resume")) return;
 
     setUploading(true);
     try {
       const ext = (file.name.split(".").pop() || "").toLowerCase();
-      const filePath = `${user!.id}/resume_${Date.now()}.${ext}`;
+      const filePath = `${user!.id}/resume_${crypto.randomUUID()}.${ext}`;
 
       // 1) Upload file to Supabase storage bucket 'resumes'
       const { error: uploadError } = await supabase.storage
         .from("resumes")
-        .upload(filePath, file, { cacheControl: '3600', upsert: true });
+        .upload(filePath, file, { cacheControl: '3600', upsert: false });
 
       if (uploadError) throw uploadError;
 
-      // 2) Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      // Keep the path in the user's resume record immediately, so a refresh
+      // does not lose the newly uploaded file before other edits are saved.
+      const existingResumeId = resumeRecordId.current || resumeQuery.data?.id;
+      const { data: savedFile, error: saveFileError } = existingResumeId
+        ? await supabase.from("resumes").update({ avatar_url: filePath }).eq("id", existingResumeId).eq("user_id", user!.id).select("id").single()
+        : await supabase.from("resumes").insert({
+            user_id: user!.id,
+            full_name: form.fullName || user!.user_metadata?.full_name || "",
+            email: user!.email || "",
+            avatar_url: filePath,
+          }).select("id").single();
+      if (saveFileError) throw saveFileError;
+      resumeRecordId.current = savedFile.id;
+      qc.invalidateQueries({ queryKey: ["seeker-resume", user?.id] });
+      // The bucket is private; signed URLs are short-lived and never stored.
+      setForm(prev => ({ ...prev, resumeFileUrl: filePath }));
+      const { data: signed, error: signedError } = await supabase.storage
         .from("resumes")
-        .getPublicUrl(filePath);
+        .createSignedUrl(filePath, 3600);
 
-      setForm(prev => ({ ...prev, resumeFileUrl: publicUrl }));
-      toast({ title: "تم رفع الملف بنجاح 📁", description: "جاري تحليل السيرة الذاتية بالذكاء الاصطناعي..." });
+      toast({ title: "تم حفظ السيرة الذاتية بنجاح 📁", description: signedError ? "يمكنك تحديث باقي بيانات الملف الآن." : "جاري تحليل السيرة الذاتية بالذكاء الاصطناعي..." });
 
       // 3) Invoke parse-resume edge function
-      try {
+      if (signed?.signedUrl) try {
         const { data: parseResult, error: parseError } = await supabase.functions.invoke("parse-resume", {
-          body: { resumeUrl: publicUrl, applicantName: form.fullName }
+          body: { resumeUrl: signed.signedUrl, applicantName: form.fullName }
         });
 
         if (!parseError && parseResult) {
@@ -357,6 +390,21 @@ export default function JobSeekerDashboard() {
       toast({ title: "فشل الرفع", description: err.message, variant: "destructive" });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleViewResume = async () => {
+    if (!form.resumeFileUrl) return;
+    try {
+      if (/^https:\/\//.test(form.resumeFileUrl)) {
+        window.open(form.resumeFileUrl, "_blank", "noopener,noreferrer");
+        return;
+      }
+      const { data, error } = await supabase.storage.from("resumes").createSignedUrl(form.resumeFileUrl, 60);
+      if (error || !data?.signedUrl) throw error || new Error("تعذر فتح الملف");
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } catch (error: any) {
+      toast({ title: "تعذر فتح السيرة الذاتية", description: error.message, variant: "destructive" });
     }
   };
 
@@ -420,7 +468,7 @@ export default function JobSeekerDashboard() {
     setNewLink({ label: "LinkedIn", url: "" });
   };
 
-  if (isLoading) return <PageSkeleton />;
+  if (isLoading || resumeQuery.isLoading || profileQuery.isLoading) return <PageSkeleton />;
 
   const stats = [
     { label: "طلباتي", value: applications.length, icon: Send, color: "text-primary" },
@@ -653,7 +701,7 @@ export default function JobSeekerDashboard() {
                       البيانات الأساسية والملخص
                     </CardTitle>
                     <CardDescription>
-                      بيانات التواصل والمسمى الوظيفي
+                      بيانات التواصل والمسمى الوظيفي. يبدأ ملفك ببيانات آخر طلب قدمته، ويمكنك تحديثه وحفظه هنا.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -937,11 +985,9 @@ export default function JobSeekerDashboard() {
                           <Check className="w-4 h-4 text-green-500 shrink-0" />
                           <span className="text-xs font-medium text-foreground truncate">تم رفع السيرة بنجاح</span>
                         </div>
-                        <a href={form.resumeFileUrl} target="_blank" rel="noreferrer">
-                          <Button size="sm" variant="outline" className="text-[10px] h-7 px-2">
-                            <Eye className="w-3.5 h-3.5 ml-1" /> عرض الملف
-                          </Button>
-                        </a>
+                        <Button type="button" size="sm" variant="outline" className="text-[10px] h-7 px-2" onClick={handleViewResume}>
+                          <Eye className="w-3.5 h-3.5 ml-1" /> عرض الملف
+                        </Button>
                       </div>
                     )}
                   </CardContent>

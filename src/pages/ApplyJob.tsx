@@ -33,6 +33,7 @@ import ApplyStepSkills from "@/components/apply/ApplyStepSkills";
 import ApplyStepPreferences from "@/components/apply/ApplyStepPreferences";
 import ApplyStepReview from "@/components/apply/ApplyStepReview";
 import ApplySuccessPass from "@/components/apply/ApplySuccessPass";
+import type { ApplicantAccountStatus } from "@/components/apply/ApplySuccessPass";
 
 const STEPS = [
   { id: 1, title: "السيرة الذاتية", icon: FileText },
@@ -49,6 +50,7 @@ export default function ApplyJob() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [trackingCode, setTrackingCode] = useState<string | null>(null);
+  const [accountStatus, setAccountStatus] = useState<ApplicantAccountStatus>("preparing");
 
   // Stepper State (1 - 5)
   const [currentStep, setCurrentStep] = useState(1);
@@ -327,6 +329,20 @@ export default function ApplyJob() {
     setExtractedCount(0);
   };
 
+  const prepareApplicantAccount = async (code: string, email: string) => {
+    setAccountStatus("preparing");
+    try {
+      const { data, error } = await supabase.functions.invoke("auto-create-candidate-account", {
+        body: { trackingCode: code, email },
+      });
+      if (error || !["invited", "existing"].includes(data?.status)) throw error || new Error("Account invitation failed");
+      setAccountStatus(data.status);
+    } catch (error) {
+      console.error("Applicant account invitation failed:", error);
+      setAccountStatus("error");
+    }
+  };
+
   // Final Application Submission
   const handleSubmit = async () => {
     if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) {
@@ -380,6 +396,10 @@ export default function ApplyJob() {
     if (appError) throw appError;
 
     setTrackingCode(generatedTrackingCode);
+    // Finish the invitation attempt before displaying the receipt. If email
+    // provisioning fails, the saved application remains intact and the receipt
+    // offers a retry without submitting a duplicate application.
+    await prepareApplicantAccount(generatedTrackingCode, cleanEmail);
     setSubmitted(true);
     toast({ title: "تم تقديم طلبك بنجاح ✅" });
     } catch (error) {
@@ -471,6 +491,8 @@ export default function ApplyJob() {
         applicantEmail={form.email}
         applicantPhone={form.phone}
         schoolDisplayName={schoolDisplayName}
+        accountStatus={accountStatus}
+        onRetryAccount={() => void prepareApplicantAccount(trackingCode, form.email.trim().toLowerCase())}
       />
     );
   }

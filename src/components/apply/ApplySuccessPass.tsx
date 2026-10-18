@@ -22,6 +22,9 @@ import { toast } from "@/hooks/use-toast";
 import { QRCodeSVG } from "qrcode.react";
 import confetti from "canvas-confetti";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
+import { useAuth } from "@/contexts/AuthContext";
+
+export type ApplicantAccountStatus = "preparing" | "invited" | "existing" | "error";
 
 interface ApplySuccessPassProps {
   job: any;
@@ -30,6 +33,8 @@ interface ApplySuccessPassProps {
   applicantEmail: string;
   applicantPhone: string;
   schoolDisplayName: string;
+  accountStatus: ApplicantAccountStatus;
+  onRetryAccount: () => void;
 }
 
 export default function ApplySuccessPass({
@@ -39,8 +44,12 @@ export default function ApplySuccessPass({
   applicantEmail,
   applicantPhone,
   schoolDisplayName,
+  accountStatus,
+  onRetryAccount,
 }: ApplySuccessPassProps) {
   const [copied, setCopied] = useState(false);
+  const { user } = useAuth();
+  const signedInAsApplicant = user?.email?.toLowerCase() === applicantEmail.trim().toLowerCase();
 
   useEffect(() => {
     confetti({
@@ -143,15 +152,29 @@ export default function ApplySuccessPass({
               </Button>
             </div>
 
-            {/* Candidate Portal Access Details */}
+            {/* Account activation is sent to the applicant's verified inbox. */}
             {applicantEmail && (
-              <div className="p-4 rounded-2xl bg-muted/40 border border-border/50 text-xs space-y-2 font-mono" dir="ltr">
-                <div className="flex items-center justify-between text-[11px] font-sans text-muted-foreground border-b border-border/30 pb-1.5" dir="rtl">
-                  <span className="font-bold text-foreground">بيانات الدخول لبوابة المرشح:</span>
-                  <Badge variant="outline" className="text-[10px]">محدث تلقائياً</Badge>
+              <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 text-right text-xs space-y-2" aria-live="polite">
+                <div className="flex items-center justify-between gap-2">
+                  <strong className="text-foreground">حسابك في منصة Tawzeef-X</strong>
+                  <Badge variant="outline" className="text-[10px]">{accountStatus === "preparing" ? "جارٍ التجهيز" : accountStatus === "invited" ? "دعوة مرسلة" : accountStatus === "existing" ? "حساب موجود" : "بحاجة لإعادة المحاولة"}</Badge>
                 </div>
-                <p className="text-left"><strong className="text-foreground font-sans">البريد:</strong> {applicantEmail}</p>
-                <p className="text-left"><strong className="text-foreground font-sans">كلمة المرور المؤقتة:</strong> {applicantPhone} <span className="text-[10px] text-muted-foreground font-sans">(رقم جوالك)</span></p>
+                <p className="text-muted-foreground">البريد المستخدم: <span dir="ltr" className="inline-block font-medium text-foreground">{applicantEmail}</span></p>
+                {accountStatus === "preparing" && <p>نجهز لك الوصول إلى ملفك الشخصي.</p>}
+                {accountStatus === "invited" && <p>أرسلنا رابط تفعيل الحساب إلى بريدك. افتح الرابط وحدد كلمة مرور خاصة بك، ثم ادخل لتعديل ملفك ومتابعة طلباتك.</p>}
+                {accountStatus === "existing" && <p>لديك حساب بهذا البريد. سجل الدخول لعرض طلبك وتحديث ملفك. إذا نسيت كلمة المرور فاستخدم رابط الاستعادة.</p>}
+                {accountStatus === "error" && (
+                  <div className="space-y-2">
+                    <p>تم حفظ طلب الوظيفة، لكن تعذر تجهيز الوصول إلى الحساب الآن. يمكنك إعادة المحاولة.</p>
+                    <Button type="button" size="sm" variant="outline" onClick={onRetryAccount}>إعادة تجهيز الحساب</Button>
+                  </div>
+                )}
+                {(accountStatus === "existing" || signedInAsApplicant) && (
+                  <Link to={signedInAsApplicant ? "/seeker-dashboard" : "/auth?mode=login"} className="inline-block font-bold text-primary hover:underline">
+                    {signedInAsApplicant ? "الانتقال إلى ملفي وطلباتي" : "تسجيل الدخول"}
+                  </Link>
+                )}
+                {accountStatus === "existing" && !signedInAsApplicant && <Link to="/forgot-password" className="block text-primary hover:underline">استعادة كلمة المرور</Link>}
               </div>
             )}
 
