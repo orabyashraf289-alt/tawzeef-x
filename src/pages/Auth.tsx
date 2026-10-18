@@ -1472,6 +1472,18 @@ export default function Auth() {
         description: "تم إيقاف حساب الشركة مؤقتاً من قِبل إدارة المنصة. يرجى التواصل مع إدارة Tawzeef-X.",
         variant: "destructive",
       });
+    } else if (errorParam === "agency_unavailable") {
+      toast({
+        title: "حساب المكتب غير متاح ⚠️",
+        description: "تعذر التحقق من ارتباط المكتب بشركة نشطة. تواصل مع إدارة المنصة.",
+        variant: "destructive",
+      });
+    } else if (errorParam === "account_verification_failed") {
+      toast({
+        title: "تعذر التحقق من الحساب ⚠️",
+        description: "حاول تسجيل الدخول مرة أخرى، أو تواصل مع الدعم إذا استمرت المشكلة.",
+        variant: "destructive",
+      });
     }
   }, [searchParams]);
 
@@ -1480,7 +1492,7 @@ export default function Auth() {
   // Don't redirect while OTP 2FA is in progress or if ejected due to company status error
   if (user && !pendingOtp && !hasErrorParam) {
     const accountType = user.user_metadata?.account_type;
-    return <Navigate to={accountType === "job_seeker" ? "/seeker-dashboard" : "/dashboard"} replace />;
+    return <Navigate to={user.user_metadata?.user_type === "agency" ? "/agency" : accountType === "job_seeker" ? "/seeker-dashboard" : "/dashboard"} replace />;
   }
 
   return (
