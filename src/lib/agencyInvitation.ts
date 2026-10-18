@@ -1,4 +1,4 @@
-export type AgencyInvitation = { name: string; email: string; invitationLink: string | null };
+export type AgencyInvitation = { name: string; email: string; invitationLink: string | null; isRenewal?: boolean };
 
 export async function agencyFunctionError(error: unknown, data?: { error?: string } | null): Promise<Error> {
   let message = data?.error;

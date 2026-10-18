@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const { action, companyId, agencyId } = body;
-    if (typeof companyId !== "string" || !/^[0-9a-f-]{36}$/i.test(companyId) || !["create", "update", "remove", "activate"].includes(action)) {
+    if (typeof companyId !== "string" || !/^[0-9a-f-]{36}$/i.test(companyId) || !["create", "update", "remove", "activate", "renew-invitation"].includes(action)) {
       return reply({ error: "Invalid company or action" }, 400);
     }
 
@@ -64,6 +64,33 @@ Deno.serve(async (req) => {
       .select("id, status").eq("id", companyId).maybeSingle();
     if (companyError) throw companyError;
     if (!company || company.status !== "active") return reply({ error: "Company is not active" }, 403);
+
+    if (action === "renew-invitation") {
+      if (typeof agencyId !== "string" || !/^[0-9a-f-]{36}$/i.test(agencyId)) return reply({ error: "Invalid agency" }, 400);
+      const [{ data: assignment, error: assignmentError }, { data: agency, error: agencyError }, { data: member, error: agencyMemberError }] = await Promise.all([
+        admin.from("agency_assignments").select("id").eq("agency_id", agencyId)
+          .eq("company_id", companyId).eq("scope", "company").eq("status", "active").limit(1).maybeSingle(),
+        admin.from("agencies").select("id,name,status").eq("id", agencyId).maybeSingle(),
+        admin.from("agency_members").select("user_id").eq("agency_id", agencyId)
+          .eq("member_role", "owner").limit(1).maybeSingle(),
+      ]);
+      if (assignmentError || agencyError || agencyMemberError) throw assignmentError || agencyError || agencyMemberError;
+      if (!assignment || !agency || agency.status !== "active" || !member) {
+        return reply({ error: "An active office assigned to this company is required" }, 403);
+      }
+      const { data: account, error: accountError } = await admin.auth.admin.getUserById(member.user_id);
+      if (accountError || !account.user?.email) return reply({ error: "Office account not found" }, 404);
+      const email = account.user.email;
+      const { data: generated, error: generateError } = await admin.auth.admin.generateLink({
+        type: "recovery",
+        email,
+        options: { redirectTo: `${(Deno.env.get("APP_URL") || "https://www.tawzeefx.com").replace(/\/$/, "")}/reset-password?invite=agency` },
+      });
+      if (generateError || generated?.user?.id !== member.user_id || !generated.properties?.action_link) {
+        throw generateError || new Error("Office recovery link could not be created");
+      }
+      return reply({ success: true, agencyId, email, invitationLink: generated.properties.action_link });
+    }
 
     if (action === "activate") {
       // Only a platform administrator can attach a legacy office to a new

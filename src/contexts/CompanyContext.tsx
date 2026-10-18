@@ -88,7 +88,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
   }, [myCompanies, isLoading, activeCompanyIdState]);
 
   // Server-side check for platform super admin
-  const { data: isPlatformSuperAdmin = false } = useQuery({
+  const { data: isPlatformSuperAdmin = false, isLoading: platformAdminLoading } = useQuery({
     queryKey: ["platform-super-admin-watchdog", user?.id],
     staleTime: 10 * 60 * 1000,
     enabled: !!user?.id,
@@ -96,6 +96,20 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase.rpc("is_super_admin", { _user_id: user!.id });
       if (error) return false;
       return Boolean(data);
+    },
+  });
+
+  // An agency belongs to a company through agency_members and agency_assignments,
+  // not company_members. Confirm that relationship with the server before
+  // treating an account with no direct company membership as deleted.
+  const agencyAccessQuery = useQuery({
+    queryKey: ["agency-tenant-watchdog", user?.id],
+    enabled: !!user?.id && !isLoading && myCompanies.length === 0,
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("validate_tenant_status");
+      if (error) throw error;
+      return data as { access_state?: string; is_agency?: boolean } | null;
     },
   });
 
@@ -116,18 +130,25 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     const isPublicOrOnboarding =
       path.startsWith("/onboarding") ||
       path.startsWith("/auth") ||
+      path.startsWith("/forgot-password") ||
+      path.startsWith("/reset-password") ||
+      path.startsWith("/invitation/") ||
       path.startsWith("/portal") ||
-      path.startsWith("/agency") ||
       path === "/";
 
     if (isPublicOrOnboarding) return;
 
     // 1. Company was deleted permanently
     if (myCompanies.length === 0) {
-      console.warn("Tenant user has no active companies (company deleted). Ejecting session.");
+      if (platformAdminLoading || agencyAccessQuery.isPending) return;
+      if (agencyAccessQuery.data?.access_state === "ALLOWED" && agencyAccessQuery.data.is_agency === true) return;
+
+      console.warn("Tenant user has no authorized company or agency access. Ejecting session.");
       localStorage.removeItem(ACTIVE_COMPANY_STORAGE_KEY);
       supabase.auth.signOut().then(() => {
-        window.location.href = "/auth?error=company_deleted";
+        const error = agencyAccessQuery.isError ? "account_verification_failed"
+          : user.user_metadata?.user_type === "agency" ? "agency_unavailable" : "company_deleted";
+        window.location.href = `/auth?error=${error}`;
       });
       return;
     }
@@ -141,7 +162,8 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       });
       return;
     }
-  }, [myCompanies, isLoading, user, activeCompany, isPlatformSuperAdmin]);
+  }, [myCompanies, isLoading, user, activeCompany, isPlatformSuperAdmin, platformAdminLoading,
+    agencyAccessQuery.data, agencyAccessQuery.isPending, agencyAccessQuery.isError]);
 
   // Query branches of active company if it is a parent company
   const isValidTargetCompanyId = !!activeCompanyId && activeCompanyId !== "undefined" && activeCompanyId !== "null";
