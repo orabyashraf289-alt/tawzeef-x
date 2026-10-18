@@ -45,7 +45,11 @@ async function decrypt(encoded: string, key: CryptoKey): Promise<string> {
     );
     return new TextDecoder().decode(decrypted);
   } catch {
-    // If decryption fails, assume it's stored in plain text (legacy)
+    // An AES-GCM value that cannot be decrypted is an unusable credential.
+    // Never treat its base64 ciphertext as a legacy plain text password.
+    if (encoded.length >= 44 && /^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) {
+      throw new Error("تعذر فك كلمة مرور SMTP المحفوظة. أدخل كلمة مرور التطبيق مجددًا واحفظ الإعدادات.");
+    }
     return encoded;
   }
 }
@@ -92,6 +96,18 @@ Deno.serve(async (req) => {
     const configType = config_type || settings?.config_type || "general";
 
     if (action === "save") {
+      const { data: existing, error: lookupError } = await adminClient
+        .from("email_settings")
+        .select("id, smtp_password")
+        .eq("user_id", userId)
+        .eq("config_type", configType)
+        .maybeSingle();
+      if (lookupError) throw lookupError;
+      const hasNewPassword = Boolean(settings?.smtp_password && settings.smtp_password !== "••••••••");
+      if (!hasNewPassword && existing) {
+        // Saving unrelated fields must not claim success when the credential is unusable.
+        await decrypt(existing.smtp_password, encKey);
+      }
       const payload: Record<string, any> = {
         user_id: userId,
         config_type: configType,
@@ -104,21 +120,25 @@ Deno.serve(async (req) => {
       };
 
       // Only encrypt and update password if provided
-      if (settings.smtp_password && settings.smtp_password !== "••••••••") {
-        payload.smtp_password = await encrypt(settings.smtp_password, encKey);
+      if (hasNewPassword) {
+        const password = String(settings.smtp_password);
+        const normalized = String(settings.smtp_host).trim().toLowerCase() === "smtp.gmail.com"
+          ? password.replace(/\s+/g, "")
+          : password;
+        if (String(settings.smtp_host).trim().toLowerCase() === "smtp.gmail.com" && normalized.length !== 16) {
+          throw new Error("كلمة مرور تطبيق Gmail يجب أن تكون 16 حرفًا. أنشئها من حساب البريد نفسه وأدخلها هنا.");
+        }
+        payload.smtp_password = await encrypt(normalized, encKey);
+        // Verify the newly encrypted value before storing it.
+        if (await decrypt(payload.smtp_password, encKey) !== normalized) {
+          throw new Error("تعذر التحقق من تشفير كلمة مرور SMTP");
+        }
       }
-
-      const { data: existing } = await adminClient
-        .from("email_settings")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("config_type", configType)
-        .maybeSingle();
 
       let error;
       if (existing) {
         // Don't overwrite password if not provided or masked
-        if (!settings.smtp_password || settings.smtp_password === "••••••••") {
+        if (!hasNewPassword) {
           delete payload.smtp_password;
         }
         ({ error } = await adminClient
@@ -142,14 +162,24 @@ Deno.serve(async (req) => {
     }
 
     if (action === "load") {
-      const { data } = await adminClient
+      const { data, error } = await adminClient
         .from("email_settings")
         .select("*")
         .eq("user_id", userId)
         .eq("config_type", configType)
         .maybeSingle();
+      if (error) throw error;
 
       if (data) {
+        let passwordNeedsReset = false;
+        try {
+          const password = await decrypt(data.smtp_password, encKey);
+          if (data.smtp_host.trim().toLowerCase() === "smtp.gmail.com" && password.replace(/\s+/g, "").length !== 16) {
+            passwordNeedsReset = true;
+          }
+        } catch {
+          passwordNeedsReset = true;
+        }
         // Return settings with masked password
         return new Response(
           JSON.stringify({
@@ -157,6 +187,7 @@ Deno.serve(async (req) => {
               ...data,
               smtp_password: "••••••••", // Never return actual password
               has_password: true,
+              password_needs_reset: passwordNeedsReset,
             },
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
