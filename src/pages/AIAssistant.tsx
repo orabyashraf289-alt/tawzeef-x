@@ -48,7 +48,6 @@ import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAddJob, useJobs, useCandidates, getActiveCompanyId, type JobRow, type CandidateRow } from "@/hooks/useJobs";
@@ -74,6 +73,7 @@ import VoiceInputButton from "@/components/ai-assistant/VoiceInputButton";
 import AIChatHeader from "@/components/ai-assistant/AIChatHeader";
 import AIChatBubble from "@/components/ai-assistant/AIChatBubble";
 import AnalyticsReportContent, { isStructuredAnalyticsReport } from "@/components/ai-assistant/AnalyticsReportContent";
+import AssistantMessageContent from "@/components/ai-assistant/AssistantMessageContent";
 import AISuggestionChips from "@/components/ai-assistant/AISuggestionChips";
 
 import ProactiveInsightsCard, { type ProactiveInsights } from "@/components/ai-assistant/ProactiveInsightsCard";
@@ -1988,95 +1988,6 @@ export default function AIAssistant() {
     <DashboardLayout>
       <AnimatedDashboardBackground />
       <style>{`
-        .chat-prose {
-          font-size: 0.875rem;
-          line-height: 1.65;
-          color: hsl(var(--foreground));
-        }
-        .chat-prose h1, .chat-prose h2, .chat-prose h3, .chat-prose h4 {
-          font-weight: 800;
-          color: hsl(var(--foreground));
-          margin-top: 1rem;
-          margin-bottom: 0.5rem;
-        }
-        .chat-prose h1 { font-size: 1.2rem; }
-        .chat-prose h2 { font-size: 1.05rem; }
-        .chat-prose h3 { font-size: 0.95rem; }
-        .chat-prose p {
-          margin-bottom: 0.65rem;
-          font-weight: 500;
-          line-height: 1.7;
-        }
-        .chat-prose p:last-child {
-          margin-bottom: 0;
-        }
-        .chat-prose strong {
-          font-weight: 800;
-          color: hsl(var(--primary));
-        }
-        .dark .chat-prose strong {
-          color: hsl(var(--primary));
-        }
-        .chat-prose ul, .chat-prose ol {
-          margin-bottom: 0.65rem;
-          padding-right: 1.25rem;
-        }
-        .chat-prose ul { list-style-type: disc; }
-        .chat-prose ol { list-style-type: decimal; }
-        .chat-prose li {
-          margin-bottom: 0.25rem;
-          font-weight: 500;
-          line-height: 1.6;
-        }
-        .chat-prose table {
-          width: 100%;
-          margin: 0.75rem 0;
-          border-collapse: separate;
-          border-spacing: 0;
-          font-size: 11.5px;
-          border-radius: 10px;
-          overflow: hidden;
-          border: 1px solid hsl(var(--border) / 0.5);
-          display: table;
-        }
-        .chat-prose th {
-          background-color: hsl(var(--muted) / 0.8);
-          color: hsl(var(--foreground));
-          font-weight: 800;
-          padding: 0.5rem 0.75rem;
-          text-align: right;
-          border-bottom: 1px solid hsl(var(--border) / 0.5);
-        }
-        .chat-prose td {
-          padding: 0.5rem 0.75rem;
-          text-align: right;
-          border-bottom: 1px solid hsl(var(--border) / 0.3);
-          background-color: hsl(var(--card) / 0.4);
-        }
-        .chat-prose tr:last-child td {
-          border-bottom: none;
-        }
-        .chat-prose code {
-          background-color: hsl(var(--muted) / 0.6);
-          padding: 0.15rem 0.35rem;
-          border-radius: 4px;
-          font-size: 0.85em;
-          font-family: monospace;
-        }
-        .chat-prose pre {
-          background-color: hsl(var(--muted) / 0.5);
-          border: 1px solid hsl(var(--border) / 0.4);
-          padding: 0.75rem;
-          border-radius: 8px;
-          overflow-x: auto;
-          margin: 0.65rem 0;
-        }
-        .chat-prose blockquote {
-          border-right: 3px solid hsl(var(--primary));
-          padding-right: 0.75rem;
-          margin: 0.65rem 0;
-          color: hsl(var(--muted-foreground));
-        }
         .premium-radial-glow {
           position: absolute;
           width: 140px;
@@ -2204,25 +2115,28 @@ export default function AIAssistant() {
                     )}
 
                     <div className={cn(
-                      "max-w-[88%] sm:max-w-[80%] lg:max-w-[75%] rounded-2xl px-5 py-4 text-sm leading-relaxed shadow-xs transition-all duration-200 relative overflow-hidden",
+                      "min-w-0 rounded-2xl px-4 sm:px-5 py-4 text-sm leading-relaxed shadow-xs transition-all duration-200 relative",
                       msg.role === "user"
-                        ? "bg-md-primary text-md-on-primary font-medium rounded-tr-xs shadow-md3-1"
-                        : "bg-card/90 border border-border/60 rounded-tl-xs text-foreground shadow-xs backdrop-blur-md dark:bg-card/70"
+                        ? "max-w-[calc(100%-3rem)] sm:max-w-[75%] bg-md-primary text-md-on-primary font-medium rounded-tr-xs shadow-md3-1 whitespace-pre-wrap break-words"
+                        : "max-w-[calc(100%-3rem)] sm:max-w-[88%] xl:max-w-[56rem] bg-card/95 border border-border/70 rounded-tl-xs text-foreground shadow-xs backdrop-blur-md dark:bg-card/80"
                     )}>
                     {msg.role === "assistant" && (
                       <div className="premium-radial-glow -bottom-10 -left-10 bg-primary/10" />
                     )}
                     {msg.role === "assistant" ? (
                       <div className="space-y-3 relative z-10">
-                        <div className="prose prose-sm max-w-none dark:prose-invert chat-prose">
+                        <div className="flex items-center gap-2 text-[11px] font-bold text-primary border-b border-border/50 pb-2.5">
+                          <span>ذكي</span><span className="font-medium text-muted-foreground">مساعد التوظيف</span>
+                        </div>
+                        <div className="min-w-0">
                           {msg.statsReport && isStructuredAnalyticsReport(msg.statsReport.report_type)
-                            ? <AnalyticsReportContent reportType={msg.statsReport.report_type} stats={msg.statsReport.stats} />
-                            : <ReactMarkdown>{msg.content}</ReactMarkdown>}
+                            ? <div className="assistant-message-content"><AnalyticsReportContent reportType={msg.statsReport.report_type} stats={msg.statsReport.stats} /></div>
+                            : <AssistantMessageContent content={msg.content} />}
                           {msg.isStreaming && <span className="inline-block w-1.5 h-4 bg-primary animate-pulse rounded-sm ml-0.5" />}
                         </div>
 
                         {!msg.isStreaming && msg.content && msg.content.length > 10 && (
-                          <div className="flex justify-end items-center gap-1.5 -mt-1 flex-wrap">
+                          <div className="flex justify-end items-center gap-1.5 flex-wrap border-t border-border/50 pt-2.5">
                             <SpeakButton text={msg.content} messageId={`msg-${i}`} />
                             <Button
                               variant="ghost"
