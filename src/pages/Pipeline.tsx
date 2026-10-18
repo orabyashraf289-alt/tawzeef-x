@@ -1,3 +1,4 @@
+import { useCollectionMotion } from "@/hooks/useCollectionMotion";
 import { useState, useMemo, useCallback, useEffect, memo } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useI18n } from "@/contexts/I18nContext";
@@ -108,16 +109,16 @@ const DraggableCard = memo(function DraggableCard({
   } : undefined;
 
   return (
-    <motion.div
+    <div
       ref={setNodeRef}
       style={style}
       {...listeners}
       {...attributes}
-      layout
       className="cursor-grab active:cursor-grabbing"
     >
       <CandidateCard
         candidate={candidate}
+        isDragging={isDragging}
         response={response}
         isSelected={isSelected}
         onToggleSelect={onToggleSelect}
@@ -128,11 +129,12 @@ const DraggableCard = memo(function DraggableCard({
         onWhatsAppDirect={onWhatsAppDirect}
         stageSlaHours={stageSlaHours}
       />
-    </motion.div>
+    </div>
   );
 });
 
 export default function Pipeline() {
+  const collection = useCollectionMotion();
   const { t, dir, locale } = useI18n();
   const { data: candidates, isLoading } = useCandidates();
   const { data: jobs } = useJobs();
@@ -776,7 +778,7 @@ export default function Pipeline() {
     <DashboardLayout>
       <div className="p-4 lg:p-8 space-y-4">
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+        <motion.div {...collection.entry()}
           className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md3-full bg-md-primary-container text-md-on-primary-container text-xs font-bold mb-2">
@@ -826,7 +828,7 @@ export default function Pipeline() {
         </motion.div>
 
         {/* Filters Bar */}
-        <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+        <motion.div {...collection.entry(1)}
           className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1 max-w-xs">
             <Search className={`absolute ${dir === "rtl" ? "right-3" : "left-3"} top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground`} />
@@ -880,7 +882,7 @@ export default function Pipeline() {
         {isLoading ? (
           <PipelineSkeleton />
         ) : (candidates || []).length === 0 ? (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+          <motion.div {...collection.entry()}
             className="text-center py-20 bg-card rounded-2xl border border-border/50">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <Users className="w-8 h-8 text-primary/50" />
@@ -1021,9 +1023,7 @@ export default function Pipeline() {
                 return (
                   <motion.div
                     key={candidate.id}
-                    initial={{ opacity: 0, x: dir === "rtl" ? 20 : -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: Math.min(idx * 0.03, 0.3) }}
+                    {...collection.entry(idx)}
                     className="bg-card border border-border/50 rounded-xl p-4 hover:border-primary/20 hover:shadow-sm transition-all"
                   >
                     {/* Top row: candidate info */}

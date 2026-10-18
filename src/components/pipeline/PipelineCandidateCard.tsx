@@ -1,3 +1,5 @@
+import { useDndContext } from "@dnd-kit/core";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { memo } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
@@ -48,6 +50,8 @@ const PipelineCandidateCard = memo(function PipelineCandidateCard({
   onWhatsAppDirect,
   stageSlaHours = 0,
 }: CandidateCardProps) {
+  const reduced = useReducedMotion();
+  const { active } = useDndContext();
   const parsedLog = response?.tab_switch_log
     ? typeof response.tab_switch_log === "string"
       ? JSON.parse(response.tab_switch_log)
@@ -57,14 +61,14 @@ const PipelineCandidateCard = memo(function PipelineCandidateCard({
 
   return (
     <motion.div
-      layout
-      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+      layout={!reduced && !active && !isDragging ? "position" : false}
+      transition={{ duration: reduced ? 0 : 0.25, ease: "easeOut" }}
       className={cn(
-        "bg-card rounded-2xl border p-3.5 transition-all group relative",
+        "bg-card rounded-2xl border p-3.5 transition-colors group relative",
         isSelected
           ? "border-primary bg-primary/8 shadow-md"
           : "border-border/60 hover:shadow-md hover:border-primary/40",
-        isDragging ? "shadow-2xl rotate-2 opacity-90 scale-105" : ""
+        isDragging ? "shadow-2xl opacity-90" : ""
       )}
     >
       <div className="flex items-start gap-2">

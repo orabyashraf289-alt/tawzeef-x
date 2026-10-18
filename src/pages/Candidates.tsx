@@ -18,7 +18,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { stagger, fadeUp } from "@/lib/motion";
+import { useCollectionMotion } from "@/hooks/useCollectionMotion";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/contexts/I18nContext";
 import { useScreenPermissions } from "@/hooks/useScreenPermissions";
@@ -43,8 +43,6 @@ const getInitials = (name?: string | null) => {
 
 const EVAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/evaluate-candidate`;
 
-const container = stagger(0.04);
-const item = fadeUp;
 
 import CompareDialog from "@/components/candidates/CompareDialog";
 
@@ -228,6 +226,7 @@ function AddCandidateModal({ isOpen, onClose, jobs, onCreated }: { isOpen: boole
 
 /* ─── MAIN CANDIDATES SCREEN ─── */
 export default function Candidates() {
+  const collection = useCollectionMotion();
   const { t, locale, dir } = useI18n();
   const { data: allCandidatesData, isLoading, refetch } = useCandidates();
   const candidates = allCandidatesData || [];
@@ -527,7 +526,7 @@ export default function Candidates() {
     <DashboardLayout>
       <div className="p-4 lg:p-8 space-y-6 relative z-10" dir={dir}>
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <motion.div {...collection.entry()} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-md3-xl bg-md-primary flex items-center justify-center text-md-on-primary shadow-md3-2">
               <Users className="w-6 h-6" />
@@ -576,7 +575,7 @@ export default function Candidates() {
         </motion.div>
 
         {/* Metric Cards */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <motion.div {...collection.entry(1)} className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
             { label: "إجمالي المرشحين", value: totalCount, icon: Users, filterKey: "all", color: "text-foreground", bg: "bg-md-surface-container border-md-outline-variant" },
             { label: "قيد المراجعة", value: reviewing, icon: Users, filterKey: "reviewing", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
@@ -606,7 +605,7 @@ export default function Candidates() {
         </motion.div>
 
         {/* Quick Filter Pill Tabs */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="flex flex-wrap items-center gap-2">
+        <motion.div {...collection.entry(1)} className="flex flex-wrap items-center gap-2">
           <Button
             variant={quickFilter === "all" ? "default" : "outline"}
             size="sm"
@@ -650,7 +649,7 @@ export default function Candidates() {
         </motion.div>
 
         {/* Search & Advanced Filters */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.12 }} className="space-y-3">
+        <motion.div {...collection.entry(2)} className="space-y-3">
           {/* AI Natural Language Prompt Search Bar */}
           <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 space-y-3 relative overflow-hidden">
             <div className="flex items-center gap-2">
@@ -889,7 +888,7 @@ export default function Candidates() {
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-16 bg-card rounded-md3-2xl border border-md-outline-variant space-y-3">
+          <motion.div {...collection.entry()} className="text-center py-16 bg-card rounded-md3-2xl border border-md-outline-variant space-y-3">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto text-primary">
               <UserPlus className="w-8 h-8" />
             </div>
@@ -911,18 +910,18 @@ export default function Candidates() {
             </div>
           </motion.div>
         ) : (
-          <motion.div variants={container} initial="hidden" animate="show" className={cn(
+          <motion.div className={cn(
             isCompact ? "space-y-1.5" : "grid sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4"
           )}>
             <AnimatePresence>
-              {visibleFiltered.map((c) => {
+              {visibleFiltered.map((c, index) => {
                 const isCompareSelected = selectedForCompare.includes(c.id);
                 const isBulkSelected = selectedIds.has(c.id);
 
                 // COMPACT ROW VIEW
                 if (isCompact) {
                   return (
-                    <motion.div key={c.id} variants={item} className={cn(
+                    <motion.div key={c.id} {...collection.entry(index)} className={cn(
                       "flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all group bg-card",
                       isBulkSelected ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border/60 hover:border-primary/30 hover:shadow-sm"
                     )}>
@@ -974,7 +973,7 @@ export default function Candidates() {
 
                 // GRID CARD VIEW
                 return (
-                  <motion.div key={c.id} variants={item} whileHover={{ y: -4, transition: { duration: 0.2 } }}>
+                  <motion.div key={c.id} {...collection.entry(index)} whileHover={collection.hover}>
                     <div className={cn(
                       "bg-card rounded-md3-2xl p-5 border border-md-outline-variant transition-all duration-300 group relative flex flex-col justify-between h-full shadow-xs hover:shadow-md3-2 hover:border-primary/40",
                       isBulkSelected ? "border-primary shadow-md3-2 ring-2 ring-primary/20" :

@@ -22,15 +22,13 @@ import { toast } from "@/hooks/use-toast";
 import { getApplyUrl, getOgApplyUrl } from "@/lib/getPublicUrl";
 import { notifyGoogleIndexing } from "@/lib/googleIndexingService";
 import { useCanPostJob } from "@/hooks/useSubscription";
-import { stagger, fadeUp, cardHover } from "@/lib/motion";
+import { useCollectionMotion } from "@/hooks/useCollectionMotion";
 import { useI18n } from "@/contexts/I18nContext";
 import { useScreenPermissions } from "@/hooks/useScreenPermissions";
 import { downloadJobQR, generateAndStoreJobQR } from "@/lib/qrCodeService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyTaxonomy } from "@/hooks/useCompanyTaxonomy";
 
-const container = stagger(0.05);
-const item = fadeUp;
 
 const JOB_TEMPLATES = [
   { title: "مطور واجهات أمامية", department: "الهندسة", type: "دوام كامل", description: "تطوير واجهات المستخدم باستخدام React وTypeScript مع التركيز على الأداء وتجربة المستخدم.", requirements: "خبرة في React/Next.js\nTypeScript\nTailwind CSS\nGit" },
@@ -78,6 +76,7 @@ const getSalaryComparison = (min: number, max: number, dept: string) => {
 };
 
 export default function Jobs() {
+  const collection = useCollectionMotion();
   const { t, locale, dir } = useI18n();
   const { user } = useAuth();
   const { data: jobs, isLoading } = useJobs();
@@ -413,7 +412,7 @@ export default function Jobs() {
     <DashboardLayout>
       <div className="p-4 lg:p-8 space-y-6">
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+        <motion.div {...collection.entry()}
           className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md3-full bg-md-primary-container text-md-on-primary-container text-xs font-bold mb-2">
@@ -436,7 +435,7 @@ export default function Jobs() {
         </motion.div>
 
         {/* Stats */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+        <motion.div {...collection.entry(1)}
           className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: t("jobs.totalJobs"), value: allJobs.filter(j => j.status !== "مؤرشفة").length, color: "text-foreground", bg: "bg-md-surface-container border-md-outline-variant" },
@@ -452,7 +451,7 @@ export default function Jobs() {
         </motion.div>
 
         {/* Toolbar */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
+        <motion.div {...collection.entry(2)}
           className="space-y-3">
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
             <div className="relative flex-1 w-full">
@@ -529,7 +528,7 @@ export default function Jobs() {
             ))}
           </div>
         ) : filteredJobs.length === 0 ? (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+          <motion.div {...collection.entry()}
             className="text-center py-20 bg-card rounded-2xl border border-border/50">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
               {showArchived ? <Archive className="w-8 h-8 text-primary/50" /> : <Briefcase className="w-8 h-8 text-primary/50" />}
@@ -547,11 +546,11 @@ export default function Jobs() {
             )}
           </motion.div>
         ) : viewMode === "grid" ? (
-          <motion.div variants={container} initial="hidden" animate="show"
+          <motion.div
             className="grid md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
             <AnimatePresence>
-              {visibleJobs.map((job) => (
-                <motion.div key={job.id} variants={item} layout whileHover={{ y: -4, transition: { duration: 0.2 } }}>
+              {visibleJobs.map((job, index) => (
+                <motion.div key={job.id} {...collection.entry(index)} layout={collection.reduced ? false : "position"} whileHover={collection.hover}>
                   <div className={`bg-card rounded-md3-xl border border-md-outline-variant p-5 shadow-sm hover:shadow-md3-2 hover:border-primary/40 transition-all duration-300 group relative ${job.status === "مؤرشفة" ? "opacity-70" : ""}`}>
                     <div className="absolute inset-x-0 top-0 h-1 rounded-t-md3-xl bg-gradient-to-l from-primary via-primary/80 to-primary/40 opacity-0 group-hover:opacity-100 transition-opacity" />
 
@@ -704,7 +703,7 @@ export default function Jobs() {
             )}
           </motion.div>
         ) : (
-          <motion.div variants={container} initial="hidden" animate="show" className="space-y-2">
+          <motion.div className="space-y-2">
             <div className="hidden sm:grid grid-cols-12 gap-4 px-5 py-2.5 text-xs font-medium text-muted-foreground bg-muted/30 rounded-lg border border-border/30">
               <span className="col-span-3 flex items-center gap-2">
                 <input
@@ -722,8 +721,8 @@ export default function Jobs() {
               <span className="col-span-2 text-center">{t("common.actions")}</span>
             </div>
             <AnimatePresence>
-              {visibleJobs.map((job) => (
-                <motion.div key={job.id} variants={item} layout
+              {visibleJobs.map((job, index) => (
+                <motion.div key={job.id} {...collection.entry(index)} layout={collection.reduced ? false : "position"}
                   className={`bg-card rounded-xl border border-border/50 hover:border-primary/20 hover:shadow-sm transition-all ${job.status === "مؤرشفة" ? "opacity-70" : ""}`}>
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-center px-5 py-4">
                     <div className="sm:col-span-3 flex items-center gap-2">
