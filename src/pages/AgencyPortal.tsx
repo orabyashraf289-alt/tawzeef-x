@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,11 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Building2, Users, Plus, UploadCloud, FileText, CheckCircle2, ShieldCheck, Mail, Phone, MapPin, ExternalLink, Loader2, Sparkles, UserPlus } from "lucide-react";
 import { useMyAgencies, useAgencyCandidates } from "@/hooks/useAgencies";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import AgencyCasePanel from "@/components/agency/AgencyCasePanel";
+import { AGENCY_STAGES, AGENCY_CASE_STATUS, type AgencyCaseStatus } from "@/lib/agencyCase";
 
 export default function AgencyPortal() {
   const { data: agencies = [], isLoading } = useMyAgencies();
@@ -22,8 +23,20 @@ export default function AgencyPortal() {
   const qc = useQueryClient();
   const [openSubmitCandidate, setOpenSubmitCandidate] = useState(false);
   const [selectedAgencyId, setSelectedAgencyId] = useState<string>("");
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
+  const { data: assignedCompanies = [] } = useQuery({
+    queryKey: ["agency-company-options", selectedAgencyId],
+    enabled: !!selectedAgencyId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("agency_assignments")
+        .select("company_id,company:company_id(name)").eq("agency_id", selectedAgencyId)
+        .eq("scope", "company").eq("status", "active");
+      if (error) throw error;
+      return data as { company_id: string; company: { name: string } | null }[];
+    },
+  });
 
   // Candidate Submission Form State
   const [candForm, setCandForm] = useState({
@@ -31,6 +44,8 @@ export default function AgencyPortal() {
     email: "",
     phone: "",
     role: "",
+    experience: "",
+    location: "",
     resumeUrl: "",
     notes: ""
   });
@@ -42,7 +57,10 @@ export default function AgencyPortal() {
     setUploadingResume(true);
     try {
       const ext = (file.name.split(".").pop() || "").toLowerCase();
-      const filePath = `agency_${user!.id}/cand_${crypto.randomUUID()}.${ext}`;
+      if (!["pdf", "doc", "docx"].includes(ext) || file.size > 10 * 1024 * 1024) {
+        throw new Error("السيرة الذاتية يجب أن تكون PDF أو Word وبحجم لا يتجاوز 10 ميجابايت");
+      }
+      const filePath = `${user!.id}/agency_candidate_${crypto.randomUUID()}.${ext}`;
 
       const { error: uploadErr } = await supabase.storage
         .from("resumes")
@@ -61,7 +79,8 @@ export default function AgencyPortal() {
 
   const handleSubmitCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!candForm.name || !candForm.email || !selectedAgencyId) {
+    const companyId = selectedCompanyId || (assignedCompanies.length === 1 ? assignedCompanies[0].company_id : "");
+    if (!candForm.name || !candForm.email || !selectedAgencyId || !companyId) {
       toast({ title: "يرجى تعبئة الحقول الأساسية لمرشح المكتب", variant: "destructive" });
       return;
     }
@@ -69,14 +88,15 @@ export default function AgencyPortal() {
     setSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke("submit-agency-candidate", {
-        body: { agencyId: selectedAgencyId, ...candForm },
+        body: { agencyId: selectedAgencyId, companyId, ...candForm },
       });
       if (error || !data?.success) throw error || new Error(data?.error || "تعذر رفع المرشح");
 
       qc.invalidateQueries({ queryKey: ["agency-candidates"] });
       toast({ title: "تم رفع وتوفير المرشح للشركة بنجاح! 🚀" });
       setOpenSubmitCandidate(false);
-      setCandForm({ name: "", email: "", phone: "", role: "", resumeUrl: "", notes: "" });
+      setSelectedCompanyId("");
+      setCandForm({ name: "", email: "", phone: "", role: "", experience: "", location: "", resumeUrl: "", notes: "" });
     } catch (err: any) {
       toast({ title: "خطأ في تقديم المرشح", description: err.message, variant: "destructive" });
     } finally {
@@ -122,12 +142,13 @@ export default function AgencyPortal() {
               <span>بوابة مكاتب التوظيف والعمل المزودة</span>
             </div>
             <h1 className="text-2xl font-black text-foreground">بوابة مكتب العمل والتوظيف</h1>
-            <p className="text-sm text-muted-foreground">استعراض الوظائف المطلوبة من الشركات، ورفع وتوفير السير الذاتية للمرشحين مباشرة.</p>
+            <p className="text-sm text-muted-foreground">رفع بيانات المرشحين ووثائقهم، ومتابعة إجراءاتهم حتى اعتماد التأشيرة وتسليم الملف للإدارة.</p>
           </div>
 
           <Button
             onClick={() => {
               setSelectedAgencyId(agencies[0]?.id || "");
+              setSelectedCompanyId("");
               setOpenSubmitCandidate(true);
             }}
             className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl h-11 px-5 font-bold text-sm gap-2 shadow-md shrink-0"
@@ -145,6 +166,7 @@ export default function AgencyPortal() {
             agencyName={agency.name} 
             onOpenSubmit={() => {
               setSelectedAgencyId(agency.id);
+              setSelectedCompanyId("");
               setOpenSubmitCandidate(true);
             }}
           />
@@ -164,6 +186,14 @@ export default function AgencyPortal() {
             </DialogHeader>
 
             <form onSubmit={handleSubmitCandidate} className="space-y-4 text-right pt-2">
+              {assignedCompanies.length > 1 && <div className="space-y-1.5">
+                <Label htmlFor="agency-company">الشركة المستلمة للملف *</Label>
+                <select id="agency-company" required value={selectedCompanyId} onChange={e => setSelectedCompanyId(e.target.value)}
+                  className="w-full rounded-xl border bg-background px-3 h-10 text-sm">
+                  <option value="">اختر الشركة</option>
+                  {assignedCompanies.map(item => <option key={item.company_id} value={item.company_id}>{item.company?.name || item.company_id}</option>)}
+                </select>
+              </div>}
               <div className="space-y-1.5">
                 <Label htmlFor="candName" className="text-xs font-bold">اسم المرشح الكامل *</Label>
                 <Input
@@ -212,6 +242,23 @@ export default function AgencyPortal() {
                   className="rounded-xl h-10 text-xs"
                 />
               </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="candExperience" className="text-xs font-bold">الخبرة</Label>
+                  <Input id="candExperience" maxLength={500} value={candForm.experience}
+                    onChange={e => setCandForm({ ...candForm, experience: e.target.value })} className="rounded-xl h-10 text-xs" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="candLocation" className="text-xs font-bold">الموقع / الدولة</Label>
+                  <Input id="candLocation" maxLength={150} value={candForm.location}
+                    onChange={e => setCandForm({ ...candForm, location: e.target.value })} className="rounded-xl h-10 text-xs" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="candNotes" className="text-xs font-bold">بيانات إضافية للمرشح</Label>
+                <Textarea id="candNotes" maxLength={2000} value={candForm.notes}
+                  onChange={e => setCandForm({ ...candForm, notes: e.target.value })} />
+              </div>
 
               {/* Resume File Upload */}
               <div className="space-y-1.5">
@@ -245,6 +292,17 @@ export default function AgencyPortal() {
 
 function AgencySection({ agencyId, agencyName, onOpenSubmit }: { agencyId: string; agencyName: string; onOpenSubmit: () => void }) {
   const { data: candidates = [] } = useAgencyCandidates(agencyId);
+  const [selectedCandidate, setSelectedCandidate] = useState<any | null>(null);
+  const { data: cases = [] } = useQuery({
+    queryKey: ["agency-case-list", agencyId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("agency_cases")
+        .select("candidate_id,stage_index,status").eq("agency_id", agencyId);
+      if (error) throw error;
+      return data as { candidate_id: string; stage_index: number; status: AgencyCaseStatus }[];
+    },
+  });
+  const caseByCandidate = new Map(cases.map(item => [item.candidate_id, item]));
 
   return (
     <Card className="p-6 rounded-3xl border border-border/60 shadow-sm space-y-4">
@@ -285,9 +343,9 @@ function AgencySection({ agencyId, agencyName, onOpenSubmit }: { agencyId: strin
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {candidates.map((c, i) => (
               <motion.div key={c.id || i} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-                <Link
-                  to={`/candidates/${c.id}`}
-                  className="flex items-center justify-between p-3.5 rounded-2xl border border-border/50 bg-card hover:bg-muted/30 transition-all group"
+                <button type="button"
+                  onClick={() => setSelectedCandidate(c)} disabled={!caseByCandidate.has(c.id)}
+                  className="w-full text-right flex items-center justify-between p-3.5 rounded-2xl border border-border/50 bg-card enabled:hover:bg-muted/30 transition-all group disabled:cursor-default"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600 font-bold shrink-0">
@@ -300,16 +358,19 @@ function AgencySection({ agencyId, agencyName, onOpenSubmit }: { agencyId: strin
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <Badge variant="secondary" className="text-[10px]">
-                      {c.stage || c.status || "تقديم الطلب"}
+                      {caseByCandidate.has(c.id)
+                        ? `${AGENCY_STAGES[caseByCandidate.get(c.id)!.stage_index]?.title} · ${AGENCY_CASE_STATUS[caseByCandidate.get(c.id)!.status]}`
+                        : "مرشح مرتبط بالمكتب"}
                     </Badge>
-                    <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-emerald-600 transition-colors" />
+                    {caseByCandidate.has(c.id) && <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-emerald-600 transition-colors" />}
                   </div>
-                </Link>
+                </button>
               </motion.div>
             ))}
           </div>
         )}
       </div>
+      <AgencyCasePanel candidate={selectedCandidate} open={!!selectedCandidate} onOpenChange={open => !open && setSelectedCandidate(null)} />
     </Card>
   );
 }
