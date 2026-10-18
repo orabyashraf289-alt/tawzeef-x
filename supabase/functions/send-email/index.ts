@@ -29,7 +29,12 @@ async function decrypt(encoded: string, key: CryptoKey): Promise<string> {
     const decrypted = await crypto.subtle.decrypt({ name: ALGO, iv }, key, data);
     return new TextDecoder().decode(decrypted);
   } catch {
-    // Legacy plain text fallback
+    // A failed decrypt of a stored AES-GCM value must not be sent to Gmail as
+    // though the base64 ciphertext were the password.
+    if (encoded.length >= 44 && /^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) {
+      throw new Error("تعذر فك كلمة مرور SMTP المحفوظة. أعد حفظ كلمة مرور التطبيق ثم اختبر الإرسال.");
+    }
+    // Legacy plain text fallback for short, unencrypted values.
     return encoded;
   }
 }
@@ -243,6 +248,19 @@ Deno.serve(async (req) => {
         // Decrypt the stored password
         const encKey = await deriveKey(serviceKey);
         smtpPass = await decrypt(settings.smtp_password, encKey);
+        if (smtpHost.trim().toLowerCase() === "smtp.gmail.com") {
+          // Google displays its 16-character app password in four groups.
+          // Pasting the displayed spaces verbatim makes SMTP return 535.
+          const normalized = smtpPass.replace(/\s+/g, "");
+          if (normalized !== smtpPass) console.info("Removed display spaces from Gmail app password");
+          smtpPass = normalized;
+          if (isSmtpTest && smtpPass.length !== 16) {
+            return new Response(JSON.stringify({
+              error: "كلمة مرور تطبيق Gmail المحفوظة ليست 16 حرفًا بعد إزالة المسافات. أنشئ كلمة مرور تطبيق جديدة من حساب البريد نفسه ثم احفظها.",
+              code: "SMTP_PASSWORD_FORMAT",
+            }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+        }
       }
     }
 
@@ -465,15 +483,20 @@ function htmlToPlainText(htmlStr: string): string {
 
     // Record sent email in email_tracking table for Analytics
     if (smtpUserId) {
-      await supabase.from("email_tracking").insert({
-        user_id: smtpUserId,
-        candidate_email: to,
-        email_type: email_type || "general",
-        subject: emailSubject,
-        tracking_id: trackingId,
-        sent_at: new Date().toISOString(),
-        opened_count: 0
-      }).catch(err => console.warn("Failed recording email tracking:", err));
+      try {
+        const { error: trackingError } = await supabase.from("email_tracking").insert({
+          user_id: smtpUserId,
+          candidate_email: to,
+          email_type: email_type || "general",
+          subject: emailSubject,
+          tracking_id: trackingId,
+          sent_at: new Date().toISOString(),
+          opened_count: 0,
+        });
+        if (trackingError) console.warn("Failed recording email tracking:", trackingError);
+      } catch (trackingError) {
+        console.warn("Failed recording email tracking:", trackingError);
+      }
     }
 
     return new Response(
