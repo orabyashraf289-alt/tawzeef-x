@@ -73,6 +73,7 @@ import { useScreenPermissions } from "@/hooks/useScreenPermissions";
 import VoiceInputButton from "@/components/ai-assistant/VoiceInputButton";
 import AIChatHeader from "@/components/ai-assistant/AIChatHeader";
 import AIChatBubble from "@/components/ai-assistant/AIChatBubble";
+import AnalyticsReportContent, { isStructuredAnalyticsReport } from "@/components/ai-assistant/AnalyticsReportContent";
 import AISuggestionChips from "@/components/ai-assistant/AISuggestionChips";
 
 import ProactiveInsightsCard, { type ProactiveInsights } from "@/components/ai-assistant/ProactiveInsightsCard";
@@ -2214,7 +2215,9 @@ export default function AIAssistant() {
                     {msg.role === "assistant" ? (
                       <div className="space-y-3 relative z-10">
                         <div className="prose prose-sm max-w-none dark:prose-invert chat-prose">
-                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          {msg.statsReport && isStructuredAnalyticsReport(msg.statsReport.report_type)
+                            ? <AnalyticsReportContent reportType={msg.statsReport.report_type} stats={msg.statsReport.stats} />
+                            : <ReactMarkdown>{msg.content}</ReactMarkdown>}
                           {msg.isStreaming && <span className="inline-block w-1.5 h-4 bg-primary animate-pulse rounded-sm ml-0.5" />}
                         </div>
 
