@@ -37,6 +37,7 @@ export default function EmailSettingsForm() {
   const [testing, setTesting] = useState(false);
   const [exists, setExists] = useState(false);
   const [passwordChanged, setPasswordChanged] = useState(false);
+  const [passwordNeedsReset, setPasswordNeedsReset] = useState(false);
   const [configType, setConfigType] = useState("general");
   const [settings, setSettings] = useState({
     smtp_host: "smtp.gmail.com",
@@ -56,6 +57,7 @@ export default function EmailSettingsForm() {
         const { data, error } = await supabase.functions.invoke("manage-smtp", {
           body: { action: "load", config_type: configType },
         });
+        if (error) throw await smtpFunctionError(error, data);
         if (data?.settings) {
           setSettings({
             smtp_host: data.settings.smtp_host,
@@ -68,6 +70,7 @@ export default function EmailSettingsForm() {
           });
           setExists(true);
           setPasswordChanged(false);
+          setPasswordNeedsReset(Boolean(data.settings.password_needs_reset));
         } else {
           // Reset to defaults for new configuration type
           setSettings({
@@ -81,6 +84,7 @@ export default function EmailSettingsForm() {
           });
           setExists(false);
           setPasswordChanged(false);
+          setPasswordNeedsReset(false);
         }
       } catch (err) {
         console.error("Failed to load email settings:", err);
@@ -107,6 +111,8 @@ export default function EmailSettingsForm() {
       if (error || !data?.success) throw await smtpFunctionError(error, data);
       setExists(true);
       setPasswordChanged(false);
+      setPasswordNeedsReset(false);
+      setSettings(previous => ({ ...previous, smtp_password: "••••••••" }));
       toast({ title: "تم حفظ إعدادات البريد بنجاح ✅" });
     } catch (err: any) {
       toast({ title: "خطأ", description: err.message, variant: "destructive" });
@@ -116,6 +122,10 @@ export default function EmailSettingsForm() {
 
   const handleTest = async () => {
     if (!user?.email) return;
+    if (passwordNeedsReset) {
+      toast({ title: "يلزم تحديث كلمة مرور التطبيق", description: "أدخل كلمة مرور تطبيق Gmail جديدة واحفظها قبل الاختبار.", variant: "destructive" });
+      return;
+    }
     if (passwordChanged) {
       toast({ title: "احفظ كلمة مرور التطبيق أولًا", description: "الاختبار يستخدم إعدادات SMTP المحفوظة.", variant: "destructive" });
       return;
@@ -156,7 +166,7 @@ export default function EmailSettingsForm() {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <h3 className="text-sm font-bold text-foreground">إعدادات SMTP</h3>
-        {exists && (
+        {exists && !passwordNeedsReset && (
           <div className="flex items-center gap-1.5 text-xs text-green-600">
             <CheckCircle2 className="w-3.5 h-3.5" />
             <Lock className="w-3 h-3" />
@@ -164,6 +174,12 @@ export default function EmailSettingsForm() {
           </div>
         )}
       </div>
+
+      {passwordNeedsReset && (
+        <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-foreground">
+          كلمة مرور SMTP المحفوظة لم تعد قابلة للاستخدام. افتح حقل كلمة مرور التطبيق، وأدخل كلمة مرور تطبيق جديدة من حساب البريد الظاهر، ثم اضغط «حفظ الإعدادات» قبل إعادة الاختبار. حفظ بقية الحقول وحده لا يُحدّث كلمة المرور.
+        </div>
+      )}
 
       <form onSubmit={handleSave} className="space-y-4">
         <div className="space-y-1.5">
@@ -250,7 +266,10 @@ export default function EmailSettingsForm() {
               required={!exists}
             />
             {exists && !passwordChanged && (
-              <p className="text-[11px] text-muted-foreground mt-1">🔒 مشفّرة — انقر لتغييرها</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{passwordNeedsReset ? "انقر لإدخال كلمة مرور تطبيق جديدة" : "🔒 مشفّرة — انقر لتغييرها"}</p>
+            )}
+            {settings.smtp_host.trim().toLowerCase() === "smtp.gmail.com" && (
+              <p className="text-[11px] text-muted-foreground mt-1">كلمة مرور تطبيق Google من 16 حرفًا؛ تُزال مسافات العرض تلقائيًا عند الحفظ والإرسال.</p>
             )}
           </div>
         </div>
