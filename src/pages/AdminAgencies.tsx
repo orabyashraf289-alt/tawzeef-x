@@ -16,7 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Building, Trash2, Link2, X, Users, CheckCircle2, TrendingUp } from "lucide-react";
+import { Plus, Building, Trash2, Link2, X, Users, CheckCircle2, TrendingUp, UserPlus } from "lucide-react";
 import {
   useAllAgencies,
   useDeleteAgency,
@@ -54,6 +54,18 @@ export default function AdminAgencies() {
   const [linkScope, setLinkScope] = useState<"company" | "candidate">("company");
   const [linkCandidate, setLinkCandidate] = useState("");
   const [agencyToDelete, setAgencyToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [agencyToActivate, setAgencyToActivate] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [activationCompany, setActivationCompany] = useState("");
+  const [activating, setActivating] = useState(false);
+  const { data: agencyMembers = [] } = useQuery({
+    queryKey: ["admin-agency-members"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("agency_members").select("agency_id");
+      if (error) throw error;
+      return data as { agency_id: string }[];
+    },
+  });
+  const activatedAgencyIds = new Set(agencyMembers.map(member => member.agency_id));
 
   // candidates of selected company (for candidate-scoped link)
   const { data: companyCandidates = [] } = useQuery({
@@ -240,6 +252,9 @@ export default function AdminAgencies() {
                   <h3 className="font-bold text-base mb-1 truncate">{a.name}</h3>
                   <p className="text-xs text-muted-foreground truncate mb-1">{a.contact_email || "—"}</p>
                   <p className="text-xs text-muted-foreground mb-3">ترخيص: {a.license_number || "—"}</p>
+                  {!activatedAgencyIds.has(a.id) && <p className="text-xs text-amber-700 dark:text-amber-400 mb-3">
+                    هذا المكتب يحتاج دعوة حساب وربطًا بشركة ليتمكن من الدخول.
+                  </p>}
 
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <div className="bg-muted/30 rounded-lg p-2 text-center">
@@ -311,6 +326,11 @@ export default function AdminAgencies() {
                   </div>
 
                   <div className="flex gap-2 mt-3">
+                    {!activatedAgencyIds.has(a.id) && <Button variant="outline" size="sm" className="flex-1 gap-1.5"
+                      disabled={!a.contact_email}
+                      onClick={() => { setAgencyToActivate({ id: a.id, name: a.name, email: a.contact_email! }); setActivationCompany(""); }}>
+                      <UserPlus className="w-3.5 h-3.5" />تفعيل الدخول
+                    </Button>}
                     <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => setLinkOpen(a.id)}>
                       <Link2 className="w-3.5 h-3.5" />ربط
                     </Button>
@@ -328,6 +348,39 @@ export default function AdminAgencies() {
             );
           })}
         </div>
+
+        <Dialog open={!!agencyToActivate} onOpenChange={value => { if (!value && !activating) setAgencyToActivate(null); }}>
+          <DialogContent dir="rtl">
+            <DialogHeader><DialogTitle>تفعيل حساب {agencyToActivate?.name}</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              ستصل دعوة تحديد كلمة المرور إلى {agencyToActivate?.email}. اختر الشركة التي سيقدّم لها المكتب المرشحين.
+            </p>
+            <Select value={activationCompany} onValueChange={setActivationCompany}>
+              <SelectTrigger><SelectValue placeholder="اختر الشركة *" /></SelectTrigger>
+              <SelectContent>{companies.filter(company => company.status === "active").map(company =>
+                <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>)}</SelectContent>
+            </Select>
+            <DialogFooter><Button disabled={!activationCompany || activating} onClick={async () => {
+              if (!agencyToActivate || !activationCompany) return;
+              setActivating(true);
+              try {
+                const { data, error } = await supabase.functions.invoke("manage-agency-account", {
+                  body: { action: "activate", agencyId: agencyToActivate.id, companyId: activationCompany },
+                });
+                if (error || !data?.success) throw error || new Error(data?.error || "تعذر تفعيل المكتب");
+                await Promise.all([
+                  qc.invalidateQueries({ queryKey: ["admin-agency-members"] }),
+                  qc.invalidateQueries({ queryKey: ["all-agencies"] }),
+                  qc.invalidateQueries({ queryKey: ["agency-assignments"] }),
+                ]);
+                toast({ title: "تم تفعيل حساب المكتب وإرسال الدعوة" });
+                setAgencyToActivate(null);
+              } catch (err: any) {
+                toast({ title: "تعذر تفعيل الدخول", description: err.message, variant: "destructive" });
+              } finally { setActivating(false); }
+            }}>إرسال الدعوة وتفعيل المكتب</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Link agency dialog */}
         <Dialog open={!!linkOpen} onOpenChange={(o) => !o && resetLink()}>
