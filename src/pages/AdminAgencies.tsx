@@ -19,7 +19,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Building, Trash2, Link2, X, Users, CheckCircle2, TrendingUp } from "lucide-react";
 import {
   useAllAgencies,
-  useCreateAgency,
   useDeleteAgency,
   useCreateAssignment,
   useDeleteAssignment,
@@ -29,12 +28,15 @@ import { useAllCompanies } from "@/hooks/useCompanies";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
+import AgencyHandoffQueue from "@/components/agency/AgencyHandoffQueue";
+import { toast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function AdminAgencies() {
   const { data: agencies = [], isLoading } = useAllAgencies();
   const { data: companies = [] } = useAllCompanies();
   const { data: allAssignments = [] } = useAgencyAssignments();
-  const createAgency = useCreateAgency();
+  const qc = useQueryClient();
   const deleteAgency = useDeleteAgency();
   const createAssignment = useCreateAssignment();
   const deleteAssignment = useDeleteAssignment();
@@ -44,6 +46,8 @@ export default function AdminAgencies() {
   const [license, setLicense] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [newCompanyId, setNewCompanyId] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const [linkOpen, setLinkOpen] = useState<string | null>(null);
   const [linkCompany, setLinkCompany] = useState("");
@@ -157,21 +161,32 @@ export default function AdminAgencies() {
                 <Input placeholder="رقم الترخيص" value={license} onChange={(e) => setLicense(e.target.value)} />
                 <Input placeholder="البريد الإلكتروني" value={email} onChange={(e) => setEmail(e.target.value)} />
                 <Input placeholder="الهاتف" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <Select value={newCompanyId} onValueChange={setNewCompanyId}>
+                  <SelectTrigger><SelectValue placeholder="الشركة التي يعمل معها المكتب *" /></SelectTrigger>
+                  <SelectContent>{companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">تُرسل دعوة إلى البريد ليحدد مسؤول المكتب كلمة مروره؛ الهاتف محفوظ للتواصل.</p>
               </div>
               <DialogFooter>
                 <Button
                   onClick={async () => {
-                    if (!name.trim()) return;
-                    await createAgency.mutateAsync({
-                      name,
-                      license_number: license || null,
-                      contact_email: email || null,
-                      contact_phone: phone || null,
-                    });
-                    setName(""); setLicense(""); setEmail(""); setPhone("");
-                    setOpen(false);
+                    if (!name.trim() || !email.trim() || !newCompanyId || creating) return;
+                    setCreating(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke("manage-agency-account", {
+                        body: { action: "create", companyId: newCompanyId, name: name.trim(), email: email.trim(), phone: phone.trim(), licenseNumber: license.trim() },
+                      });
+                      if (error || !data?.success) throw error || new Error(data?.error || "تعذر إضافة المكتب");
+                      qc.invalidateQueries({ queryKey: ["all-agencies"] });
+                      qc.invalidateQueries({ queryKey: ["agency-assignments"] });
+                      toast({ title: "تم إنشاء المكتب وإرسال دعوة الدخول" });
+                      setName(""); setLicense(""); setEmail(""); setPhone(""); setNewCompanyId("");
+                      setOpen(false);
+                    } catch (err: any) {
+                      toast({ title: "تعذر إنشاء المكتب", description: err.message, variant: "destructive" });
+                    } finally { setCreating(false); }
                   }}
-                  disabled={!name || createAgency.isPending}
+                  disabled={!name.trim() || !email.trim() || !newCompanyId || creating}
                 >
                   إنشاء
                 </Button>
@@ -179,6 +194,8 @@ export default function AdminAgencies() {
             </DialogContent>
           </Dialog>
         </div>
+
+        <AgencyHandoffQueue />
 
         {isLoading && <p className="text-sm text-muted-foreground">جاري التحميل...</p>}
 
