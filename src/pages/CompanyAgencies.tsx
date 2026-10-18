@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Building2, Plus, Users, Mail, Phone, MapPin, ShieldCheck, Key, Copy, Check, Eye, Trash2, Edit3, Loader2, Sparkles, ExternalLink, RefreshCw, AlertTriangle, UserPlus } from "lucide-react";
+import { Building2, Plus, Users, Mail, Phone, MapPin, ShieldCheck, Key, Copy, Eye, Trash2, Edit3, Loader2, ExternalLink, RefreshCw, AlertTriangle, UserPlus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +16,8 @@ import { useAgencyCandidates, useUpdateAgency, useDeleteAgency } from "@/hooks/u
 import { toast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import AgencyHandoffQueue from "@/components/agency/AgencyHandoffQueue";
+import AgencyInvitationResult from "@/components/agency/AgencyInvitationResult";
+import { agencyFunctionError, type AgencyInvitation } from "@/lib/agencyInvitation";
 
 export default function CompanyAgencies() {
   const { user } = useAuth();
@@ -29,9 +31,8 @@ export default function CompanyAgencies() {
   const [selectedAgencyForEdit, setSelectedAgencyForEdit] = useState<any | null>(null);
   const [selectedAgencyForDelete, setSelectedAgencyForDelete] = useState<any | null>(null);
 
-  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; name: string } | null>(null);
+  const [createdCredentials, setCreatedCredentials] = useState<AgencyInvitation | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // Form State
   const [form, setForm] = useState({
@@ -123,15 +124,16 @@ export default function CompanyAgencies() {
       const { data, error } = await supabase.functions.invoke("manage-agency-account", {
         body: { action: "create", companyId, ...form },
       });
-      if (error || !data?.success) throw error || new Error(data?.error || "فشل إرسال الدعوة");
+      if (error || !data?.success) throw await agencyFunctionError(error, data);
 
       setCreatedCredentials({
         email: form.email.trim().toLowerCase(),
-        name: form.name
+        name: form.name,
+        invitationLink: data.invitationLink || null,
       });
 
       qc.invalidateQueries({ queryKey: ["company-agencies"] });
-      toast({ title: "تمت إضافة المكتب وإرسال دعوة الدخول عبر البريد ✅" });
+      toast({ title: data.invitationLink ? "تم إنشاء المكتب؛ انسخ رابط الدعوة" : "تمت إضافة المكتب وإرسال دعوة الدخول عبر البريد ✅" });
       setOpenAddDialog(false);
       setForm({
         name: "",
@@ -224,15 +226,6 @@ export default function CompanyAgencies() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleCopyCredentials = () => {
-    if (!createdCredentials) return;
-    const text = `دعوة مكتب التوظيف (${createdCredentials.name}):\nالبريد الإلكتروني: ${createdCredentials.email}\nرابط الدخول: ${window.location.origin}/auth?role=agency`;
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    toast({ title: "تم نسخ بيانات الدخول للأن حافظة ✅" });
-    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -707,36 +700,7 @@ export default function CompanyAgencies() {
           </DialogContent>
         </Dialog>
 
-        {/* Success Credentials Popup Modal */}
-        {createdCredentials && (
-          <Dialog open={!!createdCredentials} onOpenChange={() => setCreatedCredentials(null)}>
-            <DialogContent className="sm:max-w-md rounded-3xl p-6 text-right space-y-4">
-              <DialogHeader className="text-right space-y-1">
-                <DialogTitle className="text-lg font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-emerald-500" />
-                  تم تجهيز حساب دخول مكتب العمل بنجاح! 🎉
-                </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground">
-                  اتبعتت دعوة إلى بريد مسؤول مكتب <strong>{createdCredentials.name}</strong> ليحدد كلمة مروره.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="p-4 rounded-2xl bg-card border-2 border-emerald-500/30 space-y-2 font-mono text-xs shadow-sm" dir="ltr">
-                <p><strong className="font-sans text-foreground">Email:</strong> {createdCredentials.email}</p>
-                <p className="text-[11px] text-muted-foreground font-sans pt-1">
-                  <strong>Login Link:</strong> {window.location.origin}/auth?role=agency
-                </p>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <Button onClick={handleCopyCredentials} className="w-full rounded-xl h-10 text-xs font-bold gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {copied ? "تم النسخ بنجاح!" : "نسخ البريد ورابط الدخول 📋"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+        <AgencyInvitationResult result={createdCredentials} onClose={() => setCreatedCredentials(null)} />
 
       </div>
     </DashboardLayout>
