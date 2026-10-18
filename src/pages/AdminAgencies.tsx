@@ -29,6 +29,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import AgencyHandoffQueue from "@/components/agency/AgencyHandoffQueue";
+import AgencyInvitationResult from "@/components/agency/AgencyInvitationResult";
+import { agencyFunctionError, type AgencyInvitation } from "@/lib/agencyInvitation";
 import { toast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -48,6 +50,7 @@ export default function AdminAgencies() {
   const [phone, setPhone] = useState("");
   const [newCompanyId, setNewCompanyId] = useState("");
   const [creating, setCreating] = useState(false);
+  const [invitationResult, setInvitationResult] = useState<AgencyInvitation | null>(null);
 
   const [linkOpen, setLinkOpen] = useState<string | null>(null);
   const [linkCompany, setLinkCompany] = useState("");
@@ -98,12 +101,19 @@ export default function AdminAgencies() {
   const { data: allAssignmentCandidates = [] } = useQuery({
     queryKey: ["assignment-candidates-perf"],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("agency_assignments")
-        .select("agency_id, candidate_id, candidates:candidate_id(id, name, status, stage)")
+        .select("agency_id,candidate_id")
         .not("candidate_id", "is", null)
         .eq("status", "active");
-      return data || [];
+      if (error) throw error;
+      const rows = (data || []) as { agency_id: string; candidate_id: string }[];
+      if (!rows.length) return [];
+      const { data: candidates, error: candidateError } = await supabase.from("candidates")
+        .select("id,name,status,stage").in("id", [...new Set(rows.map(row => row.candidate_id))]);
+      if (candidateError) throw candidateError;
+      const byId = new Map((candidates || []).map(candidate => [candidate.id, candidate]));
+      return rows.map(row => ({ ...row, candidates: byId.get(row.candidate_id) || null }));
     },
   });
 
@@ -188,10 +198,11 @@ export default function AdminAgencies() {
                       const { data, error } = await supabase.functions.invoke("manage-agency-account", {
                         body: { action: "create", companyId: newCompanyId, name: name.trim(), email: email.trim(), phone: phone.trim(), licenseNumber: license.trim() },
                       });
-                      if (error || !data?.success) throw error || new Error(data?.error || "تعذر إضافة المكتب");
+                      if (error || !data?.success) throw await agencyFunctionError(error, data);
                       qc.invalidateQueries({ queryKey: ["all-agencies"] });
                       qc.invalidateQueries({ queryKey: ["agency-assignments"] });
-                      toast({ title: "تم إنشاء المكتب وإرسال دعوة الدخول" });
+                      setInvitationResult({ name: name.trim(), email: email.trim().toLowerCase(), invitationLink: data.invitationLink || null });
+                      toast({ title: data.invitationLink ? "تم إنشاء المكتب؛ انسخ رابط الدعوة" : "تم إنشاء المكتب وإرسال دعوة الدخول" });
                       setName(""); setLicense(""); setEmail(""); setPhone(""); setNewCompanyId("");
                       setOpen(false);
                     } catch (err: any) {
@@ -206,6 +217,8 @@ export default function AdminAgencies() {
             </DialogContent>
           </Dialog>
         </div>
+
+        <AgencyInvitationResult result={invitationResult} onClose={() => setInvitationResult(null)} />
 
         <AgencyHandoffQueue />
 
@@ -367,13 +380,14 @@ export default function AdminAgencies() {
                 const { data, error } = await supabase.functions.invoke("manage-agency-account", {
                   body: { action: "activate", agencyId: agencyToActivate.id, companyId: activationCompany },
                 });
-                if (error || !data?.success) throw error || new Error(data?.error || "تعذر تفعيل المكتب");
+                if (error || !data?.success) throw await agencyFunctionError(error, data);
                 await Promise.all([
                   qc.invalidateQueries({ queryKey: ["admin-agency-members"] }),
                   qc.invalidateQueries({ queryKey: ["all-agencies"] }),
                   qc.invalidateQueries({ queryKey: ["agency-assignments"] }),
                 ]);
-                toast({ title: "تم تفعيل حساب المكتب وإرسال الدعوة" });
+                setInvitationResult({ name: agencyToActivate.name, email: agencyToActivate.email, invitationLink: data.invitationLink || null });
+                toast({ title: data.invitationLink ? "تم التفعيل؛ انسخ رابط الدعوة" : "تم تفعيل حساب المكتب وإرسال الدعوة" });
                 setAgencyToActivate(null);
               } catch (err: any) {
                 toast({ title: "تعذر تفعيل الدخول", description: err.message, variant: "destructive" });

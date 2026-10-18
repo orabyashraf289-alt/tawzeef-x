@@ -32,7 +32,7 @@ export default function AgencyHandoffQueue({ companyId }: { companyId?: string |
     enabled: companyId !== null,
     queryFn: async () => {
       let query = (supabase as any).from("agency_cases")
-        .select("candidate_id,company_id,status,updated_at,candidate:candidate_id(id,name,email,role,resume_url),agency:agency_id(name)")
+        .select("candidate_id,company_id,status,updated_at,candidate:candidates!agency_cases_candidate_id_fkey(id,name,email,role,resume_url),agency:agencies!agency_cases_agency_id_fkey(name)")
         .in("status", ["awaiting_admin", "needs_changes", "file_accepted"])
         .order("updated_at", { ascending: false });
       if (companyId) query = query.eq("company_id", companyId);

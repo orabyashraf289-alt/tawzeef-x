@@ -127,13 +127,20 @@ export function useAgencyAssignments(agencyId?: string, companyId?: string) {
     queryFn: async () => {
       let q = supabase
         .from("agency_assignments" as any)
-        .select("*, company:company_id(name), agency:agency_id(name), candidate:candidate_id(name,email,stage,status)")
+        .select("*, company:companies!agency_assignments_company_id_fkey(name), agency:agencies!agency_assignments_agency_id_fkey(name)")
         .order("created_at", { ascending: false });
       if (agencyId) q = q.eq("agency_id", agencyId);
       if (companyId) q = q.eq("company_id", companyId);
       const { data, error } = await q;
       if (error) throw error;
-      return data as any[];
+      const rows = (data || []) as any[];
+      const candidateIds = [...new Set(rows.map(row => row.candidate_id).filter(Boolean))];
+      if (!candidateIds.length) return rows.map(row => ({ ...row, candidate: null }));
+      const { data: candidates, error: candidateError } = await supabase.from("candidates")
+        .select("id,name,email,stage,status").in("id", candidateIds);
+      if (candidateError) throw candidateError;
+      const byId = new Map((candidates || []).map(candidate => [candidate.id, candidate]));
+      return rows.map(row => ({ ...row, candidate: byId.get(row.candidate_id) || null }));
     },
   });
 }
