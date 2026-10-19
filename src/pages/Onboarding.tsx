@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Building2, User, Briefcase, ArrowLeft, Loader2, Sparkles, ImagePlus, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import { checkCompanyStatus } from "@/pages/Auth";
+import { useQueryClient } from "@tanstack/react-query";
 
 const steps = [
   { id: 1, title: "بيانات الملف الشخصي", desc: "أكمل بياناتك الأساسية" },
@@ -16,6 +18,8 @@ const steps = [
 export default function Onboarding() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const isCompanyAccount = user?.user_metadata?.account_type !== "job_seeker";
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -73,17 +77,29 @@ export default function Onboarding() {
   };
 
   const handleFinish = async () => {
+    if (!user) return;
+    if (!form.fullName.trim()) {
+      toast({ title: "أدخل الاسم الكامل", variant: "destructive" });
+      return;
+    }
+    if (isCompanyAccount && !form.companyName.trim()) {
+      toast({ title: "أدخل اسم الشركة", description: "اسم الشركة مطلوب لإعداد حساب المنشأة.", variant: "destructive" });
+      return;
+    }
     setLoading(true);
     try {
+      const access = await checkCompanyStatus(user);
+      if (!access.allowed) throw new Error(access.reason || "تعذر التحقق من حسابك.");
+
       // Upload logo if selected
-      const logoUrl = await uploadLogo();
+      const logoUrl = isCompanyAccount ? await uploadLogo() : null;
 
       // Update profile with company data
       const updateData: Record<string, any> = {
         full_name: form.fullName,
         job_title: form.jobTitle,
-        company_name: form.companyName,
       };
+      if (isCompanyAccount) updateData.company_name = form.companyName.trim();
       if (logoUrl) updateData.company_logo = logoUrl;
 
       const { error } = await supabase
@@ -93,19 +109,33 @@ export default function Onboarding() {
 
       if (error) throw error;
 
+      if (isCompanyAccount) {
+        const { data: membership, error: membershipError } = await supabase
+          .from("company_members")
+          .select("company_id")
+          .eq("user_id", user.id)
+          .limit(1);
+        if (membershipError) throw membershipError;
+        if (!membership?.length) {
+          throw new Error("تعذر ربط حسابك بالشركة. حاول مرة أخرى أو تواصل مع الدعم.");
+        }
+        await queryClient.invalidateQueries({ queryKey: ["my-companies", user.id] });
+      }
+
       // Update user metadata
-      await supabase.auth.updateUser({
+      const { error: metadataError } = await supabase.auth.updateUser({
         data: {
           full_name: form.fullName,
           job_title: form.jobTitle,
-          company_name: form.companyName,
+          ...(isCompanyAccount ? { company_name: form.companyName.trim() } : {}),
           department: form.department,
           onboarding_completed: true,
         },
       });
+      if (metadataError) throw metadataError;
 
       toast({ title: "مرحباً بك! 🎉", description: "تم إعداد حسابك بنجاح" });
-      navigate("/dashboard");
+      navigate(isCompanyAccount ? "/dashboard" : "/seeker-dashboard");
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message, variant: "destructive" });
     } finally {
@@ -141,7 +171,7 @@ export default function Onboarding() {
 
         {/* Progress */}
         <div className="flex items-center gap-3 mb-8">
-          {steps.map((s) => (
+          {steps.filter((s) => isCompanyAccount || s.id === 1).map((s) => (
             <div key={s.id} className="flex-1">
               <div className={`h-1.5 rounded-full transition-all duration-500 ${step >= s.id ? "bg-primary" : "bg-border"}`} />
               <p className={`text-[11px] font-bold mt-2 transition-colors ${step >= s.id ? "text-primary" : "text-muted-foreground"}`}>
@@ -198,17 +228,17 @@ export default function Onboarding() {
 
               <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }} className="pt-4">
                 <Button
-                  onClick={() => setStep(2)}
-                  disabled={!form.fullName}
+                  onClick={isCompanyAccount ? () => setStep(2) : handleFinish}
+                  disabled={loading || !form.fullName.trim()}
                   className="w-full h-[52px] rounded-2xl text-[16px] font-bold border-0 transition-all duration-300 gradient-primary text-primary-foreground"
                 >
-                  التالي
+                  {isCompanyAccount ? "التالي" : loading ? "جاري الحفظ..." : "إنهاء الإعداد"}
                 </Button>
               </motion.div>
             </motion.div>
           )}
 
-          {step === 2 && (
+          {isCompanyAccount && step === 2 && (
             <motion.div
               key="step2"
               initial={{ opacity: 0, x: 20 }}
@@ -310,7 +340,7 @@ export default function Onboarding() {
                 <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }} className="flex-1">
                   <Button
                     onClick={handleFinish}
-                    disabled={loading || uploadingLogo}
+                    disabled={loading || uploadingLogo || !form.companyName.trim()}
                     className="w-full h-[52px] rounded-2xl text-[16px] font-bold border-0 transition-all duration-300 gradient-primary text-primary-foreground"
                   >
                     {loading || uploadingLogo ? (
@@ -325,18 +355,6 @@ export default function Onboarding() {
                 </motion.div>
               </div>
 
-              {/* Skip */}
-              <p className="text-center mt-3">
-                <button
-                  onClick={() => {
-                    supabase.auth.updateUser({ data: { onboarding_completed: true } });
-                    navigate("/dashboard");
-                  }}
-                  className="text-[13px] text-muted-foreground hover:text-foreground transition-colors font-medium"
-                >
-                  تخطي هذه الخطوة
-                </button>
-              </p>
             </motion.div>
           )}
         </AnimatePresence>
