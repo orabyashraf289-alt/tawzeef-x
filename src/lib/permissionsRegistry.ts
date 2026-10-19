@@ -19,6 +19,49 @@ export interface PermissionRow {
   reviewer: boolean;
 }
 
+export interface GranularPermissionRow {
+  role_key: string;
+  user_id: string | null;
+  module_key: string;
+  can_read: boolean;
+}
+
+// Only registered, tenant-protected screens can be restricted by the company matrix.
+// Public portals and platform administration are deliberately outside its scope.
+export const GRANULAR_SCREEN_MODULES: Record<string, string> = {
+  "screen.jobs": "jobs",
+  "screen.candidates": "candidates",
+  "screen.pipeline": "pipeline",
+  "screen.talent_pool": "talent_pool",
+  "screen.resume_archive": "resume_archive",
+  "screen.interviews": "interviews",
+  "screen.offers": "offers",
+  "screen.ai_assistant": "ai_assistant",
+  "screen.question_bank": "question_bank",
+  "screen.reports": "reports",
+  "screen.evaluation": "performance_evaluation",
+  "screen.hiring_plan": "hiring_plan",
+  "screen.team": "team",
+  "screen.settings": "settings",
+  "screen.tutorial": "tutorial",
+  "screen.audit_log": "audit_log",
+  "screen.company_agencies": "agencies",
+};
+
+export function isGranularScreenDenied(
+  pathname: string,
+  role: AppRole | null,
+  userId: string | undefined,
+  rows: GranularPermissionRow[],
+): boolean {
+  const config = getRoutePermissionConfig(pathname)?.config;
+  const moduleKey = config && GRANULAR_SCREEN_MODULES[config.key];
+  if (!moduleKey || !role || !userId) return false;
+  const own = rows.find(row => row.module_key === moduleKey && row.user_id === userId && row.role_key === `user:${userId}`);
+  const assigned = rows.find(row => row.module_key === moduleKey && row.user_id === null && row.role_key === role);
+  return (own ?? assigned)?.can_read === false;
+}
+
 /**
  * Public routes that do not require authentication or tenant authorization
  */
