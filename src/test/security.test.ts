@@ -1,4 +1,17 @@
 import { describe, it, expect } from "vitest";
+import { checkPasswordStrength } from "@/lib/security";
+
+describe("Personal password change rules", () => {
+  it("reports lowercase when required and respects optional requirements", () => {
+    const strict = checkPasswordStrength("UPPER123!", { min_length: 8, require_lowercase: true });
+    expect(strict.suggestions).toContain("أضف حرفاً صغيراً (a-z)");
+    const relaxed = checkPasswordStrength("UPPER123!", {
+      min_length: 8, require_uppercase: false, require_lowercase: false,
+      require_numbers: false, require_special: false,
+    });
+    expect(relaxed.suggestions).toEqual([]);
+  });
+});
 
 describe("RBAC Permission Matrix", () => {
   const permissions: Record<string, string[]> = {
