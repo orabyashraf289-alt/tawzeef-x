@@ -1,7 +1,7 @@
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import React, { useState, useEffect, useCallback, useRef, memo } from "react";
 import confetti from "canvas-confetti";
-import { useNavigate, useSearchParams, Navigate, Link } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +44,7 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBrandSettings } from "@/hooks/useBrandSettings";
 import { SEO } from "@/components/marketing/SEO";
+import { PageSkeleton } from "@/components/Skeletons";
 import { motion, AnimatePresence, useMotionValue } from "framer-motion";
 import { lovable } from "@/integrations/lovable/index";
 import { translateAuthError } from "@/lib/authErrors";
@@ -667,7 +668,7 @@ const SocialButtons = memo(function SocialButtons() {
 });
 
 /* ─── Tenant Status Validation Gatekeeper ─── */
-export async function checkCompanyStatus(user: any): Promise<{ allowed: boolean; reason?: string; isAgency?: boolean }> {
+export async function checkCompanyStatus(_user: any): Promise<{ allowed: boolean; reason?: string; isAgency?: boolean; onboardingRequired?: boolean }> {
   try {
     // Single server-side source of truth: validate_tenant_status RPC
     const { data, error } = await supabase.rpc("validate_tenant_status");
@@ -682,6 +683,12 @@ export async function checkCompanyStatus(user: any): Promise<{ allowed: boolean;
 
     const res = data as any;
     if (!res || res.access_state !== "ALLOWED") {
+      if (res?.denial_reason === "NO_COMPANY_MEMBERSHIP") {
+        const { data: pending, error: pendingError } = await supabase.rpc("can_complete_company_onboarding" as any);
+        if (!pendingError && pending === true) {
+          return { allowed: true, onboardingRequired: true };
+        }
+      }
       const reasonMap: Record<string, string> = {
         COMPANY_SUSPENDED: "تم إيقاف حساب الشركة مؤقتاً من قِبل إدارة المنصة. يرجى التواصل مع إدارة Tawzeef-X.",
         COMPANY_INACTIVE: "تم تعطيل حساب الشركة. يرجى التواصل مع مسؤول النظام.",
@@ -834,7 +841,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
         confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
         toast({ title: "تم تسجيل الدخول بنجاح ✅", description: userRole === "candidate" ? "مرحباً بك في بوابة المتقدمين" : "مرحباً بك في منصة Tawzeef-X" });
         logAuditEvent({ eventType: "login.success", userId: loginData.user?.id, userEmail: normalizedEmail, details: { method: "direct_login_instant" } });
-        navigate(tenantCheck.isAgency ? "/agency" : userRole === "candidate" ? "/portal" : userRole === "job_seeker" ? "/seeker-dashboard" : "/dashboard");
+        navigate(tenantCheck.onboardingRequired ? "/onboarding" : tenantCheck.isAgency ? "/agency" : userRole === "candidate" ? "/portal" : userRole === "job_seeker" ? "/seeker-dashboard" : "/dashboard");
         return;
       } else {
         const { data, error } = await supabase.auth.signUp({
@@ -851,7 +858,8 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
           setTimeout(() => confetti({ particleCount: 60, spread: 100, origin: { y: 0.5, x: 0.3 } }), 300);
           setTimeout(() => confetti({ particleCount: 60, spread: 100, origin: { y: 0.5, x: 0.7 } }), 500);
           toast({ title: "مرحباً بك! 🎉", description: "تم إنشاء حسابك بنجاح — تحقق من بريدك الإلكتروني" });
-          navigate("/onboarding");
+          if (data.session) navigate("/onboarding");
+          else setEmailConfirmation(normalizedEmail);
         }
       }
     } catch (error: any) {
@@ -923,7 +931,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
       confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
       toast({ title: "تم التحقق بنجاح ✅" });
       const accountType = loginData.session?.user?.user_metadata?.account_type;
-      navigate(tenantCheck.isAgency ? "/agency" : accountType === "job_seeker" ? "/seeker-dashboard" : "/dashboard");
+      navigate(tenantCheck.onboardingRequired ? "/onboarding" : tenantCheck.isAgency ? "/agency" : accountType === "job_seeker" ? "/seeker-dashboard" : "/dashboard");
     } catch (error: any) {
       setOtpShake(true);
       setTimeout(() => setOtpShake(false), 600);
@@ -1448,6 +1456,33 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
   );
 });
 
+function AuthenticatedRedirect({ user }: { user: NonNullable<ReturnType<typeof useAuth>["user"]> }) {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    let cancelled = false;
+    const redirect = async () => {
+      const tenantCheck = await validateTenantLoginStatus(user);
+      if (cancelled) return;
+      if (!tenantCheck.allowed) {
+        await supabase.auth.signOut();
+        if (!cancelled) navigate("/auth?error=account_verification_failed", { replace: true });
+        return;
+      }
+      const accountType = user.user_metadata?.account_type;
+      navigate(
+        tenantCheck.onboardingRequired ? "/onboarding" : tenantCheck.isAgency ? "/agency" :
+        accountType === "job_seeker" ? "/seeker-dashboard" : "/dashboard",
+        { replace: true },
+      );
+    };
+    void redirect();
+    return () => { cancelled = true; };
+  }, [navigate, user]);
+
+  return <PageSkeleton />;
+}
+
 /* ─── Page ─── */
 export default function Auth() {
   const { user } = useAuth();
@@ -1491,8 +1526,7 @@ export default function Auth() {
 
   // Don't redirect while OTP 2FA is in progress or if ejected due to company status error
   if (user && !pendingOtp && !hasErrorParam) {
-    const accountType = user.user_metadata?.account_type;
-    return <Navigate to={user.user_metadata?.user_type === "agency" ? "/agency" : accountType === "job_seeker" ? "/seeker-dashboard" : "/dashboard"} replace />;
+    return <AuthenticatedRedirect user={user} />;
   }
 
   return (
