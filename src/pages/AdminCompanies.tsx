@@ -67,7 +67,7 @@ function TenantDatabaseBadge({ state }: { state: TenantDatabaseState | undefined
     return <Badge variant="destructive" className="text-[10px]">فشل تجهيز القاعدة</Badge>;
   }
   return <Badge variant="secondary" className="text-[10px]">
-    {state.isolation_mode === "shared" ? "قاعدة مشتركة · بانتظار الفصل" : "قاعدة مستقلة · قيد التجهيز"}
+    {state.isolation_mode === "shared" ? "قاعدة مشتركة · عزل بصلاحيات البيانات" : "قاعدة مستقلة · قيد التجهيز"}
   </Badge>;
 }
 
