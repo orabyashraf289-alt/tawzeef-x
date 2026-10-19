@@ -325,6 +325,10 @@ export default function CompanySettingsManager() {
 
   const handleSaveCompanyInfo = async () => {
     if (!user || companiesLoading || (companyId && loadedCompanyId !== companyId)) return;
+    if (!companyName.trim()) {
+      toast({ title: "اسم الشركة مطلوب", variant: "destructive" });
+      return;
+    }
     setLoading(true);
 
     const rawNotesString = JSON.stringify({ size: companySize, description: notes });
@@ -341,7 +345,30 @@ export default function CompanySettingsManager() {
       loginBgOverlayOpacity,
     };
 
-    if (companyId) {
+    let targetCompanyId = companyId;
+    if (!targetCompanyId) {
+      // The server's one-time onboarding trigger creates the company and its
+      // owner membership together. Never create an unlinked parent from here.
+      const { error: profileError } = await supabase.from("profiles")
+        .update({ company_name: companyName.trim() } as any).eq("user_id", user.id);
+      if (profileError) {
+        toast({ title: "تعذر إعداد الشركة", description: profileError.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+      const { data: memberships, error: membershipError } = await supabase.from("company_members")
+        .select("company_id").eq("user_id", user.id).eq("member_role", "owner").limit(1);
+      if (membershipError || !memberships?.length) {
+        toast({ title: "تعذر ربط الشركة بالحساب", description: "أكمل إعداد حسابك أو تواصل مع الدعم.", variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+      targetCompanyId = memberships[0].company_id;
+      setCreatedCompanyId(targetCompanyId);
+      refetchCompanies();
+    }
+
+    if (targetCompanyId) {
       const { data: updatedCompany, error: compErr } = await supabase.from("companies").update({
         name: companyName,
         logo_url: companyLogo,
@@ -352,51 +379,12 @@ export default function CompanySettingsManager() {
         notes: rawNotesString,
         e2e_encryption: e2eEnabled,
         brand_settings: brandPayload,
-      } as any).eq("id", companyId).select("id").maybeSingle();
+      } as any).eq("id", targetCompanyId).select("id").maybeSingle();
 
       if (compErr || !updatedCompany) {
         toast({ title: "خطأ في التحديث", description: compErr?.message || "ليس لديك صلاحية لتعديل هذه الشركة", variant: "destructive" });
         setLoading(false);
         return;
-      }
-    } else {
-      // Create new company
-      const { data: newComp, error: compErr } = await supabase.from("companies").insert({
-        name: companyName,
-        logo_url: companyLogo,
-        website,
-        industry,
-        city,
-        country,
-        notes: rawNotesString,
-        e2e_encryption: e2eEnabled,
-        owner_user_id: user.id,
-        status: "active",
-        brand_settings: brandPayload,
-      } as any).select().single();
-
-      if (compErr) {
-        toast({ title: "خطأ في الإنشاء", description: compErr.message, variant: "destructive" });
-        setLoading(false);
-        return;
-      }
-
-      if (newComp) {
-        const { error: membershipError } = await supabase.from("company_members").insert({
-          company_id: newComp.id,
-          user_id: user.id,
-          member_role: "owner"
-        } as any);
-        if (membershipError) {
-          toast({ title: "تعذر ربط حسابك بالشركة الجديدة", description: membershipError.message, variant: "destructive" });
-          setLoading(false);
-          return;
-        }
-        setCreatedCompanyId(newComp.id);
-        refetchCompanies();
-
-        await supabase.from("jobs").update({ company_id: newComp.id } as any).eq("user_id", user.id).is("company_id", null);
-        await supabase.from("candidates").update({ company_id: newComp.id } as any).eq("user_id", user.id).is("company_id", null);
       }
     }
 
