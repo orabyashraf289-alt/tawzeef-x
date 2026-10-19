@@ -61,7 +61,7 @@ function useTenantDatabaseStates() {
 function TenantDatabaseBadge({ state }: { state: TenantDatabaseState | undefined }) {
   if (!state) return <Badge variant="outline" className="text-[10px]">حالة القاعدة غير مسجلة</Badge>;
   if (state.isolation_mode === "dedicated" && state.provisioning_state === "ready") {
-    return <Badge className="text-[10px] bg-emerald-600">قاعدة مستقلة جاهزة</Badge>;
+    return <Badge variant="outline" className="text-[10px]">قاعدة مستقلة مسجلة · التوجيه غير مفعل</Badge>;
   }
   if (state.provisioning_state === "failed") {
     return <Badge variant="destructive" className="text-[10px]">فشل تجهيز القاعدة</Badge>;
