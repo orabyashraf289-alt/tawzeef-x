@@ -3,6 +3,9 @@ project_id = "rlfewneisuezsamhosct"
 [functions.chat]
 verify_jwt = true
 
+[functions.resolve-tenant-route]
+verify_jwt = true
+
 [functions.evaluate-candidate]
 verify_jwt = true
 
