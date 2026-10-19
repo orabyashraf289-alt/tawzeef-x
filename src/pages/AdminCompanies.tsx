@@ -33,9 +33,48 @@ import {
 import { useUpgradeRequests } from "@/hooks/useSubscription";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+type TenantDatabaseState = {
+  company_id: string;
+  isolation_mode: "shared" | "dedicated";
+  provisioning_state: "pending" | "provisioning" | "migrating" | "ready" | "failed";
+};
+
+function useTenantDatabaseStates() {
+  return useQuery({
+    queryKey: ["tenant-database-states"],
+    staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
+    retry: false,
+    queryFn: async (): Promise<TenantDatabaseState[]> => {
+      const { data, error } = await supabase
+        .from("tenant_database_registry" as any)
+        .select("company_id,isolation_mode,provisioning_state");
+      if (error) throw error;
+      return (data || []) as unknown as TenantDatabaseState[];
+    },
+  });
+}
+
+function TenantDatabaseBadge({ state }: { state: TenantDatabaseState | undefined }) {
+  if (!state) return <Badge variant="outline" className="text-[10px]">حالة القاعدة غير مسجلة</Badge>;
+  if (state.isolation_mode === "dedicated" && state.provisioning_state === "ready") {
+    return <Badge className="text-[10px] bg-emerald-600">قاعدة مستقلة جاهزة</Badge>;
+  }
+  if (state.provisioning_state === "failed") {
+    return <Badge variant="destructive" className="text-[10px]">فشل تجهيز القاعدة</Badge>;
+  }
+  return <Badge variant="secondary" className="text-[10px]">
+    {state.isolation_mode === "shared" ? "قاعدة مشتركة · بانتظار الفصل" : "قاعدة مستقلة · قيد التجهيز"}
+  </Badge>;
+}
 
 export default function AdminCompanies() {
   const { data: companies = [], isLoading, isFetching, isError, refetch, dataUpdatedAt } = useAllCompanies();
+  const { data: tenantDatabaseStates = [], isError: databaseStatesUnavailable, refetch: refetchDatabaseStates } = useTenantDatabaseStates();
+  const tenantDatabaseByCompany = new Map(tenantDatabaseStates.map((state) => [state.company_id, state]));
   const { data: upgradeRequests = [] } = useUpgradeRequests();
   const createCompany = useCreateCompany();
   const deleteCompany = useDeleteCompany();
@@ -93,7 +132,7 @@ export default function AdminCompanies() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" className="gap-2 shrink-0" onClick={() => void refetch()} disabled={isFetching} aria-label="تحديث دليل الشركات">
+            <Button variant="outline" className="gap-2 shrink-0" onClick={() => { void refetch(); void refetchDatabaseStates(); }} disabled={isFetching} aria-label="تحديث دليل الشركات">
               <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />تحديث
             </Button>
           <Dialog open={open} onOpenChange={setOpen}>
@@ -136,6 +175,11 @@ export default function AdminCompanies() {
           <span>{dataUpdatedAt ? `آخر تحديث: ${new Intl.DateTimeFormat("ar", { dateStyle: "short", timeStyle: "short" }).format(dataUpdatedAt)}` : "جارٍ جلب الشركات"}</span>
         </div>
         {isError && <p role="alert" className="mb-5 text-sm text-destructive">تعذر تحديث دليل الشركات. اضغط «تحديث» للمحاولة مرة أخرى.</p>}
+        {databaseStatesUnavailable && (
+          <p role="status" className="mb-5 text-sm text-muted-foreground">
+            سجل قواعد الشركات غير متاح حاليًا؛ لا يمكن التحقق من حالة عزل البيانات حتى يكتمل تجهيز السجل.
+          </p>
+        )}
 
         {/* 🔔 Pending Upgrade Requests Alert Banner */}
         {pendingRequests.length > 0 && (
@@ -306,6 +350,9 @@ export default function AdminCompanies() {
                     </div>
                     <p className="text-xs text-muted-foreground truncate mb-3">{c.contact_email || "—"}</p>
                     <p className="text-[11px] text-muted-foreground mb-2">أضيفت {new Intl.DateTimeFormat("ar", { dateStyle: "medium" }).format(new Date(c.created_at))} · {branches.length} فروع</p>
+                    {!databaseStatesUnavailable && (
+                      <div className="mb-3"><TenantDatabaseBadge state={tenantDatabaseByCompany.get(c.id)} /></div>
+                    )}
                     <p className="text-xs text-muted-foreground mb-4">{c.industry || "بدون قطاع"}</p>
 
                     {/* Nested Branches List */}
