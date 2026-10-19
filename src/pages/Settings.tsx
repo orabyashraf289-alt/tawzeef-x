@@ -2187,12 +2187,14 @@ export default function SettingsPage() {
   const { t, locale } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState(tabParam || "account");
+  const [settingsSearch, setSettingsSearch] = useState("");
 
-  // Keep search param in sync with activeTab changes
   const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId);
-    setSearchParams({ tab: tabId });
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.set("tab", tabId);
+      return next;
+    });
   };
 
   const settingsTabs = [
@@ -2212,6 +2214,14 @@ export default function SettingsPage() {
     { id: "templates", label: locale === "en" ? "Message Automation" : "أتمتة وقوالب الرسائل", icon: FileText },
     { id: "webhooks", label: t("settings.webhooks"), icon: Webhook },
   ];
+  const activeTab = settingsTabs.some(tab => tab.id === tabParam) ? tabParam! : "account";
+  const settingsGroups = [
+    { title: locale === "en" ? "My account" : "حسابي", ids: ["account", "security", "preferences", "notifications", "filters"] },
+    { title: locale === "en" ? "Company & recruitment" : "الشركة والتوظيف", ids: ["company", "pipeline", "taxonomy", "goals", "permissions_matrix"] },
+    { title: locale === "en" ? "Messages & integrations" : "الرسائل والتكاملات", ids: ["email", "templates", "linkedin", "webhooks"] },
+    { title: locale === "en" ? "Billing" : "الفواتير", ids: ["subscription"] },
+  ];
+  const normalizedSearch = settingsSearch.trim().toLocaleLowerCase();
 
   return (
     <DashboardLayout>
@@ -2238,25 +2248,50 @@ export default function SettingsPage() {
             transition={{ delay: 0.05 }}
             className="lg:w-64 shrink-0"
           >
-            <div className="lg:sticky lg:top-24 bg-md-surface-container rounded-md3-2xl border border-md-outline-variant p-2 space-y-1 shadow-xs">
-              {settingsTabs.map(tab => {
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => handleTabChange(tab.id)}
-                    className={cn(
-                      "relative w-full flex items-center gap-3 px-3.5 py-2.5 rounded-md3-full text-xs font-bold transition-all text-right",
-                      isActive
-                        ? "bg-md-primary text-md-on-primary shadow-sm"
-                        : "text-muted-foreground hover:bg-md-surface-container-high hover:text-foreground"
-                    )}
-                  >
-                    <tab.icon className="w-4 h-4 shrink-0" />
-                    <span className="truncate">{tab.label}</span>
-                  </button>
-                );
-              })}
+            <div className="lg:sticky lg:top-24 bg-md-surface-container rounded-md3-2xl border border-md-outline-variant p-3 space-y-3 shadow-xs">
+              <Input
+                type="search"
+                aria-label={locale === "en" ? "Search settings" : "بحث في الإعدادات"}
+                placeholder={locale === "en" ? "Search settings..." : "ابحث عن إعداد..."}
+                value={settingsSearch}
+                onChange={event => setSettingsSearch(event.target.value)}
+                className="h-9 text-xs"
+              />
+              <nav aria-label={locale === "en" ? "Settings sections" : "أقسام الإعدادات"} className="max-h-[70vh] overflow-y-auto space-y-3">
+                {settingsGroups.map(group => {
+                  const tabs = settingsTabs.filter(tab => group.ids.includes(tab.id) &&
+                    (!normalizedSearch || tab.label.toLocaleLowerCase().includes(normalizedSearch)));
+                  if (!tabs.length) return null;
+                  return (
+                    <div key={group.title} className="space-y-1">
+                      <p className="px-3.5 pt-1 text-[11px] font-bold text-muted-foreground">{group.title}</p>
+                      {tabs.map(tab => {
+                        const isActive = activeTab === tab.id;
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            aria-current={isActive ? "page" : undefined}
+                            onClick={() => handleTabChange(tab.id)}
+                            className={cn(
+                              "relative w-full flex items-center gap-3 px-3.5 py-2.5 rounded-md3-full text-xs font-bold transition-all text-right",
+                              isActive
+                                ? "bg-md-primary text-md-on-primary shadow-sm"
+                                : "text-muted-foreground hover:bg-md-surface-container-high hover:text-foreground"
+                            )}
+                          >
+                            <tab.icon className="w-4 h-4 shrink-0" />
+                            <span className="truncate">{tab.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+                {normalizedSearch && !settingsTabs.some(tab => tab.label.toLocaleLowerCase().includes(normalizedSearch)) && (
+                  <p className="px-3.5 py-4 text-xs text-muted-foreground">{locale === "en" ? "No matching settings" : "لا توجد إعدادات مطابقة"}</p>
+                )}
+              </nav>
             </div>
           </motion.nav>
  
