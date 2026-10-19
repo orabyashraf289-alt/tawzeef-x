@@ -110,8 +110,11 @@ export function parseCompanyRow(c: CompanyRow): Company {
 export function useAllCompanies() {
   return useQuery({
     queryKey: ["all-companies"],
-    staleTime: 5 * 60 * 1000,
+    // Registrations made in another session should appear in the platform directory.
+    staleTime: 30 * 1000,
     gcTime: 15 * 60 * 1000,
+    refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: "always",
     queryFn: async () => {
       const { data, error } = await supabase
         .from("companies")
