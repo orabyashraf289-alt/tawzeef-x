@@ -59,10 +59,10 @@ export default function CompanySettingsManager() {
   const [uploading, setUploading] = useState(false);
 
   // States
-  const { activeCompany, activeCompanyId, isLoading: companiesLoading, refetchCompanies } = useCompanyContext();
+  const { activeCompanyId, companyRole, isLoading: companiesLoading, refetchCompanies } = useCompanyContext();
   const [createdCompanyId, setCreatedCompanyId] = useState<string | null>(null);
   const companyId = activeCompanyId ?? createdCompanyId;
-  const memberRole = activeCompanyId ? activeCompany?.member_role ?? null : createdCompanyId ? "owner" : null;
+  const memberRole = activeCompanyId ? companyRole : createdCompanyId ? "owner" : null;
   const [loadedCompanyId, setLoadedCompanyId] = useState<string | null>(null);
   const [companyLoadError, setCompanyLoadError] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
