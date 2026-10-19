@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompanyContext } from "@/contexts/CompanyContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -58,8 +59,13 @@ export default function CompanySettingsManager() {
   const [uploading, setUploading] = useState(false);
 
   // States
-  const [companyId, setCompanyId] = useState<string | null>(null);
-  const [memberRole, setMemberRole] = useState<string | null>(null);
+  const { activeCompany, activeCompanyId, isLoading: companiesLoading, refetchCompanies } = useCompanyContext();
+  const [createdCompanyId, setCreatedCompanyId] = useState<string | null>(null);
+  const companyId = activeCompanyId ?? createdCompanyId;
+  const memberRole = activeCompanyId ? activeCompany?.member_role ?? null : createdCompanyId ? "owner" : null;
+  const [loadedCompanyId, setLoadedCompanyId] = useState<string | null>(null);
+  const [companyLoadError, setCompanyLoadError] = useState(false);
+  const [loadVersion, setLoadVersion] = useState(0);
   const [companyName, setCompanyName] = useState("");
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [website, setWebsite] = useState("");
@@ -160,58 +166,59 @@ export default function CompanySettingsManager() {
       }
     });
 
-    supabase.from("company_members")
-      .select("company_id, member_role")
-      .eq("user_id", user.id)
-      .order("joined_at", { ascending: true })
-      .then(({ data }: any) => {
-        const memberData = data && data.length > 0 ? data[0] : null;
-        if (memberData?.company_id) {
-          setCompanyId(memberData.company_id);
-          setMemberRole(memberData.member_role || null);
-          supabase.from("companies")
-            .select("name, logo_url, website, industry, country, city, notes, e2e_encryption, brand_settings")
-            .eq("id", memberData.company_id)
-            .maybeSingle()
-            .then(({ data: compData }: any) => {
-              if (compData) {
-                setCompanyName(compData.name || "");
-                setCompanyLogo(compData.logo_url || null);
-                setWebsite(compData.website || "");
-                setIndustry(compData.industry || "");
-                setCity(compData.city || "");
-                setCountry(compData.country || "SA");
-                setE2eEnabled(!!compData.e2e_encryption);
-
-                if (compData.brand_settings) {
-                  const bs = compData.brand_settings;
-                  setBrandPrimary(bs.primaryColor || "#0d9488");
-                  setBrandAccent(bs.accentColor || "#14b8a6");
-                  setBrandFont(bs.fontFamily || "Thmanyah Sans, sans-serif");
-                  setBrandQrForeground(bs.qrForeground || "#0f172a");
-                  setLoginBgUrl(bs.loginBgUrl || null);
-                  setWorkspaceBgUrl(bs.workspaceBgUrl || null);
-                  setWorkspaceBgOpacity(bs.workspaceBgOpacity ?? 0.15);
-                  setLoginBgOverlayOpacity(bs.loginBgOverlayOpacity ?? 0.5);
-                }
-
-                const rawNotes = compData.notes;
-                if (rawNotes && rawNotes.startsWith("{")) {
-                  try {
-                    const parsed = JSON.parse(rawNotes);
-                    setCompanySize(parsed.size || "");
-                    setNotes(parsed.description || "");
-                  } catch (e) {
-                    setNotes(rawNotes);
-                  }
-                } else {
-                  setNotes(rawNotes || "");
-                }
-              }
-            });
-        }
-      });
   }, [user]);
+
+  useEffect(() => {
+    if (!companyId || !user) return;
+    let cancelled = false;
+    setCompanyLoadError(false);
+    supabase.from("companies")
+      .select("name, logo_url, website, industry, country, city, notes, e2e_encryption, brand_settings")
+      .eq("id", companyId)
+      .maybeSingle()
+      .then(({ data: compData, error }: any) => {
+        if (cancelled) return;
+        if (error || !compData) {
+          setCompanyLoadError(true);
+          toast({ title: "تعذر تحميل إعدادات الشركة المحددة", variant: "destructive" });
+          return;
+        }
+        setCompanyName(compData.name || "");
+        setCompanyLogo(compData.logo_url || null);
+        setWebsite(compData.website || "");
+        setIndustry(compData.industry || "");
+        setCity(compData.city || "");
+        setCountry(compData.country || "SA");
+        setE2eEnabled(!!compData.e2e_encryption);
+
+        const bs = compData.brand_settings || {};
+        setBrandPrimary(bs.primaryColor || "#0d9488");
+        setBrandAccent(bs.accentColor || "#14b8a6");
+        setBrandFont(bs.fontFamily || "Thmanyah Sans, sans-serif");
+        setBrandQrForeground(bs.qrForeground || "#0f172a");
+        setLoginBgUrl(bs.loginBgUrl || null);
+        setWorkspaceBgUrl(bs.workspaceBgUrl || null);
+        setWorkspaceBgOpacity(bs.workspaceBgOpacity ?? 0.15);
+        setLoginBgOverlayOpacity(bs.loginBgOverlayOpacity ?? 0.5);
+
+        const rawNotes = compData.notes;
+        if (rawNotes && rawNotes.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(rawNotes);
+            setCompanySize(parsed.size || "");
+            setNotes(parsed.description || "");
+          } catch {
+            setCompanySize("");
+            setNotes(rawNotes);
+          }
+        } else {
+          setCompanySize("");
+          setNotes(rawNotes || "");
+        }
+        setLoadedCompanyId(companyId);
+      });
+    return () => { cancelled = true; };
+  }, [companyId, user, loadVersion]);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -222,7 +229,7 @@ export default function CompanySettingsManager() {
     }
     setUploading(true);
     const ext = file.name.split(".").pop();
-    const path = `${user.id}/company-logo.${ext}`;
+    const path = `${user.id}/${companyId || "new"}/company-logo.${ext}`;
     const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
     if (uploadError) {
       toast({ title: "Error", description: uploadError.message, variant: "destructive" });
@@ -317,25 +324,8 @@ export default function CompanySettingsManager() {
   };
 
   const handleSaveCompanyInfo = async () => {
-    if (!user) return;
+    if (!user || companiesLoading || (companyId && loadedCompanyId !== companyId)) return;
     setLoading(true);
-
-    await supabase.from("profiles").update({ company_name: companyName } as any).eq("user_id", user.id);
-
-    let activeCompanyId = companyId;
-    if (!activeCompanyId) {
-      const { data: memberRows } = await supabase
-        .from("company_members")
-        .select("company_id")
-        .eq("user_id", user.id)
-        .order("joined_at", { ascending: false });
-
-      const latestMember = memberRows && memberRows.length > 0 ? memberRows[0] : null;
-      if (latestMember?.company_id) {
-        activeCompanyId = latestMember.company_id;
-        setCompanyId(activeCompanyId);
-      }
-    }
 
     const rawNotesString = JSON.stringify({ size: companySize, description: notes });
     const brandPayload = {
@@ -351,10 +341,8 @@ export default function CompanySettingsManager() {
       loginBgOverlayOpacity,
     };
 
-    saveBrandSettings(brandPayload);
-
-    if (activeCompanyId) {
-      const { error: compErr } = await supabase.from("companies").update({
+    if (companyId) {
+      const { data: updatedCompany, error: compErr } = await supabase.from("companies").update({
         name: companyName,
         logo_url: companyLogo,
         website,
@@ -364,10 +352,10 @@ export default function CompanySettingsManager() {
         notes: rawNotesString,
         e2e_encryption: e2eEnabled,
         brand_settings: brandPayload,
-      } as any).eq("id", activeCompanyId);
+      } as any).eq("id", companyId).select("id").maybeSingle();
 
-      if (compErr) {
-        toast({ title: "خطأ في التحديث", description: compErr.message, variant: "destructive" });
+      if (compErr || !updatedCompany) {
+        toast({ title: "خطأ في التحديث", description: compErr?.message || "ليس لديك صلاحية لتعديل هذه الشركة", variant: "destructive" });
         setLoading(false);
         return;
       }
@@ -394,18 +382,26 @@ export default function CompanySettingsManager() {
       }
 
       if (newComp) {
-        setCompanyId(newComp.id);
-        await supabase.from("company_members").insert({
+        const { error: membershipError } = await supabase.from("company_members").insert({
           company_id: newComp.id,
           user_id: user.id,
           member_role: "owner"
         } as any);
+        if (membershipError) {
+          toast({ title: "تعذر ربط حسابك بالشركة الجديدة", description: membershipError.message, variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+        setCreatedCompanyId(newComp.id);
+        refetchCompanies();
 
         await supabase.from("jobs").update({ company_id: newComp.id } as any).eq("user_id", user.id).is("company_id", null);
         await supabase.from("candidates").update({ company_id: newComp.id } as any).eq("user_id", user.id).is("company_id", null);
       }
     }
 
+    saveBrandSettings(brandPayload);
+    await supabase.from("profiles").update({ company_name: companyName } as any).eq("user_id", user.id);
     queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
     queryClient.invalidateQueries({ queryKey: ["layout-profile", user.id] });
     toast({ title: locale === "en" ? "Company settings saved ✅" : "تم حفظ إعدادات الشركة بنجاح ✅" });
@@ -445,6 +441,16 @@ export default function CompanySettingsManager() {
   };
 
   return (
+    companiesLoading || (companyId && loadedCompanyId !== companyId) ? (
+      <div className="rounded-2xl border border-border/60 p-8 text-center text-sm text-muted-foreground">
+        {companyLoadError ? (
+          <div className="space-y-3">
+            <p>تعذر تحميل بيانات الشركة المحددة. لم يتم فتح نموذج التعديل لحماية بيانات الشركات.</p>
+            <Button variant="outline" onClick={() => setLoadVersion(value => value + 1)}>إعادة المحاولة</Button>
+          </div>
+        ) : "جاري تحميل إعدادات الشركة المحددة..."}
+      </div>
+    ) :
     <div className="space-y-6 text-right" dir="rtl">
       {/* ── Modern Page Header ── */}
       <PageHeader
