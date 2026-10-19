@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyMembers } from "@/hooks/useCompanies";
@@ -13,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCustomRoles } from "@/hooks/useUserRole";
 import { FlaticonAnimatedIcon, FlaticonCategoryIconCard } from "@/components/ui/animated-icons";
 import { PageHeader } from "@/components/ui/page-header";
+import { GRANULAR_SCREEN_MODULES } from "@/lib/permissionsRegistry";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, Check, Search, Download, FileSpreadsheet, Save, RefreshCw,
@@ -140,7 +142,10 @@ const MODULE_CATEGORIES: SystemModuleCategory[] = [
 ];
 
 export default function PermissionsMatrixManager() {
-  const { activeCompanyId } = useCompany();
+  const { activeCompanyId, companyRole } = useCompany();
+  const queryClient = useQueryClient();
+  const canManage = companyRole === "owner";
+  const enforcedModules = useMemo(() => new Set(Object.values(GRANULAR_SCREEN_MODULES)), []);
   const { data: companyMembers = [] } = useCompanyMembers(activeCompanyId || undefined);
   const { locale, dir } = useI18n();
   const { data: customRoles = [] } = useCustomRoles();
@@ -159,6 +164,8 @@ export default function PermissionsMatrixManager() {
   })), [companyMembers]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
   const [permissions, setPermissions] = useState<Record<string, { can_read: boolean; can_create: boolean; can_edit: boolean; can_delete: boolean }>>({});
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     recruitment: true,
@@ -186,6 +193,10 @@ export default function PermissionsMatrixManager() {
 
   // Load Permissions from Database
   const loadPermissions = async (isCurrent: () => boolean) => {
+    if (isCurrent()) {
+      setIsLoadingPermissions(true);
+      setLoadError(false);
+    }
     try {
       if (!activeCompanyId || (permissionMode === "user" && !selectedUserId)) {
         if (isCurrent()) setPermissions({});
@@ -230,7 +241,9 @@ export default function PermissionsMatrixManager() {
       setPermissions(permMap);
     } catch (e) {
       console.warn("Error loading permissions:", e);
-      if (isCurrent()) setPermissions({});
+      if (isCurrent()) { setPermissions({}); setLoadError(true); }
+    } finally {
+      if (isCurrent()) setIsLoadingPermissions(false);
     }
   };
 
@@ -247,10 +260,7 @@ export default function PermissionsMatrixManager() {
 
   // Toggle Single Action Permission
   const togglePermission = (pageKey: string, action: "can_read" | "can_create" | "can_edit" | "can_delete") => {
-    if (permissionMode === "role" && selectedRole === "admin") {
-      toast({ title: "صلاحيات المالك / Admin كاملة ولا يمكن تقييدها 👑", variant: "destructive" });
-      return;
-    }
+    if (!canManage || isLoadingPermissions || loadError) return;
     setPermissions((prev) => ({
       ...prev,
       [pageKey]: {
@@ -262,7 +272,7 @@ export default function PermissionsMatrixManager() {
 
   // Toggle Whole Page (All 4 Actions)
   const togglePageAll = (pageKey: string) => {
-    if (permissionMode === "role" && selectedRole === "admin") return;
+    if (!canManage || isLoadingPermissions || loadError) return;
     const curr = permissions[pageKey];
     const allChecked = curr?.can_read && curr?.can_create && curr?.can_edit && curr?.can_delete;
     setPermissions((prev) => ({
@@ -278,7 +288,7 @@ export default function PermissionsMatrixManager() {
 
   // Toggle Whole Category Module
   const toggleCategoryAll = (category: SystemModuleCategory) => {
-    if (permissionMode === "role" && selectedRole === "admin") return;
+    if (!canManage || isLoadingPermissions || loadError) return;
     const categoryPages = category.pages;
     const allCategoryChecked = categoryPages.every((p) => {
       const perm = permissions[p.key];
@@ -303,6 +313,9 @@ export default function PermissionsMatrixManager() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      if (!canManage || loadError || isLoadingPermissions) {
+        throw new Error("حفظ الصلاحيات متاح لمالك الشركة بعد تحميل الإعدادات بنجاح.");
+      }
       if (!activeCompanyId || (permissionMode === "user" && !selectedUserId)) {
         throw new Error("اختر شركة وموظفًا قبل حفظ الصلاحيات.");
       }
@@ -324,12 +337,13 @@ export default function PermissionsMatrixManager() {
         .upsert(recordsToUpsert as any, { onConflict: "company_id,role_key,user_id,module_key" });
 
       if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["granular-screen-permissions", activeCompanyId] });
 
       const targetText = permissionMode === "user" 
         ? `للموظف المحدد (${teamMembers.find(m => m.user_id === selectedUserId)?.full_name || selectedUserId})` 
         : `للدور المحدد (${selectedRole})`;
 
-      toast({ title: "تم حفظ مصفوفة الصلاحيات بنجاح 💾✨", description: `تم تخصيص وتأمين الصلاحيات ${targetText}` });
+      toast({ title: "تم حفظ المصفوفة", description: `قيود عرض الشاشات المدعومة مفعلة ${targetText}. صلاحيات الإضافة والتعديل والحذف محفوظة للمرجعية فقط.` });
     } catch (e: any) {
       toast({ title: "خطأ في الحفظ", description: e.message, variant: "destructive" });
     } finally {
@@ -377,10 +391,10 @@ export default function PermissionsMatrixManager() {
     <div className="space-y-6 text-right" dir={dir}>
       {/* Clean Theme-Adaptive Page Header */}
       <PageHeader
-        badgeText="نظام مصفوفة الصلاحيات المتقدم المخصص"
+        badgeText="صلاحيات الشركة"
         badgeIcon={ShieldCheck}
-        title="التحكم الفردي والمجموعاتي في جميع شاشات وموديولات النظام"
-        description="يمكنك تخصيص الصلاحيات لمجموعة معينة (Roles) أو إعطاء صلاحيات استثنائية لموظف محدد بالاسم (Individual User Override)."
+        title="قيود عرض الشاشات لأعضاء الشركة"
+        description="يمكن للمالك منع عرض الشاشات المدعومة لدور أو عضو محدد. الاستثناء الفردي له الأولوية، ولا يمنح الوصول إذا كانت صلاحيات الدور الأساسية تمنعه."
         icon={ShieldCheck}
         accentColor="primary"
         actions={
@@ -391,7 +405,7 @@ export default function PermissionsMatrixManager() {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={isSaving}
+              disabled={isSaving || isLoadingPermissions || loadError || !canManage || !activeCompanyId}
               className="rounded-xl h-11 px-6 text-xs font-bold gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20"
             >
               {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -400,6 +414,11 @@ export default function PermissionsMatrixManager() {
           </div>
         }
       >
+        <p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs leading-6 text-foreground mt-4">
+          قيد «عرض» نافذ على الشاشات الداخلية الموسومة أدناه بعد الحفظ. بقية الصفوف وحقول الإضافة والتعديل والحذف تُحفظ للمرجعية ولا تقيد عمليات النظام حاليًا. روابط المرشح العامة وإشراف المنصة خارج نطاق هذه المصفوفة.
+        </p>
+        {loadError && <p role="alert" className="text-sm text-destructive mt-3">تعذر تحميل الصلاحيات. أعد فتح القسم قبل تعديلها.</p>}
+        {!canManage && <p className="text-sm text-muted-foreground mt-3">مالك الشركة فقط يمكنه حفظ المصفوفة.</p>}
         {/* Dual Mode Switcher Tabs (Group Roles VS Individual User) */}
         <div className="p-1.5 bg-muted/50 rounded-2xl border border-border/70 flex flex-col sm:flex-row gap-2 mt-4">
           <button
@@ -519,7 +538,7 @@ export default function PermissionsMatrixManager() {
                     variant="outline"
                     size="sm"
                     onClick={() => toggleCategoryAll(cat)}
-                    disabled={permissionMode === "role" && selectedRole === "admin"}
+                    disabled={!canManage || isLoadingPermissions || loadError}
                     className="rounded-xl text-xs font-bold h-9 gap-1.5 bg-card/80 border-border/80"
                   >
                     <CheckCircle2 className={`w-4 h-4 ${allCategoryChecked ? "text-emerald-500" : "text-muted-foreground"}`} />
@@ -557,9 +576,10 @@ export default function PermissionsMatrixManager() {
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
                                 <p className="font-bold text-sm text-foreground">{locale === "en" ? page.name_en : page.name_ar}</p>
+                                {enforcedModules.has(page.key) && <Badge variant="outline" className="text-[10px]">قيد العرض مفعل</Badge>}
                                 <button
                                   onClick={() => togglePageAll(page.key)}
-                                  disabled={permissionMode === "role" && selectedRole === "admin"}
+                                  disabled={!canManage || isLoadingPermissions || loadError}
                                   className="text-[11px] text-primary hover:underline font-semibold"
                                 >
                                   {isPageAllChecked ? "(تعطيل الكل)" : "(تحديد الكل)"}
@@ -584,7 +604,7 @@ export default function PermissionsMatrixManager() {
                                 <Eye className="w-3.5 h-3.5" />
                                 <span>عرض 👁️</span>
                               </div>
-                              <Switch checked={perm.can_read} onCheckedChange={() => togglePermission(page.key, "can_read")} disabled={permissionMode === "role" && selectedRole === "admin"} className="scale-75" />
+                              <Switch checked={perm.can_read} onClick={event => event.stopPropagation()} onCheckedChange={() => togglePermission(page.key, "can_read")} disabled={!canManage || isLoadingPermissions || loadError} className="scale-75" />
                             </div>
 
                             {/* Create ➕ */}
@@ -600,7 +620,7 @@ export default function PermissionsMatrixManager() {
                                 <Plus className="w-3.5 h-3.5" />
                                 <span>إضافة ➕</span>
                               </div>
-                              <Switch checked={perm.can_create} onCheckedChange={() => togglePermission(page.key, "can_create")} disabled={permissionMode === "role" && selectedRole === "admin"} className="scale-75" />
+                              <Switch checked={perm.can_create} onClick={event => event.stopPropagation()} onCheckedChange={() => togglePermission(page.key, "can_create")} disabled={!canManage || isLoadingPermissions || loadError} className="scale-75" />
                             </div>
 
                             {/* Edit ✏️ */}
@@ -616,7 +636,7 @@ export default function PermissionsMatrixManager() {
                                 <Edit3 className="w-3.5 h-3.5" />
                                 <span>تعديل ✏️</span>
                               </div>
-                              <Switch checked={perm.can_edit} onCheckedChange={() => togglePermission(page.key, "can_edit")} disabled={permissionMode === "role" && selectedRole === "admin"} className="scale-75" />
+                              <Switch checked={perm.can_edit} onClick={event => event.stopPropagation()} onCheckedChange={() => togglePermission(page.key, "can_edit")} disabled={!canManage || isLoadingPermissions || loadError} className="scale-75" />
                             </div>
 
                             {/* Delete 🗑️ */}
@@ -632,7 +652,7 @@ export default function PermissionsMatrixManager() {
                                 <Trash2 className="w-3.5 h-3.5" />
                                 <span>حذف 🗑️</span>
                               </div>
-                              <Switch checked={perm.can_delete} onCheckedChange={() => togglePermission(page.key, "can_delete")} disabled={permissionMode === "role" && selectedRole === "admin"} className="scale-75" />
+                              <Switch checked={perm.can_delete} onClick={event => event.stopPropagation()} onCheckedChange={() => togglePermission(page.key, "can_delete")} disabled={!canManage || isLoadingPermissions || loadError} className="scale-75" />
                             </div>
                           </div>
                         </div>
