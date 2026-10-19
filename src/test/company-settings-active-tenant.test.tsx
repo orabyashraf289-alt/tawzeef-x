@@ -16,6 +16,7 @@ vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "user-a
 vi.mock("@/contexts/CompanyContext", () => ({ useCompanyContext: () => ({
   activeCompanyId: mocks.companyId,
   activeCompany: { id: mocks.companyId, member_role: "owner" },
+  companyRole: "owner",
   isLoading: false,
   refetchCompanies: vi.fn(),
 }) }));
