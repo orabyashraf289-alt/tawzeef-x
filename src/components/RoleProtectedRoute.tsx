@@ -6,7 +6,7 @@ import { useScreenPermissions } from "@/hooks/useScreenPermissions";
 import { PageSkeleton } from "@/components/Skeletons";
 import Unauthorized from "@/pages/Unauthorized";
 
-import { isPlatformAdminRoute } from "@/lib/permissionsRegistry";
+import { getRoutePermissionConfig, isPlatformAdminRoute } from "@/lib/permissionsRegistry";
 
 interface RoleProtectedRouteProps {
   children: React.ReactNode;
@@ -47,8 +47,10 @@ export default function RoleProtectedRoute({ children, allowedRoles, superAdminO
   }
 
   // 3) Check DB permissions
-  const pathToCheck = screenPath || location.pathname.replace(/\/[^/]+$/, "") || location.pathname;
-  if (!hasScreenAccess(pathToCheck) && !hasScreenAccess(location.pathname)) {
+  const pathToCheck = screenPath || (getRoutePermissionConfig(location.pathname)
+    ? location.pathname
+    : location.pathname.replace(/\/[^/]+$/, "") || location.pathname);
+  if (!hasScreenAccess(pathToCheck)) {
     return <Unauthorized />;
   }
 

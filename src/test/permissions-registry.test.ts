@@ -13,7 +13,32 @@ import {
   matchRoutePattern,
   evaluateScreenAccess,
   evaluateActionPermission,
+  isGranularScreenDenied,
 } from "@/lib/permissionsRegistry";
+
+describe("Company screen overrides", () => {
+  const userId = "member-1";
+  const roleRow = { role_key: "recruiter", user_id: null, module_key: "jobs", can_read: false };
+
+  it("applies a role deny to a registered screen and its detail route", () => {
+    expect(isGranularScreenDenied("/jobs", "recruiter", userId, [roleRow])).toBe(true);
+    expect(isGranularScreenDenied("/jobs/42", "recruiter", userId, [roleRow])).toBe(true);
+    expect(isGranularScreenDenied("/candidates", "recruiter", userId, [roleRow])).toBe(false);
+  });
+
+  it("prefers the selected user's override over the role row", () => {
+    const own = { role_key: `user:${userId}`, user_id: userId, module_key: "jobs", can_read: true };
+    expect(isGranularScreenDenied("/jobs", "recruiter", userId, [roleRow, own])).toBe(false);
+    expect(isGranularScreenDenied("/jobs", "recruiter", "another-member", [roleRow, own])).toBe(true);
+  });
+
+  it("cannot affect public portals or platform administration", () => {
+    const row = { role_key: "recruiter", user_id: null, module_key: "agencies", can_read: false };
+    expect(isGranularScreenDenied("/offer/token", "recruiter", userId, [row])).toBe(false);
+    expect(isGranularScreenDenied("/admin/agencies", "recruiter", userId, [row])).toBe(false);
+    expect(isGranularScreenDenied("/company/agencies", "recruiter", userId, [row])).toBe(true);
+  });
+});
 
 describe("Permissions Registry & Deny-by-Default Architecture (PROMPT 03)", () => {
   describe("App.tsx Comprehensive Route Coverage Scan", () => {

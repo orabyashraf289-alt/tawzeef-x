@@ -472,16 +472,16 @@ function SecuritySection() {
         </form>
       </div>
 
-      {/* Customizable Password Policy Section (Admins Only) */}
+      {/* Personal password-change rules (stored per user, checked on this form). */}
       {isAdmin && (
         <div className="space-y-6 pt-6 border-t border-border/60">
           <div>
             <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Shield className="w-5 h-5 text-primary" />
-              سياسة كلمة المرور المخصصة
+              قواعد تغيير كلمة مروري
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              قم بتهيئة القواعد الأمنية لكلمات المرور المطلوبة من أعضاء الفريق والمسؤولين.
+              تُطبق هذه القواعد عند تغيير كلمة مرور حسابك من هذه الصفحة فقط. لا تغير شروط تسجيل أعضاء الفريق أو استعادة كلمات مرورهم.
             </p>
           </div>
 
@@ -496,7 +496,7 @@ function SecuritySection() {
               </div>
               <Input
                 type="range"
-                min={6}
+                min={8}
                 max={20}
                 value={minLength}
                 onChange={(e) => setMinLength(parseInt(e.target.value))}
