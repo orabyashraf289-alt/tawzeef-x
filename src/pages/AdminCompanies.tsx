@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Building2, Search, Trash2, ExternalLink, Power, Users as UsersIcon, X, Bell, Clock, Crown, ShieldAlert, Loader2, Lock } from "lucide-react";
+import { Plus, Building2, Search, Trash2, ExternalLink, Power, Users as UsersIcon, X, Bell, Clock, Crown, ShieldAlert, Loader2, Lock, RefreshCw } from "lucide-react";
 import {
   useAllCompanies,
   useCreateCompany,
@@ -35,7 +35,7 @@ import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 
 export default function AdminCompanies() {
-  const { data: companies = [], isLoading } = useAllCompanies();
+  const { data: companies = [], isLoading, isFetching, isError, refetch, dataUpdatedAt } = useAllCompanies();
   const { data: upgradeRequests = [] } = useUpgradeRequests();
   const createCompany = useCreateCompany();
   const deleteCompany = useDeleteCompany();
@@ -59,6 +59,9 @@ export default function AdminCompanies() {
   const pendingRequests = (upgradeRequests || []).filter((r) => r.status === "pending");
   const parentCompanies = companies.filter((c) => !c.parent_company_id);
   const branchesCount = companies.filter((c) => c.parent_company_id).length;
+  const recentCompanyIds = new Set(parentCompanies
+    .filter(c => Date.now() - new Date(c.created_at).getTime() < 7 * 24 * 60 * 60 * 1000)
+    .map(c => c.id));
 
   const purgeOrphans = usePurgeOrphanedBranches();
   const parentCompanyIds = new Set(parentCompanies.map((c) => c.id));
@@ -89,6 +92,10 @@ export default function AdminCompanies() {
               إدارة حسابات الشركات العميلة، الاشتراكات الشهرية والسنوية، وطلبات الترقية ({parentCompanies.length} شركات رئيسية، {branchesCount} فروع)
             </p>
           </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="gap-2 shrink-0" onClick={() => void refetch()} disabled={isFetching} aria-label="تحديث دليل الشركات">
+              <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />تحديث
+            </Button>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2 shrink-0"><Plus className="w-4 h-4" />شركة جديدة</Button>
@@ -121,7 +128,14 @@ export default function AdminCompanies() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
+
+        <div className="mb-5 rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-2">
+          <span>الشركات الجديدة خلال ٧ أيام: <strong className="text-foreground">{recentCompanyIds.size}</strong> · الشركات النشطة: <strong className="text-foreground">{parentCompanies.filter(c => c.status === "active").length}</strong></span>
+          <span>{dataUpdatedAt ? `آخر تحديث: ${new Intl.DateTimeFormat("ar", { dateStyle: "short", timeStyle: "short" }).format(dataUpdatedAt)}` : "جارٍ جلب الشركات"}</span>
+        </div>
+        {isError && <p role="alert" className="mb-5 text-sm text-destructive">تعذر تحديث دليل الشركات. اضغط «تحديث» للمحاولة مرة أخرى.</p>}
 
         {/* 🔔 Pending Upgrade Requests Alert Banner */}
         {pendingRequests.length > 0 && (
@@ -286,8 +300,12 @@ export default function AdminCompanies() {
                         {c.status === "active" ? "نشطة" : "معطلة"}
                       </Badge>
                     </div>
-                    <h3 className="font-bold text-base mb-1 truncate">{c.name}</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-bold text-base truncate">{c.name}</h3>
+                      {recentCompanyIds.has(c.id) && <Badge variant="outline" className="text-[10px] shrink-0">شركة جديدة</Badge>}
+                    </div>
                     <p className="text-xs text-muted-foreground truncate mb-3">{c.contact_email || "—"}</p>
+                    <p className="text-[11px] text-muted-foreground mb-2">أضيفت {new Intl.DateTimeFormat("ar", { dateStyle: "medium" }).format(new Date(c.created_at))} · {branches.length} فروع</p>
                     <p className="text-xs text-muted-foreground mb-4">{c.industry || "بدون قطاع"}</p>
 
                     {/* Nested Branches List */}
