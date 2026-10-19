@@ -107,13 +107,17 @@ export function checkPasswordStrength(password: string, policy?: Partial<Passwor
   else suggestions.push(`كلمة المرور يجب أن تكون ${minLength} أحرف على الأقل`);
 
   if (/[A-Z]/.test(password)) score++;
-  else suggestions.push("أضف حرفاً كبيراً (A-Z)");
+  else if (policy?.require_uppercase !== false) suggestions.push("أضف حرفاً كبيراً (A-Z)");
+
+  if (policy?.require_lowercase !== false && !/[a-z]/.test(password)) {
+    suggestions.push("أضف حرفاً صغيراً (a-z)");
+  }
 
   if (/[0-9]/.test(password)) score++;
-  else suggestions.push("أضف رقماً (0-9)");
+  else if (policy?.require_numbers !== false) suggestions.push("أضف رقماً (0-9)");
 
   if (/[^a-zA-Z0-9]/.test(password)) score++;
-  else suggestions.push("أضف رمزاً خاصاً (!@#$%^&*)");
+  else if (policy?.require_special !== false) suggestions.push("أضف رمزاً خاصاً (!@#$%^&*)");
 
   let label = "ضعيفة جداً";
   let color = "text-rose-500";
