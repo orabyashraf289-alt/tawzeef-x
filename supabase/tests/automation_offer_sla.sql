@@ -52,14 +52,20 @@ RESET ROLE;
 INSERT INTO public.candidates(id,user_id,company_id,job_id,name,email,stage) VALUES
  ('57000000-0000-0000-0000-000000000003','27000000-0000-0000-0000-000000000001','17000000-0000-0000-0000-000000000001','47000000-0000-0000-0000-000000000001','Current','current@example.test','waiting');
 INSERT INTO public.job_offers(id,user_id,company_id,candidate_id,job_id,position,salary,status) VALUES
- ('77000000-0000-0000-0000-000000000001','27000000-0000-0000-0000-000000000001','17000000-0000-0000-0000-000000000001','57000000-0000-0000-0000-000000000003','47000000-0000-0000-0000-000000000001','Test',100,'draft'),
- ('77000000-0000-0000-0000-000000000002','27000000-0000-0000-0000-000000000001','17000000-0000-0000-0000-000000000001','57000000-0000-0000-0000-000000000002',NULL,'Mismatch',100,'draft');
+ ('77000000-0000-0000-0000-000000000001','27000000-0000-0000-0000-000000000001','17000000-0000-0000-0000-000000000001','57000000-0000-0000-0000-000000000003','47000000-0000-0000-0000-000000000001','Test',100,'draft');
+-- The tenant FK now rejects a foreign candidate before the offer event fires.
+DO $$ BEGIN
+ BEGIN
+  INSERT INTO public.job_offers(id,user_id,company_id,candidate_id,job_id,position,salary,status) VALUES
+   ('77000000-0000-0000-0000-000000000002','27000000-0000-0000-0000-000000000001','17000000-0000-0000-0000-000000000001','57000000-0000-0000-0000-000000000002',NULL,'Mismatch',100,'draft');
+  RAISE EXCEPTION 'Foreign candidate offer was inserted';
+ EXCEPTION WHEN foreign_key_violation THEN NULL; END;
+END $$;
 UPDATE public.job_offers SET status='sent',sent_at=clock_timestamp() WHERE id='77000000-0000-0000-0000-000000000001';
 UPDATE public.job_offers SET sent_at=clock_timestamp() WHERE id='77000000-0000-0000-0000-000000000001';
-UPDATE public.job_offers SET status='sent',sent_at=clock_timestamp() WHERE id='77000000-0000-0000-0000-000000000002';
 DO $$ DECLARE entered timestamptz; BEGIN
  IF (SELECT count(*) FROM public.automation_logs WHERE entity_id='77000000-0000-0000-0000-000000000001' AND status='success') <> 1 THEN RAISE EXCEPTION 'Offer missing or duplicated'; END IF;
- IF NOT EXISTS (SELECT 1 FROM public.automation_logs WHERE entity_id='77000000-0000-0000-0000-000000000002' AND status='failed' AND execution_details->>'code'='offer_candidate_mismatch') THEN RAISE EXCEPTION 'Foreign offer accepted'; END IF;
+ IF EXISTS (SELECT 1 FROM public.automation_logs WHERE entity_id='77000000-0000-0000-0000-000000000002') THEN RAISE EXCEPTION 'Rejected offer emitted automation event'; END IF;
  IF EXISTS (SELECT 1 FROM public.candidate_reviewer_assignments WHERE candidate_id='57000000-0000-0000-0000-000000000002') THEN RAISE EXCEPTION 'Foreign candidate assigned'; END IF;
  SELECT stage_entered_at INTO entered FROM public.candidates WHERE id='57000000-0000-0000-0000-000000000003';
  IF automation_private.process_sla_expirations(entered+interval '2 hours'-interval '1 microsecond') <> 0 THEN RAISE EXCEPTION 'SLA early'; END IF;
