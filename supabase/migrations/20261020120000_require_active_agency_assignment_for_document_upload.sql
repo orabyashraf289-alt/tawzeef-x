@@ -12,8 +12,8 @@ CREATE POLICY "Assigned agency uploads case documents" ON storage.objects
       JOIN public.agency_assignments aa ON aa.agency_id = ac.agency_id
         AND aa.company_id = ac.company_id AND aa.scope = 'company' AND aa.status = 'active'
       JOIN public.companies co ON co.id = ac.company_id AND co.status = 'active'
-      WHERE ac.agency_id::text = (storage.foldername(name))[1]
-        AND ac.candidate_id::text = (storage.foldername(name))[2]
+      WHERE ac.agency_id::text = (storage.foldername(storage.objects.name))[1]
+        AND ac.candidate_id::text = (storage.foldername(storage.objects.name))[2]
         AND ac.status IN ('in_progress', 'needs_changes')
     )
   );
