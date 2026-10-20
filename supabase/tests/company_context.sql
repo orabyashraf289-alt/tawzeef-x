@@ -83,6 +83,9 @@ INSERT INTO public.companies (id,name,parent_company_id) VALUES
 INSERT INTO public.company_members (company_id,user_id,member_role) VALUES
  ('19000000-0000-0000-0000-000000000003','29000000-0000-0000-0000-000000000001','owner');
 SET LOCAL session_replication_role = origin;
+-- The local replay starts with narrower table grants than production. This
+-- transactional grant exercises the actual owner RLS and trigger, then rolls back.
+GRANT SELECT, UPDATE ON public.companies TO authenticated;
 SELECT set_config('request.jwt.claim.sub','29000000-0000-0000-0000-000000000001',true);
 SET LOCAL ROLE authenticated;
 UPDATE public.companies SET name='Context branch edited'
