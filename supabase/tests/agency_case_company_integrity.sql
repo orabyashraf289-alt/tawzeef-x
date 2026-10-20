@@ -1,16 +1,25 @@
 -- Disposable migration replay only. The fixture rolls back in full.
 BEGIN;
 SET LOCAL session_replication_role = replica;
+INSERT INTO auth.users (id, instance_id, aud, role, email) VALUES
+  ('74000000-0000-0000-0000-000000000001',
+   '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'agency-fixture-a@example.test'),
+  ('74000000-0000-0000-0000-000000000002',
+   '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'agency-fixture-b@example.test');
 INSERT INTO public.companies (id, name) VALUES
   ('71000000-0000-0000-0000-000000000001', 'Case tenant A'),
   ('71000000-0000-0000-0000-000000000002', 'Case tenant B');
 INSERT INTO public.agencies (id, name) VALUES
   ('72000000-0000-0000-0000-000000000001', 'Case agency');
-INSERT INTO public.candidates (id, company_id, agency_id, name) VALUES
+INSERT INTO public.candidates (id, user_id, company_id, agency_id, name) VALUES
   ('73000000-0000-0000-0000-000000000001',
+   '74000000-0000-0000-0000-000000000001',
    '71000000-0000-0000-0000-000000000001',
    '72000000-0000-0000-0000-000000000001', 'Candidate A'),
   ('73000000-0000-0000-0000-000000000002',
+   '74000000-0000-0000-0000-000000000002',
    '71000000-0000-0000-0000-000000000002',
    '72000000-0000-0000-0000-000000000001', 'Candidate B');
 SET LOCAL session_replication_role = origin;
