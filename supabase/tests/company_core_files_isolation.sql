@@ -27,6 +27,7 @@ INSERT INTO public.candidates (id,user_id,company_id,job_id,name,email,resume_ur
 SET LOCAL session_replication_role = origin;
 GRANT SELECT,INSERT,UPDATE ON public.companies,public.jobs,public.candidates,public.applications TO authenticated;
 GRANT SELECT ON storage.objects TO authenticated;
+GRANT SELECT ON public.agency_members, public.agency_assignments, public.agencies TO authenticated;
 DO $$ BEGIN
  IF (SELECT public FROM storage.buckets WHERE id='resumes')
     OR has_function_privilege('authenticated','public.guard_resume_reference()','EXECUTE')
