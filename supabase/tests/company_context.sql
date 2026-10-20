@@ -74,4 +74,38 @@ DO $$ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 RESET ROLE;
+
+-- A branch owner can update ordinary details but cannot rewrite the parent
+-- relationship used by inherited RLS access.
+SET LOCAL session_replication_role = replica;
+INSERT INTO public.companies (id,name,parent_company_id) VALUES
+ ('19000000-0000-0000-0000-000000000003','Context branch','19000000-0000-0000-0000-000000000001');
+INSERT INTO public.company_members (company_id,user_id,member_role) VALUES
+ ('19000000-0000-0000-0000-000000000003','29000000-0000-0000-0000-000000000001','owner');
+SET LOCAL session_replication_role = origin;
+SELECT set_config('request.jwt.claim.sub','29000000-0000-0000-0000-000000000001',true);
+SET LOCAL ROLE authenticated;
+UPDATE public.companies SET name='Context branch edited'
+ WHERE id='19000000-0000-0000-0000-000000000003';
+DO $$ BEGIN
+  BEGIN
+    UPDATE public.companies SET parent_company_id='19000000-0000-0000-0000-000000000002'
+     WHERE id='19000000-0000-0000-0000-000000000003';
+    RAISE EXCEPTION 'Branch moved to another company';
+  EXCEPTION WHEN check_violation THEN
+    IF SQLERRM <> 'company_parent_immutable' THEN RAISE; END IF;
+  END;
+  BEGIN
+    UPDATE public.companies SET parent_company_id=NULL
+     WHERE id='19000000-0000-0000-0000-000000000003';
+    RAISE EXCEPTION 'Branch promoted to root company';
+  EXCEPTION WHEN check_violation THEN
+    IF SQLERRM <> 'company_parent_immutable' THEN RAISE; END IF;
+  END;
+  IF (SELECT name FROM public.companies WHERE id='19000000-0000-0000-0000-000000000003') <> 'Context branch edited'
+    OR (SELECT parent_company_id FROM public.companies WHERE id='19000000-0000-0000-0000-000000000003')
+       <> '19000000-0000-0000-0000-000000000001'::uuid
+  THEN RAISE EXCEPTION 'Branch details or parent guard failed'; END IF;
+END $$;
+RESET ROLE;
 ROLLBACK;
