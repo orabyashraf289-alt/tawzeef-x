@@ -5,6 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import { getPublicBaseUrl } from "@/lib/getPublicUrl";
 import { logAuditEvent } from "@/hooks/useAuditLog";
 import { getActiveCompanyId, resolveTenantCompanyScope } from "@/hooks/useJobs";
+import { resolveOfferCompanyId } from "@/lib/offerCompany";
 
 export interface JobOfferWithCandidate extends JobOffer {
   candidates: {
@@ -167,14 +168,37 @@ export function useCreateOffer() {
       additional_terms?: string;
       expires_at?: string;
     }) => {
-      // Resolve company_id for the current recruiter
-      const { data: memberData } = await supabase
-        .from("company_members")
-        .select("company_id")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-
-      const companyId = memberData?.company_id || null;
+      // A parent-company owner may create an offer for a branch candidate.
+      // Read linked records under RLS and let the composite database keys
+      // enforce the same company even for callers outside this form.
+      let candidateCompanyId: string | null = null;
+      let jobCompanyId: string | null = null;
+      if (offer.candidate_id) {
+        const { data: candidate, error } = await supabase.from("candidates")
+          .select("company_id").eq("id", offer.candidate_id).single();
+        if (error) throw error;
+        if (!candidate.company_id) throw new Error("ملف المرشح غير مرتبط بشركة");
+        candidateCompanyId = candidate.company_id;
+      }
+      if (offer.job_id) {
+        const { data: job, error } = await supabase.from("jobs")
+          .select("company_id").eq("id", offer.job_id).single();
+        if (error) throw error;
+        if (!job.company_id) throw new Error("الوظيفة غير مرتبطة بشركة");
+        jobCompanyId = job.company_id;
+      }
+      let companyId = resolveOfferCompanyId({
+        candidateCompanyId, jobCompanyId, activeCompanyId: getActiveCompanyId(),
+      });
+      if (!companyId) {
+        const { data: memberships, error } = await supabase.from("company_members")
+          .select("company_id").eq("user_id", user!.id).limit(2);
+        if (error) throw error;
+        if (memberships?.length === 1) companyId = memberships[0].company_id;
+        if (memberships && memberships.length > 1) {
+          throw new Error("اختر الشركة قبل إنشاء العرض الوظيفي");
+        }
+      }
 
       const { data, error } = await supabase
         .from("job_offers")
