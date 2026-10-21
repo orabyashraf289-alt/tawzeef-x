@@ -5,6 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import { getPublicBaseUrl } from "@/lib/getPublicUrl";
 import { logAuditEvent } from "@/hooks/useAuditLog";
 import { getActiveCompanyId, resolveTenantCompanyScope } from "@/hooks/useJobs";
+import { resolveOfferCompanyId } from "@/lib/offerCompany";
 
 export interface JobOfferWithCandidate extends JobOffer {
   candidates: {
@@ -35,40 +36,6 @@ export interface JobOffer {
   sent_at: string | null;
   created_at: string;
   updated_at: string;
-}
-
-async function triggerOfferAutomationEvent(params: {
-  eventType: string;
-  userId: string;
-  offerId: string;
-  position: string;
-  candidateId?: string | null;
-  status?: string;
-}) {
-  if (!params.candidateId) return;
-
-  const { data: candidate } = await supabase
-    .from("candidates")
-    .select("id, name, email")
-    .eq("id", params.candidateId)
-    .single();
-
-  if (!candidate?.email) return;
-
-  await supabase.functions.invoke("send-webhook", {
-    body: {
-      event_type: params.eventType,
-      user_id: params.userId,
-      payload: {
-        offer_id: params.offerId,
-        candidate_id: candidate.id,
-        candidate_name: candidate.name,
-        candidate_email: candidate.email,
-        position: params.position,
-        status: params.status,
-      },
-    },
-  });
 }
 
 export function useOffers(specificCompanyId?: string | null) {
@@ -167,14 +134,37 @@ export function useCreateOffer() {
       additional_terms?: string;
       expires_at?: string;
     }) => {
-      // Resolve company_id for the current recruiter
-      const { data: memberData } = await supabase
-        .from("company_members")
-        .select("company_id")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-
-      const companyId = memberData?.company_id || null;
+      // A parent-company owner may create an offer for a branch candidate.
+      // Read linked records under RLS and let the composite database keys
+      // enforce the same company even for callers outside this form.
+      let candidateCompanyId: string | null = null;
+      let jobCompanyId: string | null = null;
+      if (offer.candidate_id) {
+        const { data: candidate, error } = await supabase.from("candidates")
+          .select("company_id").eq("id", offer.candidate_id).single();
+        if (error) throw error;
+        if (!candidate.company_id) throw new Error("ملف المرشح غير مرتبط بشركة");
+        candidateCompanyId = candidate.company_id;
+      }
+      if (offer.job_id) {
+        const { data: job, error } = await supabase.from("jobs")
+          .select("company_id").eq("id", offer.job_id).single();
+        if (error) throw error;
+        if (!job.company_id) throw new Error("الوظيفة غير مرتبطة بشركة");
+        jobCompanyId = job.company_id;
+      }
+      let companyId = resolveOfferCompanyId({
+        candidateCompanyId, jobCompanyId, activeCompanyId: getActiveCompanyId(),
+      });
+      if (!companyId) {
+        const { data: memberships, error } = await supabase.from("company_members")
+          .select("company_id").eq("user_id", user!.id).limit(2);
+        if (error) throw error;
+        if (memberships?.length === 1) companyId = memberships[0].company_id;
+        if (memberships && memberships.length > 1) {
+          throw new Error("اختر الشركة قبل إنشاء العرض الوظيفي");
+        }
+      }
 
       const { data, error } = await supabase
         .from("job_offers")
@@ -196,15 +186,6 @@ export function useCreateOffer() {
         .select()
         .single();
       if (error) throw error;
-
-      await triggerOfferAutomationEvent({
-        eventType: "offer.email_requested",
-        userId: user!.id,
-        offerId: data.id,
-        position: data.position,
-        candidateId: data.candidate_id,
-        status: data.status,
-      });
 
       return data;
     },
