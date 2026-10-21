@@ -168,6 +168,11 @@ jobs:
           database_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
           test -n "$database_container"
           docker exec -i "$database_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/agency_offer_branch_company.sql
+      - name: Verify accepted offer employment order persists in branch
+        run: |
+          database_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
+          test -n "$database_container"
+          docker exec -i "$database_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/accepted_offer_employment_order.sql
       - name: Verify free subscription provisioning and atomic job quota
         run: |
           database_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
