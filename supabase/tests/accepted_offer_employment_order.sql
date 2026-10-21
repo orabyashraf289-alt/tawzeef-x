@@ -117,4 +117,46 @@ BEGIN
    AND status='pending_documents' AND documents_checklist->>'signed_contract' IS DISTINCT FROM 'true')
  THEN RAISE EXCEPTION 'Acknowledgement incorrectly approved order'; END IF;
 END $$;
+-- Submitted documents remain private, with a separate owner-only review trail.
+INSERT INTO public.order_onboarding_documents(order_id,kind,storage_path,file_name,content_type,file_size)
+SELECT id,'id_copy','order-fixture/id.pdf','identity.pdf','application/pdf',123
+FROM public.converted_orders WHERE offer_id='a5400000-0000-0000-0000-000000000001';
+DO $$ BEGIN
+ IF has_table_privilege('anon','public.order_onboarding_documents','SELECT')
+    OR has_table_privilege('authenticated','public.order_onboarding_documents','INSERT')
+ THEN RAISE EXCEPTION 'Candidate document metadata has unsafe direct permissions'; END IF;
+ IF (SELECT public FROM storage.buckets WHERE id='order-onboarding-documents')
+ THEN RAISE EXCEPTION 'Candidate document bucket is public'; END IF;
+END $$;
+SET LOCAL ROLE anon;
+DO $$ DECLARE summary jsonb; BEGIN
+ SELECT public.get_order_onboarding(current_setting('test.order_onboarding_token')::uuid) INTO summary;
+ IF summary->'documents'->0->>'file_name' <> 'identity.pdf'
+    OR summary->'documents'->0 ? 'storage_path'
+ THEN RAISE EXCEPTION 'Candidate document summary leaked a private path'; END IF;
+END $$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub','a5000000-0000-0000-0000-000000000002',true);
+SET LOCAL ROLE authenticated;
+DO $$ BEGIN
+ IF EXISTS (SELECT 1 FROM public.order_onboarding_documents)
+    OR public.review_order_onboarding_document(
+      (SELECT id FROM public.order_onboarding_documents LIMIT 1),'approved',NULL)
+ THEN RAISE EXCEPTION 'Foreign tenant accessed document review'; END IF;
+END $$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub','a5000000-0000-0000-0000-000000000001',true);
+SET LOCAL ROLE authenticated;
+DO $$ BEGIN
+ IF (SELECT count(*) FROM public.order_onboarding_documents) <> 1
+    OR NOT public.review_order_onboarding_document(
+      (SELECT id FROM public.order_onboarding_documents LIMIT 1),'rejected','Unreadable image')
+ THEN RAISE EXCEPTION 'Owner could not review candidate document'; END IF;
+END $$;
+RESET ROLE;
+DO $$ BEGIN
+ IF (SELECT status FROM public.converted_orders
+     WHERE offer_id='a5400000-0000-0000-0000-000000000001') <> 'pending_documents'
+ THEN RAISE EXCEPTION 'Document review prematurely changed employment order'; END IF;
+END $$;
 ROLLBACK;

@@ -17,6 +17,8 @@ import { useI18n } from "@/contexts/I18nContext";
 import SARSymbol from "@/components/SARSymbol";
 import { PrintableEmploymentOrder } from "@/components/PrintableEmploymentOrder";
 import type { ConvertedOrder, OrderStatus, OrderType, OrderChecklist } from "@/types/convertedOrders";
+import { ORDER_DOCUMENT_KINDS } from "@/types/orderOnboardingDocuments";
+import type { OrderDocument } from "@/types/orderOnboardingDocuments";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -168,6 +170,55 @@ export default function ConvertedOrders() {
   const [openErpSyncDialog, setOpenErpSyncDialog] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<ConvertedOrder | null>(null);
   const [orderToDelete, setOrderToDelete] = useState<ConvertedOrder | null>(null);
+  const [submittedDocuments, setSubmittedDocuments] = useState<OrderDocument[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [reviewingDocument, setReviewingDocument] = useState<string | null>(null);
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+
+  const loadSubmittedDocuments = async (orderId: string) => {
+    setDocumentsLoading(true);
+    const { data, error } = await supabase.from("order_onboarding_documents" as any)
+      .select("id,kind,file_name,storage_path,review_status,review_note,created_at")
+      .eq("order_id", orderId).order("created_at", { ascending: false });
+    setDocumentsLoading(false);
+    if (error) {
+      toast({ title: "تعذر تحميل مستندات التعيين", variant: "destructive" });
+    } else setSubmittedDocuments((data || []) as unknown as OrderDocument[]);
+  };
+
+  useEffect(() => {
+    if (openChecklistDialog && selectedOrder && selectedOrder.onboarding_token) {
+      void loadSubmittedDocuments(selectedOrder.id);
+    } else setSubmittedDocuments([]);
+  }, [openChecklistDialog, selectedOrder?.id]);
+
+  const openSubmittedDocument = async (doc: OrderDocument) => {
+    const { data, error } = await supabase.storage.from("order-onboarding-documents")
+      .createSignedUrl(doc.storage_path, 60);
+    if (error || !data?.signedUrl) {
+      toast({ title: "تعذر فتح المستند", variant: "destructive" });
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const reviewSubmittedDocument = async (doc: OrderDocument, decision: "approved" | "rejected") => {
+    const note = reviewNotes[doc.id]?.trim() || "";
+    if (decision === "rejected" && !note) {
+      toast({ title: "اكتب سبب طلب إعادة الرفع أولًا", variant: "destructive" });
+      return;
+    }
+    setReviewingDocument(doc.id);
+    const { data, error } = await supabase.rpc("review_order_onboarding_document" as any,
+      { _document_id: doc.id, _decision: decision, _note: note || null });
+    setReviewingDocument(null);
+    if (error || data !== true) {
+      toast({ title: "تعذر حفظ قرار المراجعة", variant: "destructive" });
+      return;
+    }
+    toast({ title: decision === "approved" ? "تم اعتماد المستند" : "تم طلب إعادة رفع المستند" });
+    if (selectedOrder) await loadSubmittedDocuments(selectedOrder.id);
+  };
 
   // Webhook / ERP settings
   const [webhookUrl, setWebhookUrl] = useState("https://api.alandalus.edu.sa/hr/v1/onboarding-sync");
@@ -1427,7 +1478,7 @@ export default function ConvertedOrders() {
 
         {/* ─── Dialog 4: Documents Checklist Manager ─── */}
         <Dialog open={openChecklistDialog} onOpenChange={setOpenChecklistDialog}>
-          <DialogContent className="max-w-md" dir="rtl">
+          <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto" dir="rtl">
             <DialogHeader>
               <DialogTitle className="text-base font-black flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-emerald-600" />
@@ -1465,6 +1516,37 @@ export default function ConvertedOrders() {
                 </div>
               ))}
             </div>
+
+            {selectedOrder?.onboarding_token && <section className="space-y-3 border-t pt-4">
+              <h3 className="font-bold text-sm">مستندات المرشح المرفوعة للمراجعة</h3>
+              {documentsLoading ? <p className="text-xs text-muted-foreground">جاري تحميل المستندات...</p> :
+                submittedDocuments.length === 0 ? <p className="text-xs text-muted-foreground">لم يرفع المرشح مستندات بعد.</p> :
+                  ORDER_DOCUMENT_KINDS.map(({ key, label }) => {
+                    const doc = submittedDocuments.find(item => item.kind === key);
+                    if (!doc) return null;
+                    return <div key={key} className="rounded-lg border p-3 space-y-2 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <strong>{label}</strong>
+                        <span>{doc.review_status === "approved" ? "معتمد" : doc.review_status === "rejected" ? "مطلوب إعادة الرفع" : "قيد المراجعة"}</span>
+                      </div>
+                      <Button type="button" size="sm" variant="outline" onClick={() => void openSubmittedDocument(doc)}
+                        className="max-w-full truncate">فتح الملف: {doc.file_name}</Button>
+                      {doc.review_note && <p className="text-red-700">ملاحظة المراجعة: {doc.review_note}</p>}
+                      {doc.review_status === "pending" && <>
+                        <Input value={reviewNotes[doc.id] || ""} maxLength={1000}
+                          onChange={event => setReviewNotes(prev => ({ ...prev, [doc.id]: event.target.value }))}
+                          placeholder="سبب إعادة الرفع عند الرفض" />
+                        <div className="flex gap-2">
+                          <Button type="button" size="sm" disabled={!!reviewingDocument}
+                            onClick={() => void reviewSubmittedDocument(doc, "approved")}>اعتماد المستند</Button>
+                          <Button type="button" size="sm" variant="outline" disabled={!!reviewingDocument}
+                            onClick={() => void reviewSubmittedDocument(doc, "rejected")}>طلب إعادة الرفع</Button>
+                        </div>
+                      </>}
+                    </div>;
+                  })}
+              <p className="text-xs text-muted-foreground">مراجعة الملفات لا تغير حالة أمر التعيين أو حالة المباشرة تلقائيًا.</p>
+            </section>}
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpenChecklistDialog(false)} className="rounded-xl text-xs">
