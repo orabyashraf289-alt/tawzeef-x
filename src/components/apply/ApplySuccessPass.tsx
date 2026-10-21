@@ -105,7 +105,7 @@ export default function ApplySuccessPass({
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
             تم استلام ملفك لوظيفة <strong className="text-foreground">{job?.title}</strong> لدى{" "}
-            <strong className="text-foreground">{schoolDisplayName}</strong>، وأصبح ملفك قيد المراجعة الفورية.
+            <strong className="text-foreground">{schoolDisplayName}</strong>، ويمكنك متابعة حالته باستخدام كود التتبع.
           </p>
         </div>
 
@@ -182,7 +182,7 @@ export default function ApplySuccessPass({
             <div className="space-y-3 pt-2">
               <h4 className="font-bold text-xs text-foreground flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-primary" />
-                <span>مسار ومراحل طلبك القادمة:</span>
+                <span>المراحل التالية حسب إجراءات جهة التوظيف:</span>
               </h4>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
                 <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300">
@@ -190,8 +190,8 @@ export default function ApplySuccessPass({
                   <span className="font-black text-xs">مكتمل ✓</span>
                 </div>
                 <div className="p-3 rounded-xl bg-primary/10 border border-primary/25 text-primary">
-                  <span className="text-[10px] block font-bold">2. الفرز الذكي</span>
-                  <span className="font-black text-xs">جاري الآن ⚡</span>
+                  <span className="text-[10px] block font-bold">2. مراجعة الطلب</span>
+                  <span className="font-black text-xs">بانتظار المراجعة</span>
                 </div>
                 <div className="p-3 rounded-xl bg-muted/40 border border-border/40 text-muted-foreground">
                   <span className="text-[10px] block font-bold">3. المقابلة</span>
