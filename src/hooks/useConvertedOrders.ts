@@ -5,8 +5,10 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
 import { isConvertedOrder } from "@/types/convertedOrders";
 import type { ConvertedOrder, OrderStatus, OrderChecklist, OrderType } from "@/types/convertedOrders";
+import { resolveTenantCompanyScope } from "@/hooks/useJobs";
 
 const STORAGE_KEY_PREFIX = "tawzeef_converted_orders_";
+const isDatabaseOrder = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
 function getLocalStorageKey(companyId: string) {
   return `${STORAGE_KEY_PREFIX}${companyId || "default"}`;
@@ -201,69 +203,78 @@ function saveStoredOrders(companyId: string, orders: ConvertedOrder[]) {
 
 export function useConvertedOrders() {
   const { activeCompanyId } = useCompany();
+  const { user } = useAuth();
   const companyId = activeCompanyId || "default";
 
   return useQuery({
-    queryKey: ["converted-orders", companyId],
+    queryKey: ["converted-orders", user?.id, companyId],
     queryFn: async () => {
-      // 1. First fetch local cached/stored orders
-      const localOrders = getStoredOrders(companyId);
-
-      // 2. Try syncing with Supabase if table exists
-      try {
-        const { data: dbOrders, error } = await supabase
-          .from("converted_orders" as any)
-          .select("*")
-          .eq("company_id", companyId)
-          .order("created_at", { ascending: false });
-
-        if (!error && dbOrders && dbOrders.length > 0) {
-          const rows: unknown[] = dbOrders;
-          const validOrders = rows.filter(isConvertedOrder);
-          if (validOrders.length > 0) return validOrders;
-        }
-      } catch (dbErr) {
-        // Fallback to local storage gracefully
-      }
-
-      return localOrders;
+      const scope = await resolveTenantCompanyScope(user?.id, activeCompanyId);
+      if (!scope.length) return [];
+      const { data, error } = await supabase.from("converted_orders" as any)
+        .select("*").in("company_id", scope).order("created_at", { ascending: false });
+      if (error) throw error;
+      const rawOrders: unknown[] = ((data || []) as unknown as Record<string, unknown>[])
+        .map(row => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, value === null ? undefined : value])));
+      const serverOrders = rawOrders.filter(isConvertedOrder);
+      // Keep legacy, real browser records visible on the device where they were
+      // created. The bundled sample orders are never shown as live tenant data.
+      const legacyOrders = getStoredOrders(companyId).filter(o =>
+        !o.id.startsWith("ord-seed-") && !!user?.email && o.created_by === user.email
+        && scope.includes(o.company_id));
+      return [...serverOrders, ...legacyOrders.filter(o => !serverOrders.some(db => db.id === o.id))];
     },
     staleTime: 1000 * 60,
+    enabled: !!user,
   });
 }
 
 export function useCreateConvertedOrder() {
   const qc = useQueryClient();
-  const { activeCompanyId, activeCompany } = useCompany();
+  const { activeCompanyId } = useCompany();
   const { user } = useAuth();
   const companyId = activeCompanyId || "default";
 
   return useMutation({
     mutationFn: async (payload: Partial<ConvertedOrder>) => {
-      const existing = getStoredOrders(companyId);
-      const nextSeq = existing.length + 1;
-      const orderNumber = `ORD-2026-${String(nextSeq).padStart(3, "0")}`;
-
       const basic = Number(payload.basic_salary) || 0;
       const housing = Number(payload.housing_allowance) || 0;
       const transport = Number(payload.transport_allowance) || 0;
       const other = Number(payload.other_allowances) || 0;
-      const total = basic + housing + transport + other;
-
-      const newOrder: ConvertedOrder = {
-        id: `ord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        order_number: payload.order_number || orderNumber,
+      let companyForOrder = activeCompanyId;
+      let acceptedOffer: { id: string; company_id: string; candidate_id: string | null; job_id: string | null } | null = null;
+      if (payload.offer_id) {
+        const { data, error } = await supabase.from("job_offers")
+          .select("id,company_id,candidate_id,job_id,status").eq("id", payload.offer_id).single();
+        if (error) throw error;
+        if (data.status !== "accepted" || !data.candidate_id || data.candidate_id !== payload.candidate_id)
+          throw new Error("يجب اعتماد العرض وربطه بنفس المرشح قبل إصدار الأمر");
+        acceptedOffer = data as typeof acceptedOffer;
+        companyForOrder = data.company_id;
+      } else if (payload.candidate_id) {
+        const { data, error } = await supabase.from("candidates")
+          .select("company_id").eq("id", payload.candidate_id).single();
+        if (error) throw error;
+        companyForOrder = data.company_id;
+      }
+      if (!companyForOrder || companyForOrder === "default")
+        throw new Error("اختر شركة صالحة قبل إصدار أمر التعيين");
+      const { data: company, error: companyError } = await supabase.from("companies")
+        .select("name").eq("id", companyForOrder).single();
+      if (companyError) throw companyError;
+      const newOrder = {
+        company_id: companyForOrder,
+        offer_id: acceptedOffer?.id || null,
         candidate_id: payload.candidate_id,
         candidate_name: payload.candidate_name || "مرشح جديد",
         candidate_email: payload.candidate_email,
         candidate_phone: payload.candidate_phone,
         candidate_national_id: payload.candidate_national_id,
-        candidate_nationality: payload.candidate_nationality || "سعودي",
-        job_id: payload.job_id,
+        candidate_nationality: payload.candidate_nationality || null,
+        job_id: acceptedOffer ? acceptedOffer.job_id : payload.job_id || null,
         job_title: payload.job_title || "وظيفة عامة",
         department: payload.department || "عام",
-        company_id: companyId,
-        company_name: activeCompany?.name || payload.company_name || "الشركة",
+        company_name: company.name,
         source_branch: payload.source_branch || "الفرع الرئيسي",
         target_branch: payload.target_branch || payload.source_branch || "الفرع الرئيسي",
         agency_id: payload.agency_id,
@@ -276,7 +287,6 @@ export function useCreateConvertedOrder() {
         housing_allowance: housing,
         transport_allowance: transport,
         other_allowances: other,
-        total_salary: total,
         currency: payload.currency || "SAR",
         joining_date: payload.joining_date || new Date().toISOString().split("T")[0],
         contract_period_months: payload.contract_period_months || 12,
@@ -293,22 +303,14 @@ export function useCreateConvertedOrder() {
         transfer_reason: payload.transfer_reason,
         notes: payload.notes,
         created_by: user?.email,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       };
-
-      const updated = [newOrder, ...existing];
-      saveStoredOrders(companyId, updated);
-
-      // Attempt Supabase insert in background
-      try {
-        await supabase.from("converted_orders" as any).insert(newOrder);
-      } catch {}
-
-      return newOrder;
+      const { data, error } = await supabase.from("converted_orders" as any)
+        .insert(newOrder).select("*").single();
+      if (error) throw error;
+      return data as unknown as ConvertedOrder;
     },
     onSuccess: (newOrder) => {
-      qc.invalidateQueries({ queryKey: ["converted-orders", companyId] });
+      qc.invalidateQueries({ queryKey: ["converted-orders"] });
       toast({
         title: "تم إنشاء أمر التحويل بنجاح ✅",
         description: `رقم الأمر: ${newOrder.order_number} (${newOrder.candidate_name})`,
@@ -339,6 +341,12 @@ export function useUpdateConvertedOrderStatus() {
       status: OrderStatus;
       notes?: string;
     }) => {
+      if (isDatabaseOrder(id)) {
+        const { data, error } = await supabase.from("converted_orders" as any)
+          .update({ status, ...(notes ? { notes } : {}) }).eq("id", id).select("id").single();
+        if (error) throw error;
+        return { id: (data as any).id, status };
+      }
       const existing = getStoredOrders(companyId);
       const updated = existing.map((o) =>
         o.id === id
@@ -352,17 +360,10 @@ export function useUpdateConvertedOrderStatus() {
       );
       saveStoredOrders(companyId, updated);
 
-      try {
-        await supabase
-          .from("converted_orders" as any)
-          .update({ status, ...(notes ? { notes } : {}), updated_at: new Date().toISOString() })
-          .eq("id", id);
-      } catch {}
-
       return { id, status };
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["converted-orders", companyId] });
+      qc.invalidateQueries({ queryKey: ["converted-orders"] });
       toast({ title: "تم تحديث حالة الأمر بنجاح ✅" });
     },
   });
@@ -381,6 +382,12 @@ export function useUpdateConvertedOrderChecklist() {
       id: string;
       checklist: OrderChecklist;
     }) => {
+      if (isDatabaseOrder(id)) {
+        const { data, error } = await supabase.from("converted_orders" as any)
+          .update({ documents_checklist: checklist }).eq("id", id).select("id").single();
+        if (error) throw error;
+        return { id: (data as any).id, checklist };
+      }
       const existing = getStoredOrders(companyId);
       const updated = existing.map((o) =>
         o.id === id
@@ -393,17 +400,10 @@ export function useUpdateConvertedOrderChecklist() {
       );
       saveStoredOrders(companyId, updated);
 
-      try {
-        await supabase
-          .from("converted_orders" as any)
-          .update({ documents_checklist: checklist, updated_at: new Date().toISOString() })
-          .eq("id", id);
-      } catch {}
-
       return { id, checklist };
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["converted-orders", companyId] });
+      qc.invalidateQueries({ queryKey: ["converted-orders"] });
       toast({ title: "تم تحديث قائمة مسوغات التعيين ✅" });
     },
   });
@@ -424,6 +424,14 @@ export function useTransferOrderBranch() {
       targetBranch: string;
       transferReason: string;
     }) => {
+      if (isDatabaseOrder(id)) {
+        const { data, error } = await supabase.from("converted_orders" as any)
+          .update({ order_type: "branch_transfer", target_branch: targetBranch,
+            transfer_reason: transferReason, status: "contract_issued" })
+          .eq("id", id).select("id").single();
+        if (error) throw error;
+        return { id: (data as any).id, targetBranch };
+      }
       const existing = getStoredOrders(companyId);
       const updated = existing.map((o) =>
         o.id === id
@@ -439,23 +447,10 @@ export function useTransferOrderBranch() {
       );
       saveStoredOrders(companyId, updated);
 
-      try {
-        await supabase
-          .from("converted_orders" as any)
-          .update({
-            order_type: "branch_transfer",
-            target_branch: targetBranch,
-            transfer_reason: transferReason,
-            status: "contract_issued",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", id);
-      } catch {}
-
       return { id, targetBranch };
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["converted-orders", companyId] });
+      qc.invalidateQueries({ queryKey: ["converted-orders"] });
       toast({ title: "تم تحويل الأمر للفرع المحدد بنجاح 🔄" });
     },
   });
@@ -468,18 +463,20 @@ export function useDeleteConvertedOrder() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      if (isDatabaseOrder(id)) {
+        const { data, error } = await supabase.from("converted_orders" as any)
+          .delete().eq("id", id).select("id").single();
+        if (error) throw error;
+        return (data as any).id as string;
+      }
       const existing = getStoredOrders(companyId);
       const updated = existing.filter((o) => o.id !== id);
       saveStoredOrders(companyId, updated);
 
-      try {
-        await supabase.from("converted_orders" as any).delete().eq("id", id);
-      } catch {}
-
       return id;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["converted-orders", companyId] });
+      qc.invalidateQueries({ queryKey: ["converted-orders"] });
       toast({ title: "تم حذف أمر التحويل بنجاح" });
     },
   });
