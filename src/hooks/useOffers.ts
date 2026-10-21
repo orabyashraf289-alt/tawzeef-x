@@ -38,40 +38,6 @@ export interface JobOffer {
   updated_at: string;
 }
 
-async function triggerOfferAutomationEvent(params: {
-  eventType: string;
-  userId: string;
-  offerId: string;
-  position: string;
-  candidateId?: string | null;
-  status?: string;
-}) {
-  if (!params.candidateId) return;
-
-  const { data: candidate } = await supabase
-    .from("candidates")
-    .select("id, name, email")
-    .eq("id", params.candidateId)
-    .single();
-
-  if (!candidate?.email) return;
-
-  await supabase.functions.invoke("send-webhook", {
-    body: {
-      event_type: params.eventType,
-      user_id: params.userId,
-      payload: {
-        offer_id: params.offerId,
-        candidate_id: candidate.id,
-        candidate_name: candidate.name,
-        candidate_email: candidate.email,
-        position: params.position,
-        status: params.status,
-      },
-    },
-  });
-}
-
 export function useOffers(specificCompanyId?: string | null) {
   const { user } = useAuth();
   const activeCompanyId = specificCompanyId !== undefined ? specificCompanyId : getActiveCompanyId();
@@ -220,15 +186,6 @@ export function useCreateOffer() {
         .select()
         .single();
       if (error) throw error;
-
-      await triggerOfferAutomationEvent({
-        eventType: "offer.email_requested",
-        userId: user!.id,
-        offerId: data.id,
-        position: data.position,
-        candidateId: data.candidate_id,
-        status: data.status,
-      });
 
       return data;
     },
