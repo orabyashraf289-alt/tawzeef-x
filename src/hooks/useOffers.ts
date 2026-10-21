@@ -16,6 +16,7 @@ export interface JobOfferWithCandidate extends JobOffer {
 
 export interface JobOffer {
   id: string;
+  company_id?: string | null;
   user_id: string;
   candidate_id: string | null;
   job_id: string | null;
@@ -255,19 +256,10 @@ export function useSendOffer() {
         }
       }
 
-      // Update candidate status to مكتمل when offer is sent
-      if (data.candidate_id) {
-        await supabase
-          .from("candidates")
-          .update({ status: "مكتمل", updated_at: new Date().toISOString() })
-          .eq("id", data.candidate_id);
-      }
-
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["offers"] });
-      queryClient.invalidateQueries({ queryKey: ["candidates"] });
       logAuditEvent({ eventType: "offer.sent", userId: data.user_id, details: { offerId: data.id, position: data.position } });
       toast({ title: "تم إرسال العرض بنجاح ✅" });
     },

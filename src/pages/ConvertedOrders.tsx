@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
   useConvertedOrders,
@@ -99,6 +100,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const STATUS_BADGE_MAP: Record<OrderStatus, { label: string; class: string; dot: string }> = {
   draft: { label: "مسودة", class: "bg-slate-100 text-slate-700 border-slate-200", dot: "bg-slate-400" },
@@ -130,13 +132,15 @@ const AL_ANDALUS_BRANCHES = [
 
 export default function ConvertedOrders() {
   const { t, locale } = useI18n();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { activeCompany } = useCompany();
 
   // Queries
   const { data: orders = [], isLoading } = useConvertedOrders();
-  const { data: candidates = [] } = useCandidates();
+  const { data: candidates = [], isLoading: candidatesLoading } = useCandidates();
   const { data: jobs = [] } = useJobs();
-  const { data: offers = [] } = useOffers();
+  const { data: offers = [], isLoading: offersLoading } = useOffers();
   const { data: agencies = [] } = useMyAgencies();
 
   // Mutations
@@ -171,17 +175,19 @@ export default function ConvertedOrders() {
 
   // Form States
   const [newOrderForm, setNewOrderForm] = useState({
+    offer_id: "",
     candidate_id: "",
     candidate_name: "",
     candidate_email: "",
     candidate_phone: "",
     candidate_national_id: "",
-    candidate_nationality: "سعودي",
+    candidate_nationality: "",
     job_id: "",
     job_title: "",
     department: "",
     target_branch: AL_ANDALUS_BRANCHES[0],
     basic_salary: 8000,
+    currency: "SAR",
     housing_allowance: 2000,
     transport_allowance: 700,
     other_allowances: 0,
@@ -217,6 +223,57 @@ export default function ConvertedOrders() {
   const [currentChecklist, setCurrentChecklist] = useState<OrderChecklist>({});
   const [selectedNewStatus, setSelectedNewStatus] = useState<OrderStatus>("pending_documents");
   const [statusChangeNotes, setStatusChangeNotes] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("action") !== "new" || !params.get("offerId") ||
+        isLoading || candidatesLoading || offersLoading) return;
+    const offer = offers.find(o => o.id === params.get("offerId"));
+    const candidate = candidates.find(c => c.id === offer?.candidate_id);
+    let cancelled = false;
+    const finish = () => {
+      params.delete("action");
+      params.delete("offerId");
+      navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+    };
+    if (!offer || offer.status !== "accepted" || !candidate ||
+        !offer.company_id || offer.company_id !== candidate.company_id) {
+      toast({ title: "لا يمكن إنشاء أمر تعيين لهذا العرض", variant: "destructive" });
+      finish();
+      return;
+    }
+    const existing = orders.find(o => o.offer_id === offer.id);
+    if (existing) {
+      setSearchTerm(existing.order_number);
+      toast({ title: `أمر التعيين موجود بالفعل: ${existing.order_number}` });
+      finish();
+      return;
+    }
+    void (async () => {
+      const { data: company, error } = await supabase.from("companies")
+        .select("name").eq("id", offer.company_id!).single();
+      if (cancelled) return;
+      if (error || !company) {
+        toast({ title: "تعذر التحقق من فرع العرض", variant: "destructive" });
+        finish();
+        return;
+      }
+      const total = Number(offer.salary) || 0;
+      setNewOrderForm(prev => ({
+        ...prev, offer_id: offer.id, candidate_id: candidate.id,
+        candidate_name: candidate.name, candidate_email: candidate.email || "",
+        candidate_phone: candidate.phone || "", candidate_national_id: "",
+        candidate_nationality: "", notes: "", job_id: offer.job_id || "",
+        job_title: offer.position, department: offer.department || "",
+        target_branch: company.name, currency: offer.currency,
+        basic_salary: total, housing_allowance: 0, transport_allowance: 0, other_allowances: 0,
+        joining_date: offer.start_date || "",
+      }));
+      setOpenNewOrderDialog(true);
+      finish();
+    })();
+    return () => { cancelled = true; };
+  }, [location.pathname, location.search, navigate, offers, candidates, orders, isLoading, candidatesLoading, offersLoading]);
 
   // Filtered Orders
   const filteredOrders = useMemo(() => {
@@ -307,15 +364,21 @@ export default function ConvertedOrders() {
     const cand = candidates.find((c) => c.id === candId);
     if (!cand) return;
 
-    const matchedOffer = offers.find((o) => o.candidate_id === candId);
+    const matchedOffer = offers.find((o) => o.candidate_id === candId && o.status === "accepted");
 
     setNewOrderForm((prev) => ({
       ...prev,
       candidate_id: cand.id,
+      offer_id: matchedOffer?.id || "",
       candidate_name: cand.name,
       candidate_email: cand.email || "",
       candidate_phone: cand.phone || "",
-      job_title: cand.role || matchedOffer?.position || "",
+      candidate_national_id: "",
+      candidate_nationality: "",
+      job_id: matchedOffer?.job_id || "",
+      job_title: matchedOffer?.position || cand.role || "",
+      department: matchedOffer?.department || "",
+      currency: matchedOffer?.currency || "SAR",
       basic_salary: matchedOffer?.salary ? Math.round(matchedOffer.salary * 0.7) : 8000,
       housing_allowance: matchedOffer?.salary ? Math.round(matchedOffer.salary * 0.2) : 2000,
       transport_allowance: matchedOffer?.salary ? Math.round(matchedOffer.salary * 0.1) : 700,
@@ -332,6 +395,7 @@ export default function ConvertedOrders() {
 
     await createOrder.mutateAsync({
       order_type: "direct_hire",
+      offer_id: newOrderForm.offer_id || undefined,
       candidate_id: newOrderForm.candidate_id || undefined,
       candidate_name: newOrderForm.candidate_name,
       candidate_email: newOrderForm.candidate_email,
@@ -344,6 +408,7 @@ export default function ConvertedOrders() {
       source_branch: newOrderForm.target_branch,
       target_branch: newOrderForm.target_branch,
       basic_salary: Number(newOrderForm.basic_salary),
+      currency: newOrderForm.currency,
       housing_allowance: Number(newOrderForm.housing_allowance),
       transport_allowance: Number(newOrderForm.transport_allowance),
       other_allowances: Number(newOrderForm.other_allowances),
@@ -986,7 +1051,7 @@ export default function ConvertedOrders() {
               {/* Select Existing Candidate */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold">اختيار مرشح من المنصة (اختياري للربط السريع)</Label>
-                <Select onValueChange={handleSelectCandidateForOrder}>
+                <Select value={newOrderForm.candidate_id || undefined} onValueChange={handleSelectCandidateForOrder}>
                   <SelectTrigger className="text-xs rounded-xl h-10">
                     <SelectValue placeholder="اختر المرشح للربط التلقائي..." />
                   </SelectTrigger>
@@ -1080,7 +1145,7 @@ export default function ConvertedOrders() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent align="end">
-                      {AL_ANDALUS_BRANCHES.map((b) => (
+                      {[...new Set([newOrderForm.target_branch, ...AL_ANDALUS_BRANCHES])].map((b) => (
                         <SelectItem key={b} value={b}>{b}</SelectItem>
                       ))}
                     </SelectContent>
@@ -1090,7 +1155,7 @@ export default function ConvertedOrders() {
 
               {/* Salary Breakdown */}
               <div className="p-3 bg-muted/40 rounded-xl space-y-3 border">
-                <p className="text-xs font-black text-foreground">الحزمة المالية الشهرية (SAR)</p>
+                <p className="text-xs font-black text-foreground">الحزمة المالية الشهرية ({newOrderForm.currency})</p>
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div>
                     <Label className="text-[11px]">الراتب الأساسي</Label>
@@ -1130,7 +1195,7 @@ export default function ConvertedOrders() {
                       Number(newOrderForm.transport_allowance) +
                       Number(newOrderForm.other_allowances)
                     ).toLocaleString()}{" "}
-                    <SARSymbol />
+                    {newOrderForm.currency === "SAR" ? <SARSymbol /> : newOrderForm.currency}
                   </span>
                 </div>
               </div>
