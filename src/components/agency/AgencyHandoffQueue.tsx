@@ -18,6 +18,7 @@ type Handoff = {
   updated_at: string;
   candidate: { id: string; name: string; email: string | null; role: string | null; resume_url: string | null } | null;
   agency: { name: string } | null;
+  company: { name: string } | null;
 };
 type CaseDocument = { id: string; kind: AgencyDocumentKind; file_name: string; storage_path: string };
 type CaseEvent = { id: string; event_type: string; note: string | null; created_at: string };
@@ -32,10 +33,15 @@ export default function AgencyHandoffQueue({ companyId }: { companyId?: string |
     enabled: companyId !== null,
     queryFn: async () => {
       let query = (supabase as any).from("agency_cases")
-        .select("candidate_id,company_id,status,updated_at,candidate:candidates!agency_cases_candidate_id_fkey(id,name,email,role,resume_url),agency:agencies!agency_cases_agency_id_fkey(name)")
+        .select("candidate_id,company_id,status,updated_at,candidate:candidates!agency_cases_candidate_id_fkey(id,name,email,role,resume_url),agency:agencies!agency_cases_agency_id_fkey(name),company:companies!agency_cases_company_id_fkey(name)")
         .in("status", ["awaiting_admin", "needs_changes", "file_accepted"])
         .order("updated_at", { ascending: false });
-      if (companyId) query = query.eq("company_id", companyId);
+      if (companyId) {
+        const { data: branches, error: branchesError } = await supabase.from("companies")
+          .select("id").eq("parent_company_id", companyId);
+        if (branchesError) throw branchesError;
+        query = query.in("company_id", [companyId, ...(branches || []).map(branch => branch.id)]);
+      }
       const { data, error } = await query;
       if (error) throw error;
       return data as Handoff[];
@@ -107,7 +113,7 @@ export default function AgencyHandoffQueue({ companyId }: { companyId?: string |
       <div className="grid md:grid-cols-2 gap-2">
         {cases.map(item => <button key={item.candidate_id} type="button" onClick={() => setSelected(item)}
           className="text-right border rounded-xl p-3 hover:bg-muted/40 flex items-center justify-between gap-3">
-          <span><strong>{item.candidate?.name || "مرشح"}</strong><span className="block text-xs text-muted-foreground">{item.agency?.name} · {item.candidate?.role}</span></span>
+          <span><strong>{item.candidate?.name || "مرشح"}</strong><span className="block text-xs text-muted-foreground">{item.company?.name} · {item.agency?.name} · {item.candidate?.role}</span></span>
           <Badge variant="outline">{AGENCY_CASE_STATUS[item.status]}</Badge>
         </button>)}
       </div>
@@ -115,7 +121,7 @@ export default function AgencyHandoffQueue({ companyId }: { companyId?: string |
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
           <DialogHeader className="text-right">
             <DialogTitle>مراجعة ملف {selected?.candidate?.name}</DialogTitle>
-            <DialogDescription>{selected?.agency?.name} · {selected?.candidate?.email}</DialogDescription>
+            <DialogDescription>{selected?.company?.name} · {selected?.agency?.name} · {selected?.candidate?.email}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 text-right">
             <Badge variant="outline">{selected && AGENCY_CASE_STATUS[selected.status]}</Badge>
