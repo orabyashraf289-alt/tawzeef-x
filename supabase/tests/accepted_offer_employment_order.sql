@@ -39,8 +39,6 @@ BEGIN
    AND company_id='a5100000-0000-0000-0000-000000000002' AND total_salary=1000
    AND status='pending_documents' AND created_by_user_id=auth.uid() AND order_number LIKE 'ORD-%')
  THEN RAISE EXCEPTION 'Parent owner order was not persisted in branch'; END IF;
- IF (SELECT status FROM public.candidates WHERE id='a5300000-0000-0000-0000-000000000001') <> 'قيد المراجعة'
- THEN RAISE EXCEPTION 'Creating order prematurely completed candidate'; END IF;
  blocked := false;
  BEGIN
    INSERT INTO public.converted_orders(company_id,offer_id,candidate_id,job_id,candidate_name,job_title,order_type)
@@ -63,6 +61,14 @@ BEGIN
  IF NOT blocked THEN RAISE EXCEPTION 'Order changed companies after creation'; END IF;
 END $$;
 RESET ROLE;
+
+-- Existing candidate RLS traverses agency membership, which is not granted
+-- to the client role in this replay. Inspect the unchanged status as test admin.
+DO $$
+BEGIN
+ IF (SELECT status FROM public.candidates WHERE id='a5300000-0000-0000-0000-000000000001') <> 'قيد المراجعة'
+ THEN RAISE EXCEPTION 'Creating order prematurely completed candidate'; END IF;
+END $$;
 
 SELECT set_config('request.jwt.claim.sub','a5000000-0000-0000-0000-000000000002',true);
 SET LOCAL ROLE authenticated;
