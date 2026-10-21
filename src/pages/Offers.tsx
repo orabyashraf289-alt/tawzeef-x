@@ -96,14 +96,6 @@ export default function OffersPage() {
   const withdrawOffer = useWithdrawOffer();
 
   const [showCreate, setShowCreate] = useState(false);
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get("action") !== "new") return;
-    setShowCreate(true);
-    params.delete("action");
-    navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash }, { replace: true });
-  }, [location.pathname, location.search, location.hash, navigate]);
   const [editingOffer, setEditingOffer] = useState<JobOffer | null>(null);
   const [salaryBreakdown, setSalaryBreakdown] = useState(false);
   const [employeeNationality, setEmployeeNationality] = useState<"saudi" | "non-saudi" | "none">("none");
@@ -125,6 +117,52 @@ export default function OffersPage() {
     expires_days: "7",
   });
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("action") !== "new") return;
+    const candidateId = params.get("candidateId");
+    if (candidateId && !candidates) return;
+    let cancelled = false;
+    const finish = () => {
+      params.delete("action");
+      params.delete("candidateId");
+      navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash }, { replace: true });
+    };
+    if (!candidateId) {
+      setShowCreate(true);
+      finish();
+      return;
+    }
+
+    const candidate = candidates?.find(row => row.id === candidateId);
+    if (!candidate?.company_id) {
+      toast({ title: "تعذر العثور على المرشح داخل الشركة المختارة", variant: "destructive" });
+      finish();
+      return;
+    }
+    void (async () => {
+      const { data: agencyCase, error } = await (supabase as any).from("agency_cases")
+        .select("status,company_id").eq("candidate_id", candidateId).maybeSingle();
+      if (cancelled) return;
+      if (error || agencyCase?.status !== "file_accepted" || agencyCase.company_id !== candidate.company_id) {
+        toast({ title: "ملف المكتب غير معتمد لإنشاء العرض", variant: "destructive" });
+        finish();
+        return;
+      }
+      const job = jobs?.find(row => row.id === candidate.job_id && row.company_id === candidate.company_id);
+      setForm(prev => ({
+        ...prev,
+        candidate_id: candidateId,
+        job_id: job?.id || "",
+        position: job?.title || candidate.role || "",
+        department: job?.department || "",
+      }));
+      setShowCreate(true);
+      finish();
+    })();
+    return () => { cancelled = true; };
+  }, [location.pathname, location.search, location.hash, navigate, candidates, jobs]);
+
   const [predictionDialogOpen, setPredictionDialogOpen] = useState(false);
   const [predicting, setPredicting] = useState(false);
   const [predictionResult, setPredictionResult] = useState<any>(null);
@@ -135,6 +173,10 @@ export default function OffersPage() {
   const [generatingAiOfferTerms, setGeneratingAiOfferTerms] = useState(false);
   const [withdrawOfferId, setWithdrawOfferId] = useState<string | null>(null);
   const [offerToDelete, setOfferToDelete] = useState<JobOffer | null>(null);
+  const offerCandidate = candidates?.find(row => row.id === form.candidate_id);
+  const eligibleJobs = offerCandidate?.company_id
+    ? jobs?.filter(job => job.company_id === offerCandidate.company_id)
+    : jobs;
 
   const filteredOffers = useMemo(() => {
     let list = offers || [];
@@ -578,7 +620,15 @@ export default function OffersPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>{t("offers.candidate")}</Label>
-                    <Select value={form.candidate_id} onValueChange={(v) => setForm({ ...form, candidate_id: v })}>
+                    <Select value={form.candidate_id} onValueChange={(v) => {
+                      const candidate = candidates?.find(row => row.id === v);
+                      const job = jobs?.find(row => row.id === candidate?.job_id && row.company_id === candidate?.company_id);
+                      setForm(prev => ({
+                        ...prev, candidate_id: v, job_id: job?.id || "",
+                        position: job?.title || candidate?.role || "",
+                        department: job?.department || "",
+                      }));
+                    }}>
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder={t("offers.selectCandidate")} />
                       </SelectTrigger>
@@ -604,7 +654,7 @@ export default function OffersPage() {
                         <SelectValue placeholder={t("offers.selectJob")} />
                       </SelectTrigger>
                       <SelectContent>
-                        {jobs?.map((j) => (
+                        {eligibleJobs?.map((j) => (
                           <SelectItem key={j.id} value={j.id}>{j.title}</SelectItem>
                         ))}
                       </SelectContent>
