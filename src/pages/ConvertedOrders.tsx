@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
@@ -174,12 +174,15 @@ export default function ConvertedOrders() {
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [reviewingDocument, setReviewingDocument] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const documentRequest = useRef(0);
 
   const loadSubmittedDocuments = async (orderId: string) => {
+    const request = ++documentRequest.current;
     setDocumentsLoading(true);
     const { data, error } = await supabase.from("order_onboarding_documents" as any)
-      .select("id,kind,file_name,storage_path,review_status,review_note,created_at")
+      .select("id,kind,file_name,storage_path,review_status,review_note,created_at,reviewed_at")
       .eq("order_id", orderId).order("created_at", { ascending: false });
+    if (request !== documentRequest.current) return;
     setDocumentsLoading(false);
     if (error) {
       toast({ title: "تعذر تحميل مستندات التعيين", variant: "destructive" });
@@ -189,17 +192,25 @@ export default function ConvertedOrders() {
   useEffect(() => {
     if (openChecklistDialog && selectedOrder && selectedOrder.onboarding_token) {
       void loadSubmittedDocuments(selectedOrder.id);
-    } else setSubmittedDocuments([]);
+    } else {
+      documentRequest.current++;
+      setSubmittedDocuments([]);
+      setDocumentsLoading(false);
+    }
   }, [openChecklistDialog, selectedOrder?.id]);
 
   const openSubmittedDocument = async (doc: OrderDocument) => {
+    const tab = window.open("about:blank", "_blank");
+    if (tab) tab.opener = null;
     const { data, error } = await supabase.storage.from("order-onboarding-documents")
       .createSignedUrl(doc.storage_path, 60);
     if (error || !data?.signedUrl) {
+      tab?.close();
       toast({ title: "تعذر فتح المستند", variant: "destructive" });
       return;
     }
-    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    if (tab) tab.location.replace(data.signedUrl);
+    else toast({ title: "اسمح بفتح النوافذ المنبثقة لعرض المستند", variant: "destructive" });
   };
 
   const reviewSubmittedDocument = async (doc: OrderDocument, decision: "approved" | "rejected") => {
@@ -1485,7 +1496,7 @@ export default function ConvertedOrders() {
                 مسوغات التعيين الرسمية — {selectedOrder?.candidate_name}
               </DialogTitle>
               <DialogDescription className="text-xs">
-                حدد المستندات التي تم استلامها والتحقق منها لإكمال أمر التعيين.
+                قائمة المسوغات تُحدّث يدويًا بعد التحقق. قرار مراجعة الملف المرفوع لا يغيّرها تلقائيًا.
               </DialogDescription>
             </DialogHeader>
 
@@ -1518,11 +1529,23 @@ export default function ConvertedOrders() {
             </div>
 
             {selectedOrder?.onboarding_token && <section className="space-y-3 border-t pt-4">
-              <h3 className="font-bold text-sm">مستندات المرشح المرفوعة للمراجعة</h3>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-bold text-sm">مستندات المرشح المرفوعة للمراجعة</h3>
+                <Button type="button" size="sm" variant="outline" disabled={documentsLoading}
+                  onClick={() => selectedOrder && void loadSubmittedDocuments(selectedOrder.id)}>
+                  <RefreshCw className="w-3.5 h-3.5 ml-1" /> تحديث الملفات
+                </Button>
+              </div>
+              {!documentsLoading && submittedDocuments.length > 0 &&
+                <p className="text-xs text-muted-foreground">
+                  {submittedDocuments.filter(item => item.review_status === "pending").length} ملف قيد المراجعة
+                  {" · "}{submittedDocuments.filter(item => item.review_status === "rejected").length} نسخة مرفوضة محفوظة في السجل
+                </p>}
               {documentsLoading ? <p className="text-xs text-muted-foreground">جاري تحميل المستندات...</p> :
                 submittedDocuments.length === 0 ? <p className="text-xs text-muted-foreground">لم يرفع المرشح مستندات بعد.</p> :
                   ORDER_DOCUMENT_KINDS.map(({ key, label }) => {
-                    const doc = submittedDocuments.find(item => item.kind === key);
+                    const versions = submittedDocuments.filter(item => item.kind === key);
+                    const doc = versions[0];
                     if (!doc) return null;
                     return <div key={key} className="rounded-lg border p-3 space-y-2 text-xs">
                       <div className="flex items-center justify-between gap-2">
@@ -1531,6 +1554,7 @@ export default function ConvertedOrders() {
                       </div>
                       <Button type="button" size="sm" variant="outline" onClick={() => void openSubmittedDocument(doc)}
                         className="max-w-full truncate">فتح الملف: {doc.file_name}</Button>
+                      <p className="text-muted-foreground">رُفع في {new Date(doc.created_at).toLocaleString("ar-SA")}</p>
                       {doc.review_note && <p className="text-red-700">ملاحظة المراجعة: {doc.review_note}</p>}
                       {doc.review_status === "pending" && <>
                         <Input value={reviewNotes[doc.id] || ""} maxLength={1000}
@@ -1543,9 +1567,21 @@ export default function ConvertedOrders() {
                             onClick={() => void reviewSubmittedDocument(doc, "rejected")}>طلب إعادة الرفع</Button>
                         </div>
                       </>}
+                      {versions.length > 1 && <details className="border-t pt-2">
+                        <summary className="cursor-pointer font-semibold">النسخ السابقة ({versions.length - 1})</summary>
+                        <div className="space-y-2 mt-2">
+                          {versions.slice(1).map(previous => <div key={previous.id} className="rounded-md bg-muted/40 p-2 space-y-1">
+                            <p>{previous.review_status === "approved" ? "معتمد" : previous.review_status === "rejected" ? "مرفوض" : "قيد المراجعة"}
+                              {" · "}{new Date(previous.created_at).toLocaleString("ar-SA")}</p>
+                            <Button type="button" size="sm" variant="outline" onClick={() => void openSubmittedDocument(previous)}
+                              className="max-w-full truncate">فتح النسخة: {previous.file_name}</Button>
+                            {previous.review_note && <p className="text-red-700">سبب الرفض: {previous.review_note}</p>}
+                          </div>)}
+                        </div>
+                      </details>}
                     </div>;
                   })}
-              <p className="text-xs text-muted-foreground">مراجعة الملفات لا تغير حالة أمر التعيين أو حالة المباشرة تلقائيًا.</p>
+              <p className="text-xs text-muted-foreground">قرارات مراجعة الملفات لا تغير قائمة المسوغات أو حالة أمر التعيين أو المباشرة تلقائيًا.</p>
             </section>}
 
             <DialogFooter>
