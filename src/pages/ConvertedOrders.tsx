@@ -541,16 +541,19 @@ export default function ConvertedOrders() {
 
   // Share helpers
   const getOnboardingPortalLink = (order: ConvertedOrder) => {
-    const origin = window.location.origin;
-    return `${origin}/onboard/${order.id}`;
+    return order.onboarding_token && order.candidate_id && order.order_type === "direct_hire"
+      && !["draft", "cancelled"].includes(order.status)
+      ? `${window.location.origin}/onboard/${order.onboarding_token}` : null;
   };
 
   const getWhatsAppMessage = (order: ConvertedOrder) => {
     const link = getOnboardingPortalLink(order);
-    return `السلام عليكم ورحمة الله وبركاته،\nأهلاً بك أ. ${order.candidate_name}، نبارك لك صدور قرار تعيينك الرسمي بمسمى (${order.job_title}) لدى ${order.company_name || "مدارس الأندلس الأهلية"} برقم أمر: ${order.order_number}.\n\nيرجى التكرم بفتح الرابط التالي لاستكمال مسوغات التعيين والتوقيع الرقمي لتأكيد المباشرة:\n🔗 ${link}\n\nمع تمنياتنا لك بالتوفيق الدائم.`;
+    if (!link) return "رابط الإقرار متاح لأمر تعيين مباشر محفوظ ومرتبط بمرشح فقط.";
+    return `السلام عليكم ورحمة الله وبركاته،\nأهلاً بك أ. ${order.candidate_name}، نبارك لك صدور أمر تعيينك بمسمى (${order.job_title}) لدى ${order.company_name || "الشركة"} برقم ${order.order_number}.\n\nيرجى فتح الرابط التالي لمراجعة التفاصيل وتسجيل إقرار الاستلام. تراجع الإدارة المستندات وتعتمد المباشرة لاحقاً:\n🔗 ${link}\n\nمع تمنياتنا لك بالتوفيق.`;
   };
 
   const handleShareWhatsApp = (order: ConvertedOrder) => {
+    if (!getOnboardingPortalLink(order)) return;
     const text = encodeURIComponent(getWhatsAppMessage(order));
     const phone = (order.candidate_phone || "").replace(/[^0-9]/g, "");
     const url = phone ? `https://api.whatsapp.com/send?phone=${phone}&text=${text}` : `https://api.whatsapp.com/send?text=${text}`;
@@ -558,6 +561,7 @@ export default function ConvertedOrders() {
   };
 
   const handleShareEmail = (order: ConvertedOrder) => {
+    if (!getOnboardingPortalLink(order)) return;
     const subject = encodeURIComponent(`قرار تعيين ومباشرة رسمي - ${order.job_title} #${order.order_number}`);
     const body = encodeURIComponent(getWhatsAppMessage(order));
     window.location.href = `mailto:${order.candidate_email || ""}?subject=${subject}&body=${body}`;
@@ -565,6 +569,7 @@ export default function ConvertedOrders() {
 
   const handleCopyLink = (order: ConvertedOrder) => {
     const link = getOnboardingPortalLink(order);
+    if (!link) return;
     navigator.clipboard.writeText(link);
     toast({ title: "تم نسخ رابط المباشرة للموظف 📋" });
   };
@@ -1559,15 +1564,20 @@ export default function ConvertedOrders() {
             <DialogHeader>
               <DialogTitle className="text-base font-black flex items-center gap-2">
                 <Send className="w-4 h-4 text-emerald-600" />
-                مشاركة رابط المباشرة مع الموظف / المرشح
+                مشاركة رابط إقرار استلام أمر التعيين
               </DialogTitle>
               <DialogDescription className="text-xs">
-                إرسال رابط بوابة استكمال المسوغات والتوقيع الرقمي للمرشح عبر الواتساب أو البريد.
+                يُقر المرشح باستلام تفاصيل الأمر. تراجع الإدارة مسوغات التعيين وتعتمد المباشرة بعد ذلك.
               </DialogDescription>
             </DialogHeader>
 
             {selectedOrder && (
               <div className="space-y-4 py-2">
+                {selectedOrder.onboarding_acknowledged_at && (
+                  <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-800">
+                    تم تسجيل إقرار استلام المرشح في {new Date(selectedOrder.onboarding_acknowledged_at).toLocaleString("ar-SA")}
+                  </p>
+                )}
                 <div className="p-3 bg-muted/40 rounded-xl space-y-2 border text-xs">
                   <p className="font-bold text-foreground">نص الرسالة التلقائي المعتمد:</p>
                   <p className="text-muted-foreground whitespace-pre-line text-[11px] bg-background p-2.5 rounded-lg border leading-relaxed">
@@ -1578,6 +1588,7 @@ export default function ConvertedOrders() {
                 <div className="grid grid-cols-2 gap-2">
                   <Button
                     onClick={() => handleShareWhatsApp(selectedOrder)}
+                    disabled={!getOnboardingPortalLink(selectedOrder)}
                     className="bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs rounded-xl gap-1.5 h-10 shadow-xs"
                   >
                     <MessageCircle className="w-4 h-4" />
@@ -1586,6 +1597,7 @@ export default function ConvertedOrders() {
 
                   <Button
                     onClick={() => handleShareEmail(selectedOrder)}
+                    disabled={!getOnboardingPortalLink(selectedOrder)}
                     variant="outline"
                     className="border-slate-300 text-slate-800 hover:bg-slate-50 font-bold text-xs rounded-xl gap-1.5 h-10"
                   >
@@ -1596,6 +1608,7 @@ export default function ConvertedOrders() {
 
                 <Button
                   onClick={() => handleCopyLink(selectedOrder)}
+                  disabled={!getOnboardingPortalLink(selectedOrder)}
                   variant="ghost"
                   className="w-full text-xs font-bold rounded-xl gap-1.5 border border-dashed border-slate-300"
                 >

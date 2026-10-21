@@ -78,4 +78,43 @@ BEGIN
  THEN RAISE EXCEPTION 'Other company can see branch order'; END IF;
 END $$;
 RESET ROLE;
+-- The bearer link exposes a minimal summary; a candidate acknowledgement is
+-- persistent and idempotent, but does not approve the HR status or checklist.
+SELECT set_config('test.order_onboarding_token',
+  (SELECT onboarding_token::text FROM public.converted_orders
+   WHERE offer_id='a5400000-0000-0000-0000-000000000001'), true);
+DO $$
+BEGIN
+ IF has_table_privilege('anon', 'public.converted_orders', 'SELECT')
+ THEN RAISE EXCEPTION 'Anonymous callers can read private employment orders'; END IF;
+END $$;
+SET LOCAL ROLE anon;
+DO $$
+DECLARE summary jsonb;
+BEGIN
+ SELECT public.get_order_onboarding(current_setting('test.order_onboarding_token')::uuid) INTO summary;
+ IF summary->>'candidate_name' <> 'Order candidate' OR summary->>'status' <> 'pending_documents'
+    OR summary ? 'candidate_national_id' OR summary ? 'onboarding_token'
+ THEN RAISE EXCEPTION 'Candidate link exposed unexpected order fields'; END IF;
+ IF public.get_order_onboarding('00000000-0000-0000-0000-000000000000') IS NOT NULL
+ THEN RAISE EXCEPTION 'Unknown token resolved an order'; END IF;
+ IF public.acknowledge_order_onboarding('00000000-0000-0000-0000-000000000000',
+    'data:image/png;base64,iVBORw0KGgo' || repeat('A', 120))
+ THEN RAISE EXCEPTION 'Unknown token acknowledged an order'; END IF;
+ IF NOT public.acknowledge_order_onboarding(current_setting('test.order_onboarding_token')::uuid,
+    'data:image/png;base64,iVBORw0KGgo' || repeat('A', 120))
+ THEN RAISE EXCEPTION 'Valid token did not persist acknowledgement'; END IF;
+ IF public.acknowledge_order_onboarding(current_setting('test.order_onboarding_token')::uuid,
+    'data:image/png;base64,iVBORw0KGgo' || repeat('A', 120))
+ THEN RAISE EXCEPTION 'Duplicate submission replaced acknowledgement'; END IF;
+END $$;
+RESET ROLE;
+DO $$
+BEGIN
+ IF NOT EXISTS (SELECT 1 FROM public.converted_orders
+   WHERE offer_id='a5400000-0000-0000-0000-000000000001'
+   AND onboarding_acknowledged_at IS NOT NULL AND onboarding_signature IS NOT NULL
+   AND status='pending_documents' AND documents_checklist->>'signed_contract' IS DISTINCT FROM 'true')
+ THEN RAISE EXCEPTION 'Acknowledgement incorrectly approved order'; END IF;
+END $$;
 ROLLBACK;
