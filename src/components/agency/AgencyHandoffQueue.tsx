@@ -150,7 +150,11 @@ export default function AgencyHandoffQueue({ companyId }: { companyId?: string |
             </>}
             <div className="flex gap-3 text-sm font-bold text-primary">
               <Link to={`/candidates/${selected?.candidate_id}`}>ملف المرشح</Link>
-              <Link to="/offers">العروض والعقود</Link>
+              {selected?.status === "file_accepted" ? (
+                <Link to={`/offers?action=new&candidateId=${encodeURIComponent(selected.candidate_id)}`}>
+                  إنشاء عرض وظيفي
+                </Link>
+              ) : <Link to="/offers">العروض والعقود</Link>}
             </div>
             <p className="text-xs text-muted-foreground">قبول ملف المكتب لا يعتمد عرضًا وظيفيًا أو عقدًا تلقائيًا.</p>
           </div>
