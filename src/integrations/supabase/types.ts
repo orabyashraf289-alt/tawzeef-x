@@ -3167,6 +3167,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_public_job_employer: {
+        Args: { _job_id: string }
+        Returns: { name: string; logo_url: string | null }[]
+      }
       accept_company_invitation: { Args: { _token: string }; Returns: Json }
       allow_candidate_recovery: {
         Args: { p_request_hash: string }
