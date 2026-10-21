@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
@@ -48,6 +48,9 @@ export default function ApplySuccessPass({
   onRetryAccount,
 }: ApplySuccessPassProps) {
   const [copied, setCopied] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [copyError, setCopyError] = useState(false);
+  const copyResetTimer = useRef<ReturnType<typeof setTimeout>>();
   const { user } = useAuth();
   const signedInAsApplicant = user?.email?.toLowerCase() === applicantEmail.trim().toLowerCase();
 
@@ -59,11 +62,24 @@ export default function ApplySuccessPass({
     });
   }, []);
 
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(trackingCode);
-    setCopied(true);
-    toast({ title: "تم نسخ الرقم المرجعي بنجاح ✅" });
-    setTimeout(() => setCopied(false), 2500);
+  useEffect(() => () => clearTimeout(copyResetTimer.current), []);
+
+  const handleCopyCode = async () => {
+    clearTimeout(copyResetTimer.current);
+    setCopied(false);
+    setCopyError(false);
+    setCopying(true);
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(trackingCode);
+      setCopied(true);
+      toast({ title: "تم نسخ الرقم المرجعي بنجاح ✅" });
+      copyResetTimer.current = setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setCopyError(true);
+    } finally {
+      setCopying(false);
+    }
   };
 
   const handleWhatsAppSend = () => {
@@ -84,7 +100,7 @@ export default function ApplySuccessPass({
         initial={{ opacity: 0, scale: 0.96, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 260, damping: 22 }}
-        className="max-w-2xl w-full space-y-6 text-center"
+        className="min-w-0 max-w-2xl w-full space-y-6 text-center"
       >
         {/* Animated Celebration Icon */}
         <div className="relative mx-auto w-20 h-20">
@@ -132,12 +148,12 @@ export default function ApplySuccessPass({
 
           {/* Tracking Code Section */}
           <div className="p-6 sm:p-8 space-y-6">
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center justify-between gap-3">
-              <div>
+            <div className="p-4 rounded-2xl bg-emerald-500/10 border-2 border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
                 <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 block">
                   الرقم المرجعي لتتبع الطلب:
                 </span>
-                <span className="font-mono text-2xl font-black text-foreground tracking-wider">
+                <span dir="ltr" className="block break-all select-all font-mono text-base sm:text-lg font-black text-foreground text-left">
                   {trackingCode}
                 </span>
               </div>
@@ -145,12 +161,14 @@ export default function ApplySuccessPass({
                 variant="ghost"
                 size="sm"
                 onClick={handleCopyCode}
-                className="h-9 px-3 gap-1.5 text-xs text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15 font-bold rounded-xl"
+                disabled={copying}
+                className="h-9 shrink-0 self-start sm:self-auto px-3 gap-1.5 text-xs text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15 font-bold rounded-xl"
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                <span>{copied ? "تم النسخ" : "نسخ الكود"}</span>
+                <span aria-live="polite">{copying ? "جارٍ النسخ…" : copied ? "تم النسخ" : "نسخ الكود"}</span>
               </Button>
             </div>
+            {copyError && <p role="alert" className="text-xs text-destructive">تعذر نسخ الرمز تلقائياً. حدد الرمز الظاهر أعلاه وانسخه يدوياً، أو استخدم زر متابعة حالة الطلب.</p>}
 
             {/* Account activation is sent to the applicant's verified inbox. */}
             {applicantEmail && (
@@ -159,7 +177,7 @@ export default function ApplySuccessPass({
                   <strong className="text-foreground">حسابك في منصة Tawzeef-X</strong>
                   <Badge variant="outline" className="text-[10px]">{accountStatus === "preparing" ? "جارٍ التجهيز" : accountStatus === "invited" ? "دعوة مرسلة" : accountStatus === "existing" ? "حساب موجود" : "بحاجة لإعادة المحاولة"}</Badge>
                 </div>
-                <p className="text-muted-foreground">البريد المستخدم: <span dir="ltr" className="inline-block font-medium text-foreground">{applicantEmail}</span></p>
+                <p className="text-muted-foreground">البريد المستخدم: <span dir="ltr" className="break-all font-medium text-foreground">{applicantEmail}</span></p>
                 {accountStatus === "preparing" && <p>نجهز لك الوصول إلى ملفك الشخصي.</p>}
                 {accountStatus === "invited" && <p>أرسلنا رابط تفعيل الحساب إلى بريدك. افتح الرابط وحدد كلمة مرور خاصة بك، ثم ادخل لتعديل ملفك ومتابعة طلباتك.</p>}
                 {accountStatus === "existing" && <p>لديك حساب بهذا البريد. سجل الدخول لعرض طلبك وتحديث ملفك. إذا نسيت كلمة المرور فاستخدم رابط الاستعادة.</p>}
