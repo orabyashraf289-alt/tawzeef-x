@@ -262,7 +262,8 @@ export default function ConvertedOrders() {
       setNewOrderForm(prev => ({
         ...prev, offer_id: offer.id, candidate_id: candidate.id,
         candidate_name: candidate.name, candidate_email: candidate.email || "",
-        candidate_phone: candidate.phone || "", job_id: offer.job_id || "",
+        candidate_phone: candidate.phone || "", candidate_national_id: "",
+        candidate_nationality: "", notes: "", job_id: offer.job_id || "",
         job_title: offer.position, department: offer.department || "",
         target_branch: company.name, currency: offer.currency,
         basic_salary: total, housing_allowance: 0, transport_allowance: 0, other_allowances: 0,
@@ -372,6 +373,8 @@ export default function ConvertedOrders() {
       candidate_name: cand.name,
       candidate_email: cand.email || "",
       candidate_phone: cand.phone || "",
+      candidate_national_id: "",
+      candidate_nationality: "",
       job_id: matchedOffer?.job_id || "",
       job_title: matchedOffer?.position || cand.role || "",
       department: matchedOffer?.department || "",
