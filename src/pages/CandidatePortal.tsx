@@ -1,5 +1,5 @@
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -126,6 +126,8 @@ export default function CandidatePortal() {
   const [searched, setSearched] = useState(false);
   const [candidates, setCandidates] = useState<CandidateResult[] | null>(null);
   const [emailSent, setEmailSent] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const activeSearch = useRef<AbortController | null>(null);
 
   // Edit Teacher Credentials Modal State
   const [editTeacherModal, setEditTeacherModal] = useState<CandidateResult | null>(null);
@@ -134,78 +136,94 @@ export default function CandidatePortal() {
   const [degreeInput, setDegreeInput] = useState("");
   const [demoVideoInput, setDemoVideoInput] = useState("");
 
+  const clearSearch = useCallback(() => {
+    activeSearch.current?.abort();
+    activeSearch.current = null;
+    setIsLoading(false);
+    setSearched(false);
+    setCandidates(null);
+    setEmailSent(false);
+    setSearchError(null);
+  }, []);
+
+  const performSearch = useCallback(async (queryInput: string, queryType: "tracking" | "email") => {
+    // Prevent repeated Enter presses from starting duplicate requests.
+    if (activeSearch.current) return;
+    const cleanInput = queryType === "tracking" ? queryInput.trim().toUpperCase() : queryInput.trim().toLowerCase();
+    setCandidates(null);
+    setEmailSent(false);
+    setSearchError(null);
+    setSearched(true);
+
+    if (queryType === "tracking" && !/^TX-[0-9A-F]{32}$/.test(cleanInput)) {
+      setSearchError("أدخل رمز التتبع الكامل من رسالة تأكيد الطلب، أو استرجعه باستخدام البريد الإلكتروني.");
+      return;
+    }
+    if (queryType === "email" && (cleanInput.length > 254 || !/^[^\s@%_]+@[^\s@%_]+\.[^\s@%_]+$/.test(cleanInput))) {
+      setSearchError("أدخل بريدًا إلكترونيًا صحيحًا لاسترجاع رمز التتبع.");
+      return;
+    }
+
+    const controller = new AbortController();
+    activeSearch.current = controller;
+    setIsLoading(true);
+    try {
+      const resp = await fetch(PORTAL_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(queryType === "tracking" ? { trackingCode: cleanInput } : { email: cleanInput }),
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      if (!resp.ok) {
+        if (resp.status === 404 && queryType === "tracking") {
+          setCandidates([]);
+        } else {
+          setSearchError(resp.status === 429
+            ? "طلبات كثيرة خلال وقت قصير. انتظر قليلًا ثم أعد المحاولة."
+            : resp.status === 400
+              ? "تعذر التحقق من البيانات المدخلة. راجعها ثم أعد المحاولة."
+              : "تعذر تحميل حالة الطلب الآن. أعد المحاولة بعد قليل.");
+        }
+        return;
+      }
+      const data = await resp.json();
+      if (controller.signal.aborted) return;
+      if (queryType === "email" && data.success === true) {
+        // Recovery deliberately does not disclose whether the mailbox exists.
+        setEmailSent(true);
+      } else if (queryType === "tracking" && Array.isArray(data.candidates)) {
+        setCandidates(data.candidates);
+      } else {
+        setSearchError("تعذر تحميل حالة الطلب الآن. أعد المحاولة بعد قليل.");
+      }
+    } catch {
+      if (!controller.signal.aborted) {
+        setSearchError("تعذر الاتصال بخدمة التتبع. تحقق من اتصالك وأعد المحاولة.");
+      }
+    } finally {
+      if (activeSearch.current === controller) {
+        activeSearch.current = null;
+        setIsLoading(false);
+      }
+    }
+  }, []);
+
   useEffect(() => {
+    clearSearch();
     const codeParam = searchParams.get("code") || searchParams.get("tracking");
     if (codeParam) {
       setSearchType("tracking");
       setInput(codeParam);
-      setTimeout(() => {
-        performSearch(codeParam, "tracking");
-      }, 300);
+      void performSearch(codeParam, "tracking");
     }
-  }, [searchParams]);
+    return () => {
+      activeSearch.current?.abort();
+      activeSearch.current = null;
+    };
+  }, [searchParams, clearSearch, performSearch]);
 
-  const handleSearch = async () => {
-    if (!input.trim()) {
-      toast({ title: "خطأ", description: "يرجى أدخل رمز التتبع أو البريد الإلكتروني", variant: "destructive" });
-      return;
-    }
-    await performSearch(input, searchType);
-  };
-
-  const performSearch = async (queryInput: string, queryType: "tracking" | "email") => {
-    setIsLoading(true);
-    setSearched(true);
-    setEmailSent(false);
-
-    let foundCandidates: CandidateResult[] = [];
-    const cleanInput = queryInput.trim();
-
-    // The public function validates the full tracking code server-side.
-    try {
-      const payload = queryType === "tracking"
-        ? { trackingCode: cleanInput }
-        : { email: cleanInput };
-
-      const resp = await fetch(PORTAL_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data.candidates && data.candidates.length > 0) {
-          foundCandidates = data.candidates;
-        } else if (data.message && queryType === "email") {
-          setEmailSent(true);
-          toast({
-            title: "تم إرسال التفاصيل بنجاح 📧",
-            description: data.message,
-          });
-        }
-      } else {
-        const errJson = await resp.json().catch(() => ({}));
-        if (errJson.error && queryType === "tracking") {
-          console.warn("Candidate portal search notice:", errJson.error);
-        }
-      }
-    } catch (edgeErr) {
-      console.warn("Edge function fetch error, falling back to client query:", edgeErr);
-    }
-
-    if (foundCandidates.length > 0) {
-      setCandidates(foundCandidates);
-    } else {
-      setCandidates([]);
-      if (queryType === "tracking") {
-        toast({ title: "لم يتم العثور على نتائج", description: "تأكد من رمز التتبع أو استخدم البريد الإلكتروني للبحث.", variant: "destructive" });
-      }
-    }
-
-    setIsLoading(false);
-  };
-
+  const handleSearch = () => performSearch(input, searchType);
 
   const handleSaveTeacherCredentials = async () => {
     if (!editTeacherModal) return;
@@ -283,7 +301,7 @@ export default function CandidatePortal() {
             ].map(t => (
               <button
                 key={t.key}
-                onClick={() => { setSearchType(t.key); setInput(""); }}
+                onClick={() => { clearSearch(); setSearchType(t.key); setInput(""); }}
                 className={cn(
                   "px-4 py-2 text-xs font-bold rounded-md3-full transition-all",
                   searchType === t.key ? "bg-md-primary text-md-on-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
@@ -296,9 +314,10 @@ export default function CandidatePortal() {
 
           <div className="flex gap-3">
             <Input
-              placeholder={searchType === "tracking" ? "أدخل رمز التتبع (مثال: TX-9842)" : "أدخل بريدك الإلكتروني"}
+              aria-label={searchType === "tracking" ? "رمز التتبع" : "البريد الإلكتروني"}
+              placeholder={searchType === "tracking" ? "الصق رمز التتبع الكامل الذي يبدأ بـ TX-" : "أدخل بريدك الإلكتروني"}
               value={input}
-              onChange={e => setInput(e.target.value)}
+              onChange={e => { clearSearch(); setInput(e.target.value); }}
               onKeyDown={e => e.key === "Enter" && handleSearch()}
               className="text-center text-sm font-bold tracking-wider rounded-md3-xl h-11 bg-background border-md-outline-variant"
               dir="ltr"
@@ -309,17 +328,28 @@ export default function CandidatePortal() {
               ) : (
                 <Search className="w-4 h-4" />
               )}
-              بحث عن الطلب
+              {isLoading ? "جارٍ البحث..." : searchType === "email" ? "استرجاع رمز التتبع" : "بحث عن الطلب"}
             </Button>
           </div>
         </div>
 
-        {/* Email sent notification */}
+        {searchError && (
+          <div role="alert" className="p-4 rounded-2xl bg-destructive/10 border border-destructive/30 text-sm text-center">
+            {searchError}
+          </div>
+        )}
+        {searched && !isLoading && candidates?.length === 0 && !searchError && !emailSent && (
+          <div role="status" className="p-4 rounded-2xl bg-muted border border-border text-sm text-center">
+            لم يتم العثور على طلب بهذا الرمز. راجع الرمز الكامل أو استرجعه عبر البريد الإلكتروني.
+          </div>
+        )}
+
+        {/* Email recovery acknowledgement */}
         {emailSent && (
-          <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-2 animate-in fade-in">
+          <div role="status" className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-2 animate-in fade-in">
             <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400 flex items-center justify-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-              تم إرسال رموز التتبع إلى بريدك الإلكتروني بنجاح ✉️
+              إذا كان البريد مسجلاً، ستصلك رسالة تحتوي على رموز التتبع.
             </p>
             <p className="text-xs text-muted-foreground">
               يرجى فحص صندوق الوارد (أو مجلد الرسائل غير المرغوب فيها) للضغط على رابط التتبع المباشر لطلبك.
