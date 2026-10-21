@@ -24,5 +24,8 @@ describe("application receipt", () => {
     expect(html).toContain("sara@example.com");
     expect(html).not.toContain("كلمة المرور المؤقتة");
     expect(html).not.toContain("0551234567");
+    expect(html).toContain("/portal?code=TX-" + "A".repeat(32));
+    expect(html).toContain("بانتظار المراجعة");
+    expect(html).not.toContain("جاري الآن");
   });
 });

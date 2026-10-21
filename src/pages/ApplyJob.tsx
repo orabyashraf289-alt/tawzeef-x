@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import { validateFile } from "@/lib/fileValidation";
 import { extractTextFromPDF, extractTextFromDocx } from "@/lib/fileParser";
 import { parseJobCustomSpecs } from "@/lib/jobSpecsHelper";
+import { getPublicJobEmployerName } from "@/lib/publicJobIdentity";
 import { getJobAvailability } from "@/lib/jobSeoHelper";
 import { notifyGoogleIndexing } from "@/lib/googleIndexingService";
 import { supabase } from "@/integrations/supabase/client";
@@ -83,46 +84,51 @@ export default function ApplyJob() {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
   const [aiAnalyzed, setAiAnalyzed] = useState(false);
-  const [extractedCount, setExtractedCount] = useState(0);
+  const resumeAnalysisVersion = useRef(0);
+  const submissionInFlight = useRef(false);
 
   // Load Job
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setJob(null);
     async function fetchJob() {
-      if (!id) return;
+      if (!id) { setLoading(false); return; }
       try {
         // Query jobs table directly to avoid PostgREST foreign key cache mismatch
-        const { data: jobData } = await supabase
+        const { data: jobData, error: jobError } = await supabase
           .from("jobs")
           .select("*")
           .eq("id", id)
           .maybeSingle();
+        if (jobError) throw jobError;
 
         if (jobData) {
           let companyData = null;
           if (jobData.company_id) {
             try {
-              const { data: cData } = await supabase
-                .from("companies")
-                .select("name, logo_url")
-                .eq("id", jobData.company_id)
+              const { data: cData, error: companyError } = await supabase
+                .rpc("get_public_job_employer", { _job_id: jobData.id })
                 .maybeSingle();
+              if (companyError) throw companyError;
               companyData = cData;
             } catch (err) {
               console.warn("Could not fetch company:", err);
             }
           }
-          setJob({ ...jobData, companies: companyData });
+          if (!cancelled) setJob({ ...jobData, companies: companyData });
         } else {
-          setJob(null);
+          if (!cancelled) setJob(null);
         }
       } catch (e) {
         console.warn("Could not fetch job:", e);
-        setJob(null);
+        if (!cancelled) setJob(null);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     fetchJob();
+    return () => { cancelled = true; };
   }, [id]);
 
   const { cleanDescription, specs, hasSpecs } = useMemo(() => parseJobCustomSpecs(job), [job]);
@@ -140,13 +146,7 @@ export default function ApplyJob() {
     }
   }, [loading, job, jobAvailability.isOpen, id]);
 
-  const schoolDisplayName = useMemo(() => {
-    if ((job as any)?.companies?.name) return (job as any).companies.name;
-    if (specs.school_name) return specs.school_name;
-    if ((job as any)?.school_name) return (job as any).school_name;
-    if (job?.location?.includes("الأندلس")) return "مجمع مدارس الأندلس الأهلية";
-    return "TawzeefX Partner";
-  }, [job, specs]);
+  const schoolDisplayName = useMemo(() => getPublicJobEmployerName(job, specs), [job, specs]);
 
   const isEducational = Boolean(
     specs.is_educational ||
@@ -249,21 +249,23 @@ export default function ApplyJob() {
   const processResumeFile = async (file: File) => {
     const isValid = validateFile(file, "resume");
     if (!isValid) return;
+    const analysisVersion = ++resumeAnalysisVersion.current;
+    setAiAnalyzed(false);
     setResumeFile(file);
     toast({ title: "تم إرفاق السيرة الذاتية بنجاح ✅", description: file.name });
 
     setIsAnalyzingAI(true);
-    let count = 0;
 
     try {
       let extractedText = "";
       const ext = (file.name.split(".").pop() || "").toLowerCase();
       if (ext === "pdf") {
         extractedText = await extractTextFromPDF(file);
-      } else if (ext === "docx" || ext === "doc") {
+      } else if (ext === "docx") {
         extractedText = await extractTextFromDocx(file);
       }
 
+      if (analysisVersion !== resumeAnalysisVersion.current) return;
       if (extractedText) {
         // Fast Regex Heuristics
         const phoneMatch = extractedText.match(/(?:(?:\+|00)?(966|20|971|965|968|973|974)?[-.\s]?)?(05\d{8}|01[0125]\d{8}|\d{9,12})/);
@@ -273,10 +275,10 @@ export default function ApplyJob() {
 
         setForm(prev => {
           const updated = { ...prev };
-          if (!prev.email && emailMatch) { updated.email = emailMatch[0].trim().toLowerCase(); count++; }
-          if (!prev.phone && phoneMatch) { updated.phone = phoneMatch[0].trim(); count++; }
-          if (!prev.experience && expMatch) { updated.experience = expMatch[1]; count++; }
-          if (!prev.licenseNumber && licenseMatch) { updated.licenseNumber = licenseMatch[1].trim(); count++; }
+          if (!prev.email && emailMatch) { updated.email = emailMatch[0].trim().toLowerCase(); }
+          if (!prev.phone && phoneMatch) { updated.phone = phoneMatch[0].trim(); }
+          if (!prev.experience && expMatch) { updated.experience = expMatch[1]; }
+          if (!prev.licenseNumber && licenseMatch) { updated.licenseNumber = licenseMatch[1].trim(); }
           return updated;
         });
 
@@ -286,6 +288,7 @@ export default function ApplyJob() {
             body: { resumeText: extractedText, applicantName: form.name },
           });
 
+          if (analysisVersion !== resumeAnalysisVersion.current) return;
           if (!aiError && aiData) {
             setForm(prev => ({
               ...prev,
@@ -302,31 +305,35 @@ export default function ApplyJob() {
 
             if (Array.isArray(aiData.skills) && aiData.skills.length > 0) {
               setSkills(prev => Array.from(new Set([...prev, ...aiData.skills])));
-              count += aiData.skills.length;
             }
           }
         } catch (aiErr) {
           console.warn("AI parse resume invoke notice:", aiErr);
         }
 
+        if (analysisVersion !== resumeAnalysisVersion.current) return;
         setAiAnalyzed(true);
-        setExtractedCount(Math.max(count, 4));
         toast({
-          title: "✨ تم التحليل والاستخراج الذكي بنجاح",
-          description: "تم ملء بيانات التواصل والمهارات والخبرات آلياً.",
+          title: "تمت قراءة السيرة الذاتية",
+          description: "راجع البيانات المستخرجة وأكمل الحقول الناقصة قبل الإرسال.",
         });
+      } else {
+        toast({ title: "الملف مرفق", description: "تعذر استخراج النص تلقائياً. يمكنك إدخال بياناتك يدوياً وإرسال الملف مع الطلب." });
       }
     } catch (parseErr) {
+      if (analysisVersion !== resumeAnalysisVersion.current) return;
       console.warn("Resume parsing exception notice:", parseErr);
+      toast({ title: "الملف مرفق", description: "تعذرت قراءة السيرة تلقائياً. أكمل بياناتك يدوياً." });
     } finally {
-      setIsAnalyzingAI(false);
+      if (analysisVersion === resumeAnalysisVersion.current) setIsAnalyzingAI(false);
     }
   };
 
   const handleFileRemove = () => {
+    resumeAnalysisVersion.current++;
     setResumeFile(null);
     setAiAnalyzed(false);
-    setExtractedCount(0);
+    setIsAnalyzingAI(false);
   };
 
   const prepareApplicantAccount = async (code: string, email: string) => {
@@ -345,6 +352,7 @@ export default function ApplyJob() {
 
   // Final Application Submission
   const handleSubmit = async () => {
+    if (submissionInFlight.current || submitted) return;
     if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) {
       toast({ title: "يرجى استكمال البيانات الأساسية", variant: "destructive" });
       setCurrentStep(2);
@@ -355,6 +363,7 @@ export default function ApplyJob() {
       return;
     }
 
+    submissionInFlight.current = true;
     setSubmitting(true);
     try {
     let resumeUrl: string | null = null;
@@ -396,16 +405,15 @@ export default function ApplyJob() {
     if (appError) throw appError;
 
     setTrackingCode(generatedTrackingCode);
-    // Finish the invitation attempt before displaying the receipt. If email
-    // provisioning fails, the saved application remains intact and the receipt
-    // offers a retry without submitting a duplicate application.
-    await prepareApplicantAccount(generatedTrackingCode, cleanEmail);
+    // The saved application gets its receipt immediately, independently of email provisioning.
     setSubmitted(true);
+    void prepareApplicantAccount(generatedTrackingCode, cleanEmail);
     toast({ title: "تم تقديم طلبك بنجاح ✅" });
     } catch (error) {
       console.error("Application submission failed:", error);
       toast({ title: "فشل إرسال الطلب", description: "لم يتم حفظ الطلب. حاول مرة أخرى.", variant: "destructive" });
     } finally {
+      submissionInFlight.current = false;
       setSubmitting(false);
     }
   };
@@ -641,7 +649,6 @@ export default function ApplyJob() {
                       onFileRemove={handleFileRemove}
                       isAnalyzingAI={isAnalyzingAI}
                       aiAnalyzed={aiAnalyzed}
-                      extractedCount={extractedCount}
                       onNext={() => setCurrentStep(2)}
                       onSkipManual={() => setCurrentStep(2)}
                     />

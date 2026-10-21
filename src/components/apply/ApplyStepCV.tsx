@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { FILE_LIMITS } from "@/lib/fileValidation";
 
 interface ApplyStepCVProps {
   resumeFile: File | null;
@@ -23,7 +24,6 @@ interface ApplyStepCVProps {
   onFileRemove: () => void;
   isAnalyzingAI: boolean;
   aiAnalyzed: boolean;
-  extractedCount?: number;
   onNext: () => void;
   onSkipManual: () => void;
 }
@@ -34,7 +34,6 @@ export default function ApplyStepCV({
   onFileRemove,
   isAnalyzingAI,
   aiAnalyzed,
-  extractedCount = 0,
   onNext,
   onSkipManual,
 }: ApplyStepCVProps) {
@@ -50,6 +49,7 @@ export default function ApplyStepCV({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) onFileSelect(file);
+    e.target.value = "";
   };
 
   return (
@@ -87,7 +87,7 @@ export default function ApplyStepCV({
                 <div className="flex items-center gap-2 mt-1">
                   <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30 bg-emerald-500/10 gap-1 font-bold">
                     <CheckCircle2 className="w-3 h-3" />
-                    تم الرفع بنجاح
+                    جاهز للإرسال مع الطلب
                   </Badge>
                   <span className="text-[11px] text-muted-foreground font-mono">
                     ({(resumeFile.size / (1024 * 1024)).toFixed(2)} MB)
@@ -99,7 +99,7 @@ export default function ApplyStepCV({
             <div className="flex items-center gap-2 shrink-0">
               <label htmlFor="change-resume" className="cursor-pointer text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/30 transition-colors">
                 استبدال
-                <input type="file" id="change-resume" onChange={handleFileChange} accept=".pdf,.doc,.docx" className="hidden" />
+                <input type="file" id="change-resume" onChange={handleFileChange} accept={FILE_LIMITS.resume.allowedTypes.join(",")} className="hidden" />
               </label>
               <Button
                 type="button"
@@ -138,10 +138,10 @@ export default function ApplyStepCV({
               <div className="flex items-center justify-between gap-2">
                 <span className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-emerald-600" />
-                  تم استخراج وتعبئة بيانات السيرة الذاتية بنجاح! ✨
+                  تمت قراءة السيرة الذاتية. راجع البيانات وأكمل الناقص.
                 </span>
                 <Badge className="bg-emerald-600 text-white text-[10px] font-bold">
-                  {extractedCount > 0 ? `${extractedCount} حقول مكتملة` : "مكتمل تلقائياً"}
+                  جاهز للمراجعة
                 </Badge>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -162,7 +162,7 @@ export default function ApplyStepCV({
               : "border-border/80 hover:border-primary/60 hover:bg-card/90 hover:shadow-md"
           )}
         >
-          <input type="file" id="resume-input" onChange={handleFileChange} accept=".pdf,.doc,.docx" className="hidden" />
+          <input type="file" id="resume-input" onChange={handleFileChange} accept={FILE_LIMITS.resume.allowedTypes.join(",")} className="hidden" />
           <label htmlFor="resume-input" className="cursor-pointer space-y-4 block">
             <div className="w-16 h-16 rounded-3xl bg-primary/10 text-primary flex items-center justify-center mx-auto group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 shadow-xs">
               <Upload className="w-8 h-8" />
@@ -173,7 +173,7 @@ export default function ApplyStepCV({
                 اسحب وأفلت ملف السيرة الذاتية هنا، أو <span className="text-primary underline font-black">تصفح ملفاتك</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                ندعم ملفات PDF و DOCX حتى 10 ميجابايت (استخراج ذكي فوري ⚡)
+                ندعم ملفات PDF و DOC و DOCX حتى {FILE_LIMITS.resume.maxSizeLabel}. يُرفع الملف عند إرسال الطلب.
               </p>
             </div>
 

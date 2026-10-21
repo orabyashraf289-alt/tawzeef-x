@@ -178,6 +178,11 @@ jobs:
           database_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
           test -n "$database_container"
           docker exec -i "$database_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/subscription_job_quota.sql
+      - name: Verify public employer identity and private company isolation
+        run: |
+          database_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
+          test -n "$database_container"
+          docker exec -i "$database_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/public_job_employer.sql
       - name: Stop local database
         if: always()
         run: supabase stop
