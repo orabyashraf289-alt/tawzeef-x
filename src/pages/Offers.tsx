@@ -1127,7 +1127,7 @@ export default function OffersPage() {
                             className="h-8 px-2.5 text-xs font-bold text-emerald-700 bg-emerald-50 border-emerald-300 hover:bg-emerald-100 gap-1 rounded-xl shadow-xs"
                             asChild
                           >
-                            <Link to="/converted-orders">
+                            <Link to={`/converted-orders?action=new&offerId=${encodeURIComponent(offer.id)}`}>
                               <FileCheck2 className="w-3.5 h-3.5 text-emerald-600" />
                               أمر تعيين 📑
                             </Link>
