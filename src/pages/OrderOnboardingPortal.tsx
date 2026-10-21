@@ -6,6 +6,7 @@ import { toast } from "@/hooks/use-toast";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ORDER_DOCUMENT_KINDS } from "@/types/orderOnboardingDocuments";
 
 type Summary = {
   order_number: string;
@@ -18,6 +19,7 @@ type Summary = {
   currency: string;
   status: string;
   onboarding_acknowledged_at: string | null;
+  documents: Array<{ kind: string; file_name: string; review_status: string; review_note: string | null }>;
 };
 
 const validToken = (value: string | undefined) => !!value &&
@@ -36,6 +38,7 @@ export default function OrderOnboardingPortal() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
+  const [uploadingKind, setUploadingKind] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
 
@@ -105,6 +108,30 @@ export default function OrderOnboardingPortal() {
     }
   };
 
+  const uploadDocument = async (kind: string, file: File | undefined) => {
+    if (!token || !file) return;
+    if (file.size > 5_242_880 || !["application/pdf", "image/jpeg", "image/png"].includes(file.type)) {
+      toast({ title: "اختر ملف PDF أو JPG أو PNG بحجم لا يتجاوز 5 ميجابايت", variant: "destructive" });
+      return;
+    }
+    setUploadingKind(kind);
+    try {
+      const body = new FormData();
+      body.append("token", token);
+      body.append("kind", kind);
+      body.append("file", file);
+      const { data, error } = await supabase.functions.invoke("upload-order-onboarding-document", { body });
+      if (error || !data?.success) throw new Error(data?.error || error?.message || "تعذر الرفع");
+      const { data: updated, error: refreshError } = await supabase.rpc("get_order_onboarding" as any, { _token: token });
+      if (refreshError || !isSummary(updated)) throw refreshError || new Error("تعذر تحديث المستندات");
+      setOrder(updated);
+      toast({ title: "تم حفظ المستند وإرساله لمراجعة الموارد البشرية" });
+    } catch (error) {
+      toast({ title: "تعذر رفع المستند", description: error instanceof Error ? error.message : undefined,
+        variant: "destructive" });
+    } finally { setUploadingKind(null); }
+  };
+
   if (loading) return <div dir="rtl" className="min-h-screen grid place-items-center text-slate-600">جاري تحميل أمر التعيين...</div>;
   if (!order) return (
     <div dir="rtl" className="min-h-screen grid place-items-center bg-slate-50 p-4">
@@ -134,6 +161,31 @@ export default function OrderOnboardingPortal() {
             <p className="rounded-xl bg-amber-50 p-3 text-amber-900">
               توقيعك هنا يثبت استلام تفاصيل الأمر. تراجع الإدارة المستندات وتؤكد المباشرة في خطوة منفصلة.
             </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-base">مستندات التعيين</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-slate-600">ارفع المستندات المتاحة بصيغة PDF أو JPG أو PNG (حتى 5 ميجابايت للملف). تراجعها الموارد البشرية قبل اعتمادها.</p>
+            {ORDER_DOCUMENT_KINDS.map(({ key, label }) => {
+              const doc = order.documents?.find(item => item.kind === key);
+              const canUpload = order.status !== "completed" && (!doc || doc.review_status === "rejected");
+              return <div key={key} className="rounded-xl border p-3 space-y-2 sm:flex sm:items-center sm:justify-between sm:gap-3">
+                <div className="min-w-0 text-sm">
+                  <p className="font-semibold">{label}</p>
+                  {doc && <p className="text-slate-600 break-all">{doc.file_name} · {doc.review_status === "approved" ? "معتمد" : doc.review_status === "rejected" ? "مطلوب إعادة الرفع" : "قيد المراجعة"}</p>}
+                  {doc?.review_note && <p className="text-red-700">ملاحظة المراجع: {doc.review_note}</p>}
+                </div>
+                {canUpload && <label className="inline-flex cursor-pointer shrink-0 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-slate-50">
+                  {uploadingKind === key ? "جاري الرفع..." : doc ? "إعادة الرفع" : "رفع المستند"}
+                  <input type="file" accept="application/pdf,image/jpeg,image/png" className="sr-only"
+                    disabled={!!uploadingKind} onChange={event => {
+                      void uploadDocument(key, event.target.files?.[0]);
+                      event.target.value = "";
+                    }} />
+                </label>}
+              </div>;
+            })}
           </CardContent>
         </Card>
         {order.onboarding_acknowledged_at ? (
