@@ -366,6 +366,14 @@ export function useUpdateConvertedOrderStatus() {
       qc.invalidateQueries({ queryKey: ["converted-orders"] });
       toast({ title: "تم تحديث حالة الأمر بنجاح ✅" });
     },
+    onError: (error: Error) => {
+      const description = error.message.includes("Candidate onboarding acknowledgement")
+        ? "يجب أن يوقع المرشح إقرار استلام أمر التعيين أولًا."
+        : error.message.includes("Required onboarding documents")
+          ? "ما زالت بعض المستندات المطلوبة تنتظر الاعتماد."
+          : "حاول مرة أخرى أو راجع صلاحيات الشركة.";
+      toast({ title: "تعذر تحديث حالة أمر التعيين", description, variant: "destructive" });
+    },
   });
 }
 
@@ -378,13 +386,17 @@ export function useUpdateConvertedOrderChecklist() {
     mutationFn: async ({
       id,
       checklist,
+      requiredKinds,
     }: {
       id: string;
       checklist: OrderChecklist;
+      requiredKinds?: string[];
     }) => {
       if (isDatabaseOrder(id)) {
         const { data, error } = await supabase.from("converted_orders" as any)
-          .update({ documents_checklist: checklist }).eq("id", id).select("id").single();
+          .update({ documents_checklist: checklist,
+            ...(requiredKinds ? { required_document_kinds: requiredKinds } : {}) })
+          .eq("id", id).select("id").single();
         if (error) throw error;
         return { id: (data as any).id, checklist };
       }
@@ -394,6 +406,7 @@ export function useUpdateConvertedOrderChecklist() {
           ? {
               ...o,
               documents_checklist: checklist,
+              ...(requiredKinds ? { required_document_kinds: requiredKinds } : {}),
               updated_at: new Date().toISOString(),
             }
           : o
@@ -406,6 +419,7 @@ export function useUpdateConvertedOrderChecklist() {
       qc.invalidateQueries({ queryKey: ["converted-orders"] });
       toast({ title: "تم تحديث قائمة مسوغات التعيين ✅" });
     },
+    onError: () => toast({ title: "تعذر حفظ قائمة المسوغات", variant: "destructive" }),
   });
 }
 
