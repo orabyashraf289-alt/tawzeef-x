@@ -22,6 +22,7 @@ interface AIEvaluation {
   recommendation: string;
   tailoredInterviewQuestions?: string[];
   requirementEvidence?: Array<{ requirement: string; status: "supported" | "unconfirmed"; evidence: string }>;
+  cvAnalyzed?: boolean;
 }
 
 interface AIEvaluationCardProps {
@@ -119,7 +120,7 @@ export default function AIEvaluationCard(props: AIEvaluationCardProps) {
           </h3>
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          مقارنة بيانات المرشح ونص السيرة المقروء مع متطلبات الوظيفة، مع عرض الأدلة والفجوات للمراجعة البشرية.
+          مقارنة بيانات المرشح بمتطلبات الوظيفة؛ يُستخدم نص السيرة فقط إذا وافق المتقدم وتمكنت المنصة من قراءته.
         </p>
         <Button onClick={runEvaluation} disabled={isLoading}
           className="w-full gap-2 rounded-xl h-11 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20">
@@ -149,6 +150,9 @@ export default function AIEvaluationCard(props: AIEvaluationCardProps) {
         </div>
 
         {/* Total Score Header */}
+        <p className="text-xs text-muted-foreground">
+          {evaluation.cvAnalyzed ? "شمل التقييم مقتطفًا من السيرة بموافقة المتقدم." : "اعتمد التقييم على البيانات المهنية المدخلة دون نص السيرة."}
+        </p>
         <div className="text-center py-3 bg-muted/30 rounded-2xl border border-border/60">
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.1 }}
             className={cn("text-4xl font-black tabular-nums", getScoreColor(evaluation.score))}>
@@ -163,11 +167,11 @@ export default function AIEvaluationCard(props: AIEvaluationCardProps) {
           <div className="grid grid-cols-2 gap-2.5">
             <div className="p-2.5 rounded-xl bg-card border border-border/60 text-center">
               <span className="text-[10px] font-bold text-muted-foreground">مطابقة المهارات</span>
-              <div className="text-base font-extrabold text-foreground mt-0.5">{evaluation.skillsMatchScore ?? evaluation.score}%</div>
+              <div className="text-base font-extrabold text-foreground mt-0.5">{evaluation.skillsMatchScore != null ? `${evaluation.skillsMatchScore}%` : "غير متاح"}</div>
             </div>
             <div className="p-2.5 rounded-xl bg-card border border-border/60 text-center">
               <span className="text-[10px] font-bold text-muted-foreground">مطابقة الخبرة</span>
-              <div className="text-base font-extrabold text-foreground mt-0.5">{evaluation.experienceMatchScore ?? evaluation.score}%</div>
+              <div className="text-base font-extrabold text-foreground mt-0.5">{evaluation.experienceMatchScore != null ? `${evaluation.experienceMatchScore}%` : "غير متاح"}</div>
             </div>
             {evaluation.educationMatchScore != null && <div className="p-2.5 rounded-xl bg-card border border-border/60 text-center">
               <span className="text-[10px] font-bold text-muted-foreground">المؤهل العلمي</span>
@@ -236,7 +240,7 @@ export default function AIEvaluationCard(props: AIEvaluationCardProps) {
         {evaluation.tailoredInterviewQuestions && evaluation.tailoredInterviewQuestions.length > 0 && (
           <div className="space-y-2 pt-2 border-t border-border/60">
             <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              <HelpCircle className="w-3.5 h-3.5 text-indigo-500" />أسئلة المقابلة المخصصة لسيرة هذا المرشح
+              <HelpCircle className="w-3.5 h-3.5 text-indigo-500" />أسئلة المقابلة لهذا المرشح
             </h4>
             <div className="space-y-2">
               {evaluation.tailoredInterviewQuestions.map((q, i) => (
