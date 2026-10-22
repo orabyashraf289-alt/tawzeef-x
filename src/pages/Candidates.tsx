@@ -1,10 +1,11 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
+import AIEvaluationCard from "@/components/AIEvaluationCard";
 import {
   Search, Mail, Phone, Star, UserPlus, Users, UserCheck, UserX, Brain, Sparkles,
   GitCompareArrows, X, Filter, ArrowUpDown, CheckSquare, Trash2, ArrowRight,
-  Download, LayoutGrid, List, TrendingUp, TrendingDown, Loader2, Eye, FileText,
+  Download, LayoutGrid, List, Loader2, Eye, FileText,
   Calendar, Building, Globe, RefreshCw, Plus, MessageCircle, CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -77,7 +78,7 @@ function AddCandidateModal({ isOpen, onClose, jobs, onCreated }: { isOpen: boole
       const selectedJob = jobs.find(j => j.id === formData.job_id);
       const skillsArray = formData.skills ? formData.skills.split(",").map(s => s.trim()).filter(Boolean) : [];
 
-      const { data: insertedCand, error } = await supabase.from("candidates").insert({
+      const { error } = await supabase.from("candidates").insert({
         name: formData.name,
         email: formData.email || null,
         phone: formData.phone || null,
@@ -94,12 +95,6 @@ function AddCandidateModal({ isOpen, onClose, jobs, onCreated }: { isOpen: boole
       } as any).select().single();
 
       if (error) throw error;
-
-      if (insertedCand?.id) {
-        supabase.functions.invoke("evaluate-candidate", {
-          body: { candidateId: insertedCand.id, jobId: formData.job_id }
-        }).catch(e => console.warn("Background AI evaluation warning:", e));
-      }
 
       toast({ title: "تم إضافة المرشح بنجاح ✅" });
       onCreated();
@@ -253,62 +248,62 @@ export default function Candidates() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [autoScreeningRunning, setAutoScreeningRunning] = useState(false);
-  const [autoTriggered, setAutoTriggered] = useState(false);
+  const screeningLock = useRef(false);
 
   // Modals & Drawers State
   const [selectedCandidateForAiSummary, setSelectedCandidateForAiSummary] = useState<any | null>(null);
   const [selectedCandidateForQuickView, setSelectedCandidateForQuickView] = useState<any | null>(null);
-  const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // AI Screening runner
-  const runAutoScreening = async (silent = false) => {
-    if (autoScreeningRunning || !candidates?.length) return;
-    const targets = candidates.filter(c => (c as any).ai_score == null).slice(0, 10);
+  const runAutoScreening = async (selectedOnly = false) => {
+    if (screeningLock.current || !candidates?.length) return;
+    const targets = candidates.filter(c => c.ai_score == null && (!selectedOnly || selectedIds.has(c.id))).slice(0, 10);
     if (targets.length === 0) {
-      if (!silent) toast({ title: "جميع المرشحين لديهم تقييم ذكي بالفعل ✅" });
+      toast({ title: selectedOnly ? "المرشحون المحددون لديهم تقييم بالفعل" : "جميع المرشحين لديهم تقييم ذكي بالفعل ✅" });
       return;
     }
+    screeningLock.current = true;
     setAutoScreeningRunning(true);
-    if (!silent) toast({ title: "بدء الفرز الذكي", description: `جاري تقييم ${targets.length} مرشح تلقائياً...` });
-    let successCount = 0;
-    const { data: sessionData } = await supabase.auth.getSession();
-    const authToken = sessionData.session?.access_token;
-    if (!authToken) {
+    toast({ title: "بدء الفرز الذكي", description: `جاري تقييم ${targets.length} مرشح بطلبك...` });
+    try {
+      let successCount = 0;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const authToken = sessionData.session?.access_token;
+      if (!authToken) {
+        setAutoScreeningRunning(false);
+        toast({ title: "سجّل دخولك لتقييم المرشحين", variant: "destructive" });
+        return;
+      }
+
+      for (const candidate of targets) {
+        try {
+          const resp = await fetch(EVAL_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ candidateId: candidate.id, jobId: candidate.job_id })
+          });
+          if (!resp.ok) {
+            if (resp.status === 429) { toast({ title: "تم تجاوز الحد المسموح", variant: "destructive" }); break; }
+            if (resp.status === 402) { toast({ title: "الرصيد غير كافٍ", variant: "destructive" }); break; }
+            continue;
+          }
+          successCount++;
+        } catch { /* continue */ }
+      }
+      await queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      toast({ title: successCount ? "اكتمل الفرز الذكي ✅" : "لم يكتمل أي تقييم",
+        description: `تم تقييم ${successCount} من ${targets.length} مرشح.`, ...(successCount ? {} : { variant: "destructive" as const }) });
+    } catch {
+      toast({ title: "تعذر تشغيل الفرز الذكي، حاول لاحقًا", variant: "destructive" });
+    } finally {
+      screeningLock.current = false;
       setAutoScreeningRunning(false);
-      toast({ title: "سجّل دخولك لتقييم المرشحين", variant: "destructive" });
-      return;
     }
-
-    for (const candidate of targets) {
-      try {
-        const resp = await fetch(EVAL_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`
-          },
-          body: JSON.stringify({ candidateId: candidate.id, jobId: candidate.job_id })
-        });
-        if (!resp.ok) {
-          if (resp.status === 429) { toast({ title: "تم تجاوز الحد المسموح", variant: "destructive" }); break; }
-          if (resp.status === 402) { toast({ title: "الرصيد غير كافٍ", variant: "destructive" }); break; }
-          continue;
-        }
-        successCount++;
-      } catch { /* continue */ }
-    }
-    await queryClient.invalidateQueries({ queryKey: ["candidates"] });
-    setAutoScreeningRunning(false);
-    if (!silent) toast({ title: "اكتمل الفرز الذكي ✅", description: `تم تقييم ${successCount} مرشح.` });
   };
-
-  useEffect(() => {
-    if (!autoTriggered && candidates && candidates.some(c => (c as any).ai_score == null)) {
-      setAutoTriggered(true);
-      runAutoScreening(true);
-    }
-  }, [autoTriggered, candidates]);
 
   // Realtime subscription for instant updates when any candidate or application is added
   useEffect(() => {
@@ -842,7 +837,7 @@ export default function Candidates() {
                   </Button>
                 )}
 
-                <Button size="sm" className="h-8 text-xs gap-1 bg-gradient-to-l from-primary to-primary/80" onClick={() => runAutoScreening()} disabled={bulkLoading}>
+                <Button size="sm" className="h-8 text-xs gap-1 bg-gradient-to-l from-primary to-primary/80" onClick={() => runAutoScreening(true)} disabled={bulkLoading || autoScreeningRunning}>
                   <Sparkles className="w-3.5 h-3.5" /> فرز AI
                 </Button>
 
@@ -1161,7 +1156,7 @@ export default function Candidates() {
               <div className="flex items-center justify-between pb-4 border-b border-border mb-5">
                 <div className="flex items-center gap-2">
                   <Brain className="w-5 h-5 text-primary" />
-                  <h3 className="font-bold text-base">تحليل السيرة الذاتية بالذكاء الاصطناعي</h3>
+                  <h3 className="font-bold text-base">تقرير مطابقة ATS</h3>
                 </div>
                 <button onClick={() => setSelectedCandidateForAiSummary(null)} className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted">
                   <X className="w-5 h-5" />
@@ -1172,111 +1167,15 @@ export default function Candidates() {
                 <h4 className="font-bold text-sm text-foreground mb-1">{selectedCandidateForAiSummary.name}</h4>
                 <p className="text-xs text-muted-foreground mb-2">{selectedCandidateForAiSummary.role}</p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 flex-wrap">
-                  <span>الخبرة: {selectedCandidateForAiSummary.experience || "غير حددة"}</span>
+                  <span>الخبرة: {selectedCandidateForAiSummary.experience || "غير محددة"}</span>
                   <span>•</span>
                   <span>المرحلة: {selectedCandidateForAiSummary.stage || "غير محددة"}</span>
                 </div>
               </div>
 
-              {selectedCandidateForAiSummary.ai_score != null ? (
-                (() => {
-                  let evalData: any = null;
-                  if (selectedCandidateForAiSummary.ai_evaluation) {
-                    try { evalData = JSON.parse(selectedCandidateForAiSummary.ai_evaluation); }
-                    catch { evalData = { summary: selectedCandidateForAiSummary.ai_evaluation }; }
-                  }
-
-                  return (
-                    <div className="space-y-5 flex-1">
-                      <div className="text-center py-4 bg-primary/[0.02] border border-primary/10 rounded-xl">
-                        <div className={cn("text-5xl font-black tracking-tight",
-                          selectedCandidateForAiSummary.ai_score >= 80 ? "text-green-600 dark:text-green-400" :
-                          selectedCandidateForAiSummary.ai_score >= 50 ? "text-amber-600 dark:text-amber-400" :
-                          "text-destructive"
-                        )}>
-                          {selectedCandidateForAiSummary.ai_score}%
-                        </div>
-                        <p className="text-[11px] text-muted-foreground mt-1.5 font-medium">نسبة توافق المؤهلات مع الوظيفة</p>
-                      </div>
-
-                      {evalData?.summary && (
-                        <div className="space-y-2">
-                          <h4 className="text-xs font-bold text-foreground">الملخص التنفيذي للتقييم:</h4>
-                          <p className="text-xs text-muted-foreground leading-relaxed bg-muted/30 p-3 rounded-lg border border-border/30">
-                            {evalData.summary}
-                          </p>
-                        </div>
-                      )}
-
-                      {evalData?.strengths && evalData.strengths.length > 0 && (
-                        <div className="space-y-2">
-                          <h4 className="text-xs font-bold text-green-600 dark:text-green-400 flex items-center gap-1">
-                            <TrendingUp className="w-3.5 h-3.5" />نقاط القوة والميزات التنافسية:
-                          </h4>
-                          <ul className="space-y-1.5 bg-green-500/[0.02] border border-green-500/10 rounded-xl p-3">
-                            {evalData.strengths.map((str: string, idx: number) => (
-                              <li key={idx} className="text-xs text-muted-foreground flex items-start gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0" />
-                                <span>{str}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {evalData?.weaknesses && evalData.weaknesses.length > 0 && (
-                        <div className="space-y-2">
-                          <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                            <TrendingDown className="w-3.5 h-3.5" />نقاط التحسين والفجوات:
-                          </h4>
-                          <ul className="space-y-1.5 bg-amber-500/[0.02] border border-amber-500/10 rounded-xl p-3">
-                            {evalData.weaknesses.map((weak: string, idx: number) => (
-                              <li key={idx} className="text-xs text-muted-foreground flex items-start gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
-                                <span>{weak}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-4">
-                  <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center">
-                    <Sparkles className="w-8 h-8 text-primary/40" />
-                  </div>
-                  <h4 className="font-semibold text-sm">لم يتم تشغيل التقييم الذكي بعد</h4>
-                  <Button
-                    onClick={async () => {
-                      setAiSummaryLoading(true);
-                      try {
-                        const { data: evalResult, error } = await supabase.functions.invoke("evaluate-candidate", {
-                          body: { candidateId: selectedCandidateForAiSummary.id, jobId: selectedCandidateForAiSummary.job_id },
-                        });
-                        if (error || !evalResult || typeof evalResult.score !== "number") throw error || new Error("فشل التقييم");
-                        setSelectedCandidateForAiSummary((prev: any) => ({
-                          ...prev,
-                          ai_score: evalResult.score,
-                          ai_evaluation: JSON.stringify(evalResult)
-                        }));
-                        queryClient.invalidateQueries({ queryKey: ["candidates"] });
-                        toast({ title: "تم التقييم بنجاح ✅" });
-                      } catch (err: any) {
-                        toast({ title: "خطأ", description: err.message, variant: "destructive" });
-                      } finally {
-                        setAiSummaryLoading(false);
-                      }
-                    }}
-                    disabled={aiSummaryLoading}
-                    className="w-full gap-2"
-                  >
-                    {aiSummaryLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    بدء التقييم بالذكاء الاصطناعي
-                  </Button>
-                </div>
-              )}
+              <div className="flex-1 pb-5">
+                <AIEvaluationCard candidate={selectedCandidateForAiSummary} />
+              </div>
 
               <div className="pt-4 border-t border-border mt-auto">
                 <Link to={`/candidates/${selectedCandidateForAiSummary.id}`}>
