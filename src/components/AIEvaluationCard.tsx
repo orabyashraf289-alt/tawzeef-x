@@ -21,6 +21,7 @@ interface AIEvaluation {
   weaknesses: string[];
   recommendation: string;
   tailoredInterviewQuestions?: string[];
+  requirementEvidence?: Array<{ requirement: string; status: "supported" | "unconfirmed"; evidence: string }>;
 }
 
 interface AIEvaluationCardProps {
@@ -88,17 +89,10 @@ export default function AIEvaluationCard(props: AIEvaluationCardProps) {
 
       setEvaluation(data);
 
-      const qualified = data.score >= 60;
-      const newStatus = qualified ? "مؤهل مبدئياً" : "غير مؤهل مبدئياً";
-      await supabase
-        .from("candidates")
-        .update({ status: newStatus })
-        .eq("id", candidateId);
-
       queryClient.invalidateQueries({ queryKey: ["candidates"] });
       toast({
         title: `تم التقييم الذكي للمرشح ${candidateName} ✅`,
-        description: `نسبة التطابق الكلية: ${data.score}% — ${data.recommendation}`,
+        description: `مؤشر المطابقة الإرشادي: ${data.score}%. راجع أدلة المتطلبات قبل تحديث حالة المرشح.`,
       });
     } catch (e: any) {
       toast({ title: "خطأ في التقييم", description: e.message, variant: "destructive" });
@@ -125,7 +119,7 @@ export default function AIEvaluationCard(props: AIEvaluationCardProps) {
           </h3>
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          تشغيل التحليل الفائق بالذكاء الاصطناعي: استخراج مصفوفة المطابقة الرباعية، تحديد نقاط القوة والفجوات، وتوليد أسئلة التقييم المخصصة.
+          مقارنة بيانات المرشح ونص السيرة المقروء مع متطلبات الوظيفة، مع عرض الأدلة والفجوات للمراجعة البشرية.
         </p>
         <Button onClick={runEvaluation} disabled={isLoading}
           className="w-full gap-2 rounded-xl h-11 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20">
@@ -160,7 +154,7 @@ export default function AIEvaluationCard(props: AIEvaluationCardProps) {
             className={cn("text-4xl font-black tabular-nums", getScoreColor(evaluation.score))}>
             {evaluation.score}%
           </motion.div>
-          <p className="text-xs font-bold text-muted-foreground mt-1">نسبة التوافق والمطابقة الكلية</p>
+          <p className="text-xs font-bold text-muted-foreground mt-1">مؤشر إرشادي، القرار لمسؤول التوظيف</p>
           <Progress value={evaluation.score} className={cn("h-2.5 mt-2.5 mx-6", getProgressColor(evaluation.score))} />
         </div>
 
@@ -175,14 +169,10 @@ export default function AIEvaluationCard(props: AIEvaluationCardProps) {
               <span className="text-[10px] font-bold text-muted-foreground">مطابقة الخبرة</span>
               <div className="text-base font-extrabold text-foreground mt-0.5">{evaluation.experienceMatchScore ?? evaluation.score}%</div>
             </div>
-            <div className="p-2.5 rounded-xl bg-card border border-border/60 text-center">
+            {evaluation.educationMatchScore != null && <div className="p-2.5 rounded-xl bg-card border border-border/60 text-center">
               <span className="text-[10px] font-bold text-muted-foreground">المؤهل العلمي</span>
-              <div className="text-base font-extrabold text-foreground mt-0.5">{evaluation.educationMatchScore ?? 85}%</div>
-            </div>
-            <div className="p-2.5 rounded-xl bg-card border border-border/60 text-center">
-              <span className="text-[10px] font-bold text-muted-foreground">التوافق التنظيمي</span>
-              <div className="text-base font-extrabold text-foreground mt-0.5">{evaluation.culturalFitScore ?? 80}%</div>
-            </div>
+              <div className="text-base font-extrabold text-foreground mt-0.5">{evaluation.educationMatchScore}%</div>
+            </div>}
           </div>
         )}
 
@@ -198,6 +188,15 @@ export default function AIEvaluationCard(props: AIEvaluationCardProps) {
         <p className="text-xs text-foreground leading-relaxed bg-card p-3 rounded-xl border border-border/60">
           {evaluation.summary}
         </p>
+
+        {evaluation.requirementEvidence && evaluation.requirementEvidence.length > 0 && <div className="space-y-2">
+          <h4 className="text-xs font-bold">أدلة مطابقة متطلبات الوظيفة</h4>
+          {evaluation.requirementEvidence.map((item, index) => <div key={`${item.requirement}-${index}`} className="p-2.5 rounded-xl bg-muted/40 text-xs space-y-1">
+            <p className="font-semibold">{item.requirement} · {item.status === "supported" ? "مذكور" : "يحتاج تحققًا"}</p>
+            {item.status === "supported" && item.evidence && <p className="text-muted-foreground">الدليل: {item.evidence}</p>}
+          </div>)}
+          <p className="text-[11px] text-muted-foreground">هذه مؤشرات من بيانات مقدم الطلب؛ تحقق من المستندات بنفسك قبل اتخاذ قرار.</p>
+        </div>}
 
         {/* Strengths */}
         <div>
