@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getExtendedCorsHeaders } from "../_shared/cors.ts";
+import { groundEvaluationEvidence } from "./evidence.ts";
 import {
   buildGeminiRequest,
   canEvaluateCandidate,
@@ -103,7 +104,7 @@ serve(async (req) => {
       if (error) throw error;
       if (applications?.length === 1 && applications[0].ai_processing_consent_at &&
           typeof applications[0].ai_resume_excerpt === "string") {
-        resumeExcerpt = applications[0].ai_resume_excerpt;
+        resumeExcerpt = applications[0].ai_resume_excerpt.trim().slice(0, 8000) || null;
       }
     }
 
@@ -126,9 +127,9 @@ serve(async (req) => {
       return json({ error: "Gemini evaluation is currently unavailable" }, 503, corsHeaders);
     }
 
-    const evaluation = parseGeminiEvaluation(await response.json());
-    if (!evaluation) return json({ error: "Invalid Gemini evaluation" }, 502, corsHeaders);
-    evaluation.cvAnalyzed = Boolean(resumeExcerpt);
+    const proposed = parseGeminiEvaluation(await response.json());
+    if (!proposed) return json({ error: "Invalid Gemini evaluation" }, 502, corsHeaders);
+    const evaluation = groundEvaluationEvidence(proposed, candidate as EvaluationCandidate, job, resumeExcerpt, user.id);
 
     let update = db.from("candidates")
       .update({ ai_score: evaluation.score, ai_evaluation: JSON.stringify(evaluation) })
