@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle2, FileText, PenLine } from "lucide-react";
+import { CheckCircle2, FileText, PenLine, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
@@ -39,6 +39,7 @@ export default function OrderOnboardingPortal() {
   const [submitting, setSubmitting] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
   const [uploadingKind, setUploadingKind] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
 
@@ -108,6 +109,18 @@ export default function OrderOnboardingPortal() {
     }
   };
 
+  const refreshDocuments = async () => {
+    if (!token || refreshing) return;
+    setRefreshing(true);
+    const { data, error } = await supabase.rpc("get_order_onboarding" as any, { _token: token });
+    setRefreshing(false);
+    if (error || !isSummary(data)) {
+      toast({ title: "تعذر تحديث حالة المستندات", variant: "destructive" });
+      return;
+    }
+    setOrder(data);
+  };
+
   const uploadDocument = async (kind: string, file: File | undefined) => {
     if (!token || !file) return;
     if (file.size > 5_242_880 || !["application/pdf", "image/jpeg", "image/png"].includes(file.type)) {
@@ -164,7 +177,13 @@ export default function OrderOnboardingPortal() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-base">مستندات التعيين</CardTitle></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-base">مستندات التعيين</CardTitle>
+            <Button type="button" size="sm" variant="outline" disabled={refreshing || !!uploadingKind}
+              onClick={() => void refreshDocuments()}>
+              <RefreshCw size={14} className="ml-1" />{refreshing ? "جاري التحديث" : "تحديث الحالة"}
+            </Button>
+          </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-slate-600">ارفع المستندات المتاحة بصيغة PDF أو JPG أو PNG (حتى 5 ميجابايت للملف). تراجعها الموارد البشرية قبل اعتمادها.</p>
             {ORDER_DOCUMENT_KINDS.map(({ key, label }) => {
