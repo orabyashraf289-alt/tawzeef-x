@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { prepareConsentedResume } from "../lib/consentedResume";
 import {
   buildGeminiRequest,
   canEvaluateCandidate,
@@ -88,6 +89,26 @@ describe("Gemini request and response", () => {
     expect(JSON.stringify(body)).toContain("React");
     expect(JSON.stringify(body)).toContain("بناء واجهات");
     expect(JSON.stringify(body)).not.toMatch(/Full Name|private@example\.invalid|01000000000|candidate-1|company-1/);
+  });
+
+  it("uses a CV excerpt only when supplied by the consent-checked server path", () => {
+    const excerpt = prepareConsentedResume("Full Name\nprivate@example.invalid\n+966 501234567\nReact and TypeScript\nرقم الهوية: 1234567890", "Full Name");
+    expect(excerpt).toContain("React and TypeScript");
+    expect(excerpt).not.toMatch(/Full Name|private@example|501234567|1234567890/);
+    const without = JSON.stringify(buildGeminiRequest(candidate, job));
+    const withConsent = JSON.stringify(buildGeminiRequest(candidate, job, excerpt));
+    expect(without).not.toContain("React and TypeScript");
+    expect(withConsent).toContain("React and TypeScript");
+  });
+
+  it("checks model-proposed requirement evidence shape", () => {
+    const wrap = (v: unknown) => ({ choices: [{ message: { tool_calls: [{ function: {
+      name: "evaluate_candidate", arguments: JSON.stringify(v),
+    } }] } }] });
+    const valid = { score: 75, summary: "ملائم", strengths: [], weaknesses: [], recommendation: "راجع المرشح",
+      requirementEvidence: [{ requirement: "React", status: "supported", evidence: "React and TypeScript" }] };
+    expect(parseGeminiEvaluation(wrap(valid))?.requirementEvidence).toEqual(valid.requirementEvidence);
+    expect(parseGeminiEvaluation(wrap({ ...valid, requirementEvidence: [{ ...valid.requirementEvidence[0], status: "invented" }] }))).toBeNull();
   });
 
   it("accepts a valid tool result and refuses malformed or inflated scores", () => {
