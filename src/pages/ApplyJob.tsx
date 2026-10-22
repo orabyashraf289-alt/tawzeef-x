@@ -7,6 +7,7 @@ import { extractTextFromPDF, extractTextFromDocx } from "@/lib/fileParser";
 import { parseJobCustomSpecs } from "@/lib/jobSpecsHelper";
 import { getPublicJobEmployerName } from "@/lib/publicJobIdentity";
 import { getJobAvailability } from "@/lib/jobSeoHelper";
+import { analyzeApplicationEvidence } from "@/lib/applicationEvidence";
 import { notifyGoogleIndexing } from "@/lib/googleIndexingService";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -82,6 +83,7 @@ export default function ApplyJob() {
 
   const [skills, setSkills] = useState<string[]>([]);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumeText, setResumeText] = useState("");
   const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
   const [aiAnalyzed, setAiAnalyzed] = useState(false);
   const resumeAnalysisVersion = useRef(0);
@@ -171,6 +173,12 @@ export default function ApplyJob() {
     });
     return skillsFound;
   }, [job]);
+  const applicationEvidence = useMemo(() => analyzeApplicationEvidence({
+    requirements: job?.requirements,
+    resumeText,
+    skills,
+    form,
+  }), [job?.requirements, resumeText, skills, form]);
 
   // Google Jobs Structured Data (JobPosting) - Strict Google Search Central Compliance
   const jobPostingJsonLd = useMemo(() => {
@@ -251,6 +259,7 @@ export default function ApplyJob() {
     if (!isValid) return;
     const analysisVersion = ++resumeAnalysisVersion.current;
     setAiAnalyzed(false);
+    setResumeText("");
     setResumeFile(file);
     toast({ title: "تم إرفاق السيرة الذاتية بنجاح ✅", description: file.name });
 
@@ -266,6 +275,7 @@ export default function ApplyJob() {
       }
 
       if (analysisVersion !== resumeAnalysisVersion.current) return;
+      setResumeText(extractedText);
       if (extractedText) {
         // Fast Regex Heuristics
         const phoneMatch = extractedText.match(/(?:(?:\+|00)?(966|20|971|965|968|973|974)?[-.\s]?)?(05\d{8}|01[0125]\d{8}|\d{9,12})/);
@@ -281,35 +291,6 @@ export default function ApplyJob() {
           if (!prev.licenseNumber && licenseMatch) { updated.licenseNumber = licenseMatch[1].trim(); }
           return updated;
         });
-
-        // Supabase Edge Function parse-resume integration
-        try {
-          const { data: aiData, error: aiError } = await supabase.functions.invoke("parse-resume", {
-            body: { resumeText: extractedText, applicantName: form.name },
-          });
-
-          if (analysisVersion !== resumeAnalysisVersion.current) return;
-          if (!aiError && aiData) {
-            setForm(prev => ({
-              ...prev,
-              name: prev.name || aiData.name || "",
-              email: prev.email || aiData.email || "",
-              phone: prev.phone || aiData.phone || "",
-              experience: prev.experience || (aiData.years_of_experience ? String(aiData.years_of_experience) : ""),
-              currentTitle: prev.currentTitle || aiData.specialty || "",
-              licenseNumber: prev.licenseNumber || aiData.license_number || "",
-              universityDegree: prev.universityDegree || (aiData.education?.[0]?.degree || ""),
-              major: prev.major || (aiData.education?.[0]?.fieldOfStudy || ""),
-              coverLetter: prev.coverLetter || aiData.experience_summary || "",
-            }));
-
-            if (Array.isArray(aiData.skills) && aiData.skills.length > 0) {
-              setSkills(prev => Array.from(new Set([...prev, ...aiData.skills])));
-            }
-          }
-        } catch (aiErr) {
-          console.warn("AI parse resume invoke notice:", aiErr);
-        }
 
         if (analysisVersion !== resumeAnalysisVersion.current) return;
         setAiAnalyzed(true);
@@ -332,6 +313,7 @@ export default function ApplyJob() {
   const handleFileRemove = () => {
     resumeAnalysisVersion.current++;
     setResumeFile(null);
+    setResumeText("");
     setAiAnalyzed(false);
     setIsAnalyzingAI(false);
   };
@@ -578,6 +560,10 @@ export default function ApplyJob() {
       {/* Stepper Indicator Dock */}
       <div className="border-b border-border/60 bg-card/60 backdrop-blur-md sticky top-16 z-30 py-3 px-4 shadow-2xs">
         <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-between text-xs font-semibold mb-2 md:hidden">
+            <span>الخطوة {currentStep} من {STEPS.length}: {STEPS[currentStep - 1].title}</span>
+            <span>{Math.round(currentStep / STEPS.length * 100)}%</span>
+          </div>
           <div className="flex items-center justify-between gap-2">
             {STEPS.map((s, idx) => {
               const Icon = s.icon;
@@ -649,6 +635,7 @@ export default function ApplyJob() {
                       onFileRemove={handleFileRemove}
                       isAnalyzingAI={isAnalyzingAI}
                       aiAnalyzed={aiAnalyzed}
+                      jobRequirements={Array.isArray(job?.requirements) ? job.requirements : []}
                       onNext={() => setCurrentStep(2)}
                       onSkipManual={() => setCurrentStep(2)}
                     />
@@ -723,6 +710,7 @@ export default function ApplyJob() {
                       form={form}
                       skills={skills}
                       resumeFile={resumeFile}
+                      evidence={applicationEvidence}
                       job={job}
                       submitting={submitting}
                       onSubmit={handleSubmit}
