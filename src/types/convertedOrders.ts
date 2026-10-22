@@ -62,6 +62,7 @@ export interface ConvertedOrder {
   probation_period_months?: number; // فترة التجربة بالأشهر
 
   documents_checklist?: OrderChecklist;
+  required_document_kinds?: string[];
 
   transfer_reason?: string;
   notes?: string;
@@ -87,5 +88,7 @@ export function isConvertedOrder(value: unknown): value is ConvertedOrder {
     if (!row.documents_checklist || typeof row.documents_checklist !== "object" || Array.isArray(row.documents_checklist)) return false;
     if (!Object.values(row.documents_checklist).every((checked) => typeof checked === "boolean")) return false;
   }
+  if (row.required_document_kinds !== undefined &&
+    (!Array.isArray(row.required_document_kinds) || !row.required_document_kinds.every((kind) => typeof kind === "string"))) return false;
   return true;
 }
