@@ -8,6 +8,7 @@ import { parseJobCustomSpecs } from "@/lib/jobSpecsHelper";
 import { getPublicJobEmployerName } from "@/lib/publicJobIdentity";
 import { getJobAvailability } from "@/lib/jobSeoHelper";
 import { analyzeApplicationEvidence } from "@/lib/applicationEvidence";
+import { prepareConsentedResume } from "@/lib/consentedResume";
 import { notifyGoogleIndexing } from "@/lib/googleIndexingService";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -333,7 +334,7 @@ export default function ApplyJob() {
   };
 
   // Final Application Submission
-  const handleSubmit = async () => {
+  const handleSubmit = async (aiConsent: boolean) => {
     if (submissionInFlight.current || submitted) return;
     if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) {
       toast({ title: "يرجى استكمال البيانات الأساسية", variant: "destructive" });
@@ -382,6 +383,13 @@ export default function ApplyJob() {
       university_degree: form.universityDegree || null,
       demo_video_url: form.demoVideoUrl || null,
     };
+    if (aiConsent && resumeUrl && resumeText.trim()) {
+      const excerpt = prepareConsentedResume(resumeText, form.name);
+      if (excerpt) {
+        payload.ai_processing_consent_at = new Date().toISOString();
+        payload.ai_resume_excerpt = excerpt;
+      }
+    }
 
     const { error: appError } = await supabase.from("applications").insert(payload);
     if (appError) throw appError;
@@ -710,6 +718,7 @@ export default function ApplyJob() {
                       form={form}
                       skills={skills}
                       resumeFile={resumeFile}
+                      resumeReadable={Boolean(prepareConsentedResume(resumeText, form.name))}
                       evidence={applicationEvidence}
                       job={job}
                       submitting={submitting}
