@@ -50,10 +50,11 @@ interface ApplyStepReviewProps {
   };
   skills: string[];
   resumeFile: File | null;
+  resumeReadable: boolean;
   evidence: ApplicationEvidence;
   job: any;
   submitting: boolean;
-  onSubmit: () => void;
+  onSubmit: (aiConsent: boolean) => void;
   onPrev: () => void;
   onJumpToStep: (step: number) => void;
 }
@@ -62,6 +63,7 @@ export default function ApplyStepReview({
   form,
   skills,
   resumeFile,
+  resumeReadable,
   evidence,
   job,
   submitting,
@@ -70,6 +72,7 @@ export default function ApplyStepReview({
   onJumpToStep,
 }: ApplyStepReviewProps) {
   const [agreed, setAgreed] = useState(false);
+  const [aiConsent, setAiConsent] = useState(false);
 
   const handleSubmitClick = () => {
     if (!agreed) {
@@ -80,7 +83,7 @@ export default function ApplyStepReview({
       });
       return;
     }
-    onSubmit();
+    onSubmit(aiConsent && resumeReadable);
   };
 
   return (
@@ -265,6 +268,20 @@ export default function ApplyStepReview({
       </div>
 
       {/* Declaration Checkbox */}
+      <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 flex items-start gap-3">
+        <Checkbox
+          id="ai-resume-consent"
+          checked={aiConsent && resumeReadable}
+          disabled={!resumeReadable || submitting}
+          onCheckedChange={(checked) => setAiConsent(checked === true)}
+          className="mt-0.5"
+        />
+        <label htmlFor="ai-resume-consent" className="text-xs text-foreground leading-relaxed cursor-pointer select-none">
+          <span className="font-bold">اختياري: تحليل السيرة بالذكاء الاصطناعي</span>
+          <span className="block mt-1">أوافق على حفظ مقتطف من نص سيرتي المهنية بعد إزالة بيانات الاتصال الواضحة، وإرساله مع بياناتي المهنية ومتطلبات الوظيفة إلى Google Gemini عندما يطلب مسؤول التوظيف التقييم. قد تبقى بيانات شخصية أخرى في نص السيرة. التقييم إرشادي ويُراجع بشريًا، ويمكنني التقديم دون هذه الموافقة.</span>
+          {!resumeReadable && <span className="block mt-1 text-muted-foreground">يتاح هذا الخيار عند إرفاق سيرة يمكن قراءة نصها.</span>}
+        </label>
+      </div>
       <div className="p-4 rounded-2xl bg-card border border-border/60 flex items-start gap-3">
         <Checkbox
           id="agree-terms"

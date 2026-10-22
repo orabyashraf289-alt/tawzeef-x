@@ -55,7 +55,7 @@ serve(async (req) => {
     const db = createClient(supabaseUrl, serviceKey);
     const { data: candidate, error: candidateError } = await db
       .from("candidates")
-      .select("id,user_id,company_id,job_id,role,skills,experience,education,summary")
+      .select("id,user_id,company_id,job_id,resume_url,email,role,skills,experience,education,summary")
       .eq("id", candidateId)
       .maybeSingle();
     if (candidateError) throw candidateError;
@@ -87,12 +87,32 @@ serve(async (req) => {
       job = data as EvaluationJob;
     }
 
+    // Applications and candidates are linked by a private, random storage path.
+    // Check the job, tenant, email and consent as well; never accept CV text from
+    // the request body or from a candidate record alone.
+    let resumeExcerpt: string | null = null;
+    if (candidate.job_id && candidate.resume_url && candidate.email) {
+      let matching = db.from("applications")
+        .select("ai_processing_consent_at,ai_resume_excerpt")
+        .eq("job_id", candidate.job_id)
+        .eq("resume_url", candidate.resume_url)
+        .eq("email", candidate.email)
+        .limit(2);
+      matching = candidate.company_id ? matching.eq("company_id", candidate.company_id) : matching.is("company_id", null);
+      const { data: applications, error } = await matching;
+      if (error) throw error;
+      if (applications?.length === 1 && applications[0].ai_processing_consent_at &&
+          typeof applications[0].ai_resume_excerpt === "string") {
+        resumeExcerpt = applications[0].ai_resume_excerpt;
+      }
+    }
+
     const geminiKey = Deno.env.get("GEMINI_API_KEY")?.trim();
     if (!geminiKey) return json({ error: "Gemini evaluation is not configured" }, 503, corsHeaders);
 
     let response: Response;
     try {
-      response = await fetchGeminiEvaluation(geminiKey, buildGeminiRequest(candidate as EvaluationCandidate, job));
+      response = await fetchGeminiEvaluation(geminiKey, buildGeminiRequest(candidate as EvaluationCandidate, job, resumeExcerpt));
     } catch {
       return json({ error: "Gemini evaluation is currently unavailable" }, 503, corsHeaders);
     }
@@ -108,6 +128,7 @@ serve(async (req) => {
 
     const evaluation = parseGeminiEvaluation(await response.json());
     if (!evaluation) return json({ error: "Invalid Gemini evaluation" }, 502, corsHeaders);
+    evaluation.cvAnalyzed = Boolean(resumeExcerpt);
 
     let update = db.from("candidates")
       .update({ ai_score: evaluation.score, ai_evaluation: JSON.stringify(evaluation) })
