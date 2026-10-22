@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import SARSymbol from "@/components/SARSymbol";
+import type { ApplicationEvidence } from "@/lib/applicationEvidence";
 
 interface ApplyStepReviewProps {
   form: {
@@ -49,6 +50,7 @@ interface ApplyStepReviewProps {
   };
   skills: string[];
   resumeFile: File | null;
+  evidence: ApplicationEvidence;
   job: any;
   submitting: boolean;
   onSubmit: () => void;
@@ -60,31 +62,14 @@ export default function ApplyStepReview({
   form,
   skills,
   resumeFile,
+  evidence,
   job,
   submitting,
   onSubmit,
   onPrev,
   onJumpToStep,
 }: ApplyStepReviewProps) {
-  const [agreed, setAgreed] = useState(true);
-
-  // Compute Live Match Score
-  const matchScore = useMemo(() => {
-    let score = 55; // Base score
-    const expNum = parseInt(form.experience || "0", 10) || 0;
-    if (expNum >= 5) score += 15;
-    else if (expNum >= 2) score += 10;
-    else if (expNum >= 1) score += 5;
-
-    if (resumeFile) score += 12;
-    if (skills.length >= 4) score += 10;
-    else if (skills.length >= 2) score += 6;
-
-    if (form.universityDegree) score += 5;
-    if (form.licenseNumber) score += 3;
-
-    return Math.min(98, score);
-  }, [form, skills, resumeFile]);
+  const [agreed, setAgreed] = useState(false);
 
   const handleSubmitClick = () => {
     if (!agreed) {
@@ -109,68 +94,40 @@ export default function ApplyStepReview({
           <span className="text-xs text-muted-foreground">المراجعة والاعتماد</span>
         </div>
         <h2 className="text-xl sm:text-2xl font-black text-foreground">
-          المراجعة النهائية ومقياس التوافق بالـ AI ✨
+          راجع طلبك ومتطلبات الوظيفة
         </h2>
         <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
           راجع بياناتك قبل الإرسال النهائي وتأكد من اكتمال كافة المتطلبات.
         </p>
       </div>
 
-      {/* Live AI Match Score Card */}
+      {/* Evidence-based ATS preview; the hiring team makes the final decision. */}
       <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="p-6 rounded-3xl bg-gradient-to-br from-emerald-500/15 via-primary/10 to-teal-500/10 border-2 border-emerald-500/30 shadow-md space-y-4"
+        className="p-5 rounded-3xl bg-card border border-border shadow-sm space-y-4"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black text-xl shadow-md">
-              {matchScore}%
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-base text-foreground">مقياس التوافق اللحظي مع الشاغر</h3>
-                <Sparkles className="w-4 h-4 text-emerald-500 animate-pulse" />
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {matchScore >= 85
-                  ? "تطابق استثنائي مع متطلبات الوظيفة والشروط المعتمدة 🏆"
-                  : matchScore >= 70
-                  ? "تطابق ممتاز ومناسب جداً للفرز المباشر والمقابلة ⭐"
-                  : "مؤهل مناسب للفرز الأولي"}
-              </p>
-            </div>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" /> مراجعة المتطلبات بنظام ATS
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">مقارنة إرشادية بين إعلان الوظيفة وما كتبته أو ظهر في نص سيرتك. القرار النهائي لفريق التوظيف.</p>
           </div>
-
-          <Badge className="bg-emerald-600 text-white text-xs font-bold px-3 py-1 self-start sm:self-center">
-            موصى به للمقابلة
-          </Badge>
+          {evidence.total > 0 && <Badge variant="outline" className="shrink-0">
+            {evidence.confirmed} من {evidence.total} مذكور
+          </Badge>}
         </div>
-
-        {/* Progress bar */}
-        <div className="w-full bg-muted/60 h-2.5 rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${matchScore}%` }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="h-full bg-gradient-to-r from-primary to-emerald-500 rounded-full"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>السيرة الذاتية مرفقة</span>
-          </span>
-          <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>{skills.length} مهارات مطابقة</span>
-          </span>
-          <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>بيانات التواصل موثقة</span>
-          </span>
-        </div>
+        {!evidence.total ? <p className="text-xs text-muted-foreground rounded-xl bg-muted/50 p-3">لم تُنشر متطلبات قابلة للمقارنة لهذا الشاغر. يمكنك إرسال طلبك ليُراجع يدويًا.</p> :
+          <div className="max-h-56 overflow-y-auto space-y-2">
+            {evidence.requirements.map((item, index) => <div key={`${index}-${item.requirement}`} className="flex items-start gap-2 rounded-xl bg-muted/40 p-2.5 text-xs">
+              {item.source === "unconfirmed" ? <Clock className="w-4 h-4 text-amber-600 shrink-0" /> : <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
+              <span className="flex-1">{item.requirement}</span>
+              <span className="text-muted-foreground shrink-0">{item.source === "resume" ? "في السيرة" : item.source === "form" ? "في النموذج" : "يحتاج توضيحًا"}</span>
+            </div>)}
+          </div>}
+        {resumeFile && !evidence.resumeReadable && <p className="text-xs text-amber-800 rounded-xl bg-amber-50 p-3">الملف مرفق، لكن لم نتمكن من قراءة نص كافٍ منه. راجع بياناتك المكتوبة؛ سيطّلع فريق التوظيف على الملف.</p>}
+        {evidence.discrepancies.map(note => <p key={note} className="text-xs text-amber-800 rounded-xl bg-amber-50 p-3">{note}</p>)}
       </motion.div>
 
       {/* Review Summary Grid */}

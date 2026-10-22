@@ -139,7 +139,7 @@ export default function ConvertedOrders() {
   const { activeCompany } = useCompany();
 
   // Queries
-  const { data: orders = [], isLoading } = useConvertedOrders();
+  const { data: orders = [], isLoading, refetch: refetchOrders } = useConvertedOrders();
   const { data: candidates = [], isLoading: candidatesLoading } = useCandidates();
   const { data: jobs = [] } = useJobs();
   const { data: offers = [], isLoading: offersLoading } = useOffers();
@@ -228,6 +228,11 @@ export default function ConvertedOrders() {
       return;
     }
     toast({ title: decision === "approved" ? "تم اعتماد المستند" : "تم طلب إعادة رفع المستند" });
+    setCurrentChecklist(previous => ({ ...previous, [doc.kind]: decision === "approved" }));
+    setSelectedOrder(previous => previous ? { ...previous,
+      documents_checklist: { ...previous.documents_checklist, [doc.kind]: decision === "approved" },
+    } : null);
+    void refetchOrders();
     if (selectedOrder) await loadSubmittedDocuments(selectedOrder.id);
   };
 
@@ -283,6 +288,7 @@ export default function ConvertedOrders() {
   });
 
   const [currentChecklist, setCurrentChecklist] = useState<OrderChecklist>({});
+  const [requiredKinds, setRequiredKinds] = useState<string[]>([]);
   const [selectedNewStatus, setSelectedNewStatus] = useState<OrderStatus>("pending_documents");
   const [statusChangeNotes, setStatusChangeNotes] = useState("");
 
@@ -1008,6 +1014,7 @@ export default function ConvertedOrders() {
                               onClick={() => {
                                 setSelectedOrder(order);
                                 setCurrentChecklist(order.documents_checklist || {});
+                                setRequiredKinds(order.required_document_kinds || []);
                                 setOpenChecklistDialog(true);
                               }}
                               className="text-right space-y-1 group hover:opacity-80 transition-opacity"
@@ -1496,7 +1503,7 @@ export default function ConvertedOrders() {
                 مسوغات التعيين الرسمية — {selectedOrder?.candidate_name}
               </DialogTitle>
               <DialogDescription className="text-xs">
-                قائمة المسوغات تُحدّث يدويًا بعد التحقق. قرار مراجعة الملف المرفوع لا يغيّرها تلقائيًا.
+                حدد المستندات المطلوبة لهذا الأمر. اعتماد ملف مرفوع يحدّث بند الاستلام المرتبط به تلقائيًا.
               </DialogDescription>
             </DialogHeader>
 
@@ -1514,6 +1521,8 @@ export default function ConvertedOrders() {
                   <Checkbox
                     id={item.key}
                     checked={!!(currentChecklist as any)[item.key]}
+                    disabled={submittedDocuments.find(doc => doc.kind === item.key)?.review_status === "pending" ||
+                      submittedDocuments.find(doc => doc.kind === item.key)?.review_status === "rejected"}
                     onCheckedChange={(checked) => {
                       setCurrentChecklist((prev) => ({
                         ...prev,
@@ -1524,6 +1533,14 @@ export default function ConvertedOrders() {
                   <label htmlFor={item.key} className="text-xs font-semibold text-foreground cursor-pointer flex-1">
                     {item.label}
                   </label>
+                  {selectedOrder?.order_type === "direct_hire" && <button type="button"
+                    aria-pressed={requiredKinds.includes(item.key)}
+                    onClick={() => setRequiredKinds(previous => previous.includes(item.key)
+                      ? previous.filter(kind => kind !== item.key) : [...previous, item.key])}
+                    className={`text-[10px] font-bold px-2 py-1 rounded-lg border ${requiredKinds.includes(item.key)
+                      ? "bg-amber-50 text-amber-800 border-amber-300" : "text-muted-foreground border-border"}`}>
+                    {requiredKinds.includes(item.key) ? "مطلوب" : "اختياري"}
+                  </button>}
                 </div>
               ))}
             </div>
@@ -1581,7 +1598,7 @@ export default function ConvertedOrders() {
                       </details>}
                     </div>;
                   })}
-              <p className="text-xs text-muted-foreground">قرارات مراجعة الملفات لا تغير قائمة المسوغات أو حالة أمر التعيين أو المباشرة تلقائيًا.</p>
+              <p className="text-xs text-muted-foreground">المراجعة تحدّث بند المستند فقط؛ حالة أمر التعيين والمباشرة تحتاج تحديثًا منفصلًا.</p>
             </section>}
 
             <DialogFooter>
@@ -1591,11 +1608,14 @@ export default function ConvertedOrders() {
               <Button
                 onClick={async () => {
                   if (selectedOrder) {
-                    await updateChecklist.mutateAsync({
-                      id: selectedOrder.id,
-                      checklist: currentChecklist,
-                    });
-                    setOpenChecklistDialog(false);
+                    try {
+                      await updateChecklist.mutateAsync({
+                        id: selectedOrder.id,
+                        checklist: currentChecklist,
+                        requiredKinds,
+                      });
+                      setOpenChecklistDialog(false);
+                    } catch { /* The mutation shows the error and keeps this dialog open. */ }
                   }
                 }}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs"
@@ -1648,12 +1668,14 @@ export default function ConvertedOrders() {
               <Button
                 onClick={async () => {
                   if (selectedOrder) {
-                    await updateStatus.mutateAsync({
-                      id: selectedOrder.id,
-                      status: selectedNewStatus,
-                      notes: statusChangeNotes,
-                    });
-                    setOpenStatusChangeDialog(false);
+                    try {
+                      await updateStatus.mutateAsync({
+                        id: selectedOrder.id,
+                        status: selectedNewStatus,
+                        notes: statusChangeNotes,
+                      });
+                      setOpenStatusChangeDialog(false);
+                    } catch { /* The mutation shows the error and keeps this dialog open. */ }
                   }
                 }}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs"

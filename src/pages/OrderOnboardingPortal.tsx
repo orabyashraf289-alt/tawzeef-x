@@ -19,6 +19,7 @@ type Summary = {
   currency: string;
   status: string;
   onboarding_acknowledged_at: string | null;
+  required_document_kinds: string[];
   documents: Array<{ kind: string; file_name: string; review_status: string; review_note: string | null }>;
 };
 
@@ -186,12 +187,16 @@ export default function OrderOnboardingPortal() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-slate-600">ارفع المستندات المتاحة بصيغة PDF أو JPG أو PNG (حتى 5 ميجابايت للملف). تراجعها الموارد البشرية قبل اعتمادها.</p>
+            {order.required_document_kinds?.length > 0 && <p className="text-sm text-amber-800 rounded-xl bg-amber-50 p-3">
+              المستندات المعلّمة «مطلوب» يجب اعتمادها قبل تأكيد المباشرة.
+            </p>}
             {ORDER_DOCUMENT_KINDS.map(({ key, label }) => {
               const doc = order.documents?.find(item => item.kind === key);
               const canUpload = order.status !== "completed" && (!doc || doc.review_status === "rejected");
               return <div key={key} className="rounded-xl border p-3 space-y-2 sm:flex sm:items-center sm:justify-between sm:gap-3">
                 <div className="min-w-0 text-sm">
-                  <p className="font-semibold">{label}</p>
+                  <p className="font-semibold">{label} {order.required_document_kinds?.includes(key) &&
+                    <span className="text-amber-700 text-xs">· مطلوب</span>}</p>
                   {doc && <p className="text-slate-600 break-all">{doc.file_name} · {doc.review_status === "approved" ? "معتمد" : doc.review_status === "rejected" ? "مطلوب إعادة الرفع" : "قيد المراجعة"}</p>}
                   {doc?.review_note && <p className="text-red-700">ملاحظة المراجع: {doc.review_note}</p>}
                 </div>
