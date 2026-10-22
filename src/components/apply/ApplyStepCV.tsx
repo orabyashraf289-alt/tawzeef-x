@@ -24,6 +24,7 @@ interface ApplyStepCVProps {
   onFileRemove: () => void;
   isAnalyzingAI: boolean;
   aiAnalyzed: boolean;
+  jobRequirements?: string[];
   onNext: () => void;
   onSkipManual: () => void;
 }
@@ -34,6 +35,7 @@ export default function ApplyStepCV({
   onFileRemove,
   isAnalyzingAI,
   aiAnalyzed,
+  jobRequirements = [],
   onNext,
   onSkipManual,
 }: ApplyStepCVProps) {
@@ -60,15 +62,23 @@ export default function ApplyStepCV({
           <Badge className="bg-primary/10 text-primary border-primary/25 font-bold text-xs">
             الخطوة 1 من 5
           </Badge>
-          <span className="text-xs text-muted-foreground">التعبئة التلقائية الذكية</span>
+          <span className="text-xs text-muted-foreground">قراءة السيرة داخل المتصفح</span>
         </div>
         <h2 className="text-xl sm:text-2xl font-black text-foreground">
-          ارفع سيرتك الذاتية ودع الذكاء الاصطناعي يكمل النموذج! 🚀
+          ارفع سيرتك الذاتية وابدأ طلب التقديم
         </h2>
         <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-          سنقوم بقراءة وتحليل بياناتك المهنية والمهارات تلقائياً لتوفير وقتك وجهدك.
+          سنقرأ النص المتاح من السيرة على جهازك لتعبئة بيانات التواصل والخبرة. راجع كل حقل قبل الإرسال، ويمكنك المتابعة يدويًا.
         </p>
       </div>
+
+      {jobRequirements.length > 0 && <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 space-y-2">
+        <p className="text-sm font-bold text-foreground">متطلبات الوظيفة التي ستراجعها قبل الإرسال</p>
+        <ul className="grid sm:grid-cols-2 gap-2 text-xs text-muted-foreground">
+          {jobRequirements.slice(0, 4).map((requirement, index) => <li key={`${index}-${requirement}`} className="rounded-xl bg-card/80 border border-border/50 p-2.5 leading-relaxed">{requirement}</li>)}
+        </ul>
+        {jobRequirements.length > 4 && <p className="text-[11px] text-muted-foreground">ستظهر بقية المتطلبات في خطوة المراجعة النهائية.</p>}
+      </div>}
 
       {/* Upload Drop Zone / Active File Card */}
       {resumeFile ? (
@@ -114,7 +124,7 @@ export default function ApplyStepCV({
             </div>
           </div>
 
-          {/* AI Analysis Feedback */}
+          {/* Local extraction feedback */}
           {isAnalyzingAI && (
             <motion.div
               initial={{ opacity: 0, y: 5 }}
@@ -123,7 +133,7 @@ export default function ApplyStepCV({
             >
               <Sparkles className="w-5 h-5 text-emerald-600 animate-spin shrink-0" />
               <div>
-                <p className="font-bold">جاري استخراج المهارات والخبرات بالذكاء الاصطناعي...</p>
+                <p className="font-bold">جاري قراءة السيرة واستخراج البيانات المتاحة...</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">يتم ملء الحقول تلقائياً لتراجعها في الخطوة القادمة.</p>
               </div>
             </motion.div>
@@ -173,13 +183,13 @@ export default function ApplyStepCV({
                 اسحب وأفلت ملف السيرة الذاتية هنا، أو <span className="text-primary underline font-black">تصفح ملفاتك</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                ندعم ملفات PDF و DOC و DOCX حتى {FILE_LIMITS.resume.maxSizeLabel}. يُرفع الملف عند إرسال الطلب.
+                ندعم ملفات PDF و DOC و DOCX حتى {FILE_LIMITS.resume.maxSizeLabel}. يعمل الملء التلقائي مع PDF النصي و DOCX، ويُرفع الملف عند إرسال الطلب.
               </p>
             </div>
 
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/60 text-muted-foreground text-[11px] font-medium border border-border/40">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span>بياناتك وسيرتك مشفرة ومحمية بخصوصية تامة</span>
+              <span>تُقرأ الحقول داخل المتصفح، ويُرفع الملف عند الإرسال في مساحة خاصة لفريق التوظيف المخوّل.</span>
             </div>
           </label>
         </div>
