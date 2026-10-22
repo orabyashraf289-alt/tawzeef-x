@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Brain, Sparkles, TrendingUp, TrendingDown, Loader2, RefreshCw, Copy, Check, HelpCircle } from "lucide-react";
@@ -9,21 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { FunctionsHttpError } from "@supabase/supabase-js";
-
-interface AIEvaluation {
-  score: number;
-  skillsMatchScore?: number;
-  experienceMatchScore?: number;
-  educationMatchScore?: number;
-  culturalFitScore?: number;
-  summary: string;
-  strengths: string[];
-  weaknesses: string[];
-  recommendation: string;
-  tailoredInterviewQuestions?: string[];
-  requirementEvidence?: Array<{ requirement: string; status: "supported" | "unconfirmed"; evidence: string }>;
-  cvAnalyzed?: boolean;
-}
+import { parseCandidateEvaluation, type CandidateEvaluation as AIEvaluation } from "../../supabase/functions/_shared/candidateEvaluation";
 
 interface AIEvaluationCardProps {
   candidateId?: string;
@@ -31,7 +17,7 @@ interface AIEvaluationCardProps {
   existingScore?: number | null;
   existingEvaluation?: string | null;
   jobId?: string | null;
-  candidate?: any;
+  candidate?: { id: string; name?: string; ai_evaluation?: string | null; job_id?: string | null };
 }
 
 const recommendationColors: Record<string, string> = {
@@ -62,23 +48,39 @@ export default function AIEvaluationCard(props: AIEvaluationCardProps) {
   const candidate = props.candidate;
   const candidateId = props.candidateId || candidate?.id || "";
   const candidateName = props.candidateName || candidate?.name || "مرشح";
-  const existingScore = props.existingScore ?? candidate?.ai_score ?? null;
   const existingEvaluation = props.existingEvaluation ?? candidate?.ai_evaluation ?? null;
   const jobId = props.jobId ?? candidate?.job_id ?? null;
 
+  // Changing the candidate or job unmounts any pending request and its local report.
+  return <EvaluationReport key={`${candidateId}:${jobId}`} candidateId={candidateId} candidateName={candidateName}
+    existingEvaluation={existingEvaluation} jobId={jobId} />;
+}
+
+function readStoredEvaluation(value: string | null | undefined): AIEvaluation | null {
+  try { return value ? parseCandidateEvaluation(JSON.parse(value)) : null; } catch { return null; }
+}
+
+function EvaluationReport({ candidateId, candidateName, existingEvaluation, jobId }: AIEvaluationCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
-  const [evaluation, setEvaluation] = useState<AIEvaluation | null>(
-    existingEvaluation ? (() => { try { return JSON.parse(existingEvaluation); } catch { return null; } })() : null
-  );
+  const [evaluation, setEvaluation] = useState(() => readStoredEvaluation(existingEvaluation));
+  const requestVersion = useRef(0);
+  const running = useRef(false);
   const queryClient = useQueryClient();
 
+  useEffect(() => { setEvaluation(readStoredEvaluation(existingEvaluation)); }, [existingEvaluation]);
+  useEffect(() => () => { requestVersion.current++; }, []);
+
   const runEvaluation = async () => {
+    if (running.current || !candidateId) return;
+    running.current = true;
+    const request = ++requestVersion.current;
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke<AIEvaluation>("evaluate-candidate", {
+      const { data, error } = await supabase.functions.invoke("evaluate-candidate", {
         body: { candidateId, jobId },
       });
+      if (request !== requestVersion.current) return;
       if (error) {
         if (error instanceof FunctionsHttpError) {
           const responseBody = await error.context.json().catch(() => null);
@@ -86,19 +88,26 @@ export default function AIEvaluationCard(props: AIEvaluationCardProps) {
         }
         throw error;
       }
-      if (!data || typeof data.score !== "number") throw new Error("تعذر التقييم، حاول لاحقاً");
+      const report = parseCandidateEvaluation(data);
+      if (!report) throw new Error("تعذر قراءة تقرير التقييم، حاول لاحقاً");
 
-      setEvaluation(data);
+      setEvaluation(report);
 
       queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["candidate-detail-direct", candidateId] });
+      queryClient.invalidateQueries({ queryKey: ["candidate", candidateId] });
       toast({
         title: `تم التقييم الذكي للمرشح ${candidateName} ✅`,
-        description: `مؤشر المطابقة الإرشادي: ${data.score}%. راجع أدلة المتطلبات قبل تحديث حالة المرشح.`,
+        description: `مؤشر المطابقة الإرشادي: ${report.score}%. راجع أدلة المتطلبات قبل تحديث حالة المرشح.`,
       });
-    } catch (e: any) {
-      toast({ title: "خطأ في التقييم", description: e.message, variant: "destructive" });
+    } catch (error) {
+      if (request === requestVersion.current) toast({ title: "خطأ في التقييم",
+        description: error instanceof Error ? error.message : "تعذر إعداد التقرير، حاول لاحقاً", variant: "destructive" });
     } finally {
-      setIsLoading(false);
+      if (request === requestVersion.current) {
+        running.current = false;
+        setIsLoading(false);
+      }
     }
   };
 
@@ -116,18 +125,18 @@ export default function AIEvaluationCard(props: AIEvaluationCardProps) {
         <div className="flex items-center justify-between">
           <h3 className="font-extrabold text-sm flex items-center gap-2 text-foreground">
             <Brain className="w-4 h-4 text-emerald-500" />
-            التقييم الفائق بالذكاء الاصطناعي
+            تقرير مطابقة ATS
           </h3>
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">
           مقارنة بيانات المرشح بمتطلبات الوظيفة؛ يُستخدم نص السيرة فقط إذا وافق المتقدم وتمكنت المنصة من قراءته.
         </p>
-        <Button onClick={runEvaluation} disabled={isLoading}
+        <Button onClick={runEvaluation} disabled={isLoading || !candidateId}
           className="w-full gap-2 rounded-xl h-11 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20">
           {isLoading ? (
-            <><Loader2 className="w-4 h-4 animate-spin" />جاري التحليل والفرز الفائق...</>
+            <><Loader2 className="w-4 h-4 animate-spin" />جاري إعداد تقرير المطابقة...</>
           ) : (
-            <><Sparkles className="w-4 h-4" />تشغيل التقييم والفرز الفائق بالذكاء الاصطناعي</>
+            <><Sparkles className="w-4 h-4" />تشغيل تحليل ATS</>
           )}
         </Button>
       </motion.div>
@@ -141,7 +150,7 @@ export default function AIEvaluationCard(props: AIEvaluationCardProps) {
         <div className="flex items-center justify-between">
           <h3 className="font-extrabold text-sm flex items-center gap-2 text-foreground">
             <Brain className="w-4.5 h-4.5 text-emerald-500" />
-            التقييم والتحليل الذكي الفائق
+            تقرير مطابقة ATS
           </h3>
           <Button variant="ghost" size="sm" onClick={runEvaluation} disabled={isLoading} className="gap-1.5 text-xs font-bold rounded-xl h-9">
             {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 text-emerald-500" />}
@@ -151,15 +160,23 @@ export default function AIEvaluationCard(props: AIEvaluationCardProps) {
 
         {/* Total Score Header */}
         <p className="text-xs text-muted-foreground">
-          {evaluation.cvAnalyzed ? "شمل التقييم مقتطفًا من السيرة بموافقة المتقدم." : "اعتمد التقييم على البيانات المهنية المدخلة دون نص السيرة."}
+          {evaluation.cvAnalyzed === true ? "شمل التقييم مقتطفًا من السيرة بموافقة المتقدم."
+            : evaluation.cvAnalyzed === false ? "اعتمد التقييم على البيانات المهنية المدخلة دون نص السيرة."
+            : "لم يُسجل مصدر البيانات لهذا التقييم السابق."}
         </p>
-        <div className="text-center py-3 bg-muted/30 rounded-2xl border border-border/60">
+        {evaluation.evaluatedAt && <p className="text-[11px] text-muted-foreground">
+          تاريخ التقييم: <time dateTime={evaluation.evaluatedAt}>{new Date(evaluation.evaluatedAt).toLocaleString("ar-EG")}</time>
+        </p>}
+        {evaluation.evidenceVersion !== 1 && <p role="status" className="text-xs text-amber-800 dark:text-amber-300 bg-amber-500/10 p-3 rounded-xl">
+          هذا تقييم سابق دون تحقق من مصادر الأدلة. أعد التقييم لعرض التقرير الحالي.
+        </p>}
+        <div className="text-center py-3 px-6 bg-muted/30 rounded-2xl border border-border/60">
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.1 }}
             className={cn("text-4xl font-black tabular-nums", getScoreColor(evaluation.score))}>
             {evaluation.score}%
           </motion.div>
           <p className="text-xs font-bold text-muted-foreground mt-1">مؤشر إرشادي، القرار لمسؤول التوظيف</p>
-          <Progress value={evaluation.score} className={cn("h-2.5 mt-2.5 mx-6", getProgressColor(evaluation.score))} />
+          <Progress value={evaluation.score} className={cn("h-2.5 mt-2.5", getProgressColor(evaluation.score))} />
         </div>
 
         {/* Multi-Dimensional Scores Grid */}
@@ -194,13 +211,29 @@ export default function AIEvaluationCard(props: AIEvaluationCardProps) {
         </p>
 
         {evaluation.requirementEvidence && evaluation.requirementEvidence.length > 0 && <div className="space-y-2">
-          <h4 className="text-xs font-bold">أدلة مطابقة متطلبات الوظيفة</h4>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h4 className="text-xs font-bold">أدلة مطابقة متطلبات الوظيفة</h4>
+            {evaluation.evidenceVersion === 1 && <Badge variant="outline" className="text-[10px]">
+              {evaluation.requirementEvidence.filter(item => item.status === "supported").length} من {evaluation.requirementEvidence.length} له اقتباس
+            </Badge>}
+          </div>
+          {evaluation.requirementsTotal > evaluation.requirementEvidence.length && <p className="text-xs text-amber-800 dark:text-amber-300">
+            يعرض التقرير أول {evaluation.requirementEvidence.length} من {evaluation.requirementsTotal} متطلبًا. راجع المتطلبات المتبقية يدويًا.
+          </p>}
           {evaluation.requirementEvidence.map((item, index) => <div key={`${item.requirement}-${index}`} className="p-2.5 rounded-xl bg-muted/40 text-xs space-y-1">
-            <p className="font-semibold">{item.requirement} · {item.status === "supported" ? "مذكور" : "يحتاج تحققًا"}</p>
-            {item.status === "supported" && item.evidence && <p className="text-muted-foreground">الدليل: {item.evidence}</p>}
+            <p className="font-semibold break-words">{item.requirement} · {item.status === "supported" && evaluation.evidenceVersion === 1 ? "مذكور في المصدر" : "يحتاج تحققًا"}</p>
+            {item.status === "supported" && item.evidence && <>
+              <p className="text-[11px] text-muted-foreground">{evaluation.evidenceVersion !== 1 ? "دليل مقترح لم يُتحقق من مصدره"
+                : item.source === "resume" ? "المصدر: مقتطف السيرة بموافقة المتقدم" : "المصدر: بيانات المرشح المدخلة"}</p>
+              <blockquote className="text-muted-foreground break-words border-s-2 border-primary/30 ps-2">{item.evidence}</blockquote>
+            </>}
+            {item.status === "unconfirmed" && <p className="text-muted-foreground">لم يُثبت دليل لهذا المتطلب؛ يحتاج مراجعة مسؤول التوظيف.</p>}
           </div>)}
-          <p className="text-[11px] text-muted-foreground">هذه مؤشرات من بيانات مقدم الطلب؛ تحقق من المستندات بنفسك قبل اتخاذ قرار.</p>
+          <p className="text-[11px] text-muted-foreground">وجود الاقتباس لا يثبت استيفاء المتطلب. راجع سياقه والمستندات قبل اتخاذ قرار.</p>
         </div>}
+        {evaluation.evidenceVersion === 1 && !evaluation.requirementEvidence?.length && <p className="text-xs text-muted-foreground">
+          لم تُنشر متطلبات قابلة للمقارنة لهذه الوظيفة. راجع بيانات المرشح يدويًا.
+        </p>}
 
         {/* Strengths */}
         <div>
