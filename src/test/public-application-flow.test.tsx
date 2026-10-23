@@ -34,7 +34,9 @@ function openPage() {
   return render(<MemoryRouter initialEntries={["/apply/job-1"]}><Routes><Route path="/apply/:id" element={<ApplyJob />} /></Routes></MemoryRouter>);
 }
 async function proceedToReview() {
-  fireEvent.click(await screen.findByText("المتابعة بدون سيرة ذاتية (إدخال يدوي)"));
+  const next = await screen.findByRole("button", { name: "متابعة مراجعة البيانات" });
+  await waitFor(() => expect(next).toBeEnabled());
+  fireEvent.click(next);
   fireEvent.click(screen.getByText("profile next"));
   fireEvent.click(screen.getByText("skills next"));
   fireEvent.click(screen.getByText("preferences next"));
@@ -112,6 +114,6 @@ describe("public application journey", () => {
     fireEvent.click(screen.getByTitle("إلغاء الملف"));
     await act(async () => resolveText("old@example.com"));
     expect(mock.invoke).not.toHaveBeenCalled();
-    expect(screen.queryByText("جاهز للمراجعة")).not.toBeInTheDocument();
+    expect(screen.queryByText("تمت قراءة السيرة الذاتية. راجع البيانات وأكمل الناقص.")).not.toBeInTheDocument();
   });
 });

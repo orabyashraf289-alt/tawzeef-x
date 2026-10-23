@@ -94,7 +94,7 @@ export default function ApplyStepReview({
           <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-bold text-xs">
             الخطوة 5 من 5 (النهائية)
           </Badge>
-          <span className="text-xs text-muted-foreground">المراجعة والاعتماد</span>
+          <span className="text-xs text-muted-foreground">المراجعة والإرسال</span>
         </div>
         <h2 className="text-xl sm:text-2xl font-black text-foreground">
           راجع طلبك ومتطلبات الوظيفة
@@ -108,9 +108,9 @@ export default function ApplyStepReview({
       <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="p-5 rounded-3xl bg-card border border-border shadow-sm space-y-4"
+        className="p-4 sm:p-5 rounded-2xl bg-primary/[0.025] border border-primary/20 space-y-4"
       >
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="font-bold text-base text-foreground flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary" /> مراجعة المتطلبات بنظام ATS
@@ -122,15 +122,15 @@ export default function ApplyStepReview({
           </Badge>}
         </div>
         {!evidence.total ? <p className="text-xs text-muted-foreground rounded-xl bg-muted/50 p-3">لم تُنشر متطلبات قابلة للمقارنة لهذا الشاغر. يمكنك إرسال طلبك ليُراجع يدويًا.</p> :
-          <div className="max-h-56 overflow-y-auto space-y-2">
-            {evidence.requirements.map((item, index) => <div key={`${index}-${item.requirement}`} className="flex items-start gap-2 rounded-xl bg-muted/40 p-2.5 text-xs">
+          <div className="max-h-72 overflow-y-auto space-y-2" tabIndex={0} role="region" aria-label="شواهد متطلبات الوظيفة">
+            {evidence.requirements.map((item, index) => <div key={`${index}-${item.requirement}`} className="flex flex-wrap items-start gap-2 rounded-xl border border-border/60 bg-card p-3 text-xs leading-6">
               {item.source === "unconfirmed" ? <Clock className="w-4 h-4 text-amber-600 shrink-0" /> : <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
-              <span className="flex-1">{item.requirement}</span>
-              <span className="text-muted-foreground shrink-0">{item.source === "resume" ? "في السيرة" : item.source === "form" ? "في النموذج" : "يحتاج توضيحًا"}</span>
+              <span className="flex-1 min-w-0 basis-40">{item.requirement}</span>
+              <span className="text-muted-foreground bg-muted rounded-md px-2 shrink-0">{item.source === "resume" ? "في السيرة" : item.source === "form" ? "في النموذج" : "يحتاج توضيحًا"}</span>
             </div>)}
           </div>}
-        {resumeFile && !evidence.resumeReadable && <p className="text-xs text-amber-800 rounded-xl bg-amber-50 p-3">الملف مرفق، لكن لم نتمكن من قراءة نص كافٍ منه. راجع بياناتك المكتوبة؛ سيطّلع فريق التوظيف على الملف.</p>}
-        {evidence.discrepancies.map(note => <p key={note} className="text-xs text-amber-800 rounded-xl bg-amber-50 p-3">{note}</p>)}
+        {resumeFile && !evidence.resumeReadable && <p className="text-xs leading-6 text-amber-800 dark:text-amber-200 rounded-xl bg-amber-50 dark:bg-amber-950/40 p-3">الملف مرفق، لكن لم نتمكن من قراءة نص كافٍ منه. راجع بياناتك المكتوبة؛ سيطّلع فريق التوظيف على الملف.</p>}
+        {evidence.discrepancies.map(note => <p key={note} className="text-xs leading-6 text-amber-800 dark:text-amber-200 rounded-xl bg-amber-50 dark:bg-amber-950/40 p-3">{note}</p>)}
       </motion.div>
 
       {/* Review Summary Grid */}
@@ -160,11 +160,11 @@ export default function ApplyStepReview({
             </div>
             <div>
               <span className="text-muted-foreground text-[11px] block">البريد:</span>
-              <span className="font-bold text-foreground font-mono" dir="ltr">{form.email || "-"}</span>
+              <span className="font-bold text-foreground font-mono break-all" dir="ltr">{form.email || "-"}</span>
             </div>
             <div>
               <span className="text-muted-foreground text-[11px] block">الجوال:</span>
-              <span className="font-bold text-foreground font-mono" dir="ltr">{form.phone || "-"}</span>
+              <span className="font-bold text-foreground font-mono break-all" dir="ltr">{form.phone || "-"}</span>
             </div>
             <div>
               <span className="text-muted-foreground text-[11px] block">المدينة:</span>
@@ -218,7 +218,7 @@ export default function ApplyStepReview({
               {form.licenseNumber && (
                 <div>
                   <span className="text-muted-foreground text-[11px] block">الترخيص المهني:</span>
-                  <span className="font-bold text-foreground font-mono" dir="ltr">{form.licenseNumber}</span>
+                  <span className="font-bold text-foreground font-mono break-all" dir="ltr">{form.licenseNumber}</span>
                 </div>
               )}
             </div>
@@ -295,7 +295,7 @@ export default function ApplyStepReview({
       </div>
 
       {/* Navigation & Final Submit Button */}
-      <div className="pt-4 flex items-center justify-between gap-3 border-t border-border/50">
+      <div className="pt-4 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-border/50">
         <Button
           type="button"
           variant="outline"
@@ -303,7 +303,7 @@ export default function ApplyStepReview({
           disabled={submitting}
           className="h-11 px-6 rounded-2xl text-xs font-bold gap-2"
         >
-          <ArrowRight className="w-4 h-4 rotate-180 sm:rotate-0" />
+          <ArrowRight className="w-4 h-4" />
           <span>السابق</span>
         </Button>
 
@@ -311,17 +311,17 @@ export default function ApplyStepReview({
           type="button"
           onClick={handleSubmitClick}
           disabled={submitting}
-          className="h-14 px-10 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-sm shadow-xl shadow-emerald-600/20 gap-2.5 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+          className="h-12 px-7 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm gap-2"
         >
           {submitting ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              <span>جاري إرسال واعتماد الطلب...</span>
+              <span>جاري إرسال الطلب...</span>
             </>
           ) : (
             <>
               <Send className="w-4 h-4" />
-              <span>إرسال طلب التقديم واعتماد الترشيح 🚀</span>
+              <span>إرسال طلب التقديم</span>
             </>
           )}
         </Button>
