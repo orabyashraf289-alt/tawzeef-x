@@ -81,7 +81,7 @@ export default function ApplyStepCV({ resumeFile, onFileSelect, onFileRemove, is
       </details>}
 
       <div className="pt-5 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-border">
-        <Button type="button" variant="ghost" onClick={onSkipManual} className="text-xs text-muted-foreground whitespace-normal h-auto min-h-11 px-2">المتابعة بدون سيرة ذاتية (إدخال يدوي)</Button>
+        <Button type="button" variant="ghost" onClick={onSkipManual} className="text-xs text-muted-foreground whitespace-normal h-auto min-h-11 px-2">{resumeFile ? "المتابعة بإدخال البيانات يدويًا" : "المتابعة بدون سيرة ذاتية (إدخال يدوي)"}</Button>
         <Button type="button" onClick={onNext} disabled={isAnalyzingAI} className="h-12 px-6 rounded-xl font-semibold text-sm gap-2"><span>متابعة مراجعة البيانات</span><ArrowLeft className="w-4 h-4 shrink-0" /></Button>
       </div>
     </div>
