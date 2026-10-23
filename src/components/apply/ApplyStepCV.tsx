@@ -1,20 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion } from "framer-motion";
-import {
-  Upload,
-  FileText,
-  FileCheck,
-  CheckCircle2,
-  Sparkles,
-  X,
-  ArrowLeft,
-  ArrowRight,
-  ShieldCheck,
-  AlertCircle,
-  FileCode,
-} from "lucide-react";
+import { Upload, FileText, FileCheck, CheckCircle2, X, ArrowLeft, ShieldCheck, AlertCircle, Loader2, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { FILE_LIMITS } from "@/lib/fileValidation";
 
@@ -29,24 +16,9 @@ interface ApplyStepCVProps {
   onSkipManual: () => void;
 }
 
-export default function ApplyStepCV({
-  resumeFile,
-  onFileSelect,
-  onFileRemove,
-  isAnalyzingAI,
-  aiAnalyzed,
-  jobRequirements = [],
-  onNext,
-  onSkipManual,
-}: ApplyStepCVProps) {
+export default function ApplyStepCV({ resumeFile, onFileSelect, onFileRemove, isAnalyzingAI, aiAnalyzed, jobRequirements = [], onNext, onSkipManual }: ApplyStepCVProps) {
   const [isDragging, setIsDragging] = useState(false);
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) onFileSelect(file);
-  };
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -56,165 +28,61 @@ export default function ApplyStepCV({
 
   return (
     <div className="space-y-6" dir="rtl">
-      {/* Step Header */}
-      <div className="space-y-1.5 text-right">
-        <div className="flex items-center gap-2">
-          <Badge className="bg-primary/10 text-primary border-primary/25 font-bold text-xs">
-            الخطوة 1 من 5
-          </Badge>
-          <span className="text-xs text-muted-foreground">قراءة السيرة داخل المتصفح</span>
-        </div>
-        <h2 className="text-xl sm:text-2xl font-black text-foreground">
-          ارفع سيرتك الذاتية وابدأ طلب التقديم
-        </h2>
-        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-          سنقرأ النص المتاح من السيرة على جهازك لتعبئة بيانات التواصل والخبرة. راجع كل حقل قبل الإرسال، ويمكنك المتابعة يدويًا.
-        </p>
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-primary">لنبدأ بخبراتك</p>
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">قدّم نفسك للفرصة القادمة</h2>
+        <p className="text-sm text-muted-foreground leading-7 max-w-xl">أرفق سيرتك الذاتية لنساعدك في تعبئة البيانات المتاحة، ثم راجعها وأكمل طلبك خطوة بخطوة.</p>
       </div>
 
-      {jobRequirements.length > 0 && <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 space-y-2">
-        <p className="text-sm font-bold text-foreground">متطلبات الوظيفة التي ستراجعها قبل الإرسال</p>
-        <ul className="grid sm:grid-cols-2 gap-2 text-xs text-muted-foreground">
-          {jobRequirements.slice(0, 4).map((requirement, index) => <li key={`${index}-${requirement}`} className="rounded-xl bg-card/80 border border-border/50 p-2.5 leading-relaxed">{requirement}</li>)}
-        </ul>
-        {jobRequirements.length > 4 && <p className="text-[11px] text-muted-foreground">ستظهر بقية المتطلبات في خطوة المراجعة النهائية.</p>}
-      </div>}
+      <input ref={inputRef} type="file" id={resumeFile ? "change-resume" : "resume-input"} aria-label={resumeFile ? "استبدال السيرة الذاتية" : "اختيار السيرة الذاتية"} onChange={handleFileChange} accept={FILE_LIMITS.resume.allowedTypes.join(",")} className="hidden" />
 
-      {/* Upload Drop Zone / Active File Card */}
       {resumeFile ? (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="p-6 rounded-3xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-card to-background space-y-4 shadow-sm"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md">
-                <FileCheck className="w-6 h-6" />
-              </div>
-              <div className="min-w-0">
-                <p className="font-bold text-sm text-foreground truncate">{resumeFile.name}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30 bg-emerald-500/10 gap-1 font-bold">
-                    <CheckCircle2 className="w-3 h-3" />
-                    جاهز للإرسال مع الطلب
-                  </Badge>
-                  <span className="text-[11px] text-muted-foreground font-mono">
-                    ({(resumeFile.size / (1024 * 1024)).toFixed(2)} MB)
-                  </span>
-                </div>
-              </div>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-primary/25 bg-primary/[0.03] overflow-hidden">
+          <div className="p-4 sm:p-5 flex flex-wrap items-center gap-3">
+            <div className="w-12 h-14 rounded-xl bg-card border border-border flex items-center justify-center text-primary shrink-0"><FileCheck className="w-6 h-6" /></div>
+            <div className="flex-1 min-w-0 basis-40">
+              <p className="font-semibold text-sm break-all" dir="auto">{resumeFile.name}</p>
+              <p className="text-xs text-muted-foreground mt-1" dir="ltr">{(resumeFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+              <p className="text-xs text-primary flex items-center gap-1 mt-1.5"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" />جاهز للإرسال مع الطلب</p>
             </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <label htmlFor="change-resume" className="cursor-pointer text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/30 transition-colors">
-                استبدال
-                <input type="file" id="change-resume" onChange={handleFileChange} accept={FILE_LIMITS.resume.allowedTypes.join(",")} className="hidden" />
-              </label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={onFileRemove}
-                className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                title="إلغاء الملف"
-              >
-                <X className="w-4 h-4" />
-              </Button>
+            <div className="flex items-center gap-1">
+              <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()} className="rounded-xl">استبدال</Button>
+              <Button type="button" variant="ghost" size="icon" onClick={onFileRemove} title="إلغاء الملف" aria-label="إلغاء الملف" className="rounded-xl text-muted-foreground hover:text-destructive"><X className="w-4 h-4" /></Button>
             </div>
           </div>
-
-          {/* Local extraction feedback */}
-          {isAnalyzingAI && (
-            <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center gap-3 text-xs text-emerald-800 dark:text-emerald-200"
-            >
-              <Sparkles className="w-5 h-5 text-emerald-600 animate-spin shrink-0" />
-              <div>
-                <p className="font-bold">جاري قراءة السيرة واستخراج البيانات المتاحة...</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">يتم ملء الحقول تلقائياً لتراجعها في الخطوة القادمة.</p>
-              </div>
-            </motion.div>
-          )}
-
-          {aiAnalyzed && !isAnalyzingAI && (
-            <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-2 text-xs"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-emerald-600" />
-                  تمت قراءة السيرة الذاتية. راجع البيانات وأكمل الناقص.
-                </span>
-                <Badge className="bg-emerald-600 text-white text-[10px] font-bold">
-                  جاهز للمراجعة
-                </Badge>
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                انقر على زر "متابعة مراجعة البيانات" للتحقق من تفاصيلك الشخصية والمهنية وتعديل أي معلومة ترغب بها.
-              </p>
-            </motion.div>
-          )}
+          <div role="status" aria-live="polite" className="border-t border-primary/15 bg-card/60 px-4 sm:px-5 py-4 flex items-start gap-3">
+            {isAnalyzingAI ? <Loader2 className="w-5 h-5 text-primary animate-spin shrink-0" /> : aiAnalyzed ? <CheckCircle2 className="w-5 h-5 text-primary shrink-0" /> : <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />}
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">{isAnalyzingAI ? "جاري قراءة السيرة واستخراج البيانات المتاحة..." : aiAnalyzed ? "تمت قراءة السيرة الذاتية. راجع البيانات وأكمل الناقص." : "الملف مرفق؛ أكمل بياناتك يدويًا"}</p>
+              <p className="text-xs leading-6 text-muted-foreground">{isAnalyzingAI ? "تجري القراءة على جهازك. لم يُرسل الملف بعد." : aiAnalyzed ? "قد لا تظهر كل المعلومات تلقائيًا. يمكنك تعديلها في الخطوة القادمة." : "لم نتمكن من استخراج نص قابل للقراءة. يمكنك المتابعة، وسيصل الملف لفريق التوظيف عند إرسال الطلب."}</p>
+            </div>
+          </div>
         </motion.div>
       ) : (
-        <div
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-          className={cn(
-            "border-2 border-dashed rounded-3xl p-8 sm:p-12 text-center transition-all bg-card/60 backdrop-blur-md group cursor-pointer relative overflow-hidden",
-            isDragging
-              ? "border-primary bg-primary/10 scale-[1.01] shadow-lg shadow-primary/10"
-              : "border-border/80 hover:border-primary/60 hover:bg-card/90 hover:shadow-md"
-          )}
-        >
-          <input type="file" id="resume-input" onChange={handleFileChange} accept={FILE_LIMITS.resume.allowedTypes.join(",")} className="hidden" />
-          <label htmlFor="resume-input" className="cursor-pointer space-y-4 block">
-            <div className="w-16 h-16 rounded-3xl bg-primary/10 text-primary flex items-center justify-center mx-auto group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 shadow-xs">
-              <Upload className="w-8 h-8" />
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-base font-bold text-foreground">
-                اسحب وأفلت ملف السيرة الذاتية هنا، أو <span className="text-primary underline font-black">تصفح ملفاتك</span>
-              </p>
-              <p className="text-xs text-muted-foreground">
-                ندعم ملفات PDF و DOC و DOCX حتى {FILE_LIMITS.resume.maxSizeLabel}. يعمل الملء التلقائي مع PDF النصي و DOCX، ويُرفع الملف عند إرسال الطلب.
-              </p>
-            </div>
-
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/60 text-muted-foreground text-[11px] font-medium border border-border/40">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span>تُقرأ الحقول داخل المتصفح، ويُرفع الملف عند الإرسال في مساحة خاصة لفريق التوظيف المخوّل.</span>
-            </div>
-          </label>
+        <div onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }} onDragLeave={() => setIsDragging(false)} onDrop={(e) => { e.preventDefault(); setIsDragging(false); const file = e.dataTransfer.files?.[0]; if (file) onFileSelect(file); }} className={cn("rounded-2xl border-2 border-dashed px-5 py-8 sm:py-10 text-center transition-colors", isDragging ? "border-primary bg-primary/10" : "border-primary/30 bg-primary/[0.025] hover:bg-primary/5")}>
+          <div className="w-16 h-16 rounded-2xl border border-primary/15 bg-card text-primary grid place-items-center mx-auto mb-5 shadow-sm"><Upload className="w-7 h-7" /></div>
+          <h3 className="font-bold text-base sm:text-lg">سيرتك الذاتية، بداية طلبك</h3>
+          <p className="text-sm text-muted-foreground mt-2 mb-5">اسحب الملف وأفلته هنا، أو اختره من جهازك</p>
+          <Button type="button" onClick={() => inputRef.current?.click()} className="h-11 rounded-xl px-7 gap-2 font-semibold"><Upload className="w-4 h-4" />اختيار السيرة الذاتية</Button>
+          <p className="text-xs text-muted-foreground leading-6 mt-4">ندعم ملفات PDF و DOC و DOCX حتى {FILE_LIMITS.resume.maxSizeLabel}.</p>
+          <p className="text-xs text-muted-foreground leading-6">للمساعدة في تعبئة البيانات، استخدم PDF يحتوي على نص أو ملف DOCX.</p>
         </div>
       )}
 
-      {/* Navigation Buttons */}
-      <div className="pt-4 flex items-center justify-between gap-3 border-t border-border/50">
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={onSkipManual}
-          className="text-xs text-muted-foreground hover:text-foreground font-bold"
-        >
-          المتابعة بدون سيرة ذاتية (إدخال يدوي)
-        </Button>
+      <div className="grid sm:grid-cols-2 gap-4 text-xs leading-6">
+        <div className="flex items-start gap-2.5"><FileText className="w-4 h-4 text-primary mt-1 shrink-0" /><div><p className="font-semibold text-foreground">قراءة محلية، ومراجعة منك</p><p className="text-muted-foreground">تُقرأ البيانات داخل المتصفح. يُرفع الملف عند إرسال الطلب فقط.</p></div></div>
+        <div className="flex items-start gap-2.5"><ShieldCheck className="w-4 h-4 text-primary mt-1 shrink-0" /><div><p className="font-semibold text-foreground">تحليل السيرة بالذكاء الاصطناعي اختياري</p><p className="text-muted-foreground">ستجد موافقة منفصلة في المراجعة النهائية. يمكنك التقديم دونها.</p></div></div>
+      </div>
 
-        <Button
-          type="button"
-          onClick={onNext}
-          disabled={isAnalyzingAI}
-          className="h-12 px-8 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm shadow-md gap-2"
-        >
-          <span>متابعة مراجعة البيانات</span>
-          <ArrowLeft className="w-4 h-4 rotate-180 sm:rotate-0" />
-        </Button>
+      {jobRequirements.length > 0 && <details className="group rounded-xl border border-border bg-muted/20">
+        <summary className="cursor-pointer list-none flex items-center justify-between gap-3 p-4 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl">ما المتطلبات التي ستراجعها؟<ChevronDown className="w-4 h-4 shrink-0 transition-transform group-open:rotate-180" /></summary>
+        <ul className="px-4 pb-4 space-y-2 text-sm text-muted-foreground">{jobRequirements.slice(0, 4).map((requirement, index) => <li key={`${index}-${requirement}`} className="flex gap-2 leading-6"><span className="w-1.5 h-1.5 bg-primary/60 rounded-full mt-2 shrink-0" />{requirement}</li>)}</ul>
+        {jobRequirements.length > 4 && <p className="px-4 pb-4 text-xs text-muted-foreground">ستظهر بقية المتطلبات في خطوة المراجعة النهائية.</p>}
+      </details>}
+
+      <div className="pt-5 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-border">
+        <Button type="button" variant="ghost" onClick={onSkipManual} className="text-xs text-muted-foreground whitespace-normal h-auto min-h-11 px-2">المتابعة بدون سيرة ذاتية (إدخال يدوي)</Button>
+        <Button type="button" onClick={onNext} disabled={isAnalyzingAI} className="h-12 px-6 rounded-xl font-semibold text-sm gap-2"><span>متابعة مراجعة البيانات</span><ArrowLeft className="w-4 h-4 shrink-0" /></Button>
       </div>
     </div>
   );

@@ -26,6 +26,7 @@ interface ApplyJobSidebarProps {
   specs: JobCustomSpecs;
   hasSpecs: boolean;
   schoolDisplayName: string;
+  description: string;
 }
 
 export default function ApplyJobSidebar({
@@ -33,6 +34,7 @@ export default function ApplyJobSidebar({
   specs,
   hasSpecs,
   schoolDisplayName,
+  description,
 }: ApplyJobSidebarProps) {
   const [copied, setCopied] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
@@ -56,14 +58,14 @@ export default function ApplyJobSidebar({
     );
   };
 
-  const descriptionText = job?.description || "";
+  const descriptionText = description;
   const isLongDesc = descriptionText.length > 250;
 
   return (
-    <div className="space-y-5" dir="rtl">
+    <aside aria-label="تفاصيل الوظيفة" className="space-y-5" dir="rtl">
       {/* Main Job Overview Card */}
-      <div className="bg-card/90 backdrop-blur-xl rounded-3xl border border-border/70 p-6 shadow-lg space-y-5 relative overflow-hidden">
-        <div className="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-primary via-emerald-500 to-indigo-500" />
+      <div className="bg-card rounded-2xl border border-border p-5 sm:p-6 shadow-sm space-y-5 relative overflow-hidden">
+        <h2 className="font-semibold text-sm">عن هذه الفرصة</h2>
 
         {/* Company / Institution Badge */}
         <div className="flex items-center gap-3">
@@ -82,18 +84,18 @@ export default function ApplyJobSidebar({
         {/* Key Metrics Grid */}
         <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-border/50 text-xs">
           <div className="p-2.5 rounded-xl bg-muted/40 border border-border/40 flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-emerald-500 shrink-0" />
+            <MapPin className="w-4 h-4 text-primary shrink-0" />
             <div className="min-w-0">
               <span className="text-[10px] text-muted-foreground block">الموقع</span>
-              <span className="font-bold text-foreground truncate block">{job?.location || "الرياض"}</span>
+              <span className="font-bold text-foreground truncate block">{job?.location || "غير محدد"}</span>
             </div>
           </div>
 
           <div className="p-2.5 rounded-xl bg-muted/40 border border-border/40 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-indigo-500 shrink-0" />
+            <Clock className="w-4 h-4 text-primary shrink-0" />
             <div className="min-w-0">
               <span className="text-[10px] text-muted-foreground block">نوع الدوام</span>
-              <span className="font-bold text-foreground truncate block">{job?.type || "دوام كامل"}</span>
+              <span className="font-bold text-foreground truncate block">{job?.type || "غير محدد"}</span>
             </div>
           </div>
 
@@ -112,7 +114,7 @@ export default function ApplyJobSidebar({
 
           {job?.experience_level && (
             <div className="p-2.5 rounded-xl bg-muted/40 border border-border/40 flex items-center gap-2 col-span-2">
-              <Briefcase className="w-4 h-4 text-amber-500 shrink-0" />
+              <Briefcase className="w-4 h-4 text-primary shrink-0" />
               <div className="min-w-0">
                 <span className="text-[10px] text-muted-foreground block">مستوى الخبرة المطلوب</span>
                 <span className="font-bold text-foreground truncate block">{job.experience_level}</span>
@@ -149,7 +151,7 @@ export default function ApplyJobSidebar({
         {Array.isArray(job?.requirements) && job.requirements.length > 0 && (
           <div className="space-y-2 pt-2 border-t border-border/50">
             <h4 className="font-bold text-xs text-foreground flex items-center gap-1.5">
-              <Check className="w-3.5 h-3.5 text-emerald-500" />
+              <Check className="w-3.5 h-3.5 text-primary" />
               <span>المتطلبات والشروط:</span>
             </h4>
             <ul className="space-y-1.5 text-xs text-muted-foreground pr-2">
@@ -231,7 +233,7 @@ export default function ApplyJobSidebar({
               onClick={handleCopyLink}
               className="h-8 text-[11px] font-bold gap-1 rounded-xl text-foreground"
             >
-              {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+              {copied ? <Check className="w-3 h-3 text-primary" /> : <Copy className="w-3 h-3" />}
               {copied ? "تم النسخ" : "نسخ"}
             </Button>
           </div>
@@ -242,12 +244,12 @@ export default function ApplyJobSidebar({
       <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
         <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
         <div className="text-xs">
-          <p className="font-bold text-emerald-700 dark:text-emerald-300">توظيف موثق وآمن 🇸🇦</p>
-          <p className="text-muted-foreground text-[10px] mt-0.5 leading-relaxed">
-            يتم فحص الطلبات ومطابقتها وفق أعلى معايير الخصوصية والأمان عبر منصة Tawzeef-X.
+          <p className="font-bold text-emerald-700 dark:text-emerald-300">طلبك يصل إلى فريق التوظيف</p>
+          <p className="text-muted-foreground text-xs mt-1 leading-6">
+            يُرفع ملف سيرتك عند إرسال الطلب في مساحة خاصة بفريق التوظيف المخوّل. القرار النهائي للفريق، وليس للذكاء الاصطناعي.
           </p>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
