@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Briefcase,
-  Sparkles,
+  MapPin,
   CheckCircle2,
   FileText,
   User,
@@ -43,7 +43,7 @@ const STEPS = [
   { id: 2, title: "البيانات الشخصية", icon: User },
   { id: 3, title: "المهارات والتعليم", icon: GraduationCap },
   { id: 4, title: "التفضيلات والرسالة", icon: Clock },
-  { id: 5, title: "المراجعة والاعتماد", icon: CheckCircle2 },
+  { id: 5, title: "المراجعة والإرسال", icon: CheckCircle2 },
 ];
 
 export default function ApplyJob() {
@@ -57,6 +57,15 @@ export default function ApplyJob() {
 
   // Stepper State (1 - 5)
   const [currentStep, setCurrentStep] = useState(1);
+  const stepNavigationRef = useRef<HTMLElement>(null);
+  const previousStep = useRef(currentStep);
+
+  useEffect(() => {
+    if (previousStep.current === currentStep) return;
+    previousStep.current = currentStep;
+    stepNavigationRef.current?.focus({ preventScroll: true });
+    stepNavigationRef.current?.scrollIntoView?.({ block: "start" });
+  }, [currentStep]);
 
   // Form State
   const [form, setForm] = useState({
@@ -427,7 +436,7 @@ export default function ApplyJob() {
 
   if (!job || !jobAvailability.isOpen) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col font-sans" dir="rtl">
+      <div className="min-h-screen bg-muted/30 text-foreground flex flex-col font-sans" dir="rtl">
         <SEO
           title={`${job?.title ? `الشاغر الوظيفي (${job.title}) مغلق` : "الشاغر الوظيفي غير متاح"} | TawzeefX`}
           description="عذراً، هذا الشاغر الوظيفي غير متاح حالياً أو انتهت فترة التقديم عليه."
@@ -496,10 +505,10 @@ export default function ApplyJob() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans" dir="rtl">
+    <div className="min-h-screen bg-muted/30 text-foreground flex flex-col font-sans" dir="rtl">
       <SEO
         title={`${job?.title || "شاغر وظيفي معتمد"} | ${schoolDisplayName} | TawzeefX`}
-        description={`قدم الآن على شاغر ${job?.title || "وظيفة"} لدى ${schoolDisplayName} عبر منصة TawzeefX مع التقييم الذكي اللحظي.`}
+        description={`قدم الآن على شاغر ${job?.title || "وظيفة"} لدى ${schoolDisplayName} عبر منصة TawzeefX. أرفق سيرتك وراجع بياناتك ومتطلبات الوظيفة قبل الإرسال.`}
         canonical={`https://www.tawzeefx.com/apply/${id}`}
         jsonLd={jobPostingJsonLd}
         noindex={!jobAvailability.isOpen}
@@ -523,7 +532,7 @@ export default function ApplyJob() {
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-[11px] font-bold border-primary/30 text-primary bg-primary/5 gap-1.5 hidden sm:flex">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>تقديم معتمد ومباشر</span>
+              <span>بوابة التقديم</span>
             </Badge>
 
             <Link to="/">
@@ -536,98 +545,56 @@ export default function ApplyJob() {
         </div>
       </header>
 
-      {/* Hero Job Banner */}
-      <section className="bg-gradient-to-l from-primary via-emerald-700 to-teal-800 text-white py-8 px-4 sm:px-6 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-white/10 text-white border-white/20 text-xs font-bold">
-                {schoolDisplayName}
-              </Badge>
-              <Badge className="bg-emerald-500/30 text-emerald-100 border-0 text-[10px] font-bold">
-                شاغر متاح للتقديم
-              </Badge>
+      <section className="border-b border-border/60 bg-card px-4 sm:px-6 py-6 sm:py-8" aria-labelledby="job-title">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+          <div className="min-w-0 space-y-3">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+              <span>{schoolDisplayName}</span><span aria-hidden="true">/</span><span>طلب توظيف</span>
+              <Badge variant="outline" className="rounded-full text-primary border-primary/20 bg-primary/5 text-[11px] gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-primary" />متاح للتقديم</Badge>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black">{job?.title}</h1>
-            <p className="text-xs text-white/80 flex items-center gap-2">
-              <span>{job?.department || "القسم العام"}</span>
-              <span>•</span>
-              <span>{job?.location || "المملكة العربية السعودية"}</span>
-              <span>•</span>
-              <span>{job?.type || "دوام كامل"}</span>
-            </p>
+            <h1 id="job-title" className="text-2xl sm:text-4xl leading-tight font-bold tracking-tight break-words">{job?.title}</h1>
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs sm:text-sm text-muted-foreground">
+              {job?.location && <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" />{job.location}</span>}
+              {job?.type && <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" />{job.type}</span>}
+              {job?.department && <span className="flex items-center gap-1.5"><Briefcase className="w-4 h-4" />{job.department}</span>}
+            </div>
           </div>
-
-          <div className="text-right sm:text-left self-start sm:self-center">
-            <span className="text-[11px] text-white/70 block">رقم الشاغر:</span>
-            <span className="font-mono text-xs font-bold text-white/90">#TX-{id?.slice(0, 8)}</span>
+          <div className="hidden sm:block border-s border-border ps-6 text-xs text-muted-foreground space-y-2 shrink-0">
+            <p>مرجع الوظيفة</p><p className="font-mono text-foreground" dir="ltr">TX-{id?.slice(0, 8)}</p>
+            <a href="#job-details" className="inline-block text-primary underline underline-offset-4">تفاصيل الفرصة</a>
           </div>
         </div>
       </section>
 
-      {/* Stepper Indicator Dock */}
-      <div className="border-b border-border/60 bg-card/60 backdrop-blur-md sticky top-16 z-30 py-3 px-4 shadow-2xs">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between text-xs font-semibold mb-2 md:hidden">
-            <span>الخطوة {currentStep} من {STEPS.length}: {STEPS[currentStep - 1].title}</span>
-            <span>{Math.round(currentStep / STEPS.length * 100)}%</span>
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            {STEPS.map((s, idx) => {
-              const Icon = s.icon;
-              const isCompleted = currentStep > s.id;
-              const isCurrent = currentStep === s.id;
-
-              return (
-                <div key={s.id} className="flex items-center gap-2 flex-1 last:flex-none">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isCompleted) setCurrentStep(s.id);
-                    }}
-                    disabled={!isCompleted && !isCurrent}
-                    className={`flex items-center gap-2 text-right transition-all group ${
-                      isCurrent
-                        ? "text-primary font-black scale-[1.02]"
-                        : isCompleted
-                        ? "text-emerald-600 font-bold hover:text-emerald-700 cursor-pointer"
-                        : "text-muted-foreground/60 font-medium cursor-not-allowed"
-                    }`}
-                  >
-                    <div
-                      className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs shrink-0 transition-all ${
-                        isCurrent
-                          ? "bg-primary text-primary-foreground shadow-xs font-black"
-                          : isCompleted
-                          ? "bg-emerald-500/20 text-emerald-600 border border-emerald-500/40"
-                          : "bg-muted text-muted-foreground border border-border/50"
-                      }`}
-                    >
-                      {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : s.id}
-                    </div>
-                    <span className="text-xs hidden md:inline truncate">{s.title}</span>
-                  </button>
-
-                  {idx < STEPS.length - 1 && (
-                    <div
-                      className={`h-0.5 flex-1 transition-all rounded-full ${
-                        currentStep > s.id ? "bg-emerald-500" : "bg-muted"
-                      }`}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
       {/* Main Workspace (Wizard + Sidebar) */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">
-        <div className="grid lg:grid-cols-12 gap-8 items-start">
-          {/* Main Wizard Area (7 Cols) */}
-          <div className="lg:col-span-7">
-            <div className="bg-card rounded-3xl border border-border/80 shadow-md p-6 sm:p-8 relative overflow-hidden">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-8 flex-1 w-full">
+        <div className="grid lg:grid-cols-12 gap-5 lg:gap-7 items-start">
+          {/* Application workspace */}
+          <div className="lg:col-span-8 min-w-0">
+            <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+              <nav ref={stepNavigationRef} tabIndex={-1} aria-label="خطوات طلب التوظيف" className="px-4 sm:px-7 py-5 bg-muted/20 border-b border-border scroll-mt-20 focus:outline-none">
+                <div className="flex items-center justify-between gap-3 mb-4 text-xs">
+                  <p className="font-semibold text-foreground" aria-live="polite">{STEPS[currentStep - 1].title}</p>
+                  <span className="text-muted-foreground">الخطوة {currentStep} من {STEPS.length}</span>
+                </div>
+                <ol className="grid grid-cols-5 gap-2 sm:gap-3">
+                  {STEPS.map((step) => {
+                    const completed = currentStep > step.id;
+                    const active = currentStep === step.id;
+                    const Icon = step.icon;
+                    return <li key={step.id} className="min-w-0">
+                      <button type="button" onClick={() => completed && setCurrentStep(step.id)} disabled={!completed && !active} aria-current={active ? "step" : undefined} aria-label={`${step.id}. ${step.title}${completed ? "، مكتملة" : ""}`} className={`w-full text-right rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4 ${active ? "text-primary" : completed ? "text-foreground" : "text-muted-foreground"}`}>
+                        <span className={`block h-1 rounded-full mb-3 ${active || completed ? "bg-primary" : "bg-border"}`} />
+                        <span className="flex items-center gap-1.5 text-[11px] font-semibold">
+                          {completed ? <CheckCircle2 className="w-4 h-4 shrink-0 text-primary" /> : <Icon className="w-4 h-4 shrink-0" />}
+                          <span className="hidden sm:inline leading-5">{step.title}</span><span className="sm:hidden">{step.id}</span>
+                        </span>
+                      </button>
+                    </li>;
+                  })}
+                </ol>
+              </nav>
+              <div className="p-5 sm:p-8 lg:p-9">
               <AnimatePresence mode="wait">
                 {currentStep === 1 && (
                   <motion.div
@@ -729,16 +696,19 @@ export default function ApplyJob() {
                   </motion.div>
                 )}
               </AnimatePresence>
+              </div>
             </div>
+            <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-4 leading-6"><ShieldCheck className="w-3.5 h-3.5 shrink-0" />القرار النهائي لفريق التوظيف. يمكنك مراجعة بياناتك قبل الإرسال.</p>
           </div>
 
-          {/* Job Details Side Dock (5 Cols) */}
-          <div className="lg:col-span-5 sticky top-36">
+          {/* Job details remain available alongside the application. */}
+          <div id="job-details" className="lg:col-span-4 min-w-0 lg:sticky lg:top-20 scroll-mt-20">
             <ApplyJobSidebar
               job={job}
               specs={specs}
               hasSpecs={hasSpecs}
               schoolDisplayName={schoolDisplayName}
+              description={cleanDescription}
             />
           </div>
         </div>
