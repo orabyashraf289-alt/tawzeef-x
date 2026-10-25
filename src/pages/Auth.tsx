@@ -685,8 +685,9 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
   const [rememberDevice, setRememberDevice] = useState(true);
   const [countdown, setCountdown] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [accountType, setAccountType] = useState<"company" | "job_seeker">(new URLSearchParams(window.location.search).get("type") === "applicant" ? "job_seeker" : "company");
+  const accountType = "company";
   const [searchParams] = useSearchParams();
+  const isApplicantLogin = searchParams.get("type") === "applicant" || searchParams.get("role") === "candidate";
   const inviteEmail = searchParams.get("email") || "";
   const [form, setForm] = useState({ email: inviteEmail, password: "", fullName: "", companyName: "" });
   const navigate = useNavigate();
@@ -1094,6 +1095,15 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
               </a>
             </div>
 
+            {isLogin && (
+              <nav aria-label="نوع تسجيل الدخول" className="grid grid-cols-2 gap-2 rounded-xl bg-muted/40 p-1 text-center text-xs font-bold">
+                <Link to="/auth?mode=login" aria-current={!isApplicantLogin ? "page" : undefined}
+                  className={`rounded-lg px-3 py-3 ${!isApplicantLogin ? "bg-white shadow-sm text-primary" : "text-slate-600"}`}>جهة توظيف / HR</Link>
+                <Link to="/auth?mode=login&type=applicant" aria-current={isApplicantLogin ? "page" : undefined}
+                  className={`rounded-lg px-3 py-3 ${isApplicantLogin ? "bg-white shadow-sm text-primary" : "text-slate-600"}`}>تسجيل دخول المتقدم</Link>
+              </nav>
+            )}
+
             {/* Header */}
             <AnimatePresence mode="wait">
               <motion.div
@@ -1107,27 +1117,27 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-500/20 bg-emerald-50 text-emerald-700 mb-1">
                   <Sparkles className="w-3 h-3 text-emerald-600 animate-pulse" />
                   <span className="text-[10px] font-bold tracking-wide">
-                    {searchParams.get("role") === "candidate" ? "بوابة المتقدمين للوظائف" : isLogin ? "مرحباً بعودتك" : "انضم للمنصة الأذكى"}
+                    {isApplicantLogin ? "بوابة المتقدمين للوظائف" : isLogin ? "مرحباً بعودتك" : "انضم للمنصة الأذكى"}
                   </span>
                 </div>
                 <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-tight">
-                  {searchParams.get("role") === "candidate" ? "تسجيل دخول المتقدمين" : isLogin ? "تسجيل الدخول" : "إنشاء حساب جديد"}
+                  {isApplicantLogin ? "تسجيل دخول المتقدمين" : isLogin ? "تسجيل الدخول" : "إنشاء حساب جديد"}
                 </h2>
                 <p className="text-slate-500 text-xs leading-normal">
-                  {searchParams.get("role") === "candidate" 
-                    ? "أدخل بريدك الإلكتروني ورقم جوالك ككلمة مرور لمتابعة طلبك"
+                  {isApplicantLogin
+                    ? "ادخل بالبريد الذي استخدمته للتقديم وكلمة المرور الخاصة بحسابك"
                     : isLogin 
                     ? "أدخل بريدك الإلكتروني وكلمة المرور للوصول لحسابك" 
                     : "ابدأ رحلتك في التوظيف الذكي وتتبع المرشحين"}
                 </p>
-                {searchParams.get("role") === "candidate" && (
+                {isApplicantLogin && (
                   <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-right space-y-1 my-2">
                     <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
                       <User className="w-4 h-4" />
                       <span>حساب متقدم مُنشأ تلقائياً 👤✨</span>
                     </div>
                     <p className="text-[11px] text-muted-foreground">
-                      كلمة المرور الخاصة بك هي <strong className="text-foreground">رقم الجوال</strong> الذي أدخلته عند تقديم الطلب.
+                      يتجهز حسابك عند تقديم طلب وظيفة. في أول مرة، افتح رسالة التفعيل على بريدك وحدد كلمة مرور خاصة بك. ستجد بيانات تقديمك وطلباتك لدى الشركات التي تقدمت إليها فقط.
                     </p>
                   </div>
                 )}
@@ -1147,37 +1157,10 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
               >
                 {!isLogin && (
                   <div className="space-y-4">
-                    {/* Account Type Toggle */}
-                    <div className="space-y-1.5 text-right">
-                      <label className="text-xs font-semibold text-slate-600 tracking-wide block">
-                        نوع الحساب
-                      </label>
-                      <div className="flex bg-muted/40 rounded-xl p-1 border border-border/30 relative h-[42px] select-none">
-                        <div
-                          className="absolute inset-y-1 rounded-lg bg-card shadow-sm border border-border/40 transition-all duration-300 ease-out"
-                          style={{
-                            width: "calc(50% - 4px)",
-                            right: accountType === "company" ? "4px" : "calc(50% + 2px)",
-                            left: accountType === "company" ? "calc(50% + 2px)" : "4px"
-                          }}
-                        />
-                        {[
-                          { type: "company" as const, icon: <Building2 className="w-3.5 h-3.5" />, label: "جهة توظيف / HR" },
-                          { type: "job_seeker" as const, icon: <User className="w-3.5 h-3.5" />, label: "حساب متقدم" },
-                        ].map((opt) => (
-                          <button
-                            key={opt.type}
-                            type="button"
-                            onClick={() => setAccountType(opt.type)}
-                            className={`flex-1 py-1 rounded-lg text-xs font-bold transition-colors duration-300 flex items-center justify-center gap-1.5 relative z-10 ${
-                              accountType === opt.type ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            {opt.icon}
-                            <span>{opt.label}</span>
-                          </button>
-                        ))}
-                      </div>
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-50 p-3 text-right text-xs space-y-2">
+                      <p className="font-bold text-emerald-800">إنشاء حساب جهة توظيف / HR</p>
+                      <p className="text-slate-600">تفعيل شركتك يتم بعد مراجعة إدارة توظيف إكس.</p>
+                      <Link to="/auth?mode=login&type=applicant" className="inline-flex font-bold text-primary underline underline-offset-4">قدمت على وظيفة؟ سجّل دخولك كمتقدم</Link>
                     </div>
 
                     {/* Full Name */}
@@ -1362,26 +1345,25 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
               </motion.form>
             </AnimatePresence>
 
-            <div className="relative flex items-center justify-center my-4 select-none">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border/40" />
-              </div>
-              <span className="relative px-3 text-[10px] font-bold text-muted-foreground/50 bg-background/0 uppercase tracking-widest">
-                أو المتابعة عبر
-              </span>
-            </div>
-
-            <SocialButtons />
-
-            <p className="text-center text-xs text-muted-foreground select-none">
-              {isLogin ? "ليس لديك حساب؟" : "لديك حساب بالفعل؟"}{" "}
-              <button
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-primary font-bold hover:text-accent transition-colors underline-offset-4 hover:underline"
-              >
-                {isLogin ? "أنشئ حساب جديد" : "سجّل دخولك"}
-              </button>
-            </p>
+            {isApplicantLogin ? (
+              <p className="text-center text-xs text-muted-foreground">
+                لم تقدم على وظيفة بعد؟ <Link to="/careers" className="font-bold text-primary underline underline-offset-4">تصفح الوظائف المتاحة</Link>
+              </p>
+            ) : (
+              <>
+                <div className="relative flex items-center justify-center my-4 select-none">
+                  <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/40" /></div>
+                  <span className="relative px-3 text-[10px] font-bold text-muted-foreground/50">أو المتابعة عبر</span>
+                </div>
+                <SocialButtons />
+                <p className="text-center text-xs text-muted-foreground select-none">
+                  {isLogin ? "تريد تسجيل جهة توظيف؟" : "لديك حساب بالفعل؟"}{" "}
+                  <button onClick={() => setIsLogin(!isLogin)} className="text-primary font-bold hover:text-accent transition-colors underline-offset-4 hover:underline">
+                    {isLogin ? "إنشاء حساب جهة توظيف" : "سجّل دخولك"}
+                  </button>
+                </p>
+              </>
+            )}
 
             <p className="text-center text-[10px] text-muted-foreground/35 leading-relaxed select-none">
               بالمتابعة أنت توافق على{" "}
@@ -1434,7 +1416,10 @@ export default function Auth() {
   const { user } = useAuth();
   const { data: brandSettings } = useBrandSettings();
   const [searchParams] = useSearchParams();
-  const [isLogin, setIsLogin] = useState(searchParams.get("mode") !== "signup");
+  const [loginMode, setIsLogin] = useState(searchParams.get("mode") !== "signup");
+  const isApplicantLogin = searchParams.get("type") === "applicant" || searchParams.get("role") === "candidate";
+  // Legacy applicant signup links must never mount the company signup form.
+  const isLogin = isApplicantLogin || loginMode;
   const [pendingOtp, setPendingOtp] = useState(false);
 
   useEffect(() => { setIsLogin(searchParams.get("mode") !== "signup"); }, [searchParams]);
