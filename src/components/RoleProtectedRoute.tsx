@@ -1,3 +1,4 @@
+import ProtectedRoute from "./ProtectedRoute";
 import { useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,7 +16,7 @@ interface RoleProtectedRouteProps {
   screenPath?: string;
 }
 
-export default function RoleProtectedRoute({ children, allowedRoles, superAdminOnly, screenPath }: RoleProtectedRouteProps) {
+function RoleContent({ children, allowedRoles, superAdminOnly, screenPath }: RoleProtectedRouteProps) {
   const { user, loading } = useAuth();
   const { role, isSuperAdmin, isPlatformSuperAdmin, isLoading: roleLoading } = useUserRole();
   const { hasScreenAccess, isLoading: permLoading } = useScreenPermissions();
@@ -55,4 +56,8 @@ export default function RoleProtectedRoute({ children, allowedRoles, superAdminO
   }
 
   return <>{children}</>;
+}
+
+export default function RoleProtectedRoute(props: RoleProtectedRouteProps) {
+  return <ProtectedRoute><RoleContent {...props} /></ProtectedRoute>;
 }
