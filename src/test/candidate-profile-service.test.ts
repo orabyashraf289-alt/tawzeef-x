@@ -12,13 +12,14 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {
   from: vi.fn((table: string) => {
     let linked = false;
+    let selection = "";
     const query = {
-      select: vi.fn(() => query), or: vi.fn(() => query),
+      select: vi.fn((value: string) => { selection = value; return query; }), or: vi.fn(() => query),
       eq: vi.fn(() => { linked = true; return query; }), ilike: vi.fn(() => query),
       insert: mocks.insert, upsert: mocks.upsert, update: mocks.update,
       maybeSingle: vi.fn(async () => ({
         data: table === "applications" ? mocks.application : linked ? mocks.linkedCandidate : mocks.candidate,
-        error: mocks.error,
+        error: /(?:^|,\s*)jobs\(/.test(selection) ? { code: "PGRST201", message: "Ambiguous job relationship" } : mocks.error,
       })),
     };
     return query;
