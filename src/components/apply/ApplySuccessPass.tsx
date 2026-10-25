@@ -188,7 +188,7 @@ export default function ApplySuccessPass({
                   </div>
                 )}
                 {(accountStatus === "existing" || signedInAsApplicant) && (
-                  <Link to={signedInAsApplicant ? "/seeker-dashboard" : "/auth?mode=login"} className="inline-block font-bold text-primary hover:underline">
+                  <Link to={signedInAsApplicant ? "/applicant-dashboard" : "/auth?mode=login"} className="inline-block font-bold text-primary hover:underline">
                     {signedInAsApplicant ? "الانتقال إلى ملفي وطلباتي" : "تسجيل الدخول"}
                   </Link>
                 )}
