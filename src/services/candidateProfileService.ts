@@ -7,7 +7,7 @@ export async function fetchCandidateProfile(identifier: string | undefined): Pro
   const cleanId = identifier.trim();
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
 
-  let candQuery = supabase.from("candidates").select("*, jobs(title)");
+  let candQuery = supabase.from("candidates").select("*, jobs!candidates_job_id_fkey(title)");
   if (isUuid) candQuery = candQuery.or(`id.eq.${cleanId},tracking_code.ilike.${cleanId}`);
   else candQuery = candQuery.or(`tracking_code.ilike.${cleanId},email.ilike.${cleanId}`);
 
@@ -15,7 +15,7 @@ export async function fetchCandidateProfile(identifier: string | undefined): Pro
   if (candidateError) throw candidateError;
   if (cand) return cand;
 
-  let appQuery = supabase.from("applications").select("*, jobs(title)");
+  let appQuery = supabase.from("applications").select("*, jobs!applications_job_id_fkey(title)");
   if (isUuid) appQuery = appQuery.or(`id.eq.${cleanId},tracking_code.ilike.${cleanId}`);
   else appQuery = appQuery.or(`tracking_code.ilike.${cleanId},email.ilike.${cleanId}`);
 
@@ -26,7 +26,7 @@ export async function fetchCandidateProfile(identifier: string | undefined): Pro
     if (app.email && app.job_id) {
       const { data: linkedCand, error: linkedError } = await supabase
         .from("candidates")
-        .select("*, jobs(title)")
+        .select("*, jobs!candidates_job_id_fkey(title)")
         .eq("job_id", app.job_id)
         .ilike("email", app.email.trim())
         .maybeSingle();
