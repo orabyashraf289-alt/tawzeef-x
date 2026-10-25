@@ -1,5 +1,8 @@
 -- Disposable database only; all fixtures are rolled back.
 BEGIN;
+-- Seed only the read-model fixtures without subscription, provisioning or
+-- outgoing job/application hooks. Restore all triggers before access assertions.
+SET LOCAL session_replication_role = replica;
 INSERT INTO auth.users(id,instance_id,aud,role,email,email_confirmed_at,raw_user_meta_data) VALUES
  ('43000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000000','authenticated','authenticated','applicant@example.test',now(),'{"account_type":"job_seeker"}'),
  ('43000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000000','authenticated','authenticated','unverified@example.test',null,'{"account_type":"job_seeker"}');
@@ -12,7 +15,7 @@ INSERT INTO public.jobs(id,title,user_id,company_id,status,department,location,t
 INSERT INTO public.applications(id,job_id,company_id,name,email,phone) VALUES
  ('46000000-0000-0000-0000-000000000001','45000000-0000-0000-0000-000000000001','44000000-0000-0000-0000-000000000001','Applicant','Applicant@EXAMPLE.test','000'),
  ('46000000-0000-0000-0000-000000000002','45000000-0000-0000-0000-000000000001','44000000-0000-0000-0000-000000000001','Other applicant','someone-else@example.test','000');
--- Production inserts a candidate on application submission; use that actual row.
+-- Include an unrelated manual candidate with the same email to test job scope.
 INSERT INTO public.candidates(id,name,email,job_id,company_id,user_id) VALUES
  ('47000000-0000-0000-0000-000000000001','Unrelated manual candidate','applicant@example.test','45000000-0000-0000-0000-000000000002','44000000-0000-0000-0000-000000000002','43000000-0000-0000-0000-000000000001');
 INSERT INTO public.candidates(id,name,email,job_id,company_id,user_id) VALUES
@@ -22,6 +25,7 @@ INSERT INTO public.interviews(id,candidate_id,company_id,position,candidate_name
 INSERT INTO public.job_offers(id,candidate_id,company_id,job_id,position,salary,status,user_id) VALUES
  ('49000000-0000-0000-0000-000000000001','47000000-0000-0000-0000-000000000002','44000000-0000-0000-0000-000000000001','45000000-0000-0000-0000-000000000001','Published offer',100,'sent','43000000-0000-0000-0000-000000000001'),
  ('49000000-0000-0000-0000-000000000002','47000000-0000-0000-0000-000000000002','44000000-0000-0000-0000-000000000001','45000000-0000-0000-0000-000000000001','Private draft',200,'draft','43000000-0000-0000-0000-000000000001');
+SET LOCAL session_replication_role = origin;
 SELECT set_config('request.jwt.claim.sub','43000000-0000-0000-0000-000000000001',true);
 SET LOCAL ROLE authenticated;
 DO $$ DECLARE _data jsonb; BEGIN
@@ -30,6 +34,7 @@ DO $$ DECLARE _data jsonb; BEGIN
   IF jsonb_array_length(_data->'interviews') <> 1 OR (_data->'interviews'->0) ? 'notes' THEN RAISE EXCEPTION 'Interview missing or private notes leaked'; END IF;
   IF jsonb_array_length(_data->'applications') <> 1 THEN RAISE EXCEPTION 'Applicant read other applications or lost own application'; END IF;
   IF _data->'applications'->0->>'company_name' <> 'Applied company' THEN RAISE EXCEPTION 'Wrong company scope'; END IF;
+  IF jsonb_array_length(_data->'candidates') <> 1 THEN RAISE EXCEPTION 'Own candidate missing or unrelated candidate leaked'; END IF;
   IF EXISTS (SELECT 1 FROM jsonb_array_elements(_data->'candidates') c WHERE c->>'company_id' <> '44000000-0000-0000-0000-000000000001') THEN RAISE EXCEPTION 'Candidate without application leaked'; END IF;
   IF EXISTS (SELECT 1 FROM jsonb_array_elements(_data->'candidates') c WHERE c ? 'ai_evaluation' OR c ? 'ai_score' OR c ? 'notes') THEN RAISE EXCEPTION 'Internal HR fields leaked'; END IF;
 END $$;
