@@ -1,3 +1,5 @@
+import { extractStatedExperience, meetsExperienceRequirement, parseEnteredExperience, parseExperienceRequirement } from "./experienceYears";
+
 /** An applicant-facing comparison of published requirements with supplied evidence. */
 export type RequirementEvidence = {
   requirement: string;
@@ -57,13 +59,6 @@ function mentions(haystack: string, words: string[]) {
   return words.length > 0 && words.filter(word => tokens.has(word)).length / words.length >= 0.7;
 }
 
-function yearsInRequirement(value: string): number | null {
-  const text = asciiDigits(value);
-  const match = text.match(/(\d{1,2})\s*(?:\+|سنوات?|اعوام|years?|yrs?)/i) ||
-    text.match(/(?:سنوات?|years?)\s*(\d{1,2})/i);
-  return match ? Number(match[1]) : null;
-}
-
 function phoneDigits(value: string) {
   return value.replace(/\D/g, "").replace(/^00/, "");
 }
@@ -74,16 +69,17 @@ export function analyzeApplicationEvidence(input: EvidenceInput): ApplicationEvi
     input.form.currentTitle, input.form.universityDegree, input.form.major,
     input.form.licenseNumber, ...input.skills,
   ].join(" "));
-  const formYears = Number(asciiDigits(input.form.experience).match(/\d{1,2}/)?.[0] || NaN);
+  const formYears = parseEnteredExperience(input.form.experience);
   const listed = Array.isArray(input.requirements)
     ? input.requirements.filter((item): item is string => typeof item === "string" && !!item.trim()).slice(0, 30)
     : [];
   const requirements = listed.map(requirement => {
-    const minimumYears = yearsInRequirement(requirement);
-    if (minimumYears !== null) {
-      const otherWords = keywords(requirement);
+    const years = parseExperienceRequirement(requirement);
+    if (years !== undefined) {
+      if (years === null) return { requirement, source: "unconfirmed" } as RequirementEvidence;
+      const otherWords = keywords(years.remaining);
       const hasOtherEvidence = otherWords.length === 0 || mentions(resume, otherWords) || mentions(entered, otherWords);
-      return { requirement, source: Number.isFinite(formYears) && formYears >= minimumYears && hasOtherEvidence
+      return { requirement, source: formYears !== null && meetsExperienceRequirement(formYears, years) && hasOtherEvidence
         ? "form" : "unconfirmed" } as RequirementEvidence;
     }
     const words = keywords(requirement);
@@ -101,8 +97,8 @@ export function analyzeApplicationEvidence(input: EvidenceInput): ApplicationEvi
     if (a.length >= 9 && b.length >= 9 && a.slice(-9) !== b.slice(-9))
       discrepancies.push("رقم الجوال في السيرة يختلف عن الرقم المدخل؛ راجع الصحيح منهما.");
   }
-  const cvYears = asciiDigits(input.resumeText).match(/(\d{1,2})\s*(?:\+|سنوات?|اعوام|years?|yrs?)/i);
-  if (cvYears && Number.isFinite(formYears) && Number(cvYears[1]) !== formYears)
+  const cvYears = extractStatedExperience(input.resumeText);
+  if (cvYears !== null && formYears !== null && cvYears !== formYears)
     discrepancies.push("سنوات الخبرة في السيرة تختلف عن الرقم المدخل؛ راجع الصحيح منهما.");
   return {
     requirements,

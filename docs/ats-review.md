@@ -1,5 +1,27 @@
 # Recruiter ATS review
 
+## Applicant experience and report navigation
+
+The local applicant review recognizes numeric experience ranges (for example,
+3–5 years), minimum/maximum thresholds, Arabic/Persian digits, and decimal years.
+Explicit range endpoints are inclusive; values outside a range remain
+unconfirmed for human review, never an automatic rejection. Other professional
+keywords in the requirement must still be present in the CV or entered fields.
+Multiple distinct year constraints in one requirement are left unconfirmed.
+
+CV prefilling accepts a single consistent, explicitly stated numeric duration.
+Ranges, lower bounds such as 5+, different durations across roles, and recognized
+age statements are not guessed or added together. The experience field stays
+editable. This heuristic is not a semantic qualification verifier or OCR engine.
+
+Recruiter reports offer all/review/quoted filters and separate counts for rows
+with source-checked quotations and rows needing review. Uncovered requirements
+remain visible in a notice independently of the selected filter. Legacy reports
+and rows without a known source or nonempty quotation are never counted as
+source-checked. Filtering does not trigger AI or update a candidate's stage.
+
+## Evaluation requests
+
 The candidate profile and the candidate-list drawer use the same report. Opening
 or filtering the list, and creating a candidate manually, do not start Gemini
 analysis. Recruiters can request one evaluation or use the screening button for

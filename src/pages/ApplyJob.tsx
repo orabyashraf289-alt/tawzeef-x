@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import { validateFile } from "@/lib/fileValidation";
 import { extractTextFromPDF, extractTextFromDocx } from "@/lib/fileParser";
+import { extractStatedExperience } from "@/lib/experienceYears";
 import { parseJobCustomSpecs } from "@/lib/jobSpecsHelper";
 import { getPublicJobEmployerName } from "@/lib/publicJobIdentity";
 import { getJobAvailability } from "@/lib/jobSeoHelper";
@@ -290,14 +291,14 @@ export default function ApplyJob() {
         // Fast Regex Heuristics
         const phoneMatch = extractedText.match(/(?:(?:\+|00)?(966|20|971|965|968|973|974)?[-.\s]?)?(05\d{8}|01[0125]\d{8}|\d{9,12})/);
         const emailMatch = extractedText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-        const expMatch = extractedText.match(/(\d+)\s*(?:\+|سنوات|سنة|عام|years?|yrs?)/i);
+        const statedExperience = extractStatedExperience(extractedText);
         const licenseMatch = extractedText.match(/(?:ETEC|رخصة|ترخيص|SOCPA|SCFHS)[-\s:]*([A-Za-z0-9-]+)/i);
 
         setForm(prev => {
           const updated = { ...prev };
           if (!prev.email && emailMatch) { updated.email = emailMatch[0].trim().toLowerCase(); }
           if (!prev.phone && phoneMatch) { updated.phone = phoneMatch[0].trim(); }
-          if (!prev.experience && expMatch) { updated.experience = expMatch[1]; }
+          if (!prev.experience && statedExperience !== null) { updated.experience = String(statedExperience); }
           if (!prev.licenseNumber && licenseMatch) { updated.licenseNumber = licenseMatch[1].trim(); }
           return updated;
         });
