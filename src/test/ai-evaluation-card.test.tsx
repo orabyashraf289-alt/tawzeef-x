@@ -42,6 +42,45 @@ describe("recruiter ATS report", () => {
     expect(screen.getByRole("status")).toHaveTextContent("دون تحقق من مصادر الأدلة");
     expect(screen.getByText("لم يُسجل مصدر البيانات لهذا التقييم السابق.")).toBeInTheDocument();
     expect(screen.queryByText("المصدر: مقتطف السيرة بموافقة المتقدم")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "له اقتباس (0)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "يحتاج مراجعة (3)" })).toBeInTheDocument();
+  });
+
+  it("filters evidence without sending a new evaluation and retains the omitted-requirements notice", () => {
+    render(card("candidate-a", JSON.stringify({ ...report, requirementsTotal: 5 })));
+    fireEvent.click(screen.getByRole("button", { name: "يحتاج مراجعة (1)" }));
+    expect(screen.getByRole("button", { name: "يحتاج مراجعة (1)" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(/Python experience/)).toBeInTheDocument();
+    expect(screen.queryByText(/React experience/)).not.toBeInTheDocument();
+    expect(screen.getByText(/هناك 2 متطلبات إضافية/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "له اقتباس (2)" }));
+    expect(screen.queryByText(/Python experience/)).not.toBeInTheDocument();
+    expect(screen.getByText(/React experience/)).toBeInTheDocument();
+    expect(mocks.invoke).not.toHaveBeenCalled();
+  });
+
+  it("does not call a supported row verified without a known source and a nonempty quote", () => {
+    render(card("candidate-a", JSON.stringify({ ...report, requirementEvidence: [
+      { requirement: "Missing source", status: "supported", evidence: "React" },
+      { requirement: "Empty quote", status: "supported", evidence: "", source: "profile" },
+    ] })));
+    expect(screen.getByRole("button", { name: "له اقتباس (0)" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "له اقتباس (0)" }));
+    expect(screen.getByText("لا توجد متطلبات ضمن هذا العرض.")).toBeInTheDocument();
+  });
+
+  it("resets the evidence filter when the candidate changes", () => {
+    const view = render(card("candidate-a", JSON.stringify(report)));
+    fireEvent.click(screen.getByRole("button", { name: "يحتاج مراجعة (1)" }));
+    view.rerender(card("candidate-b", JSON.stringify(report)));
+    expect(screen.getByRole("button", { name: "الكل (3)" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(/React experience/)).toBeInTheDocument();
+  });
+
+  it("distinguishes missing evidence rows from missing published requirements", () => {
+    render(card("candidate-a", JSON.stringify({ ...report, requirementEvidence: [], requirementsTotal: 5 })));
+    expect(screen.getByText(/يوجد 5 متطلبًا لم يشملها التقرير/)).toBeInTheDocument();
+    expect(screen.queryByText(/لم تُنشر متطلبات/)).not.toBeInTheDocument();
   });
 
   it("rejects malformed stored reports and refreshes when a new persisted result arrives", () => {
