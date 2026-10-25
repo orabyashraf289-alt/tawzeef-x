@@ -356,19 +356,20 @@ export function useCandidates(specificCompanyId?: string | null) {
       }
 
       if (jobOrConditions.length > 0) {
-        const { data: scopeJobs } = await supabase
+        const { data: scopeJobs, error: scopeError } = await supabase
           .from("jobs")
           .select("id")
           .or(jobOrConditions.join(","));
+        if (scopeError) throw scopeError;
         scopedJobIds = (scopeJobs || []).map((j: any) => j.id);
       }
 
       // 3. Fetch candidates table strictly scoped to this tenant
       let candidatesData: CandidateRow[] = [];
-      try {
+      {
         let candQuery = supabase
           .from("candidates")
-          .select("*, jobs(title, department, location, type)")
+          .select("*, jobs!candidates_job_id_fkey(title, department, location, type)")
           .order("created_at", { ascending: false });
 
         const orConditions: string[] = [];
@@ -387,25 +388,23 @@ export function useCandidates(specificCompanyId?: string | null) {
         }
 
         const { data, error: candError } = await candQuery;
-        if (!candError && data) {
+        if (candError) throw candError;
+        if (data) {
           candidatesData = data as CandidateRow[];
         }
-      } catch (err) {
-        console.warn("Failed candidate query:", err);
       }
 
       // 4. Fetch applications table strictly scoped to this tenant's jobs
       let appsData: ApplicationRow[] = [];
       if (scopedJobIds.length > 0) {
-        try {
-          const { data } = await supabase
+        {
+          const { data, error: applicationError } = await supabase
             .from("applications")
-            .select("*, jobs(title)")
+            .select("*, jobs!applications_job_id_fkey(title)")
             .in("job_id", scopedJobIds)
             .order("created_at", { ascending: false });
+          if (applicationError) throw applicationError;
           if (data) appsData = data as ApplicationRow[];
-        } catch (e) {
-          console.warn("Error fetching applications for tenant jobs:", e);
         }
       }
 
@@ -467,7 +466,7 @@ export function usePaginatedCandidates(page = 0, pageSize = 50) {
 
       const { data: candidatesData, error, count } = await supabase
         .from("candidates")
-        .select("*, jobs(title, department, location, type)", { count: "exact" })
+        .select("*, jobs!candidates_job_id_fkey(title, department, location, type)", { count: "exact" })
         .order("created_at", { ascending: false })
         .range(from, to);
 
@@ -476,7 +475,7 @@ export function usePaginatedCandidates(page = 0, pageSize = 50) {
       // Fetch applications to ensure no applied candidates are missed
       const { data: appsData } = await supabase
         .from("applications")
-        .select("*, jobs(title)")
+        .select("*, jobs!applications_job_id_fkey(title)")
         .order("created_at", { ascending: false });
 
       if (!appsData || appsData.length === 0) {
