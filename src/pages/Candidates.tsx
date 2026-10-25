@@ -223,7 +223,7 @@ function AddCandidateModal({ isOpen, onClose, jobs, onCreated }: { isOpen: boole
 export default function Candidates() {
   const collection = useCollectionMotion();
   const { t, locale, dir } = useI18n();
-  const { data: allCandidatesData, isLoading, refetch } = useCandidates();
+  const { data: allCandidatesData, isLoading, isError, isFetching, refetch } = useCandidates();
   const candidates = allCandidatesData || [];
   const totalCount = candidates.length;
   const { data: jobs } = useJobs();
@@ -516,6 +516,19 @@ export default function Candidates() {
       toast({ title: `تم تصدير ${exportData.length} مرشح بنجاح ✅` });
     });
   };
+
+  if (isError) return <DashboardLayout>
+    <div className="p-4 lg:p-8" dir={dir}>
+      <div role="alert" className="rounded-2xl border border-destructive/20 bg-card p-6 space-y-3">
+        <h1 className="text-xl font-bold">تعذر تحميل المرشحين</h1>
+        <p className="text-sm text-muted-foreground">لم نتمكن من قراءة قائمة المرشحين. أعد المحاولة؛ هذا لا يعني عدم وجود طلبات توظيف.</p>
+        <Button onClick={() => refetch()} disabled={isFetching} className="gap-2">
+          <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} aria-hidden="true" />
+          {isFetching ? "جارٍ إعادة المحاولة..." : "إعادة المحاولة"}
+        </Button>
+      </div>
+    </div>
+  </DashboardLayout>;
 
   return (
     <DashboardLayout>
