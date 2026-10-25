@@ -6,6 +6,7 @@ import Candidates from "@/pages/Candidates";
 
 const mocks = vi.hoisted(() => ({
   invoke: vi.fn(), fetch: vi.fn(), getSession: vi.fn(), toast: vi.fn(), removeChannel: vi.fn(),
+  isError: false, refetch: vi.fn(),
   candidates: ["a", "b"].map(id => ({
     id: `candidate-${id}`, name: `Applicant ${id}`, email: `${id}@example.test`, phone: "",
     job_id: "job-a", company_id: "company-a", user_id: "staff-a", role: "Developer", skills: ["React"],
@@ -19,7 +20,7 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: {
 vi.mock("@/components/DashboardLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <main>{children}</main> }));
 vi.mock("@/components/candidates/CompareDialog", () => ({ default: () => null }));
 vi.mock("@/hooks/useJobs", () => ({
-  useCandidates: () => ({ data: mocks.candidates, isLoading: false, refetch: vi.fn() }),
+  useCandidates: () => ({ data: mocks.candidates, isLoading: false, isError: mocks.isError, isFetching: false, refetch: mocks.refetch }),
   useJobs: () => ({ data: [] }),
 }));
 vi.mock("@/hooks/useCollectionMotion", () => ({ useCollectionMotion: () => ({ entry: () => ({}), hover: {} }) }));
@@ -31,6 +32,7 @@ vi.mock("@/hooks/use-toast", () => ({ toast: mocks.toast }));
 let client: QueryClient;
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.isError = false;
   vi.stubGlobal("fetch", mocks.fetch);
   vi.stubGlobal("scrollTo", vi.fn());
   mocks.getSession.mockResolvedValue({ data: { session: { access_token: "synthetic-test-token" } } });
@@ -41,6 +43,16 @@ afterEach(() => { cleanup(); client.clear(); vi.unstubAllGlobals(); });
 function open() { return render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><QueryClientProvider client={client}><Candidates /></QueryClientProvider></MemoryRouter>); }
 
 describe("candidate list ATS requests", () => {
+  it("shows a retryable load error instead of reporting no candidates or enabling screening", () => {
+    mocks.isError = true;
+    open();
+    expect(screen.getByRole("alert")).toHaveTextContent("تعذر تحميل المرشحين");
+    expect(screen.queryByText("لا يوجد مرشحين مطابقين")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "الفرز الذكي" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "إعادة المحاولة" }));
+    expect(mocks.refetch).toHaveBeenCalledTimes(1);
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });
   it("does not evaluate candidates when the recruiter opens or filters the list", () => {
     open();
     expect(screen.getByText("Applicant a")).toBeInTheDocument();
