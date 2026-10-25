@@ -1,3 +1,4 @@
+import { loadApplicantPortal } from "@/lib/applicantPortal";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,76 +22,21 @@ import React, { useState, useEffect, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
 import { validateFile } from "@/lib/fileValidation";
 
-function useJobSeekerData() {
+export function useJobSeekerData() {
   const { user } = useAuth();
-
-  const applications = useQuery({
-    queryKey: ["seeker-applications", user?.email],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("applications")
-        .select("*, jobs(title, department, location, type)")
-        .eq("email", user!.email!)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.email,
-  });
-
-  const candidates = useQuery({
-    queryKey: ["seeker-candidates", user?.email],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("candidates")
-        .select("id, name, stage, status, role, tracking_code, ai_score, created_at, job_id")
-        .eq("email", user!.email!)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.email,
-  });
-
-  const candidateIds = candidates.data?.map((c: any) => c.id) || [];
-
-  const interviews = useQuery({
-    queryKey: ["seeker-interviews", candidateIds],
-    queryFn: async () => {
-      if (candidateIds.length === 0) return [];
-      const { data, error } = await supabase
-        .from("interviews")
-        .select("*")
-        .in("candidate_id", candidateIds)
-        .order("date", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: candidateIds.length > 0,
-  });
-
-  const offers = useQuery({
-    queryKey: ["seeker-offers", candidateIds],
-    queryFn: async () => {
-      if (candidateIds.length === 0) return [];
-      const { data, error } = await supabase
-        .from("job_offers")
-        .select("*")
-        .in("candidate_id", candidateIds)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: candidateIds.length > 0,
-  });
-
+  const query = useQuery({ queryKey: ["applicant-portal", user?.id], queryFn: loadApplicantPortal, enabled: !!user });
+  const [companyId, setCompanyId] = useState("");
+  const allApplications = query.data?.applications || [];
+  const companies = Array.from(new Map(allApplications.map(a => [a.company_id, a.company_name])).entries());
+  const scoped = <T extends { company_id: string }>(rows: T[]) => companyId ? rows.filter(r => r.company_id === companyId) : rows;
   return {
-    applications: applications.data || [],
-    applicationsLoaded: !applications.isLoading,
-    candidates: candidates.data || [],
-    interviews: interviews.data || [],
-    offers: offers.data || [],
-    isLoading: applications.isLoading || candidates.isLoading,
+    applications: scoped(allApplications), allApplications,
+    applicationsLoaded: query.isSuccess,
+    candidates: scoped(query.data?.candidates || []),
+    interviews: scoped(query.data?.interviews || []),
+    offers: scoped(query.data?.offers || []),
+    isLoading: query.isLoading, isError: query.isError, refetch: query.refetch,
+    companyId, setCompanyId, companies,
   };
 }
 
@@ -111,7 +57,7 @@ export default function JobSeekerDashboard() {
   const { user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const qc = useQueryClient();
-  const { applications, applicationsLoaded, candidates, interviews, offers, isLoading } = useJobSeekerData();
+  const { applications, allApplications, applicationsLoaded, candidates, interviews, offers, isLoading, isError, refetch, companyId, setCompanyId, companies } = useJobSeekerData();
   const initializedUserId = useRef<string | null>(null);
   const resumeRecordId = useRef<string | null>(null);
 
@@ -185,7 +131,7 @@ export default function JobSeekerDashboard() {
   useEffect(() => {
     if (!user || initializedUserId.current === user.id || !applicationsLoaded || resumeQuery.isLoading || profileQuery.isLoading) return;
     initializedUserId.current = user.id;
-    const latestApplication = applications[0];
+    const latestApplication = allApplications[0];
     if (resumeQuery.data) {
       const r = resumeQuery.data;
       resumeRecordId.current = r.id;
@@ -216,7 +162,7 @@ export default function JobSeekerDashboard() {
         resumeFileUrl: latestApplication?.resume_url || "",
       });
     }
-  }, [user?.id, applicationsLoaded, applications, resumeQuery.isLoading, resumeQuery.data, profileQuery.isLoading, profileQuery.data]);
+  }, [user?.id, applicationsLoaded, allApplications, resumeQuery.isLoading, resumeQuery.data, profileQuery.isLoading, profileQuery.data]);
 
   const handleUploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -484,7 +430,7 @@ export default function JobSeekerDashboard() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
-            <span className="text-sm font-bold text-foreground">لوحة الباحث عن عمل</span>
+            <span className="text-sm font-bold text-foreground">حساب المتقدم</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="hidden sm:flex items-center gap-0.5 p-0.5 bg-muted/40 rounded-lg">
@@ -512,9 +458,22 @@ export default function JobSeekerDashboard() {
         {/* Welcome */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-xl font-bold text-foreground">مرحباً 👋</h1>
-          <p className="text-sm text-muted-foreground mt-1">تابع طلباتك ومقابلاتك وعروضك الوظيفية من مكان واحد</p>
+          <p className="text-sm text-muted-foreground mt-1">تابع طلباتك ومقابلاتك وعروضك لدى الشركات التي قدّمت لها فقط</p>
         </motion.div>
 
+        {isError && <div role="alert" className="rounded-xl border border-destructive/30 p-4 space-y-3">
+          <p>تعذر تحميل طلباتك. حاول مرة أخرى؛ هذا لا يعني عدم وجود طلبات.</p>
+          <Button variant="outline" onClick={() => refetch()}>إعادة تحميل الطلبات</Button>
+        </div>}
+        {!isError && companies.length > 0 && <div className="space-y-2">
+          <Label htmlFor="applicant-company">الشركة التي قدّمت لها</Label>
+          <select id="applicant-company" className="h-11 rounded-lg border bg-background px-3 w-full sm:w-80" value={companyId} onChange={e => setCompanyId(e.target.value)}>
+            <option value="">كل الشركات التي قدّمت لها</option>
+            {companies.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+          </select>
+        </div>}
+        {!isError && allApplications.length === 0 && <p role="status" className="rounded-xl border p-5 text-sm leading-7">لا توجد طلبات مرتبطة ببريدك المؤكد حتى الآن. استخدم البريد نفسه الذي قدّمت به على الوظيفة؛ يظهر هنا طلبك لدى تلك الشركة فقط بعد التقديم.</p>}
+        {!isError && allApplications.length > 0 && <>
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {stats.map((s, i) => (
@@ -556,7 +515,7 @@ export default function JobSeekerDashboard() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>الوظيفة</TableHead>
-                        <TableHead>القسم</TableHead>
+                        <TableHead>الشركة</TableHead>
                         <TableHead>الحالة</TableHead>
                         <TableHead>تاريخ التقديم</TableHead>
                       </TableRow>
@@ -565,7 +524,7 @@ export default function JobSeekerDashboard() {
                       {applications.map((app: any) => (
                         <TableRow key={app.id}>
                           <TableCell className="font-medium">{(app.jobs as any)?.title || "—"}</TableCell>
-                          <TableCell className="text-muted-foreground">{(app.jobs as any)?.department || "—"}</TableCell>
+                          <TableCell className="text-muted-foreground">{app.company_name || "—"}</TableCell>
                           <TableCell><Badge variant="outline">{app.status}</Badge></TableCell>
                           <TableCell className="text-muted-foreground text-xs">
                             {new Date(app.created_at).toLocaleDateString("ar-SA")}
@@ -601,12 +560,7 @@ export default function JobSeekerDashboard() {
                             )}
                           </div>
                         </div>
-                        {c.ai_score && (
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-primary">{c.ai_score}%</p>
-                            <p className="text-[10px] text-muted-foreground">تقييم AI</p>
-                          </div>
-                        )}
+
                       </div>
                     ))}
                   </div>
@@ -1078,6 +1032,7 @@ export default function JobSeekerDashboard() {
             </div>
           </TabsContent>
         </Tabs>
+        </>}
       </main>
     </div>
   );
