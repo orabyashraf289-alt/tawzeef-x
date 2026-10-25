@@ -1,3 +1,4 @@
+import CompanyRegistration from "@/pages/CompanyRegistration";
 import MotionProvider from "@/components/motion/MotionProvider";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -124,6 +125,8 @@ function AnimatedRoutes() {
 
         {/* Protected - any authenticated user */}
         <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+        <Route path="/company-registration" element={<ProtectedRoute><CompanyRegistration /></ProtectedRoute>} />
+        <Route path="/applicant-dashboard" element={<ProtectedRoute><JobSeekerDashboard /></ProtectedRoute>} />
         <Route path="/seeker-dashboard" element={<ProtectedRoute><JobSeekerDashboard /></ProtectedRoute>} />
 
         {/* Role-protected: admin + recruiter + reviewer */}
