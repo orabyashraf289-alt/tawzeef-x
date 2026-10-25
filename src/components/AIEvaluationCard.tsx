@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import ATSEvidencePanel from "@/components/ATSEvidencePanel";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { parseCandidateEvaluation, type CandidateEvaluation as AIEvaluation } from "../../supabase/functions/_shared/candidateEvaluation";
 
@@ -122,7 +123,7 @@ function EvaluationReport({ candidateId, candidateName, existingEvaluation, jobI
     return (
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
         className="glass-card rounded-2xl p-5 border border-border/80 shadow-xs space-y-4" dir="rtl">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-extrabold text-sm flex items-center gap-2 text-foreground">
             <Brain className="w-4 h-4 text-emerald-500" />
             تقرير مطابقة ATS
@@ -147,7 +148,7 @@ function EvaluationReport({ candidateId, candidateName, existingEvaluation, jobI
     <AnimatePresence>
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
         className="glass-card rounded-2xl p-5 space-y-5 border border-border/80 shadow-xs" dir="rtl">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-extrabold text-sm flex items-center gap-2 text-foreground">
             <Brain className="w-4.5 h-4.5 text-emerald-500" />
             تقرير مطابقة ATS
@@ -176,7 +177,7 @@ function EvaluationReport({ candidateId, candidateName, existingEvaluation, jobI
             {evaluation.score}%
           </motion.div>
           <p className="text-xs font-bold text-muted-foreground mt-1">مؤشر إرشادي، القرار لمسؤول التوظيف</p>
-          <Progress value={evaluation.score} className={cn("h-2.5 mt-2.5", getProgressColor(evaluation.score))} />
+          <Progress aria-label="مؤشر المطابقة الإرشادي" value={evaluation.score} className={cn("h-2.5 mt-2.5", getProgressColor(evaluation.score))} />
         </div>
 
         {/* Multi-Dimensional Scores Grid */}
@@ -210,30 +211,7 @@ function EvaluationReport({ candidateId, candidateName, existingEvaluation, jobI
           {evaluation.summary}
         </p>
 
-        {evaluation.requirementEvidence && evaluation.requirementEvidence.length > 0 && <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h4 className="text-xs font-bold">أدلة مطابقة متطلبات الوظيفة</h4>
-            {evaluation.evidenceVersion === 1 && <Badge variant="outline" className="text-[10px]">
-              {evaluation.requirementEvidence.filter(item => item.status === "supported").length} من {evaluation.requirementEvidence.length} له اقتباس
-            </Badge>}
-          </div>
-          {evaluation.requirementsTotal > evaluation.requirementEvidence.length && <p className="text-xs text-amber-800 dark:text-amber-300">
-            يعرض التقرير أول {evaluation.requirementEvidence.length} من {evaluation.requirementsTotal} متطلبًا. راجع المتطلبات المتبقية يدويًا.
-          </p>}
-          {evaluation.requirementEvidence.map((item, index) => <div key={`${item.requirement}-${index}`} className="p-2.5 rounded-xl bg-muted/40 text-xs space-y-1">
-            <p className="font-semibold break-words">{item.requirement} · {item.status === "supported" && evaluation.evidenceVersion === 1 ? "مذكور في المصدر" : "يحتاج تحققًا"}</p>
-            {item.status === "supported" && item.evidence && <>
-              <p className="text-[11px] text-muted-foreground">{evaluation.evidenceVersion !== 1 ? "دليل مقترح لم يُتحقق من مصدره"
-                : item.source === "resume" ? "المصدر: مقتطف السيرة بموافقة المتقدم" : "المصدر: بيانات المرشح المدخلة"}</p>
-              <blockquote className="text-muted-foreground break-words border-s-2 border-primary/30 ps-2">{item.evidence}</blockquote>
-            </>}
-            {item.status === "unconfirmed" && <p className="text-muted-foreground">لم يُثبت دليل لهذا المتطلب؛ يحتاج مراجعة مسؤول التوظيف.</p>}
-          </div>)}
-          <p className="text-[11px] text-muted-foreground">وجود الاقتباس لا يثبت استيفاء المتطلب. راجع سياقه والمستندات قبل اتخاذ قرار.</p>
-        </div>}
-        {evaluation.evidenceVersion === 1 && !evaluation.requirementEvidence?.length && <p className="text-xs text-muted-foreground">
-          لم تُنشر متطلبات قابلة للمقارنة لهذه الوظيفة. راجع بيانات المرشح يدويًا.
-        </p>}
+        <ATSEvidencePanel evaluation={evaluation} />
 
         {/* Strengths */}
         <div>
@@ -255,7 +233,7 @@ function EvaluationReport({ candidateId, candidateName, existingEvaluation, jobI
         {/* Weaknesses */}
         <div>
           <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5 mb-2">
-            <TrendingDown className="w-3.5 h-3.5 text-amber-500" />الفجوات والمخاطر الفنية المتوقعة
+            <TrendingDown className="w-3.5 h-3.5 text-amber-500" />نقاط تحتاج إلى استيضاح
           </h4>
           <ul className="space-y-1.5">
             {evaluation.weaknesses.map((w, i) => (
