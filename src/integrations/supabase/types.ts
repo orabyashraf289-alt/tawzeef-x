@@ -3167,6 +3167,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_public_joined_companies: {
+        Args: Record<PropertyKey, never>
+        Returns: { name: string; logo_url: string | null }[]
+      }
       get_public_job_employer: {
         Args: { _job_id: string }
         Returns: { name: string; logo_url: string | null }[]

@@ -19,6 +19,7 @@ import { useRef, useState, useEffect } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/marketing/SEO";
+import { JoinedCompanies } from "@/components/marketing/JoinedCompanies";
 import { useSubscriptionPlans } from "@/hooks/useSubscription";
 
 // --- System Showcase Modules ---
@@ -239,6 +240,7 @@ export default function LandingPage() {
           <nav className="hidden lg:flex items-center gap-8">
             {[
               { label: "الوظائف الشاغرة", href: "/careers" },
+              { label: "شركات انضمت إلينا", href: "#companies" },
               { label: "المميزات والحلول", href: "#features" },
               { label: "معاينة النظام الحي", href: "#showcase" },
               { label: "باقات المنشآت", href: "#pricing" },
@@ -314,6 +316,7 @@ export default function LandingPage() {
             <nav className="flex flex-col gap-5 py-8 text-md3-title-md font-bold">
               {[
                 { label: "الوظائف الشاغرة", href: "/careers" },
+                { label: "شركات انضمت إلينا", href: "#companies" },
                 { label: "المميزات والحلول", href: "#features" },
                 { label: "معاينة النظام الحي", href: "#showcase" },
                 { label: "باقات المنشآت", href: "#pricing" },
@@ -604,6 +607,8 @@ export default function LandingPage() {
           </motion.div>}
         </div>
       </section>
+
+      <JoinedCompanies />
 
       {/* ── 3. Interactive System Showcase: Explore Tawzeef-X from Inside ── */}
       <section id="showcase" className="py-24 bg-md-surface">
