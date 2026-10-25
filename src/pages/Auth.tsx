@@ -667,62 +667,8 @@ const SocialButtons = memo(function SocialButtons() {
   );
 });
 
-/* ─── Tenant Status Validation Gatekeeper ─── */
-export async function checkCompanyStatus(_user: any): Promise<{ allowed: boolean; reason?: string; isAgency?: boolean; onboardingRequired?: boolean }> {
-  try {
-    // Single server-side source of truth: validate_tenant_status RPC
-    const { data, error } = await supabase.rpc("validate_tenant_status");
-    if (error) {
-      console.error("Server-side tenant validation RPC error:", error);
-      // FAIL CLOSED: Never allow login on security validation error
-      return {
-        allowed: false,
-        reason: "فشل التحقق الأمني من حالة الحساب والمنظمة. يرجى المحاولة لاحقاً أو التواصل مع الدعم الفني.",
-      };
-    }
-
-    const res = data as any;
-    if (!res || res.access_state !== "ALLOWED") {
-      if (res?.denial_reason === "NO_COMPANY_MEMBERSHIP") {
-        const { data: pending, error: pendingError } = await supabase.rpc("can_complete_company_onboarding" as any);
-        if (!pendingError && pending === true) {
-          return { allowed: true, onboardingRequired: true };
-        }
-      }
-      const reasonMap: Record<string, string> = {
-        COMPANY_SUSPENDED: "تم إيقاف حساب الشركة مؤقتاً من قِبل إدارة المنصة. يرجى التواصل مع إدارة Tawzeef-X.",
-        COMPANY_INACTIVE: "تم تعطيل حساب الشركة. يرجى التواصل مع مسؤول النظام.",
-        COMPANY_DELETING: "حساب الشركة قيد الحذف النهائي ولا يمكن الوصول إليه.",
-        COMPANY_DELETED: "تم حذف حساب هذه الشركة نهائياً من منصة Tawzeef-X، ولا يمكن تسجيل الدخول بهذا الحساب.",
-        COMPANY_DELETE_FAILED: "حساب الشركة غير متاح حالياً بسبب إجراءات صيانة أمنية.",
-        COMPANY_BLOCKED: "تم حظر حساب الشركة. يرجى مراجعة إدارة Tawzeef-X.",
-        COMPANY_NOT_FOUND: "لم يتم العثور على المنظمة التابع لها هذا الحساب أو تم حذفها نهائياً.",
-        NO_COMPANY_MEMBERSHIP: "تم حذف حساب الشركة نهائياً من منصة Tawzeef-X، ولم يعد هذا الحساب مرتبطاً بأي منظمة نشطة.",
-        NOT_COMPANY_MEMBER: "هذا الحساب غير مخول بالوصول إلى الشركة المحددة.",
-        UNAUTHENTICATED: "جلسة المستخدم غير صالحة.",
-      };
-
-      const denialReason = (res?.denial_reason as string) || "";
-      const message = reasonMap[denialReason] || "تم رفض تسجيل الدخول بناءً على سياسات التحقق الأمني للشركات.";
-
-      return {
-        allowed: false,
-        reason: message,
-      };
-    }
-
-    return { allowed: true, isAgency: res.is_agency === true };
-  } catch (err) {
-    console.error("Critical error during server-side tenant validation (fail-closed):", err);
-    // FAIL CLOSED: Strictly deny on unexpected exceptions
-    return {
-      allowed: false,
-      reason: "حدث خطأ أمني غير متوقع أثناء التحقق من حالة الحساب. تم رفض الدخول لحماية البيانات.",
-    };
-  }
-}
-
-export const validateTenantLoginStatus = checkCompanyStatus;
+export { checkCompanyStatus } from "@/lib/accountAccess";
+import { checkCompanyStatus as validateTenantLoginStatus, accountHome } from "@/lib/accountAccess";
 
 /* ─── Auth form ─── */
 const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; setIsLogin: (v: boolean) => void; setPendingOtp: (v: boolean) => void }) {
@@ -739,7 +685,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
   const [rememberDevice, setRememberDevice] = useState(true);
   const [countdown, setCountdown] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [accountType, setAccountType] = useState<"company" | "job_seeker">("company");
+  const [accountType, setAccountType] = useState<"company" | "job_seeker">(new URLSearchParams(window.location.search).get("type") === "applicant" ? "job_seeker" : "company");
   const [searchParams] = useSearchParams();
   const inviteEmail = searchParams.get("email") || "";
   const [form, setForm] = useState({ email: inviteEmail, password: "", fullName: "", companyName: "" });
@@ -841,7 +787,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
         confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
         toast({ title: "تم تسجيل الدخول بنجاح ✅", description: userRole === "candidate" ? "مرحباً بك في بوابة المتقدمين" : "مرحباً بك في منصة Tawzeef-X" });
         logAuditEvent({ eventType: "login.success", userId: loginData.user?.id, userEmail: normalizedEmail, details: { method: "direct_login_instant" } });
-        navigate(tenantCheck.onboardingRequired ? "/onboarding" : tenantCheck.isAgency ? "/agency" : userRole === "candidate" ? "/portal" : userRole === "job_seeker" ? "/seeker-dashboard" : "/dashboard");
+        navigate(accountHome(tenantCheck));
         return;
       } else {
         const { data, error } = await supabase.auth.signUp({
@@ -930,8 +876,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
       } catch {}
       confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
       toast({ title: "تم التحقق بنجاح ✅" });
-      const accountType = loginData.session?.user?.user_metadata?.account_type;
-      navigate(tenantCheck.onboardingRequired ? "/onboarding" : tenantCheck.isAgency ? "/agency" : accountType === "job_seeker" ? "/seeker-dashboard" : "/dashboard");
+      navigate(accountHome(tenantCheck));
     } catch (error: any) {
       setOtpShake(true);
       setTimeout(() => setOtpShake(false), 600);
@@ -1218,7 +1163,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                         />
                         {[
                           { type: "company" as const, icon: <Building2 className="w-3.5 h-3.5" />, label: "جهة توظيف / HR" },
-                          { type: "job_seeker" as const, icon: <User className="w-3.5 h-3.5" />, label: "باحث عن عمل" },
+                          { type: "job_seeker" as const, icon: <User className="w-3.5 h-3.5" />, label: "حساب متقدم" },
                         ].map((opt) => (
                           <button
                             key={opt.type}
@@ -1289,6 +1234,9 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                   </div>
                 )}
 
+                {!isLogin && <p className="rounded-xl bg-primary/5 p-3 text-xs leading-relaxed" role="note">
+                  {accountType === "company" ? "تفعيل شركتك يتطلب موافقة إدارة توظيف إكس بعد استكمال بياناتها." : "سجّل بنفس البريد الذي استخدمته في التقديم، ثم أكّد بريدك لعرض طلباتك لدى الشركات التي قدّمت لها فقط."}
+                </p>}
                 {/* Email */}
                 <div className="space-y-1.5 text-right">
                   <label htmlFor="auth-email" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
@@ -1469,10 +1417,8 @@ function AuthenticatedRedirect({ user }: { user: NonNullable<ReturnType<typeof u
         if (!cancelled) navigate("/auth?error=account_verification_failed", { replace: true });
         return;
       }
-      const accountType = user.user_metadata?.account_type;
       navigate(
-        tenantCheck.onboardingRequired ? "/onboarding" : tenantCheck.isAgency ? "/agency" :
-        accountType === "job_seeker" ? "/seeker-dashboard" : "/dashboard",
+        accountHome(tenantCheck),
         { replace: true },
       );
     };
