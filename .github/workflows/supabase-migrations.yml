@@ -184,6 +184,12 @@ jobs:
           test -n "$database_container"
           docker exec -i "$database_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/public_job_employer.sql
 
+      - name: Verify company signup approval and rejection permissions
+        run: |
+          database_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
+          test -n "$database_container"
+          docker exec -i "$database_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/company_signup_intent.sql
+
       - name: Verify applicant portal identity and company scope
         run: |
           database_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
