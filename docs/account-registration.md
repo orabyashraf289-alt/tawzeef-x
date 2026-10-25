@@ -12,7 +12,12 @@ The request owner can read its status and reason but cannot modify the request.
 A rejected account remains on its status page and must contact platform support;
 there is no automatic resubmission or approval of historical companies.
 
-The public account label is now حساب متقدم. Keep the persisted `job_seeker` enum
+Applicants use تسجيل دخول المتقدم from the login screen. Public signup is for
+employers only; applicant signup links and the legacy `role=candidate` entry
+always render login, without an applicant signup or OAuth button. Submitting an
+application prepares access automatically and sends new applicants an email
+activation link to choose a private password. Phone numbers are not passwords.
+Existing account credentials are never replaced. Keep the persisted `job_seeker` enum
 and `/seeker-dashboard` alias for existing accounts. Authentication and route
 selection use the server response, not editable user metadata. The current
 application invitation flow still verifies the email and lets the applicant set

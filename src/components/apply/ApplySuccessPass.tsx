@@ -187,8 +187,8 @@ export default function ApplySuccessPass({
                     <Button type="button" size="sm" variant="outline" onClick={onRetryAccount}>إعادة تجهيز الحساب</Button>
                   </div>
                 )}
-                {(accountStatus === "existing" || signedInAsApplicant) && (
-                  <Link to={signedInAsApplicant ? "/applicant-dashboard" : "/auth?mode=login"} className="inline-block font-bold text-primary hover:underline">
+                {(accountStatus === "invited" || accountStatus === "existing" || signedInAsApplicant) && (
+                  <Link to={signedInAsApplicant ? "/applicant-dashboard" : "/auth?mode=login&type=applicant"} className="inline-block font-bold text-primary hover:underline">
                     {signedInAsApplicant ? "الانتقال إلى ملفي وطلباتي" : "تسجيل الدخول"}
                   </Link>
                 )}
