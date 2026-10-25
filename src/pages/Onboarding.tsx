@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Building2, User, Briefcase, ArrowLeft, Loader2, Sparkles, ImagePlus, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { checkCompanyStatus } from "@/pages/Auth";
+import { checkCompanyStatus } from "@/lib/accountAccess";
 import { useQueryClient } from "@tanstack/react-query";
 
 const steps = [
@@ -91,6 +91,10 @@ export default function Onboarding() {
       const access = await checkCompanyStatus(user);
       if (!access.allowed) throw new Error(access.reason || "تعذر التحقق من حسابك.");
 
+      if (access.registrationRequired) { navigate("/company-registration", { replace: true }); return; }
+      if (access.isApplicant) { navigate("/applicant-dashboard", { replace: true }); return; }
+      if (!access.onboardingRequired) { navigate(access.isAgency ? "/agency" : "/dashboard", { replace: true }); return; }
+
       // Upload logo if selected
       const logoUrl = isCompanyAccount ? await uploadLogo() : null;
 
@@ -110,16 +114,11 @@ export default function Onboarding() {
       if (error) throw error;
 
       if (isCompanyAccount) {
-        const { data: membership, error: membershipError } = await supabase
-          .from("company_members")
-          .select("company_id")
-          .eq("user_id", user.id)
-          .limit(1);
-        if (membershipError) throw membershipError;
-        if (!membership?.length) {
-          throw new Error("تعذر ربط حسابك بالشركة. حاول مرة أخرى أو تواصل مع الدعم.");
-        }
-        await queryClient.invalidateQueries({ queryKey: ["my-companies", user.id] });
+        const { data: request, error: requestError } = await supabase.rpc("get_my_company_registration" as any);
+        if (requestError) throw requestError;
+        if (!(request as any)?.id) throw new Error("تعذر إرسال طلب الشركة. حاول مرة أخرى.");
+        await queryClient.invalidateQueries({ queryKey: ["account-access", user.id] });
+
       }
 
       // Update user metadata
@@ -134,8 +133,8 @@ export default function Onboarding() {
       });
       if (metadataError) throw metadataError;
 
-      toast({ title: "مرحباً بك! 🎉", description: "تم إعداد حسابك بنجاح" });
-      navigate(isCompanyAccount ? "/dashboard" : "/seeker-dashboard");
+      toast({ title: "تم إرسال طلب إنشاء الشركة", description: "سيُفعّل حساب الشركة بعد موافقة إدارة توظيف إكس." });
+      navigate(isCompanyAccount ? "/company-registration" : "/applicant-dashboard");
     } catch (error: any) {
       toast({ title: "خطأ", description: error.message, variant: "destructive" });
     } finally {
@@ -349,7 +348,7 @@ export default function Onboarding() {
                         {uploadingLogo ? "جاري رفع الشعار..." : "جاري الحفظ..."}
                       </span>
                     ) : (
-                      "ابدأ الآن 🚀"
+                      "إرسال طلب إنشاء الشركة"
                     )}
                   </Button>
                 </motion.div>

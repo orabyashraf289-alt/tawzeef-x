@@ -110,6 +110,8 @@ export const PLATFORM_ADMIN_ROUTES: readonly string[] = [
 export const CANDIDATE_ROUTES: readonly string[] = [
   "/onboarding",
   "/seeker-dashboard",
+  "/applicant-dashboard",
+  "/company-registration",
 ] as const;
 
 /**

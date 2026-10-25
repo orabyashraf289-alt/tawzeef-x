@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { checkCompanyStatus, accountHome } from "@/lib/accountAccess";
 import { Company, parseCompanyRow } from "@/hooks/useCompanies";
 
 export interface CompanyContextType {
@@ -109,7 +110,14 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     queryFn: async () => {
       const { data, error } = await supabase.rpc("validate_tenant_status");
       if (error) throw error;
-      return data as { access_state?: string; is_agency?: boolean } | null;
+      const state = data as { access_state?: string; is_agency?: boolean; is_candidate?: boolean; denial_reason?: string } | null;
+      if (state?.denial_reason === "NO_COMPANY_MEMBERSHIP") {
+        const access = await checkCompanyStatus(user);
+        if (access.allowed && (access.registrationRequired || access.onboardingRequired)) {
+          return { ...state, registrationRoute: accountHome(access) };
+        }
+      }
+      return { ...state, registrationRoute: undefined };
     },
   });
 
@@ -117,18 +125,12 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading || !user?.id) return;
 
-    const isCandidate =
-      user?.user_metadata?.role === "candidate" ||
-      user?.user_metadata?.role === "job_seeker" ||
-      user?.user_metadata?.account_type === "candidate" ||
-      user?.user_metadata?.account_type === "job_seeker";
-
-    // Verified Platform Super Admins and Candidates are immune
-    if (isPlatformSuperAdmin || isCandidate) return;
+    if (isPlatformSuperAdmin) return;
 
     const path = window.location.pathname;
     const isPublicOrOnboarding =
       path.startsWith("/onboarding") ||
+      path.startsWith("/company-registration") ||
       path.startsWith("/auth") ||
       path.startsWith("/forgot-password") ||
       path.startsWith("/reset-password") ||
@@ -141,7 +143,12 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     // 1. Company was deleted permanently
     if (myCompanies.length === 0) {
       if (platformAdminLoading || agencyAccessQuery.isPending) return;
-      if (agencyAccessQuery.data?.access_state === "ALLOWED" && agencyAccessQuery.data.is_agency === true) return;
+      if (agencyAccessQuery.data?.access_state === "ALLOWED" &&
+        (agencyAccessQuery.data.is_agency === true || agencyAccessQuery.data.is_candidate === true)) return;
+      if (agencyAccessQuery.data?.registrationRoute) {
+        window.location.href = agencyAccessQuery.data.registrationRoute;
+        return;
+      }
 
       console.warn("Tenant user has no authorized company or agency access. Ejecting session.");
       localStorage.removeItem(ACTIVE_COMPANY_STORAGE_KEY);
