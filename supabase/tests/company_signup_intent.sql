@@ -1,5 +1,9 @@
 -- Disposable database only. Exercises real trigger, RLS and review RPC.
 BEGIN;
+-- Historical replay omits the hosted API grants on legacy tables. Match those
+-- grants inside this rollback-only test so real profile/member RLS is exercised.
+GRANT SELECT, UPDATE ON public.profiles TO authenticated;
+GRANT SELECT ON public.company_members TO authenticated;
 INSERT INTO auth.users (id, instance_id, aud, role, email, email_confirmed_at, raw_user_meta_data)
 VALUES
  ('42000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000000','authenticated','authenticated','approval@example.test',now(),'{"account_type":"company"}'),
