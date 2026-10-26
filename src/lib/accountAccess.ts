@@ -17,6 +17,21 @@ export function accountHome(access: AccountAccess): string {
   return "/dashboard";
 }
 
+// Portal selection is an authorization constraint, not just a different title.
+// Only the server validation result may determine the account type.
+export function loginPortalAccess(access: AccountAccess, applicantPortal: boolean): AccountAccess {
+  if (!access.allowed) return access;
+  if (applicantPortal !== (access.isApplicant === true)) {
+    return {
+      allowed: false,
+      reason: applicantPortal
+        ? "هذا الحساب تابع لجهة توظيف أو إدارة المنصة، ولا يمكن استخدامه في بوابة المتقدمين. اختر دخول جهة توظيف / HR."
+        : "هذا حساب متقدم للوظائف، ولا يمكن استخدامه لدخول جهة توظيف. اختر تسجيل دخول المتقدم.",
+    };
+  }
+  return access;
+}
+
 export async function checkCompanyStatus(_user: any): Promise<AccountAccess> {
   try {
     // Single server-side source of truth: validate_tenant_status RPC
