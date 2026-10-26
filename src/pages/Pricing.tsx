@@ -1,3 +1,4 @@
+import { usePublicContactSettings } from "@/hooks/usePublicContactSettings";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import { useSubscriptionPlans } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ const planColors: Record<string, string> = {
 };
 
 export default function Pricing() {
+  const { data: contact, isError: contactError, refetch: retryContact } = usePublicContactSettings();
   const { data: plans, isLoading } = useSubscriptionPlans();
   const { user } = useAuth();
   const { role, isSuperAdmin } = useUserRole();
@@ -198,7 +200,7 @@ export default function Pricing() {
         >
           <p className="text-muted-foreground text-sm">
             تحتاج باقة مخصصة بحدود خاصة؟{" "}
-            <a href="mailto:support@tawzeef-x.com" className="text-primary font-semibold hover:underline">
+            <a href={contact?.contact_email ? `mailto:${contact.contact_email}` : "/contact"} className="text-primary font-semibold hover:underline">
               تواصل مع فريق إدارة Tawzeef-X
             </a>
           </p>

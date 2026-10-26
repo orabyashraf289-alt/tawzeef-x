@@ -1,3 +1,4 @@
+import { usePublicContactSettings } from "@/hooks/usePublicContactSettings";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { Mail, Phone, MapPin, Clock, Send, CheckCircle2, Loader2 } from "lucide-react";
@@ -10,6 +11,7 @@ import { SEO } from "@/components/marketing/SEO";
 import { useI18n } from "@/contexts/I18nContext";
 
 export default function Contact() {
+  const { data: contact, isError: contactError, refetch: retryContact } = usePublicContactSettings();
   const { t, locale } = useI18n();
   const [form, setForm] = useState({ name: "", email: "", company: "", subject: "", message: "" });
   const [submitting, setSubmitting] = useState(false);
@@ -17,6 +19,7 @@ export default function Contact() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!contact?.contact_email) return;
     setSubmitting(true);
     try {
       // Compose mailto fallback so the inquiry actually reaches us without a backend table.
@@ -24,11 +27,11 @@ export default function Contact() {
         `Name: ${form.name}\nCompany: ${form.company}\nEmail: ${form.email}\n\n${form.message}`
       );
       const subject = encodeURIComponent(form.subject || "Tawzeef-X inquiry");
-      window.location.href = `mailto:support@tawzeef-x.com?subject=${subject}&body=${body}`;
+      window.location.href = `mailto:${contact.contact_email}?subject=${subject}&body=${body}`;
       await new Promise((r) => setTimeout(r, 600));
       setSubmitted(true);
-      toast.success(t("contact.form.success"));
-      setForm({ name: "", email: "", company: "", subject: "", message: "" });
+      toast.success((locale === "en" ? "Complete sending in your email app." : "أكمل إرسال الرسالة من تطبيق البريد لديك."));
+
     } catch {
       toast.error(t("contact.form.error"));
     } finally {
@@ -37,11 +40,13 @@ export default function Contact() {
   };
 
   const info = [
-    { icon: Mail, title: t("contact.info.email"), value: "support@tawzeef-x.com", href: "mailto:support@tawzeef-x.com" },
-    { icon: Phone, title: t("contact.info.phone"), value: "+966 50 000 0000", href: "tel:+966500000000" },
-    { icon: MapPin, title: t("contact.info.location"), value: t("contact.info.locationValue") },
-    { icon: Clock, title: t("contact.info.hours"), value: t("contact.info.hoursValue") },
-  ];
+    { icon: Mail, title: t("contact.info.email"), value: contact?.contact_email, href: contact?.contact_email ? `mailto:${contact.contact_email}` : undefined },
+    { icon: Mail, title: locale === "en" ? "Support email" : "إيميل الدعم", value: contact?.support_email, href: contact?.support_email ? `mailto:${contact.support_email}` : undefined },
+    { icon: Phone, title: t("contact.info.phone"), value: contact?.contact_phone, href: contact?.contact_phone ? `tel:${contact.contact_phone.replace(/[^+0-9]/g, "")}` : undefined },
+    { icon: MapPin, title: t("contact.info.location"), value: locale === "en" ? contact?.location_en || contact?.location_ar : contact?.location_ar || contact?.location_en },
+    { icon: Clock, title: t("contact.info.hours"), value: locale === "en" ? contact?.hours_en || contact?.hours_ar : contact?.hours_ar || contact?.hours_en },
+  ].filter(item => item.value);
+
 
   return (
     <MarketingLayout>
@@ -86,7 +91,7 @@ export default function Contact() {
             {submitted && (
               <div className="flex items-center gap-2 p-3 rounded-xl bg-success/10 text-success text-sm">
                 <CheckCircle2 className="w-4 h-4" />
-                {t("contact.form.success")}
+                {(locale === "en" ? "Complete sending in your email app." : "أكمل إرسال الرسالة من تطبيق البريد لديك.")}
               </div>
             )}
             <div className="grid sm:grid-cols-2 gap-4">
@@ -111,18 +116,19 @@ export default function Contact() {
               <label className="text-sm font-semibold text-foreground mb-1.5 block">{t("contact.form.message")}</label>
               <Textarea required rows={6} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
             </div>
-            <Button type="submit" disabled={submitting} size="lg" className="w-full sm:w-auto h-12 rounded-xl gradient-primary border-0 text-primary-foreground gap-2 font-bold">
+            <Button type="submit" disabled={submitting || !contact?.contact_email} size="lg" className="w-full sm:w-auto h-12 rounded-xl gradient-primary border-0 text-primary-foreground gap-2 font-bold">
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {submitting ? t("contact.form.sending") : t("contact.form.send")}
+              {submitting ? t("contact.form.sending") : (locale === "en" ? "Open email draft" : "فتح الرسالة في البريد")}
             </Button>
           </motion.form>
 
           {/* Info */}
           <div className="lg:col-span-2 space-y-3">
+            {contactError && <div role="alert"><p>{locale === "en" ? "Contact details are temporarily unavailable." : "بيانات التواصل غير متاحة مؤقتًا."}</p><Button variant="outline" onClick={() => retryContact()}>{locale === "en" ? "Retry" : "إعادة المحاولة"}</Button></div>}
             {info.map((item, i) => (
               <motion.a
                 key={i}
-                href={item.href || "#"}
+                href={item.href}
                 initial={{ opacity: 0, x: locale === "ar" ? 30 : -30 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
