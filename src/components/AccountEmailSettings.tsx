@@ -31,9 +31,9 @@ export default function AccountEmailSettings() {
     try {
       // Supabase Auth owns verification and updates the same authenticated user.
       // Never change profiles, roles, company contacts or auth.users directly.
-      const { data, error: authError } = await supabase.auth.updateUser({ email: normalized }, {
-        emailRedirectTo: `${window.location.origin}/settings?tab=account`,
-      });
+      // Use the project's configured Site URL; preview hosts need not be
+      // added to the authentication redirect allow-list.
+      const { data, error: authError } = await supabase.auth.updateUser({ email: normalized });
       if (authError || !data.user || data.user.id !== user.id) throw authError || new Error("Email update failed");
       if (data.user.email?.toLowerCase() === normalized) setUpdated(true);
       else setRequested(normalized);
