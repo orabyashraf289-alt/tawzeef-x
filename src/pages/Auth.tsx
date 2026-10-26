@@ -668,7 +668,7 @@ const SocialButtons = memo(function SocialButtons() {
 });
 
 export { checkCompanyStatus } from "@/lib/accountAccess";
-import { checkCompanyStatus as validateTenantLoginStatus, accountHome } from "@/lib/accountAccess";
+import { checkCompanyStatus as validateTenantLoginStatus, accountHome, loginPortalAccess } from "@/lib/accountAccess";
 
 /* ─── Auth form ─── */
 const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: { isLogin: boolean; setIsLogin: (v: boolean) => void; setPendingOtp: (v: boolean) => void }) {
@@ -752,7 +752,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
         // Tenant Company Status & Existence Gatekeeper
         const loginUser = loginData.session?.user || loginData.user;
-        const tenantCheck = await validateTenantLoginStatus(loginUser);
+        const tenantCheck = loginPortalAccess(await validateTenantLoginStatus(loginUser), isApplicantLogin);
         if (!tenantCheck.allowed) {
           await supabase.auth.signOut();
           try {
@@ -777,8 +777,6 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
           return;
         }
 
-        const userRole = loginData.session?.user?.user_metadata?.role || loginData.session?.user?.user_metadata?.account_type;
-
         // Direct Instant Login (OTP Bypassed for instant seamless access)
         setPendingPassword("");
         setPendingOtp(false);
@@ -786,7 +784,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
           sessionStorage.setItem("tx_show_welcome_video", "true");
         } catch {}
         confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
-        toast({ title: "تم تسجيل الدخول بنجاح ✅", description: userRole === "candidate" ? "مرحباً بك في بوابة المتقدمين" : "مرحباً بك في منصة Tawzeef-X" });
+        toast({ title: "تم تسجيل الدخول بنجاح ✅", description: tenantCheck.isApplicant ? "مرحباً بك في بوابة المتقدمين" : "مرحباً بك في منصة Tawzeef-X" });
         logAuditEvent({ eventType: "login.success", userId: loginData.user?.id, userEmail: normalizedEmail, details: { method: "direct_login_instant" } });
         navigate(accountHome(tenantCheck));
         return;
@@ -814,7 +812,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
       setPendingOtp(false);
       toast({ title: "خطأ", description: translateAuthError(error.message), variant: "destructive" });
     } finally { setLoading(false); }
-  }, [isLogin, form, navigate, accountType, requestLoginOtp, setPendingOtp]);
+  }, [isLogin, isApplicantLogin, form, navigate, accountType, requestLoginOtp, setPendingOtp]);
 
   const handleVerifyOtp = useCallback(async () => {
     if (otpCode.length < 6) {
@@ -848,7 +846,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
       // Tenant Company Status & Existence Gatekeeper
       const loginUser = loginData.session?.user || loginData.user;
-      const tenantCheck = await validateTenantLoginStatus(loginUser);
+      const tenantCheck = loginPortalAccess(await validateTenantLoginStatus(loginUser), isApplicantLogin);
       if (!tenantCheck.allowed) {
         await supabase.auth.signOut();
         try {
@@ -883,7 +881,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
       setTimeout(() => setOtpShake(false), 600);
       toast({ title: "خطأ", description: translateAuthError(error.message), variant: "destructive" });
     } finally { setOtpLoading(false); }
-  }, [otpCode, pendingPassword, otpEmail, rememberDevice, navigate, setPendingOtp]);
+  }, [otpCode, pendingPassword, otpEmail, rememberDevice, navigate, setPendingOtp, isApplicantLogin]);
 
   const handleResendOtp = useCallback(async () => {
     if (countdown > 0) return;
@@ -1386,17 +1384,25 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
   );
 });
 
-function AuthenticatedRedirect({ user }: { user: NonNullable<ReturnType<typeof useAuth>["user"]> }) {
+function AuthenticatedRedirect({ user, applicantPortal }: { user: NonNullable<ReturnType<typeof useAuth>["user"]>; applicantPortal: boolean }) {
   const navigate = useNavigate();
+  const { signOut } = useAuth();
+  const [mismatch, setMismatch] = useState<{ reason: string; home: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setMismatch(null);
     const redirect = async () => {
       const tenantCheck = await validateTenantLoginStatus(user);
       if (cancelled) return;
       if (!tenantCheck.allowed) {
         await supabase.auth.signOut();
         if (!cancelled) navigate("/auth?error=account_verification_failed", { replace: true });
+        return;
+      }
+      const portalCheck = loginPortalAccess(tenantCheck, applicantPortal);
+      if (!portalCheck.allowed) {
+        setMismatch({ reason: portalCheck.reason!, home: accountHome(tenantCheck) });
         return;
       }
       navigate(
@@ -1406,7 +1412,16 @@ function AuthenticatedRedirect({ user }: { user: NonNullable<ReturnType<typeof u
     };
     void redirect();
     return () => { cancelled = true; };
-  }, [navigate, user]);
+  }, [navigate, user, applicantPortal]);
+
+  if (mismatch) return <main dir="rtl" className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+    <div className="max-w-lg rounded-2xl bg-white border p-8 space-y-5 shadow-sm">
+      <h1 className="text-xl font-bold">نوع الحساب لا يطابق بوابة الدخول</h1>
+      <p role="alert">{mismatch.reason}</p>
+      <Button onClick={() => navigate(mismatch.home, { replace: true })}>الانتقال إلى بوابة حسابي</Button>
+      <Button variant="outline" className="ms-3" onClick={signOut}>تسجيل الخروج</Button>
+    </div>
+  </main>;
 
   return <PageSkeleton />;
 }
@@ -1457,7 +1472,7 @@ export default function Auth() {
 
   // Don't redirect while OTP 2FA is in progress or if ejected due to company status error
   if (user && !pendingOtp && !hasErrorParam) {
-    return <AuthenticatedRedirect user={user} />;
+    return <AuthenticatedRedirect user={user} applicantPortal={isApplicantLogin} />;
   }
 
   return (
