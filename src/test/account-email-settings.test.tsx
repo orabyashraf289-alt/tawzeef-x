@@ -25,7 +25,7 @@ describe("account email change", () => {
     mocks.updateUser.mockResolvedValue({ data: { user: { ...mocks.user, new_email: "new@example.test" } }, error: null });
     render(<AccountEmailSettings />); fill(); fireEvent.click(screen.getByRole("button"));
     expect(await screen.findByRole("status")).toHaveTextContent("بانتظار التأكيد");
-    expect(mocks.updateUser).toHaveBeenCalledWith({ email: "new@example.test" }, { emailRedirectTo: `${window.location.origin}/settings?tab=account` });
+    expect(mocks.updateUser).toHaveBeenCalledWith({ email: "new@example.test" });
     expect(screen.queryByText("تم تحديث إيميل تسجيل الدخول.")).not.toBeInTheDocument();
   });
   it("keeps the entered email for retry on Auth failure", async () => {
