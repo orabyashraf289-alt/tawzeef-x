@@ -1,3 +1,4 @@
+import PublicContactSettings from "@/components/PublicContactSettings";
 import { getAnimationsEnabled, setAnimationsEnabled as saveAnimationsEnabled } from "@/lib/motionPreferences";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -2145,6 +2146,7 @@ export default function SettingsPage() {
   const { t, locale } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
+  const { isPlatformSuperAdmin } = useUserRole();
   const [settingsSearch, setSettingsSearch] = useState("");
 
   const handleTabChange = (tabId: string) => {
@@ -2156,6 +2158,7 @@ export default function SettingsPage() {
   };
 
   const settingsTabs = [
+    ...(isPlatformSuperAdmin ? [{ id: "public-contact", label: locale === "en" ? "Website & contact" : "بيانات الموقع والتواصل", icon: Globe }] : []),
     { id: "account", label: t("settings.profile"), icon: User },
     { id: "company", label: "الشركة", icon: Building2 },
     { id: "subscription", label: locale === "en" ? "Subscription & Billing" : "الاشتراك والفواتير", icon: Crown },
@@ -2174,6 +2177,7 @@ export default function SettingsPage() {
   ];
   const activeTab = settingsTabs.some(tab => tab.id === tabParam) ? tabParam! : "account";
   const settingsGroups = [
+    ...(isPlatformSuperAdmin ? [{ title: locale === "en" ? "Platform administration" : "إدارة توظيف إكس", ids: ["public-contact"] }] : []),
     { title: locale === "en" ? "My account" : "حسابي", ids: ["account", "security", "preferences", "notifications", "filters"] },
     { title: locale === "en" ? "Company & recruitment" : "الشركة والتوظيف", ids: ["company", "pipeline", "taxonomy", "goals", "permissions_matrix"] },
     { title: locale === "en" ? "Messages & integrations" : "الرسائل والتكاملات", ids: ["email", "templates", "linkedin", "webhooks"] },
@@ -2268,6 +2272,7 @@ export default function SettingsPage() {
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.2 }}
                 >
+                  {activeTab === "public-contact" && isPlatformSuperAdmin && <PublicContactSettings />}
                   {activeTab === "account" && <AccountSection />}
                   {activeTab === "company" && <CompanySettingsManager />}
                   {activeTab === "subscription" && <SubscriptionSection />}

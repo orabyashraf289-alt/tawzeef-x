@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      platform_contact_settings: {
+        Row: {
+          id: boolean
+          contact_email: string
+          support_email: string
+          contact_phone: string
+          location_ar: string
+          location_en: string
+          hours_ar: string
+          hours_en: string
+        }
+        Insert: {
+          id?: boolean
+          contact_email: string
+          support_email: string
+          contact_phone?: string
+          location_ar?: string
+          location_en?: string
+          hours_ar?: string
+          hours_en?: string
+        }
+        Update: {
+          id?: boolean
+          contact_email?: string
+          support_email?: string
+          contact_phone?: string
+          location_ar?: string
+          location_en?: string
+          hours_ar?: string
+          hours_en?: string
+        }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string

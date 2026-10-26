@@ -1,3 +1,4 @@
+import { usePublicContactSettings } from "@/hooks/usePublicContactSettings";
 import "@/styles/landing-motion.css";
 import TalentOrbit from "@/components/three/TalentOrbit";
 import { useLandingMotion } from "@/hooks/useLandingMotion";
@@ -135,6 +136,7 @@ const staggerContainer = {
 };
 
 export default function LandingPage() {
+  const { data: contact, isError: contactError, refetch: retryContact } = usePublicContactSettings();
   const motionScope = useRef<HTMLDivElement>(null);
   useLandingMotion(motionScope);
   const { theme, setTheme } = useTheme();
@@ -1372,7 +1374,8 @@ export default function LandingPage() {
                   تسجيل منشأة جديدة
                 </Link>
                 <div className="pt-2 text-xs text-md-on-surface-variant">
-                  الدعم الفني: support@tawzeef-x.com
+                  {contact?.support_email && <a href={`mailto:${contact.support_email}`}>الدعم الفني: {contact.support_email}</a>}
+                {contact?.contact_phone && <a className="block mt-2" dir="ltr" href={`tel:${contact.contact_phone.replace(/[^+0-9]/g, "")}`}>{contact.contact_phone}</a>}
                 </div>
               </div>
             </div>
