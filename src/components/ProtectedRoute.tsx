@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { accountHome, checkCompanyStatus } from "@/lib/accountAccess";
+import { accountHome, checkCompanyStatus, loginPortalAccess } from "@/lib/accountAccess";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -48,6 +48,13 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     <Button variant="outline" onClick={signOut}>تسجيل الخروج</Button>
   </main>;
   const home = accountHome(access.data);
+  if (["/applicant-dashboard", "/seeker-dashboard"].includes(location.pathname) && !access.data.isApplicant) {
+    return <main dir="rtl" className="p-8 space-y-4">
+      <p role="alert">{loginPortalAccess(access.data, true).reason}</p>
+      <Button onClick={() => window.location.assign(home)}>الانتقال إلى حساب جهة التوظيف</Button>
+      <Button variant="outline" onClick={signOut}>تسجيل الخروج</Button>
+    </main>;
+  }
   const limited = access.data.registrationRequired || access.data.onboardingRequired || access.data.isApplicant;
   if (limited && location.pathname !== home && !(access.data.isApplicant && location.pathname === "/seeker-dashboard")) {
     return <Navigate to={home} replace />;
