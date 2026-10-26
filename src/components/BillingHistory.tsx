@@ -1,3 +1,4 @@
+import { usePublicContactSettings } from "@/hooks/usePublicContactSettings";
 import { printWithFonts } from "@/lib/documentFonts";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,7 @@ import { useCompanyInvoices } from "@/hooks/useSubscription";
 import { toast } from "@/hooks/use-toast";
 
 export default function BillingHistory() {
+  const { data: contact, isError: contactError, refetch: retryContact } = usePublicContactSettings();
   const { data: dbInvoices, isLoading: isInvoicesLoading, isError } = useCompanyInvoices();
   const invoicesList = (dbInvoices || []).map(inv => ({
     id: inv.invoice_number || inv.id,
@@ -105,7 +107,7 @@ export default function BillingHistory() {
 
   <div class="footer">
     <p>شكراً لثقتك في <strong>Tawzeef-X</strong> — منصة التوظيف الذكي المتكاملة</p>
-    <p style="margin-top:8px;">للاستفسارات: support@tawzeef-x.com</p>
+    ${contact?.support_email ? `<p style="margin-top:8px;">للاستفسارات: ${contact.support_email.replace(/[&<>"']/g, "")}</p>` : ""}
   </div>
 </div>
 </body>
