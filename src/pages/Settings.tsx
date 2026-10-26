@@ -1,4 +1,5 @@
 import PublicContactSettings from "@/components/PublicContactSettings";
+import AccountEmailSettings from "@/components/AccountEmailSettings";
 import { getAnimationsEnabled, setAnimationsEnabled as saveAnimationsEnabled } from "@/lib/motionPreferences";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -266,6 +267,7 @@ function AccountSection() {
       <Button onClick={handleSaveProfile} disabled={loading} className="gap-2">
         {loading ? t("common.saving") : <><Check className="w-4 h-4" />{t("settings.saveChanges")}</>}
       </Button>
+      <AccountEmailSettings />
     </div>
   );
 }
