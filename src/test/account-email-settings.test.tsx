@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import AccountEmailSettings from "@/components/AccountEmailSettings";
+import AccountEmailSettings, { emailChangeProblem } from "@/components/AccountEmailSettings";
 
 const mocks = vi.hoisted(() => ({ updateUser: vi.fn(), user: { id: "master-user", email: "current@example.test", new_email: "" } }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { auth: { updateUser: mocks.updateUser } } }));
@@ -45,5 +45,27 @@ describe("account email change", () => {
     render(<AccountEmailSettings />);
     expect(screen.getByRole("status")).toHaveTextContent("pending@example.test");
     expect(mocks.updateUser).not.toHaveBeenCalled();
+  });
+  it("explains SMTP delivery failures without blaming the user's email or session", async () => {
+    mocks.updateUser.mockResolvedValue({ data: { user: null }, error: { status: 500, code: "unexpected_failure", message: "Error sending confirmation email" } });
+    render(<AccountEmailSettings />); fill(); fireEvent.click(screen.getByRole("button"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("مشكلة في خدمة إرسال البريد بالمنصة");
+    expect(screen.getByLabelText("إيميل الدخول الجديد")).toHaveValue("NEW@example.test");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(mocks.updateUser).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    [{ name: "AuthSessionMissingError" }, "session"],
+    [{ code: "bad_jwt", status: 401 }, "session"],
+    [{ code: "over_email_send_rate_limit", status: 429 }, "rate_limit"],
+    [{ code: "email_exists" }, "email_in_use"],
+    [{ code: "email_address_invalid" }, "invalid_email"],
+    [{ code: "email_address_not_authorized" }, "delivery"],
+    [{ code: "unexpected_failure", status: 500, message: "Database error updating user" }, "server"],
+    [{ name: "AuthRetryableFetchError", status: 503 }, "server"],
+    [new TypeError("Failed to fetch"), "network"],
+    [{ message: "unknown internal details" }, "unknown"],
+  ])("classifies Auth errors without exposing raw server messages: %o", (failure, expected) => {
+    expect(emailChangeProblem(failure)).toBe(expected);
   });
 });
