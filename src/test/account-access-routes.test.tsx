@@ -12,7 +12,8 @@ function open(path = "/dashboard") {
   render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[path]}><Routes>
     <Route path="/dashboard" element={<ProtectedRoute><p>Company workspace</p></ProtectedRoute>} />
     <Route path="/company-registration" element={<p>Request status</p>} />
-    <Route path="/applicant-dashboard" element={<p>My applications</p>} />
+    <Route path="/applicant-dashboard" element={<ProtectedRoute><p>My applications</p></ProtectedRoute>} />
+    <Route path="/seeker-dashboard" element={<ProtectedRoute><p>My applications</p></ProtectedRoute>} />
     <Route path="/onboarding" element={<p>Registration form</p>} />
   </Routes></MemoryRouter></QueryClientProvider>);
   return client;
@@ -36,5 +37,18 @@ describe("account route protection", () => {
     check.mockResolvedValue({ allowed: false, reason: "Cannot verify company" }); open();
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Cannot verify company"));
     expect(screen.queryByText("Company workspace")).not.toBeInTheDocument();
+  });
+});
+
+
+describe("applicant dashboard route isolation", () => {
+  it.each(["/applicant-dashboard", "/seeker-dashboard"])("does not mount applicant data for staff at %s", async path => {
+    check.mockResolvedValue({ allowed: true, isApplicant: false }); open(path);
+    expect(await screen.findByRole("alert")).toHaveTextContent("هذا الحساب تابع لجهة توظيف");
+    expect(screen.queryByText("My applications")).not.toBeInTheDocument();
+  });
+  it.each(["/applicant-dashboard", "/seeker-dashboard"])("keeps applicant access at %s", async path => {
+    check.mockResolvedValue({ allowed: true, isApplicant: true }); open(path);
+    expect(await screen.findByText("My applications")).toBeInTheDocument();
   });
 });
