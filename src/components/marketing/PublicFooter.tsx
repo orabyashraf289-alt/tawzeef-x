@@ -1,9 +1,11 @@
+import { usePublicContactSettings } from "@/hooks/usePublicContactSettings";
 import { Link } from "react-router-dom";
 import { Github, Linkedin, Twitter, Mail } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 
 export default function PublicFooter() {
+  const { data: contact, isError: contactError, refetch: retryContact } = usePublicContactSettings();
   const { t } = useI18n();
   const year = new Date().getFullYear();
 
@@ -48,7 +50,7 @@ export default function PublicFooter() {
               {t("marketing.footer.tagline")}
             </p>
             <div className="flex items-center gap-2 mt-5">
-              <a href="mailto:support@tawzeef-x.com" className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors" aria-label="Email">
+              <a href={contact?.support_email ? `mailto:${contact.support_email}` : "/contact"} className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors" aria-label="Email">
                 <Mail className="w-4 h-4" />
               </a>
               <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors" aria-label="LinkedIn">
@@ -83,10 +85,11 @@ export default function PublicFooter() {
           <p className="text-muted-foreground text-xs">
             © {year} Tawzeef-X. {t("marketing.footer.rights")}
           </p>
-          <div className="flex gap-6 text-xs text-muted-foreground">
+          <div className="flex flex-wrap justify-center gap-6 text-xs text-muted-foreground">
+            {contact?.contact_phone && <a dir="ltr" href={`tel:${contact.contact_phone.replace(/[^+0-9]/g, "")}`}>{contact.contact_phone}</a>}
             <Link to="/privacy" className="hover:text-foreground transition-colors">{t("marketing.footer.privacy")}</Link>
             <Link to="/terms" className="hover:text-foreground transition-colors">{t("marketing.footer.terms")}</Link>
-            <a href="mailto:support@tawzeef-x.com" className="hover:text-foreground transition-colors">{t("marketing.footer.support")}</a>
+            <a href={contact?.support_email ? `mailto:${contact.support_email}` : "/contact"} className="hover:text-foreground transition-colors">{contact?.support_email || t("marketing.footer.support")}</a>
           </div>
         </div>
       </div>
