@@ -6,6 +6,9 @@ SET LOCAL session_replication_role = replica;
 INSERT INTO auth.users(id,instance_id,aud,role,email,email_confirmed_at,raw_user_meta_data) VALUES
  ('43000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000000','authenticated','authenticated','applicant@example.test',now(),'{"account_type":"job_seeker"}'),
  ('43000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000000','authenticated','authenticated','unverified@example.test',null,'{"account_type":"job_seeker"}');
+INSERT INTO public.user_roles(user_id,role) VALUES
+ ('43000000-0000-0000-0000-000000000001','job_seeker'),
+ ('43000000-0000-0000-0000-000000000002','job_seeker');
 INSERT INTO public.companies(id,name,status) VALUES
  ('44000000-0000-0000-0000-000000000001','Applied company','active'),
  ('44000000-0000-0000-0000-000000000002','Unrelated company','active');
@@ -50,5 +53,42 @@ END $$;
 RESET ROLE;
 DO $$ BEGIN
   IF has_function_privilege('anon','public.get_my_applicant_portal()','EXECUTE') THEN RAISE EXCEPTION 'Anonymous portal access'; END IF;
+END $$;
+-- Adding a staff identity must revoke applicant-only access immediately,
+-- even when job_seeker is still present and the email matches an application.
+SELECT set_config('request.jwt.claim.sub','43000000-0000-0000-0000-000000000001',true);
+DO $$ DECLARE _case text; BEGIN
+  FOREACH _case IN ARRAY ARRAY['staff_role','platform','company','agency','signup_intent','registration'] LOOP
+    CASE _case
+      WHEN 'staff_role' THEN
+        INSERT INTO public.user_roles(user_id,role) VALUES ('43000000-0000-0000-0000-000000000001','admin');
+      WHEN 'platform' THEN
+        INSERT INTO public.platform_roles(user_id,role) VALUES ('43000000-0000-0000-0000-000000000001','super_admin');
+      WHEN 'company' THEN
+        INSERT INTO public.company_members(user_id,company_id,member_role) VALUES ('43000000-0000-0000-0000-000000000001','44000000-0000-0000-0000-000000000001','owner');
+      WHEN 'agency' THEN
+        INSERT INTO public.agencies(id,name) VALUES ('4a000000-0000-0000-0000-000000000001','Test agency');
+        INSERT INTO public.agency_members(user_id,agency_id) VALUES ('43000000-0000-0000-0000-000000000001','4a000000-0000-0000-0000-000000000001');
+      WHEN 'signup_intent' THEN
+        INSERT INTO tenant_internal.company_signup_intents(user_id) VALUES ('43000000-0000-0000-0000-000000000001');
+      WHEN 'registration' THEN
+        INSERT INTO public.company_registration_requests(user_id,company_name,contact_email) VALUES ('43000000-0000-0000-0000-000000000001','Pending company','applicant@example.test');
+    END CASE;
+    IF tenant_internal.is_applicant_account() THEN RAISE EXCEPTION 'Staff identity % was classified as applicant', _case; END IF;
+    IF public.my_verified_applicant_email() IS NOT NULL THEN RAISE EXCEPTION 'Staff identity % retained applicant RLS email', _case; END IF;
+    IF coalesce((public.validate_tenant_status()->>'is_candidate')::boolean,false) THEN RAISE EXCEPTION 'Staff identity % routed as applicant', _case; END IF;
+    BEGIN
+      PERFORM public.get_my_applicant_portal();
+      RAISE EXCEPTION 'Staff identity % accessed applicant data', _case;
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+    DELETE FROM public.user_roles WHERE user_id='43000000-0000-0000-0000-000000000001' AND role='admin';
+    DELETE FROM public.platform_roles WHERE user_id='43000000-0000-0000-0000-000000000001';
+    DELETE FROM public.company_members WHERE user_id='43000000-0000-0000-0000-000000000001';
+    DELETE FROM public.agency_members WHERE user_id='43000000-0000-0000-0000-000000000001';
+    DELETE FROM tenant_internal.company_signup_intents WHERE user_id='43000000-0000-0000-0000-000000000001';
+    DELETE FROM public.company_registration_requests WHERE user_id='43000000-0000-0000-0000-000000000001';
+  END LOOP;
+  IF NOT tenant_internal.is_applicant_account() THEN RAISE EXCEPTION 'Applicant access did not recover'; END IF;
+  IF has_function_privilege('authenticated','tenant_internal.is_applicant_account()','EXECUTE') THEN RAISE EXCEPTION 'Internal helper exposed'; END IF;
 END $$;
 ROLLBACK;
