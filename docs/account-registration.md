@@ -42,3 +42,9 @@ Validation: Vitest route/access regression suite and SQL tests
 The SQL tests also run in the full migration replay CI job. Locally the new SQL
 was exercised in PostgreSQL WASM (PGlite) against a focused schema fixture;
 that focused run is not a full historical migration replay.
+
+## Exclusive login portals
+
+Applicant login rejects company, agency and platform accounts; employer login rejects applicant accounts. Existing sessions receive a portal mismatch message instead of an automatic redirect. Both applicant dashboard URLs check the server category before mounting any data component.
+
+The database derives applicant eligibility from server-owned roles and memberships. Mixed-role, company-registration, company-member, agency-member and platform accounts cannot use the applicant RPC or applicant-email RLS helper. User-editable metadata does not determine authorization. Existing HR permissions and credentials are preserved.
