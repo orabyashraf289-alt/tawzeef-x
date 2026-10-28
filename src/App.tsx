@@ -76,6 +76,7 @@ const ChecklistTracker = lazy(() => import("./pages/ChecklistTracker"));
 const AcceptInvitation = lazy(() => import("./pages/AcceptInvitation"));
 const QualityReport = lazy(() => import("./pages/QualityReport"));
 const TaskBoard = lazy(() => import("./pages/TaskBoard"));
+const Performance360 = lazy(() => import("./pages/Performance360"));
 const PerformanceEvaluation = lazy(() => import("./pages/PerformanceEvaluation"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
@@ -152,6 +153,7 @@ function AnimatedRoutes() {
         <Route path="/talent-pool" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><TalentPool /></RoleProtectedRoute>} />
         <Route path="/tasks" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><TaskBoard /></RoleProtectedRoute>} />
         <Route path="/task-board" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><TaskBoard /></RoleProtectedRoute>} />
+        <Route path="/evaluation/cycles" element={<RoleProtectedRoute screenPath="/evaluation" allowedRoles={["admin", "recruiter", "reviewer"]}><Performance360 /></RoleProtectedRoute>} />
         <Route path="/evaluation" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><PerformanceEvaluation /></RoleProtectedRoute>} />
         <Route path="/performance-evaluation" element={<RoleProtectedRoute allowedRoles={["admin", "recruiter", "reviewer"]}><PerformanceEvaluation /></RoleProtectedRoute>} />
 
