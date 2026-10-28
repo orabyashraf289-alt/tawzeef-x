@@ -1015,51 +1015,51 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     color: "text-amber-600",
     bg: "bg-amber-600/10",
     border: "border-amber-600/20",
-    summaryAr: "منظومة تقييم الأداء الشامل 360 درجة، وضع الأهداف الذكية SMART، قياس مؤشرات KPIs، والتقييم المشترك بين الموظف والمدير والأقران.",
-    summaryEn: "Comprehensive 360 appraisal engine: SMART goals, KPI tracking, self-evaluations, peer reviews, and manager grading.",
+    summaryAr: "سجل تقييمات يدوية خاص بحسابك مع مقارنة الفئات المتاحة. لا يتضمن دورات مستقلة أو أهداف SMART مقاسة أو سرية الأقران.",
+    summaryEn: "Private manual review log with comparisons across available perspectives. Independent cycles, measured SMART goals and peer anonymity are not implemented.",
     targetAudienceAr: "مدراء الموارد البشرية، رؤساء الأقسام، الموظفون",
     targetAudienceEn: "HR Directors, Department Heads, Employees",
     workflowStages: [
-      { stepNumber: 1, labelAr: "الأهداف والمعايير", labelEn: "SMART Goals" },
+      { stepNumber: 1, labelAr: "اختيار الموظف", labelEn: "Select employee" },
       { stepNumber: 2, labelAr: "التقييم الذاتي", labelEn: "Self Appraisal" },
       { stepNumber: 3, labelAr: "تقييم الأقران", labelEn: "Peer Reviews" },
-      { stepNumber: 4, labelAr: "اعتماد المدير", labelEn: "Manager Appraisal" },
+      { stepNumber: 4, labelAr: "مراجعة النتائج", labelEn: "Review results" },
     ],
     steps: [
       {
         stepNumber: 1,
-        titleAr: "بدء دورة تقييم جديدة أو اختيار موظف",
-        titleEn: "Launch Review Cycle / Select Employee",
-        actionAr: "اختر الموظف المراد تقييمه أو حدد دورة التقييم الحالية (ربع سنوية / نصف سنوية / سنوية).",
-        actionEn: "Select target employee and evaluation period (Quarterly / Annual).",
-        expectedOutcomeAr: "فتح لوحة معايير الجدارات والأهداف المخصصة لذلك الدور.",
-        expectedOutcomeEn: "Loads customized competency rubric and role-specific KPIs."
+        titleAr: "اختيار موظف وتاريخ الإدخال",
+        titleEn: "Select employee and recorded month",
+        actionAr: "اختر موظفًا من الحسابات المتاحة. يمكنك تصفية النتائج حسب شهر إدخال التقييم، وهو ليس دورة تقييم رسمية.",
+        actionEn: "Select a stored employee identity. Filter results by recorded month; this is not a formal appraisal cycle.",
+        expectedOutcomeAr: "عرض الأبعاد الخمسة ومقياس من 1 إلى 10 دون درجات افتراضية.",
+        expectedOutcomeEn: "Displays five dimensions on a 1–10 scale without default ratings."
       },
       {
         stepNumber: 2,
         titleAr: "إجراء التقييم الذاتي وتقييم الأقران",
         titleEn: "Submit Self & Peer Appraisals",
-        actionAr: "يقوم الموظف أولاً بتسجيل تقييمه الذاتي وإنجازاته في كل جدارة، ويمكن لزملائه المحددين تقديم ملاحظاتهم المهنية.",
-        actionEn: "Employee completes self-rating followed by designated peer feedback.",
-        expectedOutcomeAr: "بناء رؤية شاملة وعادلة لأداء الموظف من زوايا متعددة.",
-        expectedOutcomeEn: "Balanced, multi-perspective performance insight."
+        actionAr: "أدخل اسم المقيم والعلاقة والدرجات الفعلية مع أمثلة. هذه بيانات يدوية ولا تثبت مشاركة مقيمين مستقلين.",
+        actionEn: "Enter the reviewer, relationship and actual scores with examples. Manual entries do not verify independent participation.",
+        expectedOutcomeAr: "مقارنة الدرجات المتاحة مع إظهار الفئات الغائبة دون تقديرها.",
+        expectedOutcomeEn: "Compares available ratings and explicitly shows missing perspectives."
       },
       {
         stepNumber: 3,
-        titleAr: "اعتماد تقييم المدير المباشر والتوصيات",
-        titleEn: "Final Manager Rating & Recommendations",
-        actionAr: "يراجع المدير التقييمات ويحدد الدرجة النهائية والتوصية (ترقية / مكافأة / خطة تطوير وتدريب).",
-        actionEn: "Manager reviews scores and issues final rating and development plan.",
-        expectedOutcomeAr: "اعتماد التقييم رسمياً وصدور تقرير الأداء التفصيلي المعتمد.",
-        expectedOutcomeEn: "Finalizes review and generates official appraisal report."
+        titleAr: "مراجعة النتائج وتوصيات التطوير",
+        titleEn: "Review findings and development suggestions",
+        actionAr: "ناقش النتائج والأمثلة مع الموظف. توصيات الذكاء الاصطناعي مساعدة ولا تصدر قرارات ترقية أو مكافأة أو فصل.",
+        actionEn: "Discuss results and examples with the employee. AI suggestions do not make promotion, pay or dismissal decisions.",
+        expectedOutcomeAr: "تقرير وصفي بالنتائج المتاحة، وليس اعتمادًا رسميًا للتقييم.",
+        expectedOutcomeEn: "Descriptive report of available results, not an officially approved appraisal."
       }
     ],
     keyButtons: [
       {
-        nameAr: "دورة تقييم جديدة (+)",
-        nameEn: "New Review Cycle (+)",
-        descriptionAr: "إطلاق دورة تقييم أداء لجميع الموظفين في المنشأة أو قسم معين.",
-        descriptionEn: "Launches new appraisal cycle across department or company.",
+        nameAr: "إضافة تقييم جديد (+)",
+        nameEn: "Add evaluation (+)",
+        descriptionAr: "إضافة سجل تقييم يدوي واحد داخل حسابك.",
+        descriptionEn: "Adds one manual review record to your account.",
         actionType: "primary"
       },
       {
@@ -1072,18 +1072,18 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     ],
     proTips: [
       {
-        titleAr: "اربط التقييم بالأهداف الذكية SMART",
-        titleEn: "Align with SMART Goals",
-        descriptionAr: "تحديد الأهداف بأرقام وتواريخ واضحة يمنع الخلاف في التقييم ويضمن العدالة والموضوعية التامة.",
-        descriptionEn: "Quantifiable goals ensure objective ratings and eliminate appraisal disputes."
+        titleAr: "اتفق على أمثلة سلوكية",
+        titleEn: "Align with Select employee",
+        descriptionAr: "عرّف ما تعنيه كل درجة في الدور الوظيفي، وراجع الأدلة وحجم المشاركة قبل الاستنتاج.",
+        descriptionEn: "Define what each rating means for the role; review evidence and participation before drawing conclusions."
       }
     ],
     faqs: [
       {
         qAr: "هل يستطيع الموظف رؤية تقييمات زملائه عنه؟",
         qEn: "Can employees see anonymous peer feedback?",
-        aAr: "تظهر تقييمات الأقران مجمعة بدون أسماء لحماية الخصوصية وتشجيع الصدق والموضوعية.",
-        aEn: "Peer reviews are aggregated anonymously to preserve confidentiality and candor."
+        aAr: "لا توجد سرية للأقران في هذه النسخة؛ الأسماء المدخلة تظهر في التقرير، والسجلات خاصة بالحساب الذي أدخلها.",
+        aEn: "This version does not anonymize peer feedback. Entered names appear in reports; records are private to their author account."
       }
     ],
     quickLinks: [

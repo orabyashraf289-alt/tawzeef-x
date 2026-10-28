@@ -313,21 +313,21 @@ const SYSTEM_MODULES: SystemGuideModule[] = [
   },
   {
     id: "evaluation",
-    titleAr: "تقييم الأداء المؤسسي 360",
-    titleEn: "Performance Evaluation 360",
-    descAr: "نظام تقييم الأداء الشامل 360 درجة، يتيح وضع الأهداف الذكية SMART، قياس مؤشرات الأداء KPIs، والتقييم المشترك بين الموظف والمدير والزملاء.",
-    descEn: "360-degree performance evaluation framework supporting SMART goals, KPIs, peer reviews, and manager appraisals.",
+    titleAr: "تقييم الأداء — سجل يدوي",
+    titleEn: "Performance Evaluation — Manual Log",
+    descAr: "تسجيل درجات فعلية ومقارنة المصادر المتاحة. ليست دورة 360 مستقلة أو نظام أهداف SMART معتمدًا.",
+    descEn: "Record actual ratings and compare available perspectives. Not an independent 360 cycle or validated SMART-goals system.",
     stepsAr: [
-      "انتقل إلى 'تقييم الأداء (360)' لإدارة دورات التقييم.",
-      "حدد أوزان المعايير (الجدارات السلوكية، الأهداف المهنية، الانضباط، والإنجاز).",
-      "يقوم الموظف بتسجيل تقييمه الذاتي، ثم يعتمد المدير المباشر التقييم النهائي.",
-      "يصدر النظام تقريراً بيانياً شاملاً يوضح نقاط القوة وفرص التطوير."
+      "اختر موظفًا من الحسابات المتاحة وحدد اسم المقيم والعلاقة.",
+      "أدخل الدرجات الخمس من 1 إلى 10 مع أمثلة سلوكية؛ لا توجد درجات افتراضية.",
+      "راجع عدد السجلات والفئات الغائبة. التقييم الذاتي للمقارنة فقط.",
+      "صدّر تقريرًا وصفيًا وناقش النتائج. أسماء المقيمين ظاهرة ولا يوجد اعتماد رسمي للتقييم."
     ],
     stepsEn: [
-      "Navigate to 'Performance Evaluation 360'.",
-      "Configure assessment weights (Competencies, Goals, KPIs).",
-      "Employee submits self-appraisal followed by manager review.",
-      "Generate comprehensive evaluation report highlighting strengths and growth areas."
+      "Select an employee identity and enter the reviewer and relationship.",
+      "Enter five ratings from 1 to 10 with behavioral examples; no scores are prefilled.",
+      "Review record counts and missing groups. Self ratings are comparison only.",
+      "Export a descriptive report and discuss the evidence. Reviewer names are visible; there is no formal approval workflow."
     ],
     path: "/evaluation",
     icon: Target,

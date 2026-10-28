@@ -2212,6 +2212,7 @@ export type Database = {
           comment: string | null
           communication: number
           created_at: string
+          evalee_user_id: string | null
           evalee_name: string
           evalee_name_en: string | null
           evalee_role: string
@@ -2231,6 +2232,7 @@ export type Database = {
           comment?: string | null
           communication: number
           created_at?: string
+          evalee_user_id?: string | null
           evalee_name: string
           evalee_name_en?: string | null
           evalee_role: string
@@ -2250,6 +2252,7 @@ export type Database = {
           comment?: string | null
           communication?: number
           created_at?: string
+          evalee_user_id?: string | null
           evalee_name?: string
           evalee_name_en?: string | null
           evalee_role?: string
