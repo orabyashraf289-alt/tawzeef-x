@@ -313,23 +313,23 @@ const SYSTEM_MODULES: SystemGuideModule[] = [
   },
   {
     id: "evaluation",
-    titleAr: "تقييم الأداء — سجل يدوي",
-    titleEn: "Performance Evaluation — Manual Log",
-    descAr: "تسجيل درجات فعلية ومقارنة المصادر المتاحة. ليست دورة 360 مستقلة أو نظام أهداف SMART معتمدًا.",
-    descEn: "Record actual ratings and compare available perspectives. Not an independent 360 cycle or validated SMART-goals system.",
+    titleAr: "دورات تقييم ٣٦٠ المستقلة",
+    titleEn: "Independent 360 Review Cycles",
+    descAr: "إجابات من حسابات المشاركين داخل الشركة، ومعايير وأوزان معلنة، ونتائج مجمّعة تحمي الفئات قليلة الردود.",
+    descEn: "Responses from assigned company accounts, explicit criteria and weights, and aggregate results with small-group suppression.",
     stepsAr: [
-      "اختر موظفًا من الحسابات المتاحة وحدد اسم المقيم والعلاقة.",
-      "أدخل الدرجات الخمس من 1 إلى 10 مع أمثلة سلوكية؛ لا توجد درجات افتراضية.",
-      "راجع عدد السجلات والفئات الغائبة. التقييم الذاتي للمقارنة فقط.",
-      "صدّر تقريرًا وصفيًا وناقش النتائج. أسماء المقيمين ظاهرة ولا يوجد اعتماد رسمي للتقييم."
+      "مسؤول الشركة ينشئ مسودة ويحدد الموظف والفترة والموعد النهائي ومعايير السلوك وأوزانها.",
+      "يضيف المشاركين من نفس الشركة ثم يفتح الدورة؛ بعدها تثبت المعايير والمشاركون.",
+      "كل مشارك يدخل من حسابه ويسلّم إجابة واحدة من 1 إلى 5 أو لم ألاحظ لكل معيار.",
+      "المسؤول يغلق الدورة؛ تظهر النتائج للموظف والمسؤولين فقط، وتُحجب الفئة السرية إذا قلّت عن ثلاثة ردود صالحة للمعيار."
     ],
     stepsEn: [
-      "Select an employee identity and enter the reviewer and relationship.",
-      "Enter five ratings from 1 to 10 with behavioral examples; no scores are prefilled.",
-      "Review record counts and missing groups. Self ratings are comparison only.",
-      "Export a descriptive report and discuss the evidence. Reviewer names are visible; there is no formal approval workflow."
+      "A company administrator creates a draft with subject, period, deadline, behavioral criteria and weights.",
+      "Assign company members and open the cycle; criteria and participants are then frozen.",
+      "Each assigned account submits once, rating each criterion from 1 to 5 or not observed.",
+      "Close the cycle to release results to the subject and administrators; confidential groups need three valid responses per criterion."
     ],
-    path: "/evaluation",
+    path: "/evaluation/cycles",
     icon: Target,
     category: "performance",
     badgeAr: "مهام وأداء",

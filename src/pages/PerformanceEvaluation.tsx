@@ -518,6 +518,9 @@ DATA: ${JSON.stringify({ name: activeMember.name, role: activeMember.role, month
         dir={dir}
       >
         
+        <a href="/evaluation/cycles" className="block rounded-xl border border-primary/40 bg-primary/5 p-4 font-semibold print:hidden">
+          {locale === "ar" ? "دورات تقييم ٣٦٠ المستقلة ← إنشاء دورة، تكليف المشاركين، وعرض النتائج المجمّعة" : "Independent 360 cycles → Create a cycle, assign reviewers, and view aggregate results"}
+        </a>
         {/* Page Header */}
         <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-6 print:hidden relative z-10">
           <div>
@@ -550,7 +553,7 @@ DATA: ${JSON.stringify({ name: activeMember.name, role: activeMember.role, month
         </motion.div>
 
         <div className="rounded-xl border border-amber-400/40 bg-amber-500/5 p-4 text-sm space-y-2" role="note">
-          <p>{locale === "ar" ? "سجل تقييمات يدوية خاص بحسابك، وليس دورة 360 مكتملة. أسماء المقيمين وعلاقاتهم مدخلة يدويًا؛ لا توجد حاليًا دعوات مستقلة أو تحقق من العلاقة أو سرية للأقران أو أهداف SMART مقاسة. لا تعتمد عليه وحده لقرار وظيفي." : "Your manual review log, not a complete 360 cycle. Reviewer names and relationships are entered manually; independent invitations, verified relationships, peer confidentiality and measured SMART goals are not implemented. Do not use it alone for employment decisions."}</p>
+          <p>{locale === "ar" ? "سجل تقييمات يدوية خاص بحسابك، وليس دورة 360 مكتملة. أسماء المقيمين وعلاقاتهم مدخلة يدويًا؛ هذا السجل لا يجمع ردودًا مستقلة ولا يحمي سرية الأقران. للدورات المستقلة استخدم الرابط بالأعلى. لا تعتمد عليه وحده لقرار وظيفي." : "Your manual review log, not a complete 360 cycle. Reviewer names and relationships are entered manually; This log does not collect independent responses or protect peer confidentiality. Use the link above for independent cycles. Do not use it alone for employment decisions."}</p>
           <p>{locale === "ar" ? "الحساب: متوسط كل فئة أولًا، ثم متوسط الفئات الخارجية المتاحة بأوزان متساوية، ثم متوسط الأبعاد الخمسة. التقييم الذاتي للمقارنة فقط؛ الفئات الغائبة لا تُقدّر ولا تُحسب صفرًا." : "Method: average records within each group, equally average available external groups, then average the five dimensions. Self ratings are comparison only; missing groups are neither estimated nor treated as zero."}</p>
           <p>{locale === "ar" ? "الفئات المرجعية الوصفية: 8 فأكثر مؤشر مرتفع، وأقل من 6 نقطة للنقاش؛ هذه حدود إرشادية وليست معيارًا مهنيًا معتمدًا." : "Descriptive bands: 8+ is a high rating; below 6 is a discussion point. These are illustrative thresholds, not a validated professional standard."}</p>
         </div>
