@@ -1005,7 +1005,7 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
   },
   {
     id: "evaluation",
-    matchPaths: ["/evaluation", "/performance-evaluation"],
+    matchPaths: ["/evaluation", "/performance-evaluation", "/evaluation/cycles"],
     titleAr: "تقييم الأداء المؤسسي الشامل (360 Degree)",
     titleEn: "360-Degree Performance Evaluation",
     badgeAr: "أداء ومهام",
@@ -1015,78 +1015,42 @@ export const SCREEN_GUIDES: ScreenGuideItem[] = [
     color: "text-amber-600",
     bg: "bg-amber-600/10",
     border: "border-amber-600/20",
-    summaryAr: "سجل تقييمات يدوية خاص بحسابك مع مقارنة الفئات المتاحة. لا يتضمن دورات مستقلة أو أهداف SMART مقاسة أو سرية الأقران.",
-    summaryEn: "Private manual review log with comparisons across available perspectives. Independent cycles, measured SMART goals and peer anonymity are not implemented.",
+    summaryAr: "دورات مستقلة عبر /evaluation/cycles بمعايير وأوزان محددة، وتكليف المشاركين من نفس الشركة، وإجابات من حساباتهم. يبقى السجل اليدوي القديم منفصلًا.",
+    summaryEn: "Independent cycles at /evaluation/cycles use explicit criteria and weights, same-company assignments and responses from assigned accounts. The previous manual log remains separate.",
     targetAudienceAr: "مدراء الموارد البشرية، رؤساء الأقسام، الموظفون",
     targetAudienceEn: "HR Directors, Department Heads, Employees",
     workflowStages: [
-      { stepNumber: 1, labelAr: "اختيار الموظف", labelEn: "Select employee" },
-      { stepNumber: 2, labelAr: "التقييم الذاتي", labelEn: "Self Appraisal" },
-      { stepNumber: 3, labelAr: "تقييم الأقران", labelEn: "Peer Reviews" },
-      { stepNumber: 4, labelAr: "مراجعة النتائج", labelEn: "Review results" },
+      { stepNumber: 1, labelAr: "إعداد الدورة", labelEn: "Configure cycle" },
+      { stepNumber: 2, labelAr: "تكليف المشاركين", labelEn: "Assign reviewers" },
+      { stepNumber: 3, labelAr: "الإجابات المستقلة", labelEn: "Independent answers" },
+      { stepNumber: 4, labelAr: "إغلاق ونتائج", labelEn: "Close and review" },
     ],
     steps: [
-      {
-        stepNumber: 1,
-        titleAr: "اختيار موظف وتاريخ الإدخال",
-        titleEn: "Select employee and recorded month",
-        actionAr: "اختر موظفًا من الحسابات المتاحة. يمكنك تصفية النتائج حسب شهر إدخال التقييم، وهو ليس دورة تقييم رسمية.",
-        actionEn: "Select a stored employee identity. Filter results by recorded month; this is not a formal appraisal cycle.",
-        expectedOutcomeAr: "عرض الأبعاد الخمسة ومقياس من 1 إلى 10 دون درجات افتراضية.",
-        expectedOutcomeEn: "Displays five dimensions on a 1–10 scale without default ratings."
-      },
-      {
-        stepNumber: 2,
-        titleAr: "إجراء التقييم الذاتي وتقييم الأقران",
-        titleEn: "Submit Self & Peer Appraisals",
-        actionAr: "أدخل اسم المقيم والعلاقة والدرجات الفعلية مع أمثلة. هذه بيانات يدوية ولا تثبت مشاركة مقيمين مستقلين.",
-        actionEn: "Enter the reviewer, relationship and actual scores with examples. Manual entries do not verify independent participation.",
-        expectedOutcomeAr: "مقارنة الدرجات المتاحة مع إظهار الفئات الغائبة دون تقديرها.",
-        expectedOutcomeEn: "Compares available ratings and explicitly shows missing perspectives."
-      },
-      {
-        stepNumber: 3,
-        titleAr: "مراجعة النتائج وتوصيات التطوير",
-        titleEn: "Review findings and development suggestions",
-        actionAr: "ناقش النتائج والأمثلة مع الموظف. توصيات الذكاء الاصطناعي مساعدة ولا تصدر قرارات ترقية أو مكافأة أو فصل.",
-        actionEn: "Discuss results and examples with the employee. AI suggestions do not make promotion, pay or dismissal decisions.",
-        expectedOutcomeAr: "تقرير وصفي بالنتائج المتاحة، وليس اعتمادًا رسميًا للتقييم.",
-        expectedOutcomeEn: "Descriptive report of available results, not an officially approved appraisal."
-      }
+      { stepNumber: 1, titleAr: "إنشاء مسودة", titleEn: "Create a draft",
+        actionAr: "افتح رابط الدورات المستقلة. مسؤول الشركة يحدد الموظف والفترة والموعد النهائي والمعايير وأوزانها بمجموع مائة.",
+        actionEn: "Open Independent cycles. A company administrator selects subject, period, deadline and criteria with weights totaling 100.",
+        expectedOutcomeAr: "مسودة خاصة بالشركة مع تكليف ذاتي تلقائي.", expectedOutcomeEn: "A company-scoped draft with an automatic self assignment." },
+      { stepNumber: 2, titleAr: "تكليف المشاركين وفتح الدورة", titleEn: "Assign reviewers and open",
+        actionAr: "أضف حسابات من نفس الشركة. مدير واحد كحد أقصى وثلاثة مشاركين على الأقل في أي فئة سرية. بعد الفتح تثبت المعايير والتكليفات.",
+        actionEn: "Assign company accounts: at most one manager and at least three people per confidential group. Opening freezes criteria and assignments.",
+        expectedOutcomeAr: "كل مشارك يرى تكليفه داخل حسابه دون بريد تلقائي.", expectedOutcomeEn: "Each participant sees their assignment in their account, without automatic email." },
+      { stepNumber: 3, titleAr: "تسليم الإجابات ثم إغلاق الدورة", titleEn: "Submit answers and close",
+        actionAr: "كل مشارك يجيب مرة واحدة من حسابه بدرجات من واحد إلى خمسة أو لم ألاحظ. المسؤول يغلق الدورة لإظهار النتائج المجمّعة.",
+        actionEn: "Each assigned account submits once with scores from 1 to 5 or not observed. An administrator closes the cycle to release aggregate results.",
+        expectedOutcomeAr: "نتيجة ثابتة للموظف والمسؤولين فقط؛ التقييم الذاتي مستبعد من المتوسط الخارجي.", expectedOutcomeEn: "A frozen report for the subject and administrators; self scores are excluded from external averages." }
     ],
     keyButtons: [
-      {
-        nameAr: "إضافة تقييم جديد (+)",
-        nameEn: "Add evaluation (+)",
-        descriptionAr: "إضافة سجل تقييم يدوي واحد داخل حسابك.",
-        descriptionEn: "Adds one manual review record to your account.",
-        actionType: "primary"
-      },
-      {
-        nameAr: "تصدير تقرير الأداء PDF",
-        nameEn: "Export Appraisal PDF",
-        descriptionAr: "توليد ملف تقرير الأداء الشامل للطباعة والحفظ في ملف الموظف.",
-        descriptionEn: "Exports comprehensive appraisal report for filing.",
-        actionType: "action"
-      }
+      { nameAr: "إنشاء دورة", nameEn: "Create cycle", descriptionAr: "حفظ معايير الدورة ومسودتها.", descriptionEn: "Save the cycle criteria and draft.", actionType: "primary" },
+      { nameAr: "إغلاق الدورة وإظهار النتائج", nameEn: "Close cycle and release results", descriptionAr: "يمنع الردود الجديدة ويثبت النتائج نهائيًا.", descriptionEn: "Stops new responses and freezes the report permanently.", actionType: "action" }
     ],
-    proTips: [
-      {
-        titleAr: "اتفق على أمثلة سلوكية",
-        titleEn: "Align with Select employee",
-        descriptionAr: "عرّف ما تعنيه كل درجة في الدور الوظيفي، وراجع الأدلة وحجم المشاركة قبل الاستنتاج.",
-        descriptionEn: "Define what each rating means for the role; review evidence and participation before drawing conclusions."
-      }
-    ],
-    faqs: [
-      {
-        qAr: "هل يستطيع الموظف رؤية تقييمات زملائه عنه؟",
-        qEn: "Can employees see anonymous peer feedback?",
-        aAr: "لا توجد سرية للأقران في هذه النسخة؛ الأسماء المدخلة تظهر في التقرير، والسجلات خاصة بالحساب الذي أدخلها.",
-        aEn: "This version does not anonymize peer feedback. Entered names appear in reports; records are private to their author account."
-      }
-    ],
+    proTips: [{ titleAr: "معايير قابلة للملاحظة", titleEn: "Observable criteria",
+      descriptionAr: "عدّل المعايير للدور الوظيفي. غياب فئة يجعل النتيجة جزئية؛ الأداة للتطوير وليست قرار ترقية آليًا.",
+      descriptionEn: "Adapt criteria to the role. Missing groups make results partial; use the tool for development, not automatic promotion decisions." }],
+    faqs: [{ qAr: "كيف تُحمى سرية الزملاء؟", qEn: "How are peer ratings protected?",
+      aAr: "لا تظهر الإجابات الفردية. يلزم ثلاثة ردود صالحة لكل معيار في الفئة لعرض متوسطها. المسؤول يعرف قائمة المشاركين. هذه الحماية تخص الدورات المستقلة، وليس السجل اليدوي القديم.",
+      aEn: "Individual answers are not shown. Each confidential group needs three valid responses per criterion to reveal its mean. Administrators know the roster. This protection applies to independent cycles, not the old manual log." }],
     quickLinks: [
+      { labelAr: "الدورات المستقلة", labelEn: "Independent cycles", path: "/evaluation/cycles" },
       { labelAr: "لوحة المهام", labelEn: "Task Board", path: "/tasks" },
       { labelAr: "التقارير التحليلية", labelEn: "Reports", path: "/reports" },
       { labelAr: "إدارة الفريق", labelEn: "Team", path: "/team" }
