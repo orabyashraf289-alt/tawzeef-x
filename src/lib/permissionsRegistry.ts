@@ -228,6 +228,12 @@ export const SCREEN_PERMISSIONS: Record<string, { key: string; description: stri
     description: "لوحة المهام والأنشطة",
     defaultAllowed: ["admin", "recruiter", "reviewer"],
   },
+  "/evaluation/cycles": {
+    key: "screen.evaluation",
+    description: "تقييم الأداء",
+    defaultAllowed: ["admin", "recruiter", "reviewer"],
+  },
+
   "/evaluation": {
     key: "screen.evaluation",
     description: "تقييم الأداء",
