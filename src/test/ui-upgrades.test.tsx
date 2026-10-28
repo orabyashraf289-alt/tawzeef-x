@@ -332,7 +332,7 @@ describe("UI upgrades - PerformanceEvaluation Page", () => {
     expect((await screen.findAllByText("غير متاح")).length).toBe(5);
     expect(screen.getByText("متوسط التقييم الخارجي")).toBeInTheDocument();
     fireEvent.click(screen.getByText("المنحنى الزمني"));
-    expect(screen.getByText("لا توجد نقطتان مؤرختان على الأقل لعرض المقارنة الزمنية. لا يمكن استنتاج تحسن أو تراجع.")).toBeInTheDocument();
+    expect(await screen.findByText("لا توجد نقطتان مؤرختان على الأقل لعرض المقارنة الزمنية. لا يمكن استنتاج تحسن أو تراجع.")).toBeInTheDocument();
   });
 
   it("starts all grades empty and does not accept an untouched evaluation", async () => {
