@@ -933,10 +933,10 @@ DATA: ${JSON.stringify({ name: activeMember.name, role: activeMember.role, month
                               </div>
 
                               <div className="flex gap-2 text-[9px] text-muted-foreground font-semibold flex-wrap">
-                                <span className="bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/10">{locale === "ar" ? `ذاتي: ${s.self}` : `Self: ${s.self}`}</span>
-                                <span className="bg-blue-500/5 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/10">{locale === "ar" ? `مدير: ${s.manager}` : `Mgr: ${s.manager}`}</span>
-                                <span className="bg-amber-500/5 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/10">{locale === "ar" ? `زملاء: ${s.peers}` : `Peers: ${s.peers}`}</span>
-                                <span className="bg-purple-500/5 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded border border-purple-500/10">{locale === "ar" ? `مرؤوسين: ${s.subordinates}` : `Subordinates: ${s.subordinates}`}</span>
+                                <span className="bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/10">{locale === "ar" ? `ذاتي: ${displayScore(s.self)}` : `Self: ${displayScore(s.self)}`}</span>
+                                <span className="bg-blue-500/5 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/10">{locale === "ar" ? `مدير: ${displayScore(s.manager)}` : `Mgr: ${displayScore(s.manager)}`}</span>
+                                <span className="bg-amber-500/5 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/10">{locale === "ar" ? `زملاء: ${displayScore(s.peers)}` : `Peers: ${displayScore(s.peers)}`}</span>
+                                <span className="bg-purple-500/5 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded border border-purple-500/10">{locale === "ar" ? `مرؤوسين: ${displayScore(s.subordinates)}` : `Subordinates: ${displayScore(s.subordinates)}`}</span>
                               </div>
                             </div>
                           );
