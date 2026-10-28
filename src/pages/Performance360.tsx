@@ -36,7 +36,16 @@ export default function Performance360() {
 export function CycleWorkspace({companyId,userId,ar}:{companyId:string;userId:string;ar:boolean}) {
   const [selected,setSelected] = useState('');
   const [creating,setCreating] = useState(false);
-  const query = useQuery({queryKey:['performance360',companyId,userId],queryFn:()=>cycleRequest<CycleList>(companyId,'list'),retry:1});
+  const query = useQuery({
+    queryKey:['performance360',companyId,userId],
+    queryFn:()=>cycleRequest<CycleList>(companyId,'list'),
+    retry:1,
+    // Cycles and assignments can be added by another account while this page is cached.
+    staleTime:0,
+    refetchOnMount:'always',
+    refetchOnWindowFocus:true,
+    refetchInterval:30_000,
+  });
   const { toast } = useToast();
   const cache = useQueryClient();
   const mutation = useMutation({
