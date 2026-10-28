@@ -112,11 +112,11 @@ const mockFrom = vi.fn().mockImplementation((table: string) => {
   return {
     select: vi.fn().mockImplementation(() => {
       const promise = Promise.resolve({
-        data: table === "tasks" ? mockTasksData : mockEvaluationsData,
+        data: table === "tasks" ? mockTasksData : table === "profiles" ? [{user_id:"employee-1",full_name:"أحمد الحربي",job_title:"مهندس واجهات أمامية أول"}] : mockEvaluationsData,
         error: null,
       });
       (promise as any).order = vi.fn().mockResolvedValue({
-        data: table === "tasks" ? mockTasksData : mockEvaluationsData,
+        data: table === "tasks" ? mockTasksData : table === "profiles" ? [{user_id:"employee-1",full_name:"أحمد الحربي",job_title:"مهندس واجهات أمامية أول"}] : mockEvaluationsData,
         error: null
       });
       return promise;
@@ -272,7 +272,7 @@ describe("UI upgrades - PerformanceEvaluation Page", () => {
     renderWithQuery(<PerformanceEvaluation />);
     
     await waitFor(() => {
-      expect(screen.getByText("إضافة تقييم جديد")).toBeInTheDocument();
+      expect(screen.getByText("إضافة تقييم جديد").closest("button")).toBeEnabled();
     });
 
     // The "Add Evaluation" button
@@ -288,7 +288,7 @@ describe("UI upgrades - PerformanceEvaluation Page", () => {
     renderWithQuery(<PerformanceEvaluation />);
     
     await waitFor(() => {
-      expect(screen.getByText("إضافة تقييم جديد")).toBeInTheDocument();
+      expect(screen.getByText("إضافة تقييم جديد").closest("button")).toBeEnabled();
     });
 
     // Open drawer
@@ -297,6 +297,9 @@ describe("UI upgrades - PerformanceEvaluation Page", () => {
     // Enter reviewer name
     const nameInput = screen.getByLabelText("اسم المقيِّم بالكامل *");
     fireEvent.change(nameInput, { target: { value: "عبدالمحسن المقرن" } });
+
+    // No default grades: the reviewer must explicitly enter each dimension.
+    for (const field of screen.getAllByRole("spinbutton")) fireEvent.change(field, { target: { value: "7" } });
 
     // Enter comment
     const commentInput = screen.getByLabelText("ملاحظات تعليقات عامة");
@@ -315,6 +318,35 @@ describe("UI upgrades - PerformanceEvaluation Page", () => {
       );
     });
   });
+  it("shows a real empty state with no fabricated employees or completion percentage", async () => {
+    mockEvaluationsData = [];
+    renderWithQuery(<PerformanceEvaluation />);
+    expect(await screen.findByText("لا توجد تقييمات فعلية في الفترة المحددة. لن تُعرض درجات أو أسماء تجريبية.")).toBeInTheDocument();
+    expect(screen.queryByText("سارة العتيبي")).not.toBeInTheDocument();
+    expect(screen.queryByText("100%")).not.toBeInTheDocument();
+    expect(screen.getByText("تصدير PDF").closest("button")).toBeDisabled();
+  });
+
+  it("shows missing manager/self gaps as unavailable", async () => {
+    renderWithQuery(<PerformanceEvaluation />);
+    expect((await screen.findAllByText("غير متاح")).length).toBe(5);
+    expect(screen.getByText("متوسط التقييم الخارجي")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("المنحنى الزمني"));
+    expect(screen.getByText("لا توجد نقطتان مؤرختان على الأقل لعرض المقارنة الزمنية. لا يمكن استنتاج تحسن أو تراجع.")).toBeInTheDocument();
+  });
+
+  it("starts all grades empty and does not accept an untouched evaluation", async () => {
+    renderWithQuery(<PerformanceEvaluation />);
+    await waitFor(() => expect(screen.getByText("إضافة تقييم جديد").closest("button")).toBeEnabled());
+    fireEvent.click(screen.getByText("إضافة تقييم جديد"));
+    expect(screen.getAllByRole("spinbutton")).toHaveLength(5);
+    for (const field of screen.getAllByRole("spinbutton")) expect(field).toHaveValue(null);
+    fireEvent.change(screen.getByLabelText("اسم المقيِّم بالكامل *"), { target: { value: "Reviewer" } });
+    fireEvent.submit(screen.getByText("حفظ وإضافة التقييم").closest("form")!);
+    expect(mockToastFn).toHaveBeenCalledWith(expect.objectContaining({ variant: "destructive" }));
+    expect(mockEvaluationsData).toHaveLength(2);
+  });
+
 });
 
 describe("UI upgrades - TaskBoard Page", () => {
