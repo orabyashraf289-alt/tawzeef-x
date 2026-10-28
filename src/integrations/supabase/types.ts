@@ -3203,6 +3203,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      performance360: {
+        Args: { _company_id: string; _action: string; _payload?: Json }
+        Returns: Json
+      }
       get_public_joined_companies: {
         Args: Record<PropertyKey, never>
         Returns: { name: string; logo_url: string | null }[]
