@@ -48,6 +48,14 @@ describe('360 questionnaire integrity',()=>{
  it('displays a genuine empty state',async()=>{
   mount({can_manage:false,cycles:[],tasks:[],members:[]});expect(await screen.findByText('No cycles are available to you in this company.')).toBeInTheDocument();
  });
+ it('reloads a cached empty list when returning after cycles were added elsewhere',async()=>{
+  const client=new QueryClient({defaultOptions:{queries:{retry:false,staleTime:300_000,refetchOnMount:false,refetchOnWindowFocus:false}}});
+  client.setQueryData(['performance360','company-a','user-a'],{can_manage:true,cycles:[],tasks:[],members:[]});
+  rpc.mockResolvedValue({data:{...fixture,can_manage:true},error:null});
+  render(<QueryClientProvider client={client}><CycleWorkspace companyId="company-a" userId="user-a" ar={false}/></QueryClientProvider>);
+  expect(await screen.findByText('Quarter review')).toBeInTheDocument();
+  expect(screen.queryByText('No cycles are available to you in this company.')).not.toBeInTheDocument();
+ });
  it('disables draft creation when criterion weights do not total 100',async()=>{
   mount({can_manage:true,cycles:[],tasks:[],members:[{user_id:'subject',name:'Subject'}]});
   fireEvent.click(await screen.findByRole('button',{name:'Create cycle'}));
