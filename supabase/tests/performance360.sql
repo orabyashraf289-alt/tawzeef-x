@@ -21,6 +21,7 @@ DO $$
 DECLARE co uuid:='46100000-0000-0000-0000-000000000001'; c uuid; c2 uuid; result jsonb; payload jsonb; roster jsonb; aid uuid;
  u uuid; n integer; initial jsonb; specs jsonb:='[{"id":"a","title":"Delivery","description":"Observed delivery","weight":50},{"id":"b","title":"Teamwork","description":"Observed teamwork","weight":30},{"id":"c","title":"Communication","description":"Observed communication","weight":20}]';
 BEGIN
+ PERFORM pg_temp.expect(NOT has_function_privilege('authenticated','evaluation_private.request_impl(uuid,text,jsonb)','EXECUTE'),'internal implementation bypass denied');
  PERFORM pg_temp.expect(NOT has_table_privilege('authenticated','evaluation_private.responses','SELECT'),'raw responses must have no client access');
  PERFORM pg_temp.expect(NOT has_table_privilege('authenticated','evaluation_private.assignments','UPDATE'),'assignment writes must use authorization gateway');
  PERFORM pg_temp.expect(NOT has_function_privilege('anon','public.performance360(uuid,text,jsonb)','EXECUTE'),'anonymous RPC denied');
@@ -104,6 +105,15 @@ BEGIN
  PERFORM set_config('request.jwt.claim.sub','46000000-0000-0000-0000-000000000003',true);
  PERFORM pg_temp.expect(pg_temp.expect_denied(co,'submit',jsonb_build_object('cycle_id',c2,'assignment_id',aid,'scores','{"a":3,"b":3,"c":3}'::jsonb)),'expired cycle accepts response');
  EXECUTE 'RESET ROLE';
+ UPDATE auth.users SET banned_until=now()+interval '1 day' WHERE id='46000000-0000-0000-0000-000000000003';
+ EXECUTE 'SET LOCAL ROLE authenticated';
+ PERFORM pg_temp.expect(pg_temp.expect_denied(co,'list','{}'),'banned account with stale JWT retains access');
+ EXECUTE 'RESET ROLE';
+ UPDATE auth.users SET banned_until=NULL,deleted_at=now() WHERE id='46000000-0000-0000-0000-000000000003';
+ EXECUTE 'SET LOCAL ROLE authenticated';
+ PERFORM pg_temp.expect(pg_temp.expect_denied(co,'list','{}'),'soft-deleted account with stale JWT retains access');
+ EXECUTE 'RESET ROLE';
+ UPDATE auth.users SET deleted_at=NULL WHERE id='46000000-0000-0000-0000-000000000003';
  UPDATE public.companies SET status='suspended' WHERE id=co;
  EXECUTE 'SET LOCAL ROLE authenticated';
  PERFORM pg_temp.expect(pg_temp.expect_denied(co,'list','{}'),'suspended company access');
