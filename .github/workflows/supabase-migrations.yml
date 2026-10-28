@@ -208,6 +208,12 @@ jobs:
           test -n "$database_container"
           docker exec -i "$database_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/public_contact_settings.sql
 
+      - name: Verify independent 360 identity confidentiality and lifecycle
+        run: |
+          database_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
+          test -n "$database_container"
+          docker exec -i "$database_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/performance360.sql
+
       - name: Stop local database
         if: always()
         run: supabase stop
