@@ -1,242 +1,83 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
+const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
-
-function buildCandidateText(c: any): string {
-  return [
-    c.name,
-    c.role,
-    c.summary,
-    (c.skills || []).join(", "),
-    c.experience,
-    c.education,
-    c.location,
-  ]
-    .filter(Boolean)
-    .join(" | ");
-}
-
-function hashEmbed(text: string, dim = 128): number[] {
-  const v = new Array(dim).fill(0);
-  const tokens = text.toLowerCase().split(/[\s,/|.;:!?()\[\]{}"'`-]+/).filter(Boolean);
-  for (const tok of tokens) {
-    let h = 5381;
-    for (let i = 0; i < tok.length; i++) h = ((h << 5) + h) ^ tok.charCodeAt(i);
-    const idx = Math.abs(h) % dim;
-    v[idx] += 1;
-  }
-  const norm = Math.sqrt(v.reduce((s, x) => s + x * x, 0)) || 1;
-  return v.map(x => x / norm);
-}
-
-function cosine(a: number[], b: number[]): number {
-  if (!a || !b || a.length !== b.length) return 0;
-  let dot = 0;
-  for (let i = 0; i < a.length; i++) dot += a[i] * b[i];
-  return dot;
-}
-
-function localRank(job: any, candidates: any[]): any[] {
-  const jobText = `${job.title} ${job.department || ""} ${job.description || ""} ${(job.requirements || []).join(" ")}`;
-  const jobVec = hashEmbed(jobText);
-  
-  return candidates.map(c => {
-    const candText = buildCandidateText(c);
-    const candVec = hashEmbed(candText);
-    const sim = cosine(candVec, jobVec);
-    
-    // Substring boosts
-    const lowerCandText = candText.toLowerCase();
-    const jobTokens = jobText.toLowerCase().split(/\s+/).filter(t => t.length > 2);
-    const matched = jobTokens.filter(t => lowerCandText.includes(t));
-    const score = Math.min(95, Math.max(10, Math.round(((sim * 0.7) + (matched.length * 0.05)) * 100)));
-    
-    // Construct matched skills text
-    const matchedSkills = (c.skills || []).filter((s: string) => jobText.toLowerCase().includes(s.toLowerCase()));
-    const summary = matchedSkills.length > 0
-      ? `تطابق بنسبة ${score}% بناءً على المهارات المشتركة: ${matchedSkills.slice(0, 3).join("، ")}.`
-      : `تطابق بنسبة ${score}% بناءً على تحليل السيرة الذاتية دلالياً.`;
-      
-    return {
-      candidate_id: c.id,
-      score,
-      summary
-    };
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...cors, "Content-Type": "application/json" },
   });
-}
 
+// Compatibility endpoint: rank stored evidence reviews. Never let a model choose update IDs.
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   try {
     const { jobId } = await req.json();
-    if (!jobId) throw new Error("jobId مطلوب");
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const authHeader = req.headers.get("Authorization") || "";
-    const token = authHeader.replace(/^Bearer\s+/i, "");
-    if (!token) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (typeof jobId !== "string" || !/^[0-9a-f-]{36}$/i.test(jobId)) {
+      return json({ error: "Invalid job" }, 400);
     }
-    const authClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: `Bearer ${token}` } } });
-    const { data: userData, error: userErr } = await authClient.auth.getUser();
-    if (userErr || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const url = Deno.env.get("SUPABASE_URL")!;
+    const authorization = req.headers.get("Authorization") || "";
+    const db = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authorization } },
+    });
+    const { data: { user }, error: authError } = await db.auth.getUser();
+    if (authError || !user || user.is_anonymous) {
+      return json({ error: "Authentication required" }, 401);
     }
-    const callerId = userData.user.id;
-
-    const supabase = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
-    // Fetch job + ownership check
-    const { data: job, error: jobErr } = await supabase.from("jobs").select("*").eq("id", jobId).single();
-    if (jobErr || !job) throw new Error("الوظيفة غير موجودة");
-
-    // Robust Authorization Check (BOLA Remediation)
-    const isOwner = job.user_id === callerId;
-    const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", callerId).eq("role", "admin").maybeSingle();
-    const isAdmin = !!roleData;
-    let hasCompanyAccess = false;
-    if (job.company_id) {
-      const { data: memberData } = await supabase.from("company_members").select("company_id").eq("company_id", job.company_id).eq("user_id", callerId).maybeSingle();
-      hasCompanyAccess = !!memberData;
+    const { data: job, error: jobError } = await db.from("jobs").select(
+      "id,company_id",
+    ).eq("id", jobId).single();
+    if (jobError || !job?.company_id) {
+      return json({ error: "Job unavailable" }, 403);
     }
-    if (!(isOwner || isAdmin || hasCompanyAccess)) {
-      return new Response(JSON.stringify({ error: "Forbidden: You do not have permission to access this job" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const { data: allowed, error: permissionError } = await db.rpc(
+      "has_hiring_permission",
+      { _company: job.company_id, _module: "candidates", _action: "read" },
+    );
+    if (permissionError || !allowed) {
+      return json({ error: "Candidate access required" }, 403);
     }
-
-    // Fetch candidates for this job
-    const { data: candidates, error: candErr } = await supabase
-      .from("candidates")
-      .select("*")
-      .eq("job_id", jobId);
-    if (candErr) throw candErr;
-    if (!candidates || candidates.length === 0) {
-      return new Response(JSON.stringify({ message: "لا يوجد مرشحون لهذه الوظيفة", ranked: 0 }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    let rankings: any[] = [];
-    let isFallback = false;
-
-    const LOVABLE_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      console.warn("AI key not configured. Using local rank fallback.");
-      rankings = localRank(job, candidates);
-      isFallback = true;
-    } else {
-      const isDirectGemini = (LOVABLE_API_KEY.startsWith("AIza") || LOVABLE_API_KEY.startsWith("AQ."));
-      const API_URL = isDirectGemini
-        ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-        : "https://api.lovable.dev/v1/chat/completions";
-
-      const jobRequirements = `
-المسمى: ${job.title}
-القسم: ${job.department}
-الموقع: ${job.location}
-النوع: ${job.type}
-الخبرة المطلوبة: ${job.experience_level || "غير محدد"}
-الوصف: ${job.description || "غير متوفر"}
-المتطلبات: ${(job.requirements || []).join(", ") || "غير محددة"}
-`;
-
-      const candidatesList = candidates.map((c, i) => `
---- مرشح ${i + 1} (${c.id}) ---
-الاسم: ${c.name}
-المهارات: ${(c.skills || []).join(", ") || "غير محددة"}
-الخبرة: ${c.experience || "غير حددة"}
-التعليم: ${c.education || "غير محدد"}
-الملخص: ${c.summary || "غير متوفر"}
-`).join("\n");
-
+    const { data: candidates, error } = await db.from("candidates").select(
+      "id,ai_evaluation",
+    )
+      .eq("job_id", job.id).eq("company_id", job.company_id).order("created_at")
+      .limit(1000);
+    if (error) throw error;
+    const rankings = (candidates || []).flatMap((candidate) => {
+      let report: any;
       try {
-        const response = await fetch(API_URL, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: isDirectGemini ? "gemini-2.0-flash" : "google/gemini-2.0-flash",
-            tools: [{
-              type: "function",
-              function: {
-                name: "rank_candidates",
-                description: "ترتيب المرشحين حسب التوافق مع الوظيفة",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    rankings: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          candidate_id: { type: "string" },
-                          score: { type: "integer", description: "نسبة التوافق 0-100" },
-                          summary: { type: "string", description: "سبب التقييم في جملة واحدة" },
-                        },
-                        required: ["candidate_id", "score", "summary"],
-                        additionalProperties: false,
-                      },
-                    },
-                  },
-                  required: ["rankings"],
-                  additionalProperties: false,
-                },
-              },
-            }],
-            tool_choice: { type: "function", function: { name: "rank_candidates" } },
-            messages: [
-              {
-                role: "system",
-                content: "أنت خبير موارد بشرية. رتّب المرشحين حسب مدى توافقهم مع متطلبات الوظيفة. أعطِ كل مرشح نسبة من 0 إلى 100 وسبب مختصر.",
-              },
-              {
-                role: "user",
-                content: `رتّب هؤلاء المرشحين حسب توافقهم مع هذه الوظيفة:\n\n${jobRequirements}\n\nالمرشحون:\n${candidatesList}`,
-              },
-            ],
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`AI service returned error status: ${response.status}`);
-        }
-
-        const aiData = await response.json();
-        const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-        if (!toolCall) throw new Error("No tool call returned by AI service");
-
-        const parsed = JSON.parse(toolCall.function.arguments);
-        rankings = parsed.rankings || [];
-      } catch (aiErr) {
-        console.warn("AI service call failed, falling back to local rank:", aiErr);
-        rankings = localRank(job, candidates);
-        isFallback = true;
+        report = typeof candidate.ai_evaluation === "string"
+          ? JSON.parse(candidate.ai_evaluation)
+          : candidate.ai_evaluation;
+      } catch {
+        return [];
       }
-    }
-
-    // Update each candidate's ai_score
-    let updated = 0;
-    for (const r of rankings) {
-      const { error } = await supabase
-        .from("candidates")
-        .update({ ai_score: r.score, ai_evaluation: JSON.stringify({ score: r.score, summary: r.summary }) })
-        .eq("id", r.candidate_id);
-      if (!error) updated++;
-    }
-
-    return new Response(JSON.stringify({ ranked: updated, rankings, isFallback }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      if (
+        !report || report.evidenceVersion !== 1 ||
+        !Number.isFinite(report.score) || report.score < 0 || report.score > 100
+      ) return [];
+      return [{
+        candidate_id: candidate.id,
+        score: report.score,
+        summary: report.summary,
+        evaluatedAt: report.evaluatedAt,
+        source: "saved_evidence_review",
+      }];
+    }).sort((a, b) => b.score - a.score);
+    return json({
+      ranked: rankings.length,
+      rankings,
+      updated: 0,
+      requires_individual_evaluation: (candidates?.length || 0) -
+        rankings.length,
+      message:
+        "الترتيب يعتمد على التقييمات المحفوظة بالأدلة. قيّم الملفات غير المكتملة من شاشة المرشح، والقرار النهائي لفريق التوظيف.",
     });
-  } catch (e) {
-    console.error("auto-rank error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  } catch {
+    return json({ error: "تعذّر تحميل التقييمات. لم تُنشأ درجات بديلة." }, 500);
   }
 });
