@@ -1,5 +1,9 @@
-import { readAssessmentAnswers, readProctoringLog, type AnswerEntry } from "@/lib/assessmentResponseData";
-import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
+import AssessmentActivityLog from "./AssessmentActivityLog";
+import { useScreenPermissions } from "@/hooks/useScreenPermissions";
+import { readAssessmentAnswers, displayAssessmentAnswer, type ReviewQuestion, type AnswerEntry } from "@/lib/assessmentResponseData";
+import { useState, useEffect } from "react";
 import { useAssessmentResponses } from "@/hooks/useQuestionBank";
 import { useI18n } from "@/contexts/I18nContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,10 +16,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
-import { Brain, Eye, ArrowLeft, Send, ThumbsUp, Lightbulb, CheckCircle, Loader2, Edit2, Save, ShieldAlert, Activity, ClipboardCheck, AlertTriangle } from "lucide-react";
+import { Brain, Eye, ArrowLeft, Send, ThumbsUp, Lightbulb, Loader2, Edit2, Save, ClipboardCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { cn } from "@/lib/utils";
+
+async function loadReviewQuestions(responseId: string): Promise<Record<string, ReviewQuestion>> {
+  const { data, error } = await (supabase.rpc as any)("get_assessment_review_questions", { _response_id: responseId });
+  if (error) throw error;
+  return Object.fromEntries((data as ReviewQuestion[] || []).map(question => [question.id, question]));
+}
 
 interface Props {
   assessmentId: string;
@@ -25,13 +34,13 @@ interface Props {
 
 export default function AssessmentResponsesDialog({ assessmentId, open, onOpenChange }: Props) {
   const { t } = useI18n();
-  const { data: responses = [], isLoading } = useAssessmentResponses(assessmentId);
+  const { hasHiringPermission } = useScreenPermissions();
+  const { data: responses = [], isLoading, isError, refetch } = useAssessmentResponses(assessmentId);
   const [selectedResponse, setSelectedResponse] = useState<string | null>(null);
   const [editingAnswers, setEditingAnswers] = useState<AnswerEntry[] | null>(null);
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showProctoring, setShowProctoring] = useState(false);
-  const [questions, setQuestions] = useState<Record<string, { question_text: string; points: number; question_type: string }>>({});
+  const [questions, setQuestions] = useState<Record<string, ReviewQuestion>>({});
   const qc = useQueryClient();
 
   const selected = responses.find(r => r.id === selectedResponse);
@@ -41,19 +50,8 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
     if (!response) return;
 
     const answers = readAssessmentAnswers(response.answers);
-    const qIds = answers.map(a => a.question_id).filter(Boolean);
-
-    if (qIds.length > 0) {
-      const { data } = await supabase
-        .from("question_bank")
-        .select("id, question_text, points, question_type")
-        .in("id", qIds);
-      if (data) {
-        const map: Record<string, any> = {};
-        data.forEach(q => { map[q.id] = q; });
-        setQuestions(map);
-      }
-    }
+    try { setQuestions(await loadReviewQuestions(responseId)); }
+    catch { toast({ title: "تعذّر تحميل تفاصيل المحاولة المحفوظة", variant: "destructive" }); return; }
 
     setEditingAnswers(answers.map(a => ({ ...a })));
     setSelectedResponse(responseId);
@@ -63,7 +61,7 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
     if (!editingAnswers) return;
     const updated = [...editingAnswers];
     const q = questions[updated[index].question_id];
-    updated[index].points_earned = Math.min(Math.max(0, newScore), q?.points || 100);
+    updated[index].points_earned = Math.min(Math.max(0, newScore), updated[index].max_points ?? q?.points ?? 0);
     setEditingAnswers(updated);
   };
 
@@ -78,23 +76,20 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
     if (!editingAnswers || !selected) return;
     setSaving(true);
 
-    const totalScore = editingAnswers.reduce((sum, a) => sum + (a.points_earned || 0), 0);
-    const maxScore = editingAnswers.reduce((sum, a) => {
-      const q = questions[a.question_id];
-      return sum + (q?.points || 0);
-    }, 0);
-    const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
-
-    await supabase.from("assessment_responses").update({
-      answers: editingAnswers,
-      total_score: totalScore,
-      max_score: maxScore,
-      percentage,
-    } as any).eq("id", selected.id);
-
-    qc.invalidateQueries({ queryKey: ["assessment-responses"] });
-    toast({ title: t("qbank.review.saved") });
-    setSaving(false);
+    try {
+      const { data, error } = await (supabase.rpc as any)("review_assessment_response", {
+        _response_id: selected.id,
+        _evaluations: editingAnswers.map(a => ({ question_id: a.question_id, score: a.points_earned, feedback: a.ai_feedback || "", strengths: a.ai_strengths || "", improvements: a.ai_improvements || "" })),
+      });
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["assessment-responses"] });
+      qc.invalidateQueries({ queryKey: ["all-assessment-responses"] });
+      toast({ title: t("qbank.review.saved") });
+      return data;
+    } catch (error) {
+      toast({ title: "تعذّر حفظ المراجعة", variant: "destructive" });
+      throw error;
+    } finally { setSaving(false); }
   };
 
   const sendResults = async () => {
@@ -103,30 +98,11 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
 
     try {
       // Save first
-      await saveChanges();
-
-      const totalScore = editingAnswers.reduce((sum, a) => sum + (a.points_earned || 0), 0);
-      const maxScore = editingAnswers.reduce((sum, a) => sum + (questions[a.question_id]?.points || 0), 0);
-      const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+      const saved = await saveChanges();
+      if (!saved) throw new Error("Review not saved");
 
       const { error } = await supabase.functions.invoke("send-assessment-results", {
-        body: {
-          candidate_name: selected.candidate_name,
-          candidate_email: selected.candidate_email,
-          assessment_id: assessmentId,
-          total_score: totalScore,
-          max_score: maxScore,
-          percentage,
-          answers: editingAnswers.map(a => ({
-            question_text: questions[a.question_id]?.question_text || "",
-            points_earned: a.points_earned,
-            max_points: questions[a.question_id]?.points || 0,
-            ai_feedback: a.ai_feedback,
-            ai_strengths: a.ai_strengths,
-            ai_improvements: a.ai_improvements,
-            ai_evaluated: a.ai_evaluated,
-          })),
-        },
+        body: { response_id: selected.id },
       });
 
       if (error) throw error;
@@ -157,7 +133,7 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">
                 {editingAnswers.reduce((s, a) => s + (a.points_earned || 0), 0)}/
-                {editingAnswers.reduce((s, a) => s + (questions[a.question_id]?.points || 0), 0)}
+                {editingAnswers.reduce((s, a) => s + (a.max_points ?? questions[a.question_id]?.points ?? 0), 0)}
               </div>
               <div className="text-xs text-muted-foreground">{t("qbank.score")}</div>
             </div>
@@ -165,7 +141,7 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
             <div className="text-center">
               <div className="text-2xl font-bold">
                 {(() => {
-                  const max = editingAnswers.reduce((s, a) => s + (questions[a.question_id]?.points || 0), 0);
+                  const max = editingAnswers.reduce((s, a) => s + (a.max_points ?? questions[a.question_id]?.points ?? 0), 0);
                   const total = editingAnswers.reduce((s, a) => s + (a.points_earned || 0), 0);
                   return max > 0 ? Math.round((total / max) * 100) : 0;
                 })()}%
@@ -188,158 +164,7 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
             )}
           </div>
 
-          {/* Proctoring & Integrity Panel */}
-          {(() => {
-            if (!selected) return null;
-            
-            const rawLog = selected.tab_switch_log;
-            const proctoringLog = readProctoringLog(rawLog);
-
-            const proctoringData = proctoringLog || (selected.tab_switches > 0 ? {
-              cheat_score: Math.min(100, selected.tab_switches * 15),
-              cheat_level: selected.tab_switches >= 5 ? "high" : selected.tab_switches >= 3 ? "medium" : "low",
-              counters: {
-                visibility: selected.tab_switches,
-                blur: selected.tab_switches,
-                copy: 0,
-                cut: 0,
-                paste: 0,
-                contextmenu: 0,
-                fullscreenExit: 0
-              },
-              events: [
-                { time: selected.started_at, type: "visibility_hidden" }
-              ]
-            } : null);
-
-            if (!proctoringData) return null;
-
-            const score = proctoringData.cheat_score || 0;
-            const level = proctoringData.cheat_level || "safe";
-            const counters = proctoringData.counters || {};
-            const events = proctoringData.events || [];
-
-            const getEventLabel = (type: string) => {
-              switch (type) {
-                case "visibility_hidden": return "تصغير المتصفح / مغادرة علامة التبويب";
-                case "visibility_visible": return "العودة لعلامة تبويب الاختبار";
-                case "blur": return "الخروج من نافذة الاختبار (فقدان التركيز)";
-                case "focus": return "التركيز على نافذة الاختبار";
-                case "copy": return "محاولة نسخ نص السؤال (تم الحظر)";
-                case "cut": return "محاولة قص نص السؤال (تم الحظر)";
-                case "paste": return "محاولة لصق نص في الإجابة (تم الحظر)";
-                case "contextmenu": return "محاولة النقر بزر الفأرة الأيمن (تم الحظر)";
-                case "fullscreen_exit":
-                case "fullscreenExit": return "مغادرة وضع ملء الشاشة الكاملة";
-                default: return `حدث غير معروف: ${type}`;
-              }
-            };
-
-            const getLevelBadge = (lvl: string) => {
-              switch (lvl) {
-                case "high": return <Badge className="bg-red-500 hover:bg-red-600 text-white font-bold">مستوى خطورة عالٍ 🚨</Badge>;
-                case "medium": return <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-bold">مستوى خطورة متوسط ⚠️</Badge>;
-                case "low": return <Badge className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold">مستوى خطورة منخفض 🔍</Badge>;
-                default: return <Badge className="bg-green-500 hover:bg-green-600 text-white font-bold">نزاهة ممتازة (آمن) ✅</Badge>;
-              }
-            };
-
-            const getScoreColor = (sc: number) => {
-              if (sc >= 70) return "bg-red-500";
-              if (sc >= 40) return "bg-amber-500";
-              if (sc >= 15) return "bg-yellow-500";
-              return "bg-green-500";
-            };
-
-            return (
-              <Card className="border border-destructive/20 bg-destructive/5 overflow-hidden">
-                <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
-                  <div className="flex items-center gap-2">
-                    <ShieldAlert className="h-5 w-5 text-destructive animate-pulse" />
-                    <div>
-                      <CardTitle className="text-sm font-bold text-destructive">
-                        تقرير حماية النزاهة والمراقبة الأمنية (Proctoring Report)
-                      </CardTitle>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        رصد تفصيلي لسلوك المرشح ومحاولات الخروج عن قواعد الاختبار
-                      </p>
-                    </div>
-                  </div>
-                  <div>
-                    {getLevelBadge(level)}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-semibold">
-                      <span className="text-muted-foreground">مؤشر خطورة الغش العام:</span>
-                      <span className={cn(
-                        "font-bold",
-                        score >= 70 ? "text-red-600" : score >= 40 ? "text-amber-600" : score >= 15 ? "text-yellow-600" : "text-green-600"
-                      )}>{score} / 100</span>
-                    </div>
-                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden flex">
-                      <div className={cn("h-full transition-all duration-500", getScoreColor(score))} style={{ width: `${score}%` }} />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
-                    <div className="bg-background border rounded-lg p-2 flex flex-col justify-center">
-                      <span className="font-mono text-base font-black text-destructive">{counters.visibility || 0}</span>
-                      <span className="text-[9px] text-muted-foreground">مغادرة التبويب</span>
-                    </div>
-                    <div className="bg-background border rounded-lg p-2 flex flex-col justify-center">
-                      <span className="font-mono text-base font-black text-amber-600">{counters.copy || 0}</span>
-                      <span className="text-[9px] text-muted-foreground">محاولات النسخ</span>
-                    </div>
-                    <div className="bg-background border rounded-lg p-2 flex flex-col justify-center">
-                      <span className="font-mono text-base font-black text-amber-600">{counters.paste || 0}</span>
-                      <span className="text-[9px] text-muted-foreground">محاولات اللصق</span>
-                    </div>
-                    <div className="bg-background border rounded-lg p-2 flex flex-col justify-center">
-                      <span className="font-mono text-base font-black text-purple-600">{counters.contextmenu || 0}</span>
-                      <span className="text-[9px] text-muted-foreground">كليك يمين</span>
-                    </div>
-                    <div className="bg-background border rounded-lg p-2 flex flex-col justify-center col-span-2 sm:col-span-1">
-                      <span className="font-mono text-base font-black text-blue-600">{counters.fullscreenExit || 0}</span>
-                      <span className="text-[9px] text-muted-foreground">خروج من ملء الشاشة</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => setShowProctoring(!showProctoring)}
-                      className="text-xs gap-1 hover:bg-destructive/10 text-destructive font-bold h-8 px-0"
-                    >
-                      <Activity className="h-3.5 w-3.5" />
-                      {showProctoring ? "إخفاء الخط الزمني التفصيلي" : "عرض سجل الأحداث والخط الزمني للمراقبة"}
-                    </Button>
-                    
-                    {showProctoring && (
-                      <div className="bg-background border border-border/60 rounded-lg p-3 max-h-[180px] overflow-y-auto space-y-2.5">
-                        {events.length === 0 ? (
-                          <p className="text-[10px] text-muted-foreground text-center py-2">لا توجد أحداث مسجلة</p>
-                        ) : (
-                          events.map((ev: any, i: number) => (
-                            <div key={i} className="flex gap-2 items-start text-[10px] border-b border-border/20 pb-2 last:border-0 last:pb-0">
-                              <span className="font-mono text-muted-foreground shrink-0 mt-0.5">
-                                {new Date(ev.time).toLocaleTimeString('ar-SA')}
-                              </span>
-                              <span className="text-foreground font-medium">
-                                {getEventLabel(ev.type)}
-                              </span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })()}
+          <AssessmentActivityLog log={selected.tab_switch_log} tabSwitches={selected.tab_switches} />
 
           {/* Answers */}
           <div className="space-y-4">
@@ -369,7 +194,7 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
                     {/* Candidate answer */}
                     <div className="bg-muted/30 rounded-md p-3">
                       <div className="text-xs text-muted-foreground mb-1">{t("qbank.review.candidateAnswer")}</div>
-                      <p className="text-sm whitespace-pre-wrap">{answer.answer || "-"}</p>
+                      <p className="text-sm whitespace-pre-wrap">{displayAssessmentAnswer(answer.answer, q)}</p>
                     </div>
 
                     {/* Score editor */}
@@ -379,22 +204,22 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
                         <Input
                           type="number"
                           min={0}
-                          max={q.points}
+                          max={answer.max_points ?? q.points}
                           value={answer.points_earned}
                           onChange={e => handleScoreChange(idx, Number(e.target.value))}
                           className="w-20 h-8"
                         />
-                        <span className="text-sm text-muted-foreground">/ {q.points}</span>
+                        <span className="text-sm text-muted-foreground">/ {answer.max_points ?? q.points}</span>
                       </div>
-                      {!isAI && (
+                      {!isAI && !answer.requires_review && (
                         <Badge variant={answer.is_correct ? "default" : "destructive"} className="text-xs">
                           {answer.is_correct ? t("qbank.correct") : t("qbank.review.incorrect")}
                         </Badge>
                       )}
                     </div>
 
-                    {/* AI feedback editor (only for AI-evaluated) */}
-                    {isAI && (
+                    {answer.requires_review && <Badge variant="secondary">بانتظار المراجعة</Badge>}
+                    {(isAI || ["open_ended", "code"].includes(q.question_type)) && (
                       <div className="space-y-2 border-t pt-3">
                         <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
                           <Edit2 className="h-3.5 w-3.5" /> {t("qbank.review.editFeedback")}
@@ -440,11 +265,11 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
 
           {/* Action buttons */}
           <div className="flex justify-between items-center pt-4 border-t sticky bottom-0 bg-background pb-2">
-            <Button variant="outline" onClick={saveChanges} disabled={saving} className="gap-2">
+            <Button variant="outline" onClick={() => { void saveChanges().catch(() => {}); }} disabled={saving || !hasHiringPermission("assessment_responses", "edit")} className="gap-2">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {t("qbank.review.saveOnly")}
             </Button>
-            <Button onClick={sendResults} disabled={sending} className="gap-2">
+            <Button onClick={sendResults} disabled={sending || saving || !hasHiringPermission("assessment_responses", "edit")} className="gap-2">
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               {t("qbank.review.approveAndSend")}
             </Button>
@@ -462,7 +287,7 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
           <DialogTitle>{t("qbank.responses")}</DialogTitle>
         </DialogHeader>
 
-        {isLoading ? (
+        {isError ? (<div role="alert" className="p-4">تعذّر تحميل النتائج. <Button onClick={() => refetch()}>إعادة المحاولة</Button></div>) : isLoading ? (
           <div className="text-center py-8 text-muted-foreground">{t("common.loading")}</div>
         ) : responses.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">{t("qbank.noResponses")}</div>
@@ -473,7 +298,7 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
                 <TableHead>{t("qbank.candidateName")}</TableHead>
                 <TableHead>{t("qbank.email")}</TableHead>
                 <TableHead>{t("qbank.score")}</TableHead>
-                <TableHead>النزاهة 🛡️</TableHead>
+                <TableHead>نشاط الجلسة</TableHead>
                 <TableHead>{t("qbank.status")}</TableHead>
                 <TableHead>{t("qbank.date")}</TableHead>
                 <TableHead>{t("common.actions")}</TableHead>
@@ -481,34 +306,21 @@ export default function AssessmentResponsesDialog({ assessmentId, open, onOpenCh
             </TableHeader>
             <TableBody>
               {responses.map(r => {
-                const log = r.tab_switch_log;
-                const cheat = readProctoringLog(log)?.cheat_score;
                 return (
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">{r.candidate_name}</TableCell>
                     <TableCell>{r.candidate_email}</TableCell>
                     <TableCell>
-                      <Badge variant={r.percentage >= 70 ? "default" : "destructive"}>
-                        {r.total_score}/{r.max_score} ({r.percentage}%)
+                      <Badge variant="outline">
+                        {r.status === "completed" ? `${r.total_score}/${r.max_score} (${r.percentage}%)` : r.status === "pending_review" ? "بانتظار اكتمال التصحيح" : "لم يُسلّم بعد"}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {cheat == null ? (
-                        <span className="text-muted-foreground">—</span>
-                      ) : cheat >= 60 ? (
-                        <Badge variant="outline" className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 animate-pulse text-[10px] gap-1 font-bold">
-                          <AlertTriangle className="w-3 h-3" />
-                          شبهة غش ({cheat}%)
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20 text-[10px] font-bold">
-                          آمن
-                        </Badge>
-                      )}
+                      <span className="text-xs text-muted-foreground">{r.tab_switches ? `${r.tab_switches} مغادرات مسجلة` : "لا توجد مغادرات مسجلة"}</span>
                     </TableCell>
                     <TableCell>
                       <Badge variant={r.status === "completed" ? "default" : "secondary"}>
-                        {r.status === "completed" ? t("qbank.completed") : t("qbank.inProgress")}
+                        {r.status === "completed" ? t("qbank.completed") : r.status === "pending_review" ? "بانتظار التصحيح" : t("qbank.inProgress")}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -538,14 +350,15 @@ interface SingleProps {
 
 export function SingleResponseProctoringDialog({ responseId, open, onClose }: SingleProps) {
   const { t } = useI18n();
-  const [showProctoring, setShowProctoring] = useState(false);
-  const [questions, setQuestions] = useState<Record<string, { question_text: string; points: number; question_type: string }>>({});
+  const { user } = useAuth();
+  const { activeCompanyId } = useCompany();
+  const { hasHiringPermission } = useScreenPermissions();
   const [editingAnswers, setEditingAnswers] = useState<AnswerEntry[] | null>(null);
   const [saving, setSaving] = useState(false);
   const qc = useQueryClient();
 
   const { data: response, isLoading } = useQuery({
-    queryKey: ["proctoring-single-response", responseId],
+    queryKey: ["proctoring-single-response", user?.id, activeCompanyId, responseId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("assessment_responses")
@@ -554,31 +367,19 @@ export function SingleResponseProctoringDialog({ responseId, open, onClose }: Si
         .single();
       if (error) throw error;
 
-      // Load question bank detail mapping
-      const answers = readAssessmentAnswers(data.answers);
-      const qIds = answers.map(a => a.question_id).filter(Boolean);
-      if (qIds.length > 0) {
-        const { data: qData } = await supabase
-          .from("question_bank")
-          .select("id, question_text, points, question_type")
-          .in("id", qIds);
-        if (qData) {
-          const map: Record<string, any> = {};
-          qData.forEach(q => { map[q.id] = q; });
-          setQuestions(map);
-        }
-      }
-      setEditingAnswers(answers.map(a => ({ ...a })));
-      return data;
+      return { ...data, reviewQuestions: await loadReviewQuestions(responseId) };
     },
-    enabled: open && !!responseId,
+    enabled: open && !!responseId && !!user && !!activeCompanyId,
   });
+
+  const questions = response?.reviewQuestions || {};
+  useEffect(() => { setEditingAnswers(response ? readAssessmentAnswers(response.answers) : null); }, [response, open]);
 
   const handleScoreChange = (index: number, newScore: number) => {
     if (!editingAnswers) return;
     const updated = [...editingAnswers];
     const q = questions[updated[index].question_id];
-    updated[index].points_earned = Math.min(Math.max(0, newScore), q?.points || 100);
+    updated[index].points_earned = Math.min(Math.max(0, newScore), updated[index].max_points ?? q?.points ?? 0);
     setEditingAnswers(updated);
   };
 
@@ -593,17 +394,10 @@ export function SingleResponseProctoringDialog({ responseId, open, onClose }: Si
     if (!response || !editingAnswers) return;
     setSaving(true);
     try {
-      const totalEarned = editingAnswers.reduce((sum, a) => sum + (a.points_earned || 0), 0);
-      const pct = Math.round((totalEarned / response.max_score) * 100);
-
-      const { error } = await supabase
-        .from("assessment_responses")
-        .update({
-          answers: editingAnswers,
-          total_score: totalEarned,
-          percentage: pct
-        } as any)
-        .eq("id", response.id);
+      const { error } = await (supabase.rpc as any)("review_assessment_response", {
+        _response_id: response.id,
+        _evaluations: editingAnswers.map(a => ({ question_id: a.question_id, score: a.points_earned, feedback: a.ai_feedback || "", strengths: a.ai_strengths || "", improvements: a.ai_improvements || "" })),
+      });
 
       if (error) throw error;
       toast({ title: t("qbank.review.saved") || "تم حفظ التقييم بنجاح ✅" });
@@ -616,37 +410,6 @@ export function SingleResponseProctoringDialog({ responseId, open, onClose }: Si
     }
   };
 
-  const getEventLabel = (type: string) => {
-    switch (type) {
-      case "visibility_hidden": return "تصغير المتصفح / مغادرة علامة التبويب";
-      case "visibility_visible": return "العودة لعلامة تبويب الاختبار";
-      case "blur": return "الخروج من نافذة الاختبار (فقدان التركيز)";
-      case "focus": return "التركيز على نافذة الاختبار";
-      case "copy": return "محاولة نسخ نص السؤال (تم الحظر)";
-      case "cut": return "محاولة قص نص السؤال (تم الحظر)";
-      case "paste": return "محاولة لصق نص في الإجابة (تم الحظر)";
-      case "contextmenu": return "محاولة النقر بزر الفأرة الأيمن (تم الحظر)";
-      case "fullscreen_exit":
-      case "fullscreenExit": return "مغادرة وضع ملء الشاشة الكاملة";
-      default: return `حدث غير معروف: ${type}`;
-    }
-  };
-
-  const getLevelBadge = (lvl: string) => {
-    switch (lvl) {
-      case "high": return <Badge className="bg-red-500 hover:bg-red-600 text-white font-bold">مستوى خطورة عالٍ 🚨</Badge>;
-      case "medium": return <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-bold">مستوى خطورة متوسط ⚠️</Badge>;
-      case "low": return <Badge className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold">مستوى خطورة منخفض 🔍</Badge>;
-      default: return <Badge className="bg-green-500 hover:bg-green-600 text-white font-bold">نزاهة ممتازة (آمن) ✅</Badge>;
-    }
-  };
-
-  const getScoreColor = (sc: number) => {
-    if (sc >= 70) return "bg-red-500";
-    if (sc >= 40) return "bg-amber-500";
-    if (sc >= 15) return "bg-yellow-500";
-    return "bg-green-500";
-  };
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -666,124 +429,7 @@ export function SingleResponseProctoringDialog({ responseId, open, onClose }: Si
           <p className="text-center py-6 text-sm text-muted-foreground">حدث خطأ في تحميل تفاصيل الإجابة</p>
         ) : (
           <div className="space-y-5">
-            {/* Proctoring & Integrity Panel */}
-            {(() => {
-              const rawLog = response.tab_switch_log;
-              const proctoringLog = readProctoringLog(rawLog);
-
-              const proctoringData = proctoringLog || (response.tab_switches > 0 ? {
-                cheat_score: Math.min(100, response.tab_switches * 15),
-                cheat_level: response.tab_switches >= 5 ? "high" : response.tab_switches >= 3 ? "medium" : "low",
-                counters: {
-                  visibility: response.tab_switches,
-                  blur: response.tab_switches,
-                  copy: 0,
-                  cut: 0,
-                  paste: 0,
-                  contextmenu: 0,
-                  fullscreenExit: 0
-                },
-                events: [
-                  { time: response.started_at, type: "visibility_hidden" }
-                ]
-              } : null);
-
-              if (!proctoringData) return null;
-
-              const score = proctoringData.cheat_score || 0;
-              const level = proctoringData.cheat_level || "safe";
-              const counters = proctoringData.counters || {};
-              const events = proctoringData.events || [];
-
-              return (
-                <Card className="border border-destructive/20 bg-destructive/5 overflow-hidden">
-                  <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
-                    <div className="flex items-center gap-2">
-                      <ShieldAlert className="h-5 w-5 text-destructive animate-pulse" />
-                      <div>
-                        <CardTitle className="text-sm font-bold text-destructive">
-                          تقرير حماية النزاهة والمراقبة الأمنية (Proctoring Report)
-                        </CardTitle>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          رصد تفصيلي لسلوك المرشح ومحاولات الخروج عن قواعد الاختبار
-                        </p>
-                      </div>
-                    </div>
-                    <div>
-                      {getLevelBadge(level)}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs font-semibold">
-                        <span className="text-muted-foreground">مؤشر خطورة الغش العام:</span>
-                        <span className={cn(
-                          "font-bold",
-                          score >= 70 ? "text-red-600" : score >= 40 ? "text-amber-600" : score >= 15 ? "text-yellow-600" : "text-green-600"
-                        )}>{score} / 100</span>
-                      </div>
-                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden flex">
-                        <div className={cn("h-full transition-all duration-500", getScoreColor(score))} style={{ width: `${score}%` }} />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
-                      <div className="bg-background border rounded-lg p-2 flex flex-col justify-center">
-                        <span className="font-mono text-base font-black text-destructive">{counters.visibility || 0}</span>
-                        <span className="text-[9px] text-muted-foreground">مغادرة التبويب</span>
-                      </div>
-                      <div className="bg-background border rounded-lg p-2 flex flex-col justify-center">
-                        <span className="font-mono text-base font-black text-amber-600">{counters.copy || 0}</span>
-                        <span className="text-[9px] text-muted-foreground">محاولات النسخ</span>
-                      </div>
-                      <div className="bg-background border rounded-lg p-2 flex flex-col justify-center">
-                        <span className="font-mono text-base font-black text-amber-600">{counters.paste || 0}</span>
-                        <span className="text-[9px] text-muted-foreground">محاولات اللصق</span>
-                      </div>
-                      <div className="bg-background border rounded-lg p-2 flex flex-col justify-center">
-                        <span className="font-mono text-base font-black text-purple-600">{counters.contextmenu || 0}</span>
-                        <span className="text-[9px] text-muted-foreground">كليك يمين</span>
-                      </div>
-                      <div className="bg-background border rounded-lg p-2 flex flex-col justify-center col-span-2 sm:col-span-1">
-                        <span className="font-mono text-base font-black text-blue-600">{counters.fullscreenExit || 0}</span>
-                        <span className="text-[9px] text-muted-foreground">خروج من ملء الشاشة</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => setShowProctoring(!showProctoring)}
-                        className="text-xs gap-1 hover:bg-destructive/10 text-destructive font-bold h-8 px-0"
-                      >
-                        <Activity className="h-3.5 w-3.5" />
-                        {showProctoring ? "إخفاء الخط الزمني التفصيلي" : "عرض سجل الأحداث والخط الزمني للمراقبة"}
-                      </Button>
-                      
-                      {showProctoring && (
-                        <div className="bg-background border border-border/60 rounded-lg p-3 max-h-[180px] overflow-y-auto space-y-2.5">
-                          {events.length === 0 ? (
-                            <p className="text-[10px] text-muted-foreground text-center py-2">لا توجد أحداث مسجلة</p>
-                          ) : (
-                            events.map((ev: any, i: number) => (
-                              <div key={i} className="flex gap-2 items-start text-[10px] border-b border-border/20 pb-2 last:border-0 last:pb-0">
-                                <span className="font-mono text-muted-foreground shrink-0 mt-0.5">
-                                  {new Date(ev.time).toLocaleTimeString('ar-SA')}
-                                </span>
-                                <span className="text-foreground font-medium">
-                                  {getEventLabel(ev.type)}
-                                </span>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })()}
+            <AssessmentActivityLog log={response.tab_switch_log} tabSwitches={response.tab_switches} />
 
             {/* Answer details list */}
             <div className="space-y-3">
@@ -797,24 +443,26 @@ export function SingleResponseProctoringDialog({ responseId, open, onClose }: Si
                   <div key={idx} className="bg-muted/20 border rounded-xl p-4 space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <span className="text-[10px] text-muted-foreground">السؤال {idx + 1} ({q?.question_type === "mcq" ? "اختيار من متعدد" : "سؤال مقالي"})</span>
+                        <span className="text-[10px] text-muted-foreground">السؤال {idx + 1} ({q?.question_type === "multiple_choice" ? "اختيار من متعدد" : "سؤال مقالي"})</span>
                         <p className="text-sm font-semibold text-foreground mt-0.5">{q?.question_text || "جاري تحميل نص السؤال..."}</p>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0 bg-background border px-3 py-1 rounded-lg">
                         <span className="text-xs text-muted-foreground">الدرجة:</span>
                         <input
                           type="number"
+                          min={0}
+                          max={ans.max_points ?? q?.points ?? 0}
                           value={ans.points_earned}
                           onChange={(e) => handleScoreChange(idx, Number(e.target.value))}
                           className="w-10 text-center font-bold text-sm bg-muted/40 rounded focus:outline-none"
                         />
-                        <span className="text-xs text-muted-foreground">/ {q?.points || 10}</span>
+                        <span className="text-xs text-muted-foreground">/ {ans.max_points ?? q?.points ?? 0}</span>
                       </div>
                     </div>
 
                     <div className="bg-background border/50 rounded-lg p-2.5 space-y-1">
                       <span className="text-[10px] text-muted-foreground">إجابة المرشح:</span>
-                      <p className="text-xs text-foreground font-medium">{ans.answer || "لم يتم توفير إجابة"}</p>
+                      <p className="text-xs text-foreground font-medium">{displayAssessmentAnswer(ans.answer, q)}</p>
                     </div>
 
                     {/* AI Feedback inputs */}
@@ -844,7 +492,7 @@ export function SingleResponseProctoringDialog({ responseId, open, onClose }: Si
             </div>
 
             <div className="flex gap-2 justify-end border-t pt-3.5">
-              <Button size="sm" onClick={saveEvaluation} disabled={saving} className="gap-1">
+              <Button size="sm" onClick={saveEvaluation} disabled={saving || !hasHiringPermission("assessment_responses", "edit")} className="gap-1">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 حفظ التقييم والملاحظات
               </Button>

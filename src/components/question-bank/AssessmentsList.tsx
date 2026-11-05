@@ -1,3 +1,4 @@
+import { useScreenPermissions } from "@/hooks/useScreenPermissions";
 import { useState, useMemo } from "react";
 import { useAssessments, useDeleteAssessment, useDuplicateAssessment, useToggleAssessmentActive } from "@/hooks/useQuestionBank";
 import { useI18n } from "@/contexts/I18nContext";
@@ -16,8 +17,9 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function AssessmentsList() {
+  const { hasHiringPermission } = useScreenPermissions();
   const { t, locale } = useI18n();
-  const { data: assessments = [], isLoading } = useAssessments();
+  const { data: assessments = [], isLoading, isError, refetch } = useAssessments();
   const deleteMutation = useDeleteAssessment();
   const duplicateMutation = useDuplicateAssessment();
   const toggleMutation = useToggleAssessmentActive();
@@ -66,12 +68,12 @@ export default function AssessmentsList() {
             ))}
           </div>
         </div>
-        <Button onClick={() => setShowCreate(true)} className="gap-2">
+        <Button disabled={!hasHiringPermission("question_bank", "create")} onClick={() => setShowCreate(true)} className="gap-2">
           <Plus className="h-4 w-4" /> {t("qbank.createAssessment")}
         </Button>
       </div>
 
-      {isLoading ? (
+      {isError ? (<div role="alert" className="p-6 text-center text-destructive">تعذّر تحميل البيانات. <Button variant="outline" onClick={() => refetch()}>إعادة المحاولة</Button></div>) : isLoading ? (
         <div className="text-center py-12 text-muted-foreground">{t("common.loading")}</div>
       ) : filtered.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">{t("qbank.noAssessments")}</CardContent></Card>

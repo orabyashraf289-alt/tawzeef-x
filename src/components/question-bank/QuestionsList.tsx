@@ -1,3 +1,4 @@
+import { useScreenPermissions } from "@/hooks/useScreenPermissions";
 import { useState, useMemo } from "react";
 import { useQuestions, useDeleteQuestion, useBulkDeleteQuestions, useDuplicateQuestion, useBulkUpdateQuestions, Question } from "@/hooks/useQuestionBank";
 import { useI18n } from "@/contexts/I18nContext";
@@ -43,8 +44,9 @@ const diffColors: Record<string, string> = {
 };
 
 export default function QuestionsList() {
+  const { hasHiringPermission } = useScreenPermissions();
   const { locale, t } = useI18n();
-  const { data: questions = [], isLoading } = useQuestions();
+  const { data: questions = [], isLoading, isError, refetch } = useQuestions();
   const { data: jobs = [] } = useJobs();
   const deleteMutation = useDeleteQuestion();
   const bulkDeleteMutation = useBulkDeleteQuestions();
@@ -409,7 +411,7 @@ export default function QuestionsList() {
       </div>
 
       {/* List / Grid content */}
-      {isLoading ? (
+      {isError ? (<div role="alert" className="p-6 text-center text-destructive">تعذّر تحميل البيانات. <Button variant="outline" onClick={() => refetch()}>إعادة المحاولة</Button></div>) : isLoading ? (
         <div className="text-center py-16 text-muted-foreground font-semibold flex items-center justify-center gap-2">
           <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           <span>{t("common.loading")}</span>

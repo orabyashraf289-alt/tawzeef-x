@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useState } from "react";
-import { useAssessments, useQuestions, mockResponses } from "@/hooks/useQuestionBank";
+import { useAssessments, useQuestions } from "@/hooks/useQuestionBank";
 import { useI18n } from "@/contexts/I18nContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -21,38 +21,22 @@ const COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3
 
 export default function AssessmentAnalytics() {
   const { t, locale, dir } = useI18n();
-  const { data: assessments = [] } = useAssessments();
-  const { data: questions = [] } = useQuestions();
+  const { data: assessments = [], isError: assessmentsError } = useAssessments();
+  const { data: questions = [], isError: questionsError } = useQuestions();
   const { data: stages = [] } = usePipelineStages();
   const { data: jobs = [] } = useJobs();
   const { user } = useAuth();
   const [alertThreshold, setAlertThreshold] = useState(50);
 
-  const { data: allResponses = [] } = useQuery({
+  const { data: allResponses = [], isError: responsesError } = useQuery({
     queryKey: ["all-assessment-responses", assessments.map(a => a.id).join(",")],
     queryFn: async () => {
       const ids = assessments.map(a => a.id);
       if (ids.length === 0) return [];
 
-      const mockIds = ids.filter(id => id.startsWith("mock-"));
-      const dbIds = ids.filter(id => !id.startsWith("mock-"));
-
-      let dbData: any[] = [];
-      if (dbIds.length > 0) {
-        try {
-          const { data, error } = await supabase
-            .from("assessment_responses")
-            .select("*")
-            .in("assessment_id", dbIds);
-          if (error) throw error;
-          if (data) dbData = data;
-        } catch (err) {
-          console.error("Error fetching assessment responses from supabase:", err);
-        }
-      }
-
-      const matchedMocks = mockResponses.filter(r => mockIds.includes(r.assessment_id));
-      return [...dbData, ...matchedMocks];
+      const { data, error } = await supabase.from("assessment_responses").select("*").in("assessment_id", ids);
+      if (error) throw error;
+      return data || [];
     },
     enabled: assessments.length > 0,
   });
@@ -61,7 +45,7 @@ export default function AssessmentAnalytics() {
     const completed = allResponses.filter((r: any) => r.status === "completed");
     const passed = completed.filter((r: any) => {
       const assessment = assessments.find(a => a.id === r.assessment_id);
-      return r.percentage >= (assessment?.passing_score || 70);
+      return r.percentage >= (r.passing_score_snapshot ?? assessment?.passing_score ?? 70);
     });
 
     const avgScore = completed.length > 0
@@ -87,7 +71,7 @@ export default function AssessmentAnalytics() {
       const aAvg = aResponses.length > 0
         ? Math.round(aResponses.reduce((s: number, r: any) => s + Number(r.percentage), 0) / aResponses.length)
         : 0;
-      const aPassed = aResponses.filter((r: any) => r.percentage >= (a.passing_score || 70)).length;
+      const aPassed = aResponses.filter((r: any) => r.percentage >= (r.passing_score_snapshot ?? a.passing_score ?? 70)).length;
       return {
         name: a.title.length > 20 ? a.title.slice(0, 20) + "..." : a.title,
         fullName: a.title,
@@ -128,7 +112,7 @@ export default function AssessmentAnalytics() {
       aResponses.forEach((r: any) => {
         jobMap[jobName].total++;
         jobMap[jobName].scores.push(Number(r.percentage));
-        if (r.percentage >= (a.passing_score || 70)) jobMap[jobName].passed++;
+        if (r.percentage >= (r.passing_score_snapshot ?? a.passing_score ?? 70)) jobMap[jobName].passed++;
       });
     });
     const byJob = Object.values(jobMap).filter(j => j.total > 0).map(j => ({
@@ -286,7 +270,7 @@ export default function AssessmentAnalytics() {
         [locale === "ar" ? "اسم المرشح" : "Candidate"]: r.candidate_name,
         [locale === "ar" ? "البريد" : "Email"]: r.candidate_email,
         [locale === "ar" ? "الدرجة" : "Score"]: `${r.percentage}%`,
-        [locale === "ar" ? "الحالة" : "Status"]: r.percentage >= (assessment?.passing_score || 70)
+        [locale === "ar" ? "الحالة" : "Status"]: r.percentage >= (r.passing_score_snapshot ?? assessment?.passing_score ?? 70)
           ? (locale === "ar" ? "ناجح" : "Passed") : (locale === "ar" ? "راسب" : "Failed"),
         [locale === "ar" ? "تاريخ الإكمال" : "Completed"]: r.completed_at ? new Date(r.completed_at).toLocaleDateString(locale === "ar" ? "ar-SA" : "en-US") : "",
       };
@@ -418,6 +402,8 @@ export default function AssessmentAnalytics() {
     }
     return null;
   };
+
+  if (responsesError || assessmentsError || questionsError) return <p role="alert">تعذّر تحميل بيانات التحليل. أعد المحاولة.</p>;
 
   if (stats.totalQuestions === 0 && stats.totalResponses === 0) {
     return (
