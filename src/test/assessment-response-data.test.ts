@@ -18,3 +18,8 @@ describe("Assessment JSON compatibility", () => {
     expect(readAssessmentAnswers({ question_id: "q" })).toEqual([]);
   });
 });
+
+it("uses the saved point cap and keeps pending-review state", () => {
+  expect(readAssessmentAnswers([{ question_id: "q", answer: "Written answer", max_points: 5, points_earned: 0, requires_review: true }])[0])
+    .toMatchObject({ max_points: 5, requires_review: true, points_earned: 0 });
+});

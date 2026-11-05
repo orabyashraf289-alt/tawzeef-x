@@ -35,6 +35,9 @@ vi.mock("@/contexts/AuthContext", () => {
   };
 });
 
+vi.mock("@/contexts/CompanyContext", () => ({ useCompany: () => ({ activeCompanyId: "test-company" }) }));
+vi.mock("@/hooks/useScreenPermissions", () => ({ useScreenPermissions: () => ({ hasHiringPermission: () => false }) }));
+
 // Mock useJobs
 vi.mock("@/hooks/useJobs", () => {
   return {
