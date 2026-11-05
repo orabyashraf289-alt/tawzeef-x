@@ -344,6 +344,7 @@ export type Database = {
           created_at: string
           id: string
           max_score: number | null
+          passing_score_snapshot: number | null
           percentage: number | null
           started_at: string
           status: string
@@ -361,6 +362,7 @@ export type Database = {
           created_at?: string
           id?: string
           max_score?: number | null
+          passing_score_snapshot?: number | null
           percentage?: number | null
           started_at?: string
           status?: string
@@ -378,6 +380,7 @@ export type Database = {
           created_at?: string
           id?: string
           max_score?: number | null
+          passing_score_snapshot?: number | null
           percentage?: number | null
           started_at?: string
           status?: string
@@ -1734,6 +1737,10 @@ export type Database = {
           created_at: string
           date: string
           id: string
+          interviewer_id: string | null
+          time_zone: string | null
+          starts_at: string | null
+          duration_minutes: number
           interviewer: string | null
           meeting_url: string | null
           notes: string | null
@@ -1754,6 +1761,10 @@ export type Database = {
           created_at?: string
           date: string
           id?: string
+          interviewer_id?: string | null
+          time_zone?: string | null
+          starts_at?: string | null
+          duration_minutes?: number
           interviewer?: string | null
           meeting_url?: string | null
           notes?: string | null
@@ -1774,6 +1785,10 @@ export type Database = {
           created_at?: string
           date?: string
           id?: string
+          interviewer_id?: string | null
+          time_zone?: string | null
+          starts_at?: string | null
+          duration_minutes?: number
           interviewer?: string | null
           meeting_url?: string | null
           notes?: string | null
