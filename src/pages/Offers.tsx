@@ -1,3 +1,4 @@
+import { useScreenPermissions } from "@/hooks/useScreenPermissions";
 import { useState, useMemo, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import SARSymbol from "@/components/SARSymbol";
@@ -82,6 +83,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { OffersSkeleton } from "@/components/Skeletons";
 
 export default function OffersPage() {
+  const { hasHiringPermission } = useScreenPermissions();
   const { t, locale } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
@@ -359,6 +361,7 @@ export default function OffersPage() {
   };
 
   const handleCreate = () => {
+    if (!hasHiringPermission("offers", "create")) return;
     if (!form.position || (salaryBreakdown ? totalSalary <= 0 : !form.salary)) {
       toast({ title: t("offers.fillRequired"), variant: "destructive" });
       return;
@@ -607,7 +610,7 @@ export default function OffersPage() {
             </Button>
             <Dialog open={showCreate} onOpenChange={setShowCreate}>
             <DialogTrigger asChild>
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md3-1 rounded-md3-xl h-10 px-5 text-xs font-bold gap-2">
+              <Button disabled={!hasHiringPermission("offers", "create")} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md3-1 rounded-md3-xl h-10 px-5 text-xs font-bold gap-2">
                 <Plus className="w-4 h-4" />
                 {t("offers.create")}
               </Button>
@@ -930,7 +933,7 @@ export default function OffersPage() {
                   />
                 </div>
 
-                <Button onClick={handleCreate} disabled={createOffer.isPending} className="w-full">
+                <Button onClick={handleCreate} disabled={createOffer.isPending || !hasHiringPermission("offers", "create")} className="w-full">
                   {createOffer.isPending ? t("offers.creating") : t("offers.createOffer")}
                 </Button>
               </div>

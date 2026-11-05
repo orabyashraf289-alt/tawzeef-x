@@ -381,13 +381,13 @@ export default function ConvertedOrders() {
     const totalPayroll = orders.reduce((sum, o) => sum + (o.total_salary || 0), 0);
 
     // Branch breakdown for analytics
-    const branchStats = AL_ANDALUS_BRANCHES.map((branch) => {
-      const branchOrders = orders.filter((o) => o.target_branch === branch);
+    const branchStats = [...new Set(orders.map(o => o.target_branch || "غير محدد"))].map((branch) => {
+      const branchOrders = orders.filter((o) => (o.target_branch || "غير محدد") === branch);
       const totalCount = branchOrders.length;
       const completed = branchOrders.filter((o) => ["ready_for_work", "completed"].includes(o.status)).length;
       const payroll = branchOrders.reduce((sum, o) => sum + (o.total_salary || 0), 0);
-      const targetQuota = Math.max(totalCount + 2, 4); // Target hiring quota
-      const fulfillmentPct = Math.min(Math.round((completed / targetQuota) * 100), 100);
+      const targetQuota = totalCount; // Recorded orders, not an approved staffing requirement
+      const fulfillmentPct = targetQuota ? Math.round((completed / targetQuota) * 100) : 0;
 
       return {
         branch,
@@ -402,29 +402,11 @@ export default function ConvertedOrders() {
     return { total, directHire, agencyFulfillment, branchTransfer, readyOrCompleted, pendingDocs, totalPayroll, branchStats };
   }, [orders]);
 
-  // AI Talent Matching Candidates
+  // Only candidates already linked to the same vacancy; no invented match scores.
   const aiMatchedCandidates = useMemo(() => {
-    if (!selectedOrder) return [];
-    const targetTitle = (selectedOrder.job_title || "").toLowerCase();
-
-    return candidates
-      .map((c) => {
-        let matchScore = 75;
-        const candRole = (c.role || "").toLowerCase();
-        if (targetTitle.includes("عربي") && candRole.includes("عربي")) matchScore += 21;
-        else if (targetTitle.includes("إنجليزي") && candRole.includes("إنجليزي")) matchScore += 23;
-        else if (targetTitle.includes("رياضيات") && candRole.includes("رياضيات")) matchScore += 22;
-        else if (targetTitle.includes("علوم") && candRole.includes("علوم")) matchScore += 20;
-        else if (targetTitle.includes("برمج") || candRole.includes("مطور")) matchScore += 21;
-        else matchScore += Math.floor(Math.random() * 18);
-
-        return {
-          ...c,
-          matchScore: Math.min(matchScore, 98),
-        };
-      })
-      .sort((a, b) => b.matchScore - a.matchScore)
-      .slice(0, 4);
+    if (!selectedOrder?.job_id) return [];
+    return candidates.filter(c => c.job_id === selectedOrder.job_id)
+      .sort((a, b) => a.name.localeCompare(b.name, "ar")).slice(0, 20);
   }, [selectedOrder, candidates]);
 
   // Quick autofill when selecting a candidate
@@ -855,10 +837,10 @@ export default function ConvertedOrders() {
                   <div>
                     <h3 className="text-base font-black text-foreground flex items-center gap-2">
                       <TrendingUp className="w-5 h-5 text-emerald-600" />
-                      لوحة تحليلات سد الشواغر والاحتياج للفروع والمجمعات
+                      متابعة الأوامر المسجلة حسب الفرع
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                      مقارنة دقيقة لنسب استكمال الشواغر الوظيفية وتوزيع ميزانية الرواتب عبر مجمعات المنشأة.
+                      نسبة الأوامر الجاهزة أو المكتملة من إجمالي الأوامر المسجلة. لا تمثل مستهدف احتياج معتمدًا.
                     </p>
                   </div>
                   <Button
@@ -868,7 +850,7 @@ export default function ConvertedOrders() {
                     className="text-xs font-bold rounded-xl gap-1.5 border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    تصدير تقرير الاحتياج المجمع
+                    تصدير الأوامر المسجلة
                   </Button>
                 </div>
 
@@ -894,9 +876,9 @@ export default function ConvertedOrders() {
 
                       <div className="space-y-1">
                         <div className="flex items-center justify-between text-[11px] text-muted-foreground font-semibold">
-                          <span>المباشرين المعتمدين:</span>
+                          <span>الجاهز والمكتمل:</span>
                           <span className="font-black text-foreground">
-                            {bs.completed} / {bs.targetQuota} كادر
+                            {bs.completed} / {bs.targetQuota} أمر
                           </span>
                         </div>
                         <Progress value={bs.fulfillmentPct} className="h-2 rounded-full" />
@@ -1066,7 +1048,7 @@ export default function ConvertedOrders() {
                                   setOpenAiMatcherDialog(true);
                                 }}
                                 className="h-8 w-8 text-purple-600 hover:bg-purple-50 rounded-lg"
-                                title="مطابقة الكوادر بالذكاء الاصطناعي"
+                                title="عرض متقدمي الوظيفة"
                               >
                                 <Sparkles className="w-3.5 h-3.5" />
                               </Button>
@@ -1766,17 +1748,17 @@ export default function ConvertedOrders() {
             <DialogHeader>
               <DialogTitle className="text-base font-black flex items-center gap-2">
                 <Bot className="w-5 h-5 text-purple-600" />
-                المطابقة الذكية بالـ AI — لسد شاغر ({selectedOrder?.job_title})
+                متقدمو الوظيفة المرتبطة — ({selectedOrder?.job_title})
               </DialogTitle>
               <DialogDescription className="text-xs">
-                مسح فوري لقاعدة المواهب والأرشيف واقتراح أفضل الكوادر التعليمية المتطابقة بنسبة 90%+.
+                متقدمون مرتبطون بنفس الوظيفة، مرتّبون بالاسم. راجع الملف والتقييم قبل اتخاذ القرار.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-3 py-2">
               {aiMatchedCandidates.length === 0 ? (
                 <div className="text-center py-6 text-xs text-muted-foreground">
-                  جاري تحليل قاعدة المواهب لاقتراح الكوادر المتطابقة...
+                  لا توجد طلبات مرتبطة بهذه الوظيفة، أو لم يُربط الأمر بوظيفة بعد.
                 </div>
               ) : (
                 aiMatchedCandidates.map((cand) => (
@@ -1788,24 +1770,22 @@ export default function ConvertedOrders() {
                       <div className="flex items-center gap-2">
                         <span className="font-black text-xs text-foreground">{cand.name}</span>
                         <Badge className="bg-purple-100 text-purple-800 border-purple-300 text-[10px] font-bold">
-                          مطابقة {cand.matchScore}%
+                          متقدم لنفس الوظيفة
                         </Badge>
                       </div>
-                      <p className="text-[11px] text-muted-foreground">{cand.role} · خبرة موثقة</p>
+                      <p className="text-[11px] text-muted-foreground">{cand.role}</p>
                     </div>
 
                     <Button
                       size="sm"
                       onClick={() => {
-                        toast({
-                          title: `تم اختيار ${cand.name} وتعيينه على هذا الأمر بنجاح 🎯`,
-                        });
+                        navigate(`/candidates/${cand.id}`);
                         setOpenAiMatcherDialog(false);
                       }}
                       className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl h-8 px-3 gap-1"
                     >
                       <Check className="w-3.5 h-3.5" />
-                      تعيين فوري
+                      مراجعة الملف
                     </Button>
                   </div>
                 ))

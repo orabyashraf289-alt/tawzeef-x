@@ -84,7 +84,7 @@ export default function Jobs() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { canPost, remaining, used, limit } = useCanPostJob();
-  const { hasActionPermission } = useScreenPermissions();
+  const { hasActionPermission, hasHiringPermission } = useScreenPermissions();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -427,7 +427,7 @@ export default function Jobs() {
               <Copy className="w-4 h-4 text-primary" />
               {t("jobs.templates")}
             </Button>
-            <Button data-tour="add-job-btn" onClick={() => { setTemplateForm(null); setDialogOpen(true); }} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md3-1 rounded-md3-xl h-10 px-5 text-xs font-bold gap-2">
+            <Button disabled={!hasHiringPermission("jobs", "create")} data-tour="add-job-btn" onClick={() => { setTemplateForm(null); setDialogOpen(true); }} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md3-1 rounded-md3-xl h-10 px-5 text-xs font-bold gap-2">
               <Plus className="w-4 h-4" />
               {t("jobs.addJob")}
             </Button>
@@ -540,7 +540,7 @@ export default function Jobs() {
               {showArchived ? t("jobs.archivedJobsHere") : t("jobs.noJobsDesc")}
             </p>
             {!showArchived && (
-              <Button onClick={() => setDialogOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Button disabled={!hasHiringPermission("jobs", "create")} onClick={() => setDialogOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
                 <Plus className="w-4 h-4 ml-2" />{t("jobs.addJob")}
               </Button>
             )}

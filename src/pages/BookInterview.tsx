@@ -1,262 +1,178 @@
-import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
-import { useState, useEffect, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
-import { Calendar, Clock, Video, MapPin, CheckCircle, User, ChevronLeft  } from "lucide-react";
-import AddToCalendarButton from "@/components/AddToCalendarButton";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "@/hooks/use-toast";
+import { Calendar, CheckCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { motion } from "framer-motion";
-
-
-const BOOKING_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/book-interview`;
-
-interface TimeSlot {
-  date: string;
-  time: string;
-  display: string;
-  dayName: string;
+interface Slot {
+  id: string | null;
+  starts_at: string;
+  time_zone: string;
+  duration_minutes: number;
 }
-
-function generateSlots(): TimeSlot[] {
-  const slots: TimeSlot[] = [];
-  const dayNames = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"];
-  const times = ["09:00", "10:00", "11:00", "13:00", "14:00", "15:00"];
-
-  for (let d = 1; d <= 10; d++) {
-    const date = new Date();
-    date.setDate(date.getDate() + d);
-    const dayOfWeek = date.getDay();
-    // Skip Friday(5) and Saturday(6)
-    if (dayOfWeek === 5 || dayOfWeek === 6) continue;
-
-    const dateStr = date.toISOString().split("T")[0];
-    const dayName = dayNames[dayOfWeek] || "";
-    const displayDate = date.toLocaleDateString("ar-SA", { day: "numeric", month: "long" });
-
-    times.forEach(time => {
-      slots.push({ date: dateStr, time, display: displayDate, dayName });
-    });
-  }
-  return slots;
-}
-
+const display = (slot: Slot) =>
+  new Date(slot.starts_at).toLocaleString("ar-EG", {
+    timeZone: slot.time_zone,
+    dateStyle: "full",
+    timeStyle: "short",
+  });
 export default function BookInterview() {
   const { candidateId } = useParams();
-  const [candidate, setCandidate] = useState<any>(null);
-  const [job, setJob] = useState<any>(null);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [booking, setBooking] = useState<Slot | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [booked, setBooked] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", phone: "" });
-
-  const slots = useMemo(() => generateSlots(), []);
-
-  // Group slots by date
-  const groupedSlots = useMemo(() => {
-    const map: Record<string, TimeSlot[]> = {};
-    slots.forEach(s => {
-      const key = s.date;
-      if (!map[key]) map[key] = [];
-      map[key].push(s);
+  const [error, setError] = useState("");
+  const request = async (action: string, slotId?: string) => {
+    const { data, error } = await supabase.functions.invoke("book-interview", {
+      body: { trackingCode: candidateId, action, slotId },
     });
-    return Object.entries(map);
-  }, [slots]);
-
-  useEffect(() => {
-    if (!candidateId) { setLoading(false); return; }
-    // Use edge function to look up candidate publicly
-    fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/candidate-portal`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-      },
-      body: JSON.stringify({ trackingCode: candidateId }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.candidates?.length > 0) {
-          const c = data.candidates[0];
-          setCandidate(c);
-          setForm(prev => ({ ...prev, name: c.name || "" }));
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [candidateId]);
-
-  const handleBook = async () => {
-    if (!selectedSlot) {
-      toast({ title: "يرجى اختيار موعد", variant: "destructive" });
-      return;
+    if (error || data?.error) {
+      throw new Error(
+        data?.error ||
+          "تعذّر تنفيذ الطلب. تحقق من رابط الحجز، ثم حدّث المواعيد وأعد المحاولة.",
+      );
     }
-    if (!form.name) {
-      toast({ title: "يرجى إدخال الاسم", variant: "destructive" });
-      return;
-    }
-
-    setSubmitting(true);
+    return data;
+  };
+  const refresh = async () => {
+    setLoading(true);
+    setError("");
     try {
-      const resp = await fetch(BOOKING_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({
-          trackingCode: candidateId,
-          date: selectedSlot.date,
-          time: selectedSlot.time,
-        }),
-      });
-
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(err.error || "فشل الحجز");
-      }
-
-      setBooked(true);
-      toast({ title: "تم حجز المقابلة بنجاح ✅" });
-    } catch (e: any) {
-      toast({ title: "خطأ", description: e.message, variant: "destructive" });
+      const data = await request("list");
+      setSlots(data.slots || []);
+      setBooking(data.booking || null);
+      setSelected(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "تعذّر تحميل المواعيد");
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (booked) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4" dir="rtl">
-        <Card className="max-w-md w-full text-center">
-          <CardContent className="pt-8 pb-8 space-y-4">
-            <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto">
-              <CheckCircle className="w-8 h-8 text-green-600" />
-            </div>
-            <h2 className="text-xl font-bold">تم حجز موعد المقابلة!</h2>
+  useEffect(() => {
+    void refresh();
+  }, [candidateId]);
+  const change = async (action: string, id: string) => {
+    setBusy(true);
+    setError("");
+    try {
+      await request(action, id);
+      await refresh();
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "الموعد لم يعد متاحًا. حدّث القائمة.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <main className="min-h-screen bg-background p-4 sm:p-8" dir="rtl">
+      <div className="mx-auto max-w-2xl space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />حجز موعد المقابلة
+            </CardTitle>
             <p className="text-sm text-muted-foreground">
-              {selectedSlot && `${selectedSlot.dayName} ${selectedSlot.display} الساعة ${selectedSlot.time}`}
+              اختر موعدًا أتاحه فريق التوظيف. يظهر توقيت كل موعد بوضوح قبل
+              تأكيده.
             </p>
-            {selectedSlot && (
-              <div className="flex justify-center">
-                <AddToCalendarButton
-                  title={`مقابلة عمل - ${form.name}`}
-                  description="مقابلة عمل عبر منصة Tawzeef-X"
-                  date={selectedSlot.date}
-                  time={selectedSlot.time}
-                  size="default"
-                />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {error && (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/30 p-3 text-destructive"
+              >
+                {error}
               </div>
             )}
-            <p className="text-xs text-muted-foreground">سيتم التواصل معك لتأكيد التفاصيل</p>
-            <Link to="/portal"><Button variant="outline" className="mt-4">تتبع طلبك</Button></Link>
+            {loading
+              ? <Loader2 className="mx-auto animate-spin" />
+              : booking
+              ? (
+                <div className="rounded-lg border p-4 space-y-3">
+                  <CheckCircle className="h-8 w-8 text-primary" />
+                  <h2 className="font-semibold">موعدك المؤكد</h2>
+                  <p>{display(booking)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {booking.time_zone} · {booking.duration_minutes} دقيقة
+                  </p>
+                  <p className="text-sm">
+                    {booking.id
+                      ? "لتغيير الموعد، ألغِ الحجز الحالي ثم اختر من المواعيد المتاحة."
+                      : "رتّب فريق التوظيف هذا الموعد. تواصل معه إذا أردت تغييره."}
+                  </p>
+                  {booking.id && (
+                    <Button
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => change("cancel", booking.id!)}
+                    >
+                      إلغاء هذا الحجز
+                    </Button>
+                  )}
+                </div>
+              )
+              : (
+                <>
+                  {slots.length === 0 && !error && (
+                    <p className="rounded-lg bg-muted p-4">
+                      لا توجد مواعيد متاحة الآن. تواصل مع مسؤول التوظيف لإتاحة
+                      موعد.
+                    </p>
+                  )}
+                  <div className="space-y-2">
+                    {slots.map((slot) => (
+                      <label
+                        key={slot.id}
+                        className={`flex items-center gap-3 rounded-lg border p-4 cursor-pointer ${
+                          selected === slot.id
+                            ? "border-primary bg-primary/5"
+                            : ""
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="slot"
+                          disabled={busy}
+                          checked={selected === slot.id}
+                          onChange={() => setSelected(slot.id)}
+                        />
+                        <span>
+                          <span className="block font-medium">
+                            {display(slot)}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {slot.time_zone} · {slot.duration_minutes} دقيقة
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  <Button
+                    className="w-full"
+                    disabled={busy || !selected}
+                    onClick={() => selected && change("book", selected)}
+                  >
+                    {busy &&
+                      <Loader2 className="h-4 w-4 animate-spin me-2" />}تأكيد
+                    الحجز
+                  </Button>
+                </>
+              )}
+            <Button
+              variant="ghost"
+              disabled={busy || loading}
+              onClick={refresh}
+            >
+              تحديث المواعيد
+            </Button>
           </CardContent>
         </Card>
       </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-background" dir="rtl">
-      {/* Header */}
-      <header className="border-b border-border/50 bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
-          </Link>
-          <Link to="/portal" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-            تتبع طلبك
-          </Link>
-        </div>
-      </header>
-
-      <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-            <Calendar className="w-7 h-7 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">حجز موعد المقابلة</h1>
-          <p className="text-muted-foreground text-sm">اختر الموعد المناسب لك من المواعيد المتاحة</p>
-        </motion.div>
-
-        {/* Info */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card>
-            <CardHeader><CardTitle className="text-base">معلوماتك</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid sm:grid-cols-3 gap-3">
-                <div>
-                  <Label>الاسم *</Label>
-                  <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="اسمك الكامل" />
-                </div>
-                <div>
-                  <Label>البريد الإلكتروني</Label>
-                  <Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="email@example.com" />
-                </div>
-                <div>
-                  <Label>الجوال</Label>
-                  <Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="05xxxxxxxx" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Time Slots */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <Card>
-            <CardHeader><CardTitle className="text-base">اختر الموعد</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {groupedSlots.map(([date, daySlots], gi) => (
-                <div key={date}>
-                  <p className="text-sm font-semibold text-foreground mb-2">
-                    {daySlots[0].dayName} — {daySlots[0].display}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {daySlots.map((slot, i) => (
-                      <button
-                        key={`${slot.date}-${slot.time}`}
-                        onClick={() => setSelectedSlot(slot)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
-                          selectedSlot?.date === slot.date && selectedSlot?.time === slot.time
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-card border-border/50 text-foreground hover:border-primary/30 hover:bg-primary/5"
-                        }`}
-                      >
-                        <Clock className="w-3 h-3 inline ml-1" />
-                        {slot.time}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Book Button */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-          <Button
-            onClick={handleBook}
-            disabled={submitting || !selectedSlot}
-            className="w-full py-6 text-base bg-gradient-to-l from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-          >
-            {submitting ? "جاري الحجز..." : "تأكيد حجز المقابلة"}
-          </Button>
-        </motion.div>
-      </main>
-    </div>
+    </main>
   );
 }

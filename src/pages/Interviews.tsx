@@ -1,3 +1,8 @@
+import { interviewCalendarUrl } from "@/lib/interviewCalendar";
+import { useCompany } from "@/contexts/CompanyContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCompanyMembers } from "@/hooks/useCompanies";
+import InterviewAvailability from "@/components/InterviewAvailability";
 import { useState, useMemo, useEffect } from "react";
 import AIInterviewQuestions from "@/components/AIInterviewQuestions";
 import SentimentBadge from "@/components/SentimentBadge";
@@ -48,33 +53,22 @@ function AddToCalendarButton({
   description,
   location,
   date,
-  time,
+  time, startsAt, timeZone, durationMinutes,
 }: {
   title: string;
   description: string;
   location: string;
   date: string;
   time?: string | null;
+  startsAt?: string | null;
+  timeZone?: string | null;
+  durationMinutes?: number | null;
 }) {
-  const buildGoogleUrl = () => {
-    // Build a datetime string like "20261231T090000"
-    const dateStr = date ? date.replace(/-/g, "") : "";
-    const timeStr = time ? time.replace(":", "") + "00" : "000000";
-    const dtStart = dateStr && `${dateStr}T${timeStr}`;
-    const dtEnd = dateStr && `${dateStr}T${(parseInt(timeStr.slice(0, 2), 10) + 1).toString().padStart(2, "0")}${timeStr.slice(2)}`;
-    const params = new URLSearchParams({
-      action: "TEMPLATE",
-      text: title,
-      details: description,
-      location,
-      ...(dtStart ? { dates: `${dtStart}/${dtEnd}` } : {}),
-    });
-    return `https://calendar.google.com/calendar/render?${params.toString()}`;
-  };
+  const calendarUrl = interviewCalendarUrl({ title, description, location, date, time, startsAt, timeZone, durationMinutes });
 
   return (
     <a
-      href={buildGoogleUrl()}
+      href={calendarUrl}
       target="_blank"
       rel="noopener noreferrer"
       className="inline-flex items-center gap-1 text-xs px-3 h-7 rounded-lg border border-border/60 bg-background hover:bg-muted transition-colors font-medium text-muted-foreground hover:text-foreground"
@@ -122,6 +116,9 @@ export default function Interviews() {
   const { t } = useI18n();
   const { data: interviews, isLoading } = useInterviews();
   const addInterview = useAddInterview();
+  const { activeCompanyId } = useCompany();
+  const { user } = useAuth();
+  const members = useCompanyMembers(activeCompanyId || undefined);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
@@ -141,7 +138,7 @@ export default function Interviews() {
   const [rescheduleTime, setRescheduleTime] = useState("");
   const [reportModalData, setReportModalData] = useState<any | null>(null);
   const [form, setForm] = useState({
-    candidate_name: "", position: "", date: "", time: "",
+    candidate_name: "", position: "", date: "", time: "", time_zone: "Africa/Cairo", duration_minutes: 30, interviewer_id: "",
     type: "عن بُعد", interviewer: "", meeting_type: "jitsi" as "jitsi" | "external",
     external_link: "",
   });
@@ -182,7 +179,7 @@ export default function Interviews() {
   const cancelled = (interviews || []).filter(i => i.status === "ملغاة").length;
 
   const handleCancelInterview = async (interviewId: string) => {
-    const { error } = await supabase.from("interviews").update({ status: "ملغاة" } as any).eq("id", interviewId);
+    const { error } = await supabase.from("interviews").update({ status: "ملغاة" } as any).eq("id", interviewId).select("id").single();
     if (error) {
       toast({ title: "خطأ", description: error.message, variant: "destructive" });
       return;
@@ -193,7 +190,7 @@ export default function Interviews() {
 
   const handleRescheduleInterview = async () => {
     if (!rescheduleDialog || !rescheduleDate || !rescheduleTime) return;
-    const { error } = await supabase.from("interviews").update({ date: rescheduleDate, time: rescheduleTime, status: "مجدولة" } as any).eq("id", rescheduleDialog.id);
+    const { error } = await supabase.from("interviews").update({ date: rescheduleDate, time: rescheduleTime, status: "مجدولة" } as any).eq("id", rescheduleDialog.id).select("id").single();
     if (error) {
       toast({ title: "خطأ", description: error.message, variant: "destructive" });
       return;
@@ -217,11 +214,11 @@ export default function Interviews() {
     }
 
     addInterview.mutate(
-      { candidate_name: form.candidate_name, position: form.position, date: form.date, time: form.time, type: form.type, interviewer: form.interviewer, meeting_url: meetingUrl || undefined },
+      { candidate_name: form.candidate_name, position: form.position, date: form.date, time: form.time, time_zone: form.time_zone, duration_minutes: form.duration_minutes, interviewer_id: form.interviewer_id || user?.id, type: form.type, interviewer: members.data?.find(m => m.user_id === (form.interviewer_id || user?.id))?.profiles?.full_name || form.interviewer, meeting_url: meetingUrl || undefined },
       {
         onSuccess: () => {
           setDialogOpen(false);
-          setForm({ candidate_name: "", position: "", date: "", time: "", type: "عن بُعد", interviewer: "", meeting_type: "jitsi", external_link: "" });
+          setForm({ candidate_name: "", position: "", date: "", time: "", time_zone: "Africa/Cairo", duration_minutes: 30, interviewer_id: "", type: "عن بُعد", interviewer: "", meeting_type: "jitsi", external_link: "" });
         }
       }
     );
@@ -229,7 +226,7 @@ export default function Interviews() {
 
   const handleRate = async () => {
     if (!ratingDialog) return;
-    const { error } = await supabase.from("interviews").update({ status: "مكتملة", rating: ratingValue, notes: ratingNotes }).eq("id", ratingDialog.id);
+    const { error } = await supabase.from("interviews").update({ status: "مكتملة", rating: ratingValue, notes: ratingNotes }).eq("id", ratingDialog.id).select("id").single();
     if (error) { toast({ title: "خطأ", description: error.message, variant: "destructive" }); return; }
     queryClient.invalidateQueries({ queryKey: ["interviews"] });
     toast({ title: t("interviews.ratingSaved") });
@@ -296,9 +293,10 @@ export default function Interviews() {
               </button>
             </div>
             {hasActionPermission("action.create_interviews") && (
+              <><InterviewAvailability />
               <Button onClick={() => setDialogOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md3-1 rounded-md3-xl h-10 px-5 text-xs font-bold gap-2">
                 <Plus className="w-4 h-4" />{t("interviews.schedule")}
-              </Button>
+              </Button></>
             )}
           </div>
         </motion.div>
@@ -425,7 +423,7 @@ export default function Interviews() {
                             <Calendar className="w-3 h-3" />{interview.date}
                           </span>
                           <span className="flex items-center gap-1 text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
-                            <Clock className="w-3 h-3" />{interview.time?.slice(0, 5)}
+                            <Clock className="w-3 h-3" />{interview.time?.slice(0, 5)} {interview.time_zone ? `(${interview.time_zone})` : ""}
                           </span>
                           <span className="flex items-center gap-1 text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
                             {interview.type === "عن بُعد" ? <Video className="w-3 h-3" /> : <MapPin className="w-3 h-3" />}
@@ -484,6 +482,9 @@ export default function Interviews() {
                                 location={interview.type === "عن بُعد" ? (interview.meeting_url || "عن بُعد") : "حضوري"}
                                 date={interview.date}
                                 time={interview.time}
+                                startsAt={interview.starts_at}
+                                timeZone={interview.time_zone}
+                                durationMinutes={interview.duration_minutes}
                               />
                               {hasActionPermission("action.edit_interviews") && (
                                 <>
@@ -713,7 +714,13 @@ export default function Interviews() {
               </div>
             )}
 
-            <div><Label>{t("interviews.interviewer")}</Label><Input value={form.interviewer} onChange={e => setForm({ ...form, interviewer: e.target.value })} placeholder={t("interviews.interviewerName")} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label htmlFor="interview-zone">التوقيت</Label><select id="interview-zone" className="w-full rounded-md border bg-background p-2" value={form.time_zone} onChange={e => setForm({ ...form, time_zone: e.target.value })}><option value="Africa/Cairo">القاهرة</option><option value="Asia/Riyadh">الرياض</option></select></div>
+              <div><Label htmlFor="interview-duration">المدة بالدقائق</Label><Input id="interview-duration" type="number" min={15} max={120} value={form.duration_minutes} onChange={e => setForm({ ...form, duration_minutes: Number(e.target.value) })} /></div>
+            </div>
+            <div><Label htmlFor="interview-host">{t("interviews.interviewer")}</Label><select id="interview-host" className="w-full rounded-md border bg-background p-2" value={form.interviewer_id || user?.id || ""} onChange={e => setForm({ ...form, interviewer_id: e.target.value })}>
+              <option value={user?.id}>أنا</option>{members.data?.filter(m => m.user_id !== user?.id).map(m => <option key={m.user_id} value={m.user_id}>{m.profiles?.full_name || "عضو الفريق"}</option>)}
+            </select>{members.isError && <p className="text-sm text-destructive">تعذّر تحميل أعضاء الفريق.</p>}</div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
@@ -729,7 +736,7 @@ export default function Interviews() {
         candidateName={evalDialog?.candidate_name || ""}
         onSubmit={async ({ rating, notes }) => {
           if (!evalDialog) return;
-          const { error } = await supabase.from("interviews").update({ status: "مكتملة", rating, notes }).eq("id", evalDialog.id);
+          const { error } = await supabase.from("interviews").update({ status: "مكتملة", rating, notes }).eq("id", evalDialog.id).select("id").single();
           if (error) { toast({ title: t("common.error", "خطأ"), description: error.message, variant: "destructive" }); return; }
           queryClient.invalidateQueries({ queryKey: ["interviews"] });
           toast({ title: t("interviews.ratingSaved") });
