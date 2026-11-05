@@ -77,6 +77,19 @@ export function useScreenPermissions() {
     staleTime: 60 * 1000,
   });
 
+  const operations = useQuery({
+    queryKey: ["hiring-operation-permissions", activeCompanyId, user?.id],
+    enabled: !!user && !!activeCompanyId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)("get_hiring_permissions", { _company: activeCompanyId });
+      if (error) throw error;
+      return data as Record<string, Record<string, boolean>>;
+    },
+    staleTime: 30000,
+  });
+  const hasHiringPermission = (module: string, action: "read" | "create" | "edit" | "delete") =>
+    !!activeCompanyId && !operations.isLoading && !operations.isError && operations.data?.[module]?.[action] === true;
+
   const isLoading = roleLoading || permLoading || (!!activeCompanyId && granular.isLoading);
 
   const hasScreenAccess = (path: string): boolean => {
@@ -95,12 +108,19 @@ export function useScreenPermissions() {
 
   const hasActionPermission = (actionKey: string): boolean => {
     if (isLoading) return false; // Fail-closed while loading
-    return evaluateActionPermission({
+    const baseline = evaluateActionPermission({
       actionKey,
       role,
       isPlatformSuperAdmin: isPlatformSuperAdmin ?? isSuperAdmin,
       permissions,
     });
+    const actionMap: Record<string, [string, "create" | "edit" | "delete"]> = {
+      "action.edit_jobs": ["jobs", "edit"], "action.delete_jobs": ["jobs", "delete"],
+      "action.edit_candidates": ["candidates", "edit"], "action.candidates.delete": ["candidates", "delete"],
+      "action.create_interviews": ["interviews", "create"], "action.edit_interviews": ["interviews", "edit"],
+    };
+    const mapped = actionMap[actionKey];
+    return baseline && (!mapped || hasHiringPermission(mapped[0], mapped[1]));
   };
 
   const getScreenPermissions = () => {
@@ -114,6 +134,7 @@ export function useScreenPermissions() {
   return {
     hasScreenAccess,
     hasActionPermission,
+    hasHiringPermission,
     getScreenPermissions,
     getActionPermissions,
     permissions,

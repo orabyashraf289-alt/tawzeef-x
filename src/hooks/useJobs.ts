@@ -530,29 +530,11 @@ export function useInterviews(specificCompanyId?: string | null) {
     queryFn: async () => {
       const scopedCompanyIds = await resolveTenantCompanyScope(user?.id, activeCompanyId);
 
-      let scopedCandidateIds: string[] = [];
-      if (scopedCompanyIds.length > 0) {
-        const { data: cands } = await supabase
-          .from("candidates")
-          .select("id")
-          .in("company_id", scopedCompanyIds);
-        scopedCandidateIds = (cands || [])
-          .map((c: any) => c.id)
-          .filter((cid: string) => cid && cid !== "undefined" && cid !== "null");
-      }
-
-      const intQuery = supabase
-        .from("interviews")
+      if (!scopedCompanyIds.length) return [];
+      const { data, error } = await supabase.from("interviews")
         .select("*")
+        .in("company_id", scopedCompanyIds)
         .order("date", { ascending: true });
-
-      if (scopedCandidateIds.length > 0) {
-        intQuery.or(`user_id.eq.${user?.id},candidate_id.in.(${scopedCandidateIds.join(",")})`);
-      } else if (user?.id) {
-        intQuery.eq("user_id", user.id);
-      }
-
-      const { data, error } = await intQuery;
       if (error) throw error;
       return data || [];
     },
@@ -576,9 +558,18 @@ export function useAddInterview() {
       interviewer: string;
       candidate_id?: string;
       meeting_url?: string;
+      time_zone?: string;
+      duration_minutes?: number;
+      interviewer_id?: string;
     }) => {
+      const activeCompanyId = getActiveCompanyId();
+      if (!activeCompanyId) throw new Error("اختر الشركة قبل جدولة المقابلة");
       const { data, error } = await supabase.from("interviews").insert({
         user_id: user!.id,
+        company_id: activeCompanyId,
+        interviewer_id: interview.interviewer_id || user!.id,
+        time_zone: interview.time_zone || "Africa/Cairo",
+        duration_minutes: interview.duration_minutes ?? 30,
         candidate_name: interview.candidate_name,
         position: interview.position,
         date: interview.date,
@@ -636,7 +627,7 @@ export function useCancelInterview() {
       const { error } = await supabase
         .from("interviews")
         .update({ status: "ملغاة", updated_at: new Date().toISOString() })
-        .eq("id", id);
+        .eq("id", id).select("id").single();
       if (error) throw error;
     },
     onSuccess: () => {

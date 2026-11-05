@@ -385,7 +385,7 @@ export function useDeleteOffer() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("job_offers").delete().eq("id", id);
+      const { error } = await supabase.from("job_offers").delete().eq("id", id).select("id").single();
       if (error) throw error;
     },
     onSuccess: () => {
