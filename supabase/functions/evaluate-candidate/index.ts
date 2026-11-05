@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getExtendedCorsHeaders } from "../_shared/cors.ts";
 import { groundEvaluationEvidence } from "./evidence.ts";
@@ -19,7 +18,7 @@ const json = (body: object, status: number, corsHeaders: Record<string, string>)
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const corsHeaders = getExtendedCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405, corsHeaders);
@@ -72,6 +71,11 @@ serve(async (req) => {
     if (!canEvaluateCandidate(candidate as EvaluationCandidate, user.id, Boolean(role), Boolean(member))) {
       return json({ error: "Forbidden" }, 403, corsHeaders);
     }
+    const permissionClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: `Bearer ${token}` } } });
+    const { data: canEdit, error: permissionError } = await permissionClient.rpc("has_hiring_permission", {
+      _company: candidate.company_id, _module: "candidates", _action: "edit",
+    });
+    if (permissionError || !canEdit) return json({ error: "Candidate editing permission required" }, 403, corsHeaders);
     if (jobId != null && jobId !== candidate.job_id) {
       return json({ error: "Job does not match candidate" }, 400, corsHeaders);
     }
