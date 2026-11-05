@@ -1,5 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimiter.ts";
 import { requestChatCompletion } from "./provider.ts";
 import { allowedChatTools } from "./toolPolicy.ts";
@@ -345,8 +344,8 @@ async function getUser(authHeader: string) {
 }
 
 // Build dynamic context about user's company state with enhanced accuracy
-async function buildUserContext(userId: string): Promise<string> {
-  const admin = getAdminClient();
+async function buildUserContext(userId: string, authHeader: string): Promise<string> {
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
   try {
     const [profileR, jobsR, candidatesR, interviewsR] = await Promise.all([
       admin.from("profiles").select("full_name, company_name, job_title").eq("user_id", userId).maybeSingle(),
@@ -393,8 +392,8 @@ async function buildUserContext(userId: string): Promise<string> {
 // ============================================================================
 // TOOL HANDLERS
 // ============================================================================
-async function handleToolCall(tc: any, userId: string): Promise<{ result: string; action?: any }> {
-  const admin = getAdminClient();
+async function handleToolCall(tc: any, userId: string, authHeader: string): Promise<{ result: string; action?: any }> {
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
   const args = JSON.parse(tc.function.arguments);
 
   switch (tc.function.name) {
@@ -934,7 +933,7 @@ async function handleToolCall(tc: any, userId: string): Promise<{ result: string
 // ============================================================================
 // SERVE
 // ============================================================================
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -968,7 +967,7 @@ serve(async (req) => {
     const reviewer = Boolean(memberships.data?.length && roles.data?.some((r) => r.role === "reviewer"));
     if (!staff && !reviewer) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     if (isAnalyticsReportType(report_type)) {
-      const { action } = await handleToolCall({ function: { name: "get_stats", arguments: JSON.stringify({ report_type }) } }, user.id);
+      const { action } = await handleToolCall({ function: { name: "get_stats", arguments: JSON.stringify({ report_type }) } }, user.id, authHeader);
       const stats = action?.stats;
       if (!stats) throw new Error("تعذر تحميل إحصاءات التوظيف.");
       return new Response(JSON.stringify(buildNonStreamResponse(formatAnalyticsReport(report_type, stats), [action])), {
@@ -1009,7 +1008,7 @@ serve(async (req) => {
     }
 
     // Build dynamic context
-    const userContext = await buildUserContext(user.id);
+    const userContext = await buildUserContext(user.id, authHeader);
 
     const systemPrompt = `أنت "ذكي" — المستشار والخبير الإستراتيجي الذكي المتقدم لمنصة Tawzeef-X. تتميز بالدقة المتناهية، والتنظيم المتقن، وصياغة الردود بأسلوب تنفيذي رفيع وشامل (Executive Level Presentation).
 
@@ -1128,7 +1127,7 @@ ${userContext}
     for (const tc of toolCalls) {
       try {
         if (!availableTools.some((tool) => tool.function.name === tc.function?.name)) throw new Error("Tool not permitted");
-        const { result, action } = await handleToolCall(tc, user.id);
+        const { result, action } = await handleToolCall(tc, user.id, authHeader);
         toolResults.push({ tool_call_id: tc.id, role: "tool", content: result });
         if (action) actions.push(action);
       } catch (e: any) {
