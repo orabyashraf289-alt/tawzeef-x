@@ -145,6 +145,7 @@ export default function PermissionsMatrixManager() {
   const { activeCompanyId, companyRole } = useCompany();
   const queryClient = useQueryClient();
   const canManage = companyRole === "owner";
+  const operationModules = new Set(["jobs", "candidates", "interviews", "offers", "question_bank", "assessment_responses"]);
   const enforcedModules = useMemo(() => new Set(Object.values(GRANULAR_SCREEN_MODULES)), []);
   const { data: companyMembers = [] } = useCompanyMembers(activeCompanyId || undefined);
   const { locale, dir } = useI18n();
@@ -338,12 +339,13 @@ export default function PermissionsMatrixManager() {
 
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["granular-screen-permissions", activeCompanyId] });
+      await queryClient.invalidateQueries({ queryKey: ["hiring-operation-permissions", activeCompanyId] });
 
       const targetText = permissionMode === "user" 
         ? `للموظف المحدد (${teamMembers.find(m => m.user_id === selectedUserId)?.full_name || selectedUserId})` 
         : `للدور المحدد (${selectedRole})`;
 
-      toast({ title: "تم حفظ المصفوفة", description: `قيود عرض الشاشات المدعومة مفعلة ${targetText}. صلاحيات الإضافة والتعديل والحذف محفوظة للمرجعية فقط.` });
+      toast({ title: "تم حفظ المصفوفة", description: `قيود عرض الشاشات المدعومة مفعلة ${targetText}. صلاحيات العمليات نافذة على الوحدات الموسومة «صلاحيات العمليات مفعلة».` });
     } catch (e: any) {
       toast({ title: "خطأ في الحفظ", description: e.message, variant: "destructive" });
     } finally {
@@ -393,7 +395,7 @@ export default function PermissionsMatrixManager() {
       <PageHeader
         badgeText="صلاحيات الشركة"
         badgeIcon={ShieldCheck}
-        title="قيود عرض الشاشات لأعضاء الشركة"
+        title="صلاحيات الشاشات وعمليات التوظيف"
         description="يمكن للمالك منع عرض الشاشات المدعومة لدور أو عضو محدد. الاستثناء الفردي له الأولوية، ولا يمنح الوصول إذا كانت صلاحيات الدور الأساسية تمنعه."
         icon={ShieldCheck}
         accentColor="primary"
@@ -415,7 +417,7 @@ export default function PermissionsMatrixManager() {
         }
       >
         <p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs leading-6 text-foreground mt-4">
-          قيد «عرض» نافذ على الشاشات الداخلية الموسومة أدناه بعد الحفظ. بقية الصفوف وحقول الإضافة والتعديل والحذف تُحفظ للمرجعية ولا تقيد عمليات النظام حاليًا. روابط المرشح العامة وإشراف المنصة خارج نطاق هذه المصفوفة.
+          صلاحيات العمليات مفعلة من الخادم للوظائف والمرشحين والمقابلات والعروض وبنك الأسئلة ومراجعة النتائج. صلاحية العضو المحددة تتقدم على صلاحية الدور، ومنع العرض يمنع العمليات أيضًا. بقية الوحدات الموسومة تطبق قيد العرض فقط؛ الروابط العامة وصلاحيات إدارة المنصة لها ضوابط مستقلة.
         </p>
         {loadError && <p role="alert" className="text-sm text-destructive mt-3">تعذر تحميل الصلاحيات. أعد فتح القسم قبل تعديلها.</p>}
         {!canManage && <p className="text-sm text-muted-foreground mt-3">مالك الشركة فقط يمكنه حفظ المصفوفة.</p>}
@@ -576,7 +578,7 @@ export default function PermissionsMatrixManager() {
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
                                 <p className="font-bold text-sm text-foreground">{locale === "en" ? page.name_en : page.name_ar}</p>
-                                {enforcedModules.has(page.key) && <Badge variant="outline" className="text-[10px]">قيد العرض مفعل</Badge>}
+                                {operationModules.has(page.key) ? <Badge variant="outline" className="text-[10px]">صلاحيات العمليات مفعلة</Badge> : enforcedModules.has(page.key) && <Badge variant="outline" className="text-[10px]">قيد العرض مفعل</Badge>}
                                 <button
                                   onClick={() => togglePageAll(page.key)}
                                   disabled={!canManage || isLoadingPermissions || loadError}
