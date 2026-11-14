@@ -27,12 +27,18 @@ function loadVoicePref(): VoicePreference {
   try {
     const raw = localStorage.getItem(VOICE_PREF_KEY);
     if (raw) return { voiceURI: null, rate: 0.95, lang: "ar-SA", ...JSON.parse(raw) };
-  } catch {}
+  } catch {
+    /* ignore malformed stored voice preferences */
+  }
   return { voiceURI: null, rate: 0.95, lang: "ar-SA" };
 }
 
 function saveVoicePref(p: VoicePreference) {
-  try { localStorage.setItem(VOICE_PREF_KEY, JSON.stringify(p)); } catch {}
+  try {
+    localStorage.setItem(VOICE_PREF_KEY, JSON.stringify(p));
+  } catch {
+    /* ignore storage write errors */
+  }
 }
 
 export function detectLanguage(text: string): "ar" | "en" {
@@ -51,7 +57,7 @@ export function cleanForTTS(text: string): string {
     .replace(/\*([^*]+)\*/g, "$1")
     .replace(/#{1,6}\s/g, "")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/[📊💼📅✅❌🚀🎯💡🤖✨🔄📧⏰🌍📍📞🎓💰📝🏢👤👥🗣️💻📄]/g, " ")
+    .replace(/(?:🗣️|[📊💼📅✅❌🚀🎯💡🤖✨🔄📧⏰🌍📍📞🎓💰📝🏢👤👥💻📄])/gu, " ")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 1500);
@@ -119,7 +125,11 @@ class SpeechService {
     this.currentId = null;
     if (this.currentAbort) { this.currentAbort.abort(); this.currentAbort = null; }
     if (this.currentAudio) {
-      try { this.currentAudio.pause(); } catch {}
+      try {
+        this.currentAudio.pause();
+      } catch {
+        /* ignore audio pause error */
+      }
       this.currentAudio = null;
     }
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
@@ -267,7 +277,7 @@ class SpeechService {
       });
       await this.playAudio(blob);
       this.afterPlayback();
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (seq !== this.fetchSeq) return;
       this.activeProvider = "browser";
       this.addLog({
@@ -275,7 +285,7 @@ class SpeechService {
         provider: "unknown",
         outcome: "error",
         durationMs: Date.now() - started,
-        error: e?.message || String(e),
+        error: e instanceof Error ? e.message : String(e),
       });
       this.emit();
       const ok = await this.playGoogleTTS(next.text);
@@ -351,17 +361,17 @@ class SpeechService {
     });
   }
 
-  private playBrowser(text: string): Promise<void> {
-    return new Promise(async (resolve) => {
-      if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-        resolve(); return;
-      }
+  private async playBrowser(text: string): Promise<void> {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      return;
+    }
 
-      window.speechSynthesis.cancel();
+    window.speechSynthesis.cancel();
 
-      const isEnglish = detectLanguage(text) === "ar" ? false : true;
-      const voices = await this.getVoicesAsync();
+    const isEnglish = detectLanguage(text) !== "ar";
+    const voices = await this.getVoicesAsync();
 
+    return new Promise((resolve) => {
       const utter = new SpeechSynthesisUtterance(text);
 
       // Set lang FIRST — this is the most important setting for Arabic
@@ -401,12 +411,6 @@ class SpeechService {
       this.status = "speaking";
       this.emit();
 
-      utter.onend = () => resolve();
-      utter.onerror = (e) => {
-        console.warn("[TTS] browser error:", e.error, "lang:", utter.lang, "voice:", utter.voice?.name);
-        resolve();
-      };
-
       // Chrome quirk: sometimes speak() silently fails — retry once after short delay
       window.speechSynthesis.speak(utter);
 
@@ -418,7 +422,11 @@ class SpeechService {
       }, 10000);
 
       utter.onend = () => { clearInterval(keepAlive); resolve(); };
-      utter.onerror = () => { clearInterval(keepAlive); resolve(); };
+      utter.onerror = (e) => {
+        console.warn("[TTS] browser error:", e.error, "lang:", utter.lang, "voice:", utter.voice?.name);
+        clearInterval(keepAlive);
+        resolve();
+      };
     });
   }
 }

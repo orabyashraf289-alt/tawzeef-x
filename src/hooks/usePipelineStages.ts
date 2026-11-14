@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 
@@ -13,7 +14,7 @@ export interface PipelineStage {
   is_active: boolean;
   is_default: boolean;
   transition_rules: TransitionRules;
-  automation_rules?: any;
+  automation_rules?: Record<string, unknown>;
   assessment_id?: string | null;
   assigned_user_ids?: string[];
   sla_hours?: number;
@@ -55,11 +56,11 @@ export function usePipelineStages() {
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("pipeline_stages" as any)
+        .from("pipeline_stages")
         .select("*")
         .order("sort_order", { ascending: true });
       if (error) throw error;
-      return (data as any[]) as PipelineStage[];
+      return (data || []) as unknown as PipelineStage[];
     },
   });
 
@@ -80,14 +81,14 @@ export function useSubStages(stageId?: string) {
     enabled: !!user && !!stageId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("pipeline_sub_stages" as any)
+        .from("pipeline_sub_stages")
         .select("*")
         .eq("stage_id", stageId!)
         .order("sort_order", { ascending: true });
       if (error) throw error;
-      return (data as any[]).map(d => ({
+      return (data || []).map(d => ({
         ...d,
-        checklist: Array.isArray(d.checklist) ? d.checklist : [],
+        checklist: Array.isArray(d.checklist) ? (d.checklist as unknown as ChecklistItem[]) : [],
         description: d.description || '',
         estimated_hours: d.estimated_hours || 0,
         assignee_type: d.assignee_type || 'recruiter',
@@ -105,13 +106,13 @@ export function useAllSubStages() {
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("pipeline_sub_stages" as any)
+        .from("pipeline_sub_stages")
         .select("*")
         .order("sort_order", { ascending: true });
       if (error) throw error;
-      return (data as any[]).map(d => ({
+      return (data || []).map(d => ({
         ...d,
-        checklist: Array.isArray(d.checklist) ? d.checklist : [],
+        checklist: Array.isArray(d.checklist) ? (d.checklist as unknown as ChecklistItem[]) : [],
         description: d.description || '',
         estimated_hours: d.estimated_hours || 0,
         assignee_type: d.assignee_type || 'recruiter',
@@ -145,8 +146,8 @@ export function useStageMutations() {
   const updateStage = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<PipelineStage> & { id: string }) => {
       const { error } = await supabase
-        .from("pipeline_stages" as any)
-        .update(updates as any)
+        .from("pipeline_stages")
+        .update(updates as TablesUpdate<"pipeline_stages">)
         .eq("id", id);
       if (error) throw error;
     },
@@ -156,7 +157,7 @@ export function useStageMutations() {
   const deleteStage = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("pipeline_stages" as any)
+        .from("pipeline_stages")
         .delete()
         .eq("id", id);
       if (error) throw error;
@@ -168,8 +169,8 @@ export function useStageMutations() {
     mutationFn: async (stages: { id: string; sort_order: number }[]) => {
       for (const s of stages) {
         await supabase
-          .from("pipeline_stages" as any)
-          .update({ sort_order: s.sort_order } as any)
+          .from("pipeline_stages")
+          .update({ sort_order: s.sort_order })
           .eq("id", s.id);
       }
     },
@@ -179,12 +180,12 @@ export function useStageMutations() {
   const setDefaultStage = useMutation({
     mutationFn: async (id: string) => {
       await supabase
-        .from("pipeline_stages" as any)
-        .update({ is_default: false } as any)
+        .from("pipeline_stages")
+        .update({ is_default: false })
         .neq("id", id);
       const { error } = await supabase
-        .from("pipeline_stages" as any)
-        .update({ is_default: true } as any)
+        .from("pipeline_stages")
+        .update({ is_default: true })
         .eq("id", id);
       if (error) throw error;
     },
@@ -194,8 +195,8 @@ export function useStageMutations() {
   const updateTransitionRules = useMutation({
     mutationFn: async ({ id, rules }: { id: string; rules: TransitionRules }) => {
       const { error } = await supabase
-        .from("pipeline_stages" as any)
-        .update({ transition_rules: rules } as any)
+        .from("pipeline_stages")
+        .update({ transition_rules: rules as unknown as Json })
         .eq("id", id);
       if (error) throw error;
     },
@@ -205,18 +206,18 @@ export function useStageMutations() {
   const applyTemplate = useMutation({
     mutationFn: async (templateStages: { name: string; color: string; icon: string; sort_order: number }[]) => {
       await supabase
-        .from("pipeline_stages" as any)
+        .from("pipeline_stages")
         .delete()
         .neq("id", "00000000-0000-0000-0000-000000000000");
-      const rows = templateStages.map((s, i) => ({
+      const rows: TablesInsert<"pipeline_stages">[] = templateStages.map((s, i) => ({
         user_id: user!.id,
         ...s,
         sort_order: i,
         is_default: i === 0,
       }));
       const { error } = await supabase
-        .from("pipeline_stages" as any)
-        .insert(rows as any);
+        .from("pipeline_stages")
+        .insert(rows);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: key }),
@@ -232,8 +233,8 @@ export function useSubStageMutations() {
   const addSubStage = useMutation({
     mutationFn: async (sub: { stage_id: string; name: string; sort_order: number; description?: string; estimated_hours?: number; assignee_type?: string }) => {
       const { error } = await supabase
-        .from("pipeline_sub_stages" as any)
-        .insert({ user_id: user!.id, ...sub } as any);
+        .from("pipeline_sub_stages")
+        .insert({ user_id: user!.id, ...sub });
       if (error) throw error;
     },
     onSuccess: (_, vars) => {
@@ -244,9 +245,14 @@ export function useSubStageMutations() {
 
   const updateSubStage = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<SubStage> & { id: string }) => {
+      const { checklist, ...scalarUpdates } = updates;
+      const payload: TablesUpdate<"pipeline_sub_stages"> = {
+        ...scalarUpdates,
+        ...(checklist !== undefined ? { checklist: checklist as unknown as Json } : {}),
+      };
       const { error } = await supabase
-        .from("pipeline_sub_stages" as any)
-        .update(updates as any)
+        .from("pipeline_sub_stages")
+        .update(payload)
         .eq("id", id);
       if (error) throw error;
     },
@@ -258,7 +264,7 @@ export function useSubStageMutations() {
   const deleteSubStage = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("pipeline_sub_stages" as any)
+        .from("pipeline_sub_stages")
         .delete()
         .eq("id", id);
       if (error) throw error;
@@ -279,7 +285,7 @@ export function useCandidateStageActions() {
     mutationFn: async ({ candidateId, reason }: { candidateId: string; reason: string }) => {
       const { error } = await supabase
         .from("candidates")
-        .update({ status: 'مرفوض', stage: 'مرفوض', rejection_reason: reason } as any)
+        .update({ status: 'مرفوض', stage: 'مرفوض', rejection_reason: reason })
         .eq("id", candidateId);
       if (error) throw error;
     },
@@ -290,7 +296,7 @@ export function useCandidateStageActions() {
     mutationFn: async ({ candidateId }: { candidateId: string }) => {
       const { error } = await supabase
         .from("candidates")
-        .update({ status: 'مؤجل', is_deferred: true } as any)
+        .update({ status: 'مؤجل', is_deferred: true })
         .eq("id", candidateId);
       if (error) throw error;
     },
@@ -301,7 +307,7 @@ export function useCandidateStageActions() {
     mutationFn: async ({ candidateId, stage }: { candidateId: string; stage: string }) => {
       const { error } = await supabase
         .from("candidates")
-        .update({ status: 'قيد المراجعة', stage, is_deferred: false, rejection_reason: null } as any)
+        .update({ status: 'قيد المراجعة', stage, is_deferred: false, rejection_reason: null })
         .eq("id", candidateId);
       if (error) throw error;
     },

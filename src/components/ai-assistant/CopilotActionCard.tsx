@@ -80,10 +80,10 @@ export default function CopilotActionCard({
       }
       await onExecute(updatedAction);
       setActionData(prev => ({ ...prev, status: "executed" }));
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: "خطأ في تنفيذ الإجراء",
-        description: err?.message || "تعذر تنفيذ الأمر في النظام",
+        description: (err instanceof Error ? err.message : undefined) || "تعذر تنفيذ الأمر في النظام",
         variant: "destructive",
       });
     } finally {
@@ -101,10 +101,10 @@ export default function CopilotActionCard({
         status: "pending_review",
         resultDetails: "تم التراجع عن الإجراء بنجاح واستعادة الحالة السابقة.",
       }));
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: "خطأ في التراجع",
-        description: err?.message || "تعذر التراجع",
+        description: (err instanceof Error ? err.message : undefined) || "تعذر التراجع",
         variant: "destructive",
       });
     } finally {

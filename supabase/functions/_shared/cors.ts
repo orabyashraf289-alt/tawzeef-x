@@ -15,10 +15,14 @@ export const DEV_ORIGINS = [
   "http://127.0.0.1:3000",
 ];
 
+const denoEnv = (
+  globalThis as { Deno?: { env?: { get(key: string): string | undefined } } }
+).Deno?.env;
+
 const isDev =
-  Deno.env.get("SUPABASE_URL")?.includes("localhost") ||
-  Deno.env.get("SUPABASE_URL")?.includes("127.0.0.1") ||
-  Deno.env.get("ENVIRONMENT") === "development";
+  denoEnv?.get("SUPABASE_URL")?.includes("localhost") ||
+  denoEnv?.get("SUPABASE_URL")?.includes("127.0.0.1") ||
+  denoEnv?.get("ENVIRONMENT") === "development";
 
 export function isOriginAllowed(origin: string): boolean {
   if (!origin) return false;

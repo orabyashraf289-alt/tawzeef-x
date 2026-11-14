@@ -390,9 +390,36 @@ async function buildUserContext(userId: string, authHeader: string): Promise<str
 
 
 // ============================================================================
+interface ChatToolCall {
+  id?: string;
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
+type ToolAction = {
+  type: string;
+  [key: string]: unknown;
+};
+
+interface ToolResultMessage {
+  tool_call_id: string | undefined;
+  role: "tool";
+  content: string;
+}
+
+interface InterviewQuestionSeed {
+  question: string;
+  expectedAnswer: string;
+  category: string;
+  difficulty: string;
+  matchKeyword?: string;
+}
+
 // TOOL HANDLERS
 // ============================================================================
-async function handleToolCall(tc: any, userId: string, authHeader: string): Promise<{ result: string; action?: any }> {
+async function handleToolCall(tc: ChatToolCall, userId: string, authHeader: string): Promise<{ result: string; action?: ToolAction }> {
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
   const args = JSON.parse(tc.function.arguments);
 
@@ -413,7 +440,7 @@ async function handleToolCall(tc: any, userId: string, authHeader: string): Prom
     case "update_job": {
       const { data: jobs } = await admin.from("jobs").select("*").eq("user_id", userId).ilike("title", `%${args.job_title_search}%`).limit(1);
       if (!jobs?.length) return { result: JSON.stringify({ error: `لم يتم العثور على وظيفة "${args.job_title_search}"` }) };
-      const updates: any = {};
+      const updates: Record<string, unknown> = {};
       for (const k of ["title", "department", "location", "type", "description", "requirements", "experience_level", "status"]) { if (args[k]) updates[k] = args[k]; }
       if (args.salary_min !== undefined) updates.salary_min = args.salary_min;
       if (args.salary_max !== undefined) updates.salary_max = args.salary_max;
@@ -461,7 +488,7 @@ async function handleToolCall(tc: any, userId: string, authHeader: string): Prom
     }
 
     case "bulk_move_candidates": {
-      const moved: any[] = [];
+      const moved: Array<{ name: string; old_stage: string | null; new_stage: string }> = [];
       const failed: string[] = [];
       for (const name of args.candidate_names) {
         const { data: candidates } = await admin.from("candidates").select("id, name, stage").eq("user_id", userId).ilike("name", `%${name}%`).limit(1);
@@ -611,7 +638,7 @@ async function handleToolCall(tc: any, userId: string, authHeader: string): Prom
       const allInterviews = interviews || [];
       const allOffers = offers || [];
 
-      let stats: any = {};
+      let stats: Record<string, unknown> = {};
       if (reportType === "overview" || reportType === "pipeline") {
         const stages: Record<string, number> = {};
         allCandidates.forEach(c => { const s = c.stage || "تقديم الطلب"; stages[s] = (stages[s] || 0) + 1; });
@@ -685,8 +712,8 @@ async function handleToolCall(tc: any, userId: string, authHeader: string): Prom
           result: JSON.stringify({ success: sent, candidate_name: candidate.name, email: candidate.email, subject: args.subject }),
           action: { type: "email_sent", email: { candidate_name: candidate.name, to: candidate.email, subject: args.subject, success: sent } },
         };
-      } catch (e: any) {
-        return { result: JSON.stringify({ error: "فشل إرسال البريد: " + (e.message || "غير معروف") }) };
+      } catch (e: unknown) {
+        return { result: JSON.stringify({ error: "فشل إرسال البريد: " + (e instanceof Error ? e.message : "غير معروف") }) };
       }
     }
 
@@ -819,7 +846,7 @@ async function handleToolCall(tc: any, userId: string, authHeader: string): Prom
       ];
 
       // Build tailored list
-      const selectedQuestions: any[] = [];
+      const selectedQuestions: InterviewQuestionSeed[] = [];
       const lowerJob = jobTitle.toLowerCase();
       const matchedTech = techPool.filter(q => 
         lowerJob.includes(q.matchKeyword) || 
@@ -1122,17 +1149,17 @@ ${userContext}
       return new Response(JSON.stringify({ type: "text", content: "يجب تسجيل الدخول أولاً." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const toolResults: any[] = [];
-    const actions: any[] = [];
+    const toolResults: ToolResultMessage[] = [];
+    const actions: ToolAction[] = [];
     for (const tc of toolCalls) {
       try {
         if (!availableTools.some((tool) => tool.function.name === tc.function?.name)) throw new Error("Tool not permitted");
         const { result, action } = await handleToolCall(tc, user.id, authHeader);
         toolResults.push({ tool_call_id: tc.id, role: "tool", content: result });
         if (action) actions.push(action);
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error("Tool call error:", tc.function.name, e);
-        toolResults.push({ tool_call_id: tc.id, role: "tool", content: JSON.stringify({ error: "فشل تنفيذ الأداة: " + (e.message || "خطأ غير معروف") }) });
+        toolResults.push({ tool_call_id: tc.id, role: "tool", content: JSON.stringify({ error: "فشل تنفيذ الأداة: " + (e instanceof Error ? e.message : "خطأ غير معروف") }) });
       }
     }
 
@@ -1184,8 +1211,8 @@ ${userContext}
   }
 });
 
-function buildNonStreamResponse(content: string, actions: any[]): any {
-  const responseData: any = { type: "text", content };
+function buildNonStreamResponse(content: string, actions: ToolAction[]): Record<string, unknown> {
+  const responseData: Record<string, unknown> = { type: "text", content };
   for (const a of actions) {
     if (a.type === "job_preview") { responseData.type = "job_preview"; responseData.job_data = a.job_data; }
     else if (a.type === "job_created") { responseData.type = "job_created"; responseData.job = a.job; }

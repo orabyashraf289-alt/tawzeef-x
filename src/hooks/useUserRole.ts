@@ -112,7 +112,7 @@ export function useUpdateUserRole() {
 
       const { error: insertError } = await supabase
         .from("user_roles")
-        .insert({ user_id: userId, role } as any);
+        .insert({ user_id: userId, role });
       if (insertError) throw insertError;
     },
     onSuccess: (_, variables) => {
@@ -223,7 +223,7 @@ export function useLogActivity() {
           entity_type: params.entityType,
           entity_id: params.entityId,
           details: params.details,
-        } as any);
+        });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -278,7 +278,7 @@ export function useCreateCustomRole() {
           description: roleData.description,
           permissions: roleData.permissions,
           created_by: user.id
-        } as any)
+        })
         .select()
         .single();
       if (error) throw error;

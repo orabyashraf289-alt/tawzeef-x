@@ -12,12 +12,12 @@ export class LandingPagePom extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.brandLogo = page.locator("nav").getByRole("link", { name: /Tawzeef|توظيف/i }).first();
+    this.brandLogo = page.locator("header").getByRole("link", { name: /Tawzeef|توظيف/i }).first();
     this.heroTitle = page.locator("h1");
     this.startFreeButton = page.getByRole("link", { name: /ابدأ مجاناً|ابدأ الآن/i }).first();
-    this.loginButton = page.getByRole("link", { name: /دخول|تسجيل الدخول/i }).first();
-    this.featuresSection = page.locator("#features, section:has(h2:has-text('المميزات'))");
-    this.pricingSection = page.locator("#pricing, section:has(h2:has-text('الأسعار'))");
+    this.loginButton = page.getByRole("link", { name: /تسجيل الدخول|دخول/i }).first();
+    this.featuresSection = page.locator("#features");
+    this.pricingSection = page.locator("#pricing");
     this.demoTabs = page.locator("[role='tablist']");
   }
 

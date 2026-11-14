@@ -9,6 +9,25 @@ export interface AccountAccess {
   registrationRequired?: boolean;
 }
 
+interface TenantValidationResponse {
+  access_state?: string;
+  denial_reason?: string;
+  is_agency?: boolean;
+  is_candidate?: boolean;
+  is_platform_admin?: boolean;
+}
+
+interface CompanyRegistrationResponse {
+  status?: string;
+}
+
+type UntypedRpcClient = {
+  rpc: <T = unknown>(
+    fn: string,
+    params?: Record<string, unknown>,
+  ) => Promise<{ data: T | null; error: unknown }>;
+};
+
 export function accountHome(access: AccountAccess): string {
   if (access.registrationRequired) return "/company-registration";
   if (access.onboardingRequired) return "/onboarding";
@@ -32,7 +51,7 @@ export function loginPortalAccess(access: AccountAccess, applicantPortal: boolea
   return access;
 }
 
-export async function checkCompanyStatus(_user: any): Promise<AccountAccess> {
+export async function checkCompanyStatus(_user?: unknown): Promise<AccountAccess> {
   try {
     // Single server-side source of truth: validate_tenant_status RPC
     const { data, error } = await supabase.rpc("validate_tenant_status");
@@ -45,15 +64,16 @@ export async function checkCompanyStatus(_user: any): Promise<AccountAccess> {
       };
     }
 
-    const res = data as any;
+    const res = data as TenantValidationResponse | null;
     if (!res || res.access_state !== "ALLOWED") {
       if (res?.denial_reason === "NO_COMPANY_MEMBERSHIP") {
-        const { data: registration, error: registrationError } = await supabase.rpc("get_my_company_registration" as any);
+        const untypedSupabase = supabase as unknown as UntypedRpcClient;
+        const { data: registration, error: registrationError } = await untypedSupabase.rpc<CompanyRegistrationResponse>("get_my_company_registration");
         if (registrationError) return { allowed: false, reason: "تعذر قراءة حالة طلب الشركة. حاول مرة أخرى." };
-        if (["pending", "rejected"].includes((registration as any)?.status)) {
+        if (registration?.status && ["pending", "rejected"].includes(registration.status)) {
           return { allowed: true, registrationRequired: true };
         }
-        const { data: pending, error: pendingError } = await supabase.rpc("can_complete_company_onboarding" as any);
+        const { data: pending, error: pendingError } = await untypedSupabase.rpc<boolean>("can_complete_company_onboarding");
         if (!pendingError && pending === true) {
           return { allowed: true, onboardingRequired: true };
         }
@@ -71,7 +91,7 @@ export async function checkCompanyStatus(_user: any): Promise<AccountAccess> {
         UNAUTHENTICATED: "جلسة المستخدم غير صالحة.",
       };
 
-      const denialReason = (res?.denial_reason as string) || "";
+      const denialReason = res?.denial_reason || "";
       const message = reasonMap[denialReason] || "تم رفض تسجيل الدخول بناءً على سياسات التحقق الأمني للشركات.";
 
       return {
@@ -90,4 +110,3 @@ export async function checkCompanyStatus(_user: any): Promise<AccountAccess> {
     };
   }
 }
-

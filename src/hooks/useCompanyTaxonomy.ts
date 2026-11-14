@@ -116,6 +116,14 @@ export const DEFAULT_APPROVAL_CHAINS: ApprovalChainItem[] = [
   },
 ];
 
+function persistTaxonomyList(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* ignore storage quota or availability errors */
+  }
+}
+
 export function useCompanyTaxonomy() {
   const [departments, setDepartments] = useState<DepartmentItem[]>(() => {
     try {
@@ -135,7 +143,7 @@ export function useCompanyTaxonomy() {
       const missingDefault = DEFAULT_LOCATIONS.filter(l => !existingIds.has(l.id));
       if (missingDefault.length > 0) {
         const merged = [...parsed, ...missingDefault];
-        try { localStorage.setItem("company_locations", JSON.stringify(merged)); } catch {}
+        persistTaxonomyList("company_locations", merged);
         return merged;
       }
       return parsed;
@@ -250,7 +258,9 @@ export function useCompanyTaxonomy() {
 
         const savedBenefits = localStorage.getItem("company_benefits_list");
         if (savedBenefits) setBenefitsList(JSON.parse(savedBenefits));
-      } catch {}
+      } catch {
+        /* ignore invalid storage payloads during cross-tab sync */
+      }
     };
 
     window.addEventListener("storage", handleStorageChange);
@@ -268,7 +278,7 @@ export function useCompanyTaxonomy() {
     };
     setDepartments(prev => {
       const updated = [...prev, newDept];
-      try { localStorage.setItem("company_departments", JSON.stringify(updated)); } catch {}
+      persistTaxonomyList("company_departments", updated);
       return updated;
     });
     return newDept.name;
@@ -285,7 +295,7 @@ export function useCompanyTaxonomy() {
     };
     setLocations(prev => {
       const updated = [...prev, newLoc];
-      try { localStorage.setItem("company_locations", JSON.stringify(updated)); } catch {}
+      persistTaxonomyList("company_locations", updated);
       return updated;
     });
     return newLoc.name;
@@ -300,7 +310,7 @@ export function useCompanyTaxonomy() {
     };
     setExperienceLevels(prev => {
       const updated = [...prev, newExp];
-      try { localStorage.setItem("company_experience_levels", JSON.stringify(updated)); } catch {}
+      persistTaxonomyList("company_experience_levels", updated);
       return updated;
     });
     return newExp.name;
@@ -318,7 +328,7 @@ export function useCompanyTaxonomy() {
     };
     setApprovalChains(prev => {
       const updated = [...prev, newChain];
-      try { localStorage.setItem("company_approval_chains", JSON.stringify(updated)); } catch {}
+      persistTaxonomyList("company_approval_chains", updated);
       return updated;
     });
     return newChain.name;
@@ -329,7 +339,7 @@ export function useCompanyTaxonomy() {
     setSchoolTypes(prev => {
       if (prev.includes(name.trim())) return prev;
       const updated = [...prev, name.trim()];
-      try { localStorage.setItem("company_school_types", JSON.stringify(updated)); } catch {}
+      persistTaxonomyList("company_school_types", updated);
       return updated;
     });
     return name.trim();
@@ -340,7 +350,7 @@ export function useCompanyTaxonomy() {
     setCurricula(prev => {
       if (prev.includes(name.trim())) return prev;
       const updated = [...prev, name.trim()];
-      try { localStorage.setItem("company_curricula", JSON.stringify(updated)); } catch {}
+      persistTaxonomyList("company_curricula", updated);
       return updated;
     });
     return name.trim();
@@ -351,7 +361,7 @@ export function useCompanyTaxonomy() {
     setGradeLevels(prev => {
       if (prev.includes(name.trim())) return prev;
       const updated = [...prev, name.trim()];
-      try { localStorage.setItem("company_grade_levels", JSON.stringify(updated)); } catch {}
+      persistTaxonomyList("company_grade_levels", updated);
       return updated;
     });
     return name.trim();
@@ -362,7 +372,7 @@ export function useCompanyTaxonomy() {
     setTeachingLoads(prev => {
       if (prev.includes(name.trim())) return prev;
       const updated = [...prev, name.trim()];
-      try { localStorage.setItem("company_teaching_loads", JSON.stringify(updated)); } catch {}
+      persistTaxonomyList("company_teaching_loads", updated);
       return updated;
     });
     return name.trim();
@@ -373,7 +383,7 @@ export function useCompanyTaxonomy() {
     setBenefitsList(prev => {
       if (prev.includes(name.trim())) return prev;
       const updated = [...prev, name.trim()];
-      try { localStorage.setItem("company_benefits_list", JSON.stringify(updated)); } catch {}
+      persistTaxonomyList("company_benefits_list", updated);
       return updated;
     });
     return name.trim();

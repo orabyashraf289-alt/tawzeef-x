@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
         linkedin_name: linkedinName,
         linkedin_avatar: linkedinAvatar,
         is_active: true,
-      } as any, { onConflict: "user_id" });
+      }, { onConflict: "user_id" });
 
     if (upsertError) throw upsertError;
 

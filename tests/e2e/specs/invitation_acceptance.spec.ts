@@ -1,26 +1,18 @@
 import { test, expect } from "@playwright/test";
-import { setupSupabaseMocks } from "../fixtures/supabaseMockHelper";
-import { mockInvitation } from "../fixtures/mockData";
+import { seedAuthSession, setupSupabaseMocks } from "../fixtures/supabaseMockHelper";
+import { mockInvitation, mockInvitedUser } from "../fixtures/mockData";
 
 test.describe("Company Invitation Acceptance — /invitation/:token", () => {
   test.beforeEach(async ({ page }) => {
-    await setupSupabaseMocks(page);
-    await page.addInitScript(() => {
-      window.localStorage.setItem(
-        "sb-rlfewneisuezsamhosct-auth-token",
-        JSON.stringify({
-          access_token: "mock-jwt-token-12345",
-          user: { id: "usr-invited-001", email: "newmember@tawzeefx.com", role: "recruiter" },
-        })
-      );
-    });
+    await setupSupabaseMocks(page, { user: mockInvitedUser, role: "recruiter" });
+    await seedAuthSession(page, mockInvitedUser);
   });
 
   test("should show not found screen on invalid invitation token", async ({ page }) => {
     await page.goto("/invitation/stale-or-invalid-invite-token");
     await page.waitForLoadState("domcontentloaded");
 
-    const notFoundEl = page.locator("text=الدعوة غير موجودة|غير صالح").first();
+    const notFoundEl = page.getByRole("heading", { name: /الدعوة غير موجودة|غير صالح/i });
     await expect(notFoundEl).toBeVisible({ timeout: 6000 });
   });
 
@@ -28,15 +20,13 @@ test.describe("Company Invitation Acceptance — /invitation/:token", () => {
     await page.goto(`/invitation/${mockInvitation.token}`);
     await page.waitForLoadState("domcontentloaded");
 
-    // Look for accept button or company name
-    const acceptBtn = page.locator("button").filter({ hasText: /قبول الدعوة|انضمام|Accept/i }).first();
-    if (await acceptBtn.isVisible()) {
-      await acceptBtn.click();
-      await page.waitForTimeout(500);
+    await expect(page.getByRole("heading", { name: mockInvitation.company.name })).toBeVisible({ timeout: 6000 });
 
-      // Verify success state or company redirect
-      const successOrRedirect = page.locator("text=تم قبول الدعوة|الذهاب لبوابة الشركة").first();
-      await expect(successOrRedirect).toBeVisible({ timeout: 5000 });
-    }
+    const acceptBtn = page.getByRole("button", { name: /^قبول$/ });
+    await expect(acceptBtn).toBeEnabled();
+    await acceptBtn.click();
+
+    await expect(page.getByRole("heading", { name: /تم قبول الدعوة/i })).toBeVisible({ timeout: 6000 });
+    await expect(page.getByRole("button", { name: /الذهاب لبوابة الشركة/i })).toBeVisible();
   });
 });

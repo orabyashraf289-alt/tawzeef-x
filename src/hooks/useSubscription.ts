@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 
@@ -186,7 +187,7 @@ export function useCreateUpgradeRequest() {
       const companyId = activeCompany.parent_company_id || activeCompany.id;
       const companyName = myCompanies.find(c => c.id === companyId)?.name || activeCompany.name;
 
-      let insertedRecord: any = null;
+      let insertedRecord: UpgradeRequestRow | null = null;
 
       try {
         const { data, error } = await supabase
@@ -198,15 +199,15 @@ export function useCreateUpgradeRequest() {
             target_plan_name: targetPlanName,
             status: "pending",
             notes: notes || null,
-          } as any)
+          })
           .select()
           .single();
 
         if (error) throw error;
-        insertedRecord = data;
-      } catch (err: any) {
-        const isTableMissing =
-          err?.code === "PGRST205" || err?.code === "42P01";
+        insertedRecord = data as UpgradeRequestRow;
+      } catch (err: unknown) {
+        const errCode = (err as { code?: string } | null)?.code;
+        const isTableMissing = errCode === "PGRST205" || errCode === "42P01";
 
         if (isTableMissing) {
           console.warn("Table subscription_upgrade_requests is missing in Supabase. Using fallback notification and local storage queue.");
@@ -245,19 +246,19 @@ export function useCreateUpgradeRequest() {
           .from("user_roles")
           .select("user_id")
           .eq("role", "admin");
-        (adminRoles || []).forEach((r: any) => r.user_id && adminUserIds.add(r.user_id));
+        (adminRoles || []).forEach((r) => r.user_id && adminUserIds.add(r.user_id));
 
         // Check profiles table for admins / super_admins
         const { data: adminProfiles } = await supabase
           .from("profiles")
           .select("user_id, role")
           .or("role.eq.admin,role.eq.super_admin");
-        (adminProfiles || []).forEach((p: any) => {
+        (adminProfiles || []).forEach((p: { user_id?: string | null; id?: string | null }) => {
           const uid = p.user_id || p.id;
           if (uid) adminUserIds.add(uid);
         });
 
-        const notifsToInsert: any[] = [];
+        const notifsToInsert: TablesInsert<"notifications">[] = [];
         adminUserIds.forEach((adminId) => {
           notifsToInsert.push({
             user_id: adminId,
@@ -290,7 +291,9 @@ export function useCreateUpgradeRequest() {
             entity_id: companyId,
             details: `طلب ترقية إلى باقة ${targetPlanName} من شركة ${companyName}`,
           });
-        } catch {}
+        } catch {
+          // Activity log failures are non-fatal
+        }
       } catch (notifErr) {
         console.warn("Could not dispatch admin notifications:", notifErr);
       }
@@ -417,7 +420,9 @@ export function useUpgradeRequests() {
       let localRequests: UpgradeRequestRow[] = [];
       try {
         localRequests = JSON.parse(localStorage.getItem("tx_pending_upgrade_requests") || "[]");
-      } catch {}
+      } catch {
+        // Ignore malformed localStorage cache
+      }
 
       const allRequests = [...localRequests, ...dbRequests.filter((d) => !localRequests.some((l) => l.id === d.id))];
       if (allRequests.length === 0) return [];
@@ -496,7 +501,7 @@ export function useAdminCustomUpgradeSubscription() {
             starts_at: startsAt,
             expires_at: expiresAt,
             updated_at: new Date().toISOString(),
-          } as any, {
+          }, {
             onConflict: "company_id"
           })
           .select()
@@ -515,7 +520,7 @@ export function useAdminCustomUpgradeSubscription() {
                 starts_at: startsAt,
                 expires_at: expiresAt,
                 updated_at: new Date().toISOString(),
-              } as any)
+              })
               .eq("id", existing.id);
           }
         } else if (upserted?.id) {
@@ -530,10 +535,12 @@ export function useAdminCustomUpgradeSubscription() {
         try {
           await supabase
             .from("company_subscriptions")
-            .update({ company_id: companyId, plan_id: planId, job_posts_limit: jobPostsLimit, status: "active" } as any)
+            .update({ company_id: companyId, plan_id: planId, job_posts_limit: jobPostsLimit, status: "active" })
             .eq("user_id", activeUserId)
             .is("company_id", null);
-        } catch {}
+        } catch {
+          // Non-fatal fallback company_id backfill
+        }
       }
 
       // 2) Generate Invoice if requested
@@ -558,7 +565,7 @@ export function useAdminCustomUpgradeSubscription() {
             expires_at: expiresAt,
             status: "paid",
             issued_by_user_id: user.id,
-          } as any);
+          });
         } catch (invErr) {
           console.warn("Could not record invoice into company_invoices:", invErr);
         }
@@ -572,7 +579,7 @@ export function useAdminCustomUpgradeSubscription() {
             .update({
               status: "approved",
               updated_at: new Date().toISOString(),
-            } as any)
+            })
             .eq("id", requestId);
         } catch (reqErr) {
           console.warn("Could not mark request as approved in DB:", reqErr);
@@ -580,10 +587,12 @@ export function useAdminCustomUpgradeSubscription() {
 
         // Also update local storage fallback queue if present
         try {
-          const local = JSON.parse(localStorage.getItem("tx_pending_upgrade_requests") || "[]");
-          const updated = local.map((r: any) => (r.id === requestId ? { ...r, status: "approved" } : r));
+          const local = JSON.parse(localStorage.getItem("tx_pending_upgrade_requests") || "[]") as UpgradeRequestRow[];
+          const updated = local.map((r) => (r.id === requestId ? { ...r, status: "approved" as const } : r));
           localStorage.setItem("tx_pending_upgrade_requests", JSON.stringify(updated));
-        } catch {}
+        } catch {
+          // Ignore localStorage failures
+        }
       }
 
       // 4) Send approval in-app notification to the company owner
@@ -736,7 +745,7 @@ export function useRejectUpgradeRequest() {
           .update({
             status: "rejected",
             updated_at: new Date().toISOString(),
-          } as any)
+          })
           .eq("id", requestId);
       } catch (e) {
         console.warn("Could not reject in DB:", e);
@@ -744,10 +753,12 @@ export function useRejectUpgradeRequest() {
 
       // 2. Update local storage
       try {
-        const local = JSON.parse(localStorage.getItem("tx_pending_upgrade_requests") || "[]");
-        const updated = local.map((r: any) => (r.id === requestId ? { ...r, status: "rejected" } : r));
+        const local = JSON.parse(localStorage.getItem("tx_pending_upgrade_requests") || "[]") as UpgradeRequestRow[];
+        const updated = local.map((r) => (r.id === requestId ? { ...r, status: "rejected" as const } : r));
         localStorage.setItem("tx_pending_upgrade_requests", JSON.stringify(updated));
-      } catch {}
+      } catch {
+        // Ignore localStorage failures
+      }
 
       // 3. Notify owner in-app
       if (ownerUserId) {
@@ -761,7 +772,9 @@ export function useRejectUpgradeRequest() {
             type: "upgrade_rejected",
             read: false,
           });
-        } catch {}
+        } catch {
+          // Non-fatal notification failure
+        }
       }
 
       // 4. Send email notification to owner if email exists

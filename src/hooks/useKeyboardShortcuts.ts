@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 interface ShortcutConfig {
@@ -14,7 +14,7 @@ interface ShortcutConfig {
 export function useKeyboardShortcuts(enabled = true) {
   const navigate = useNavigate();
 
-  const shortcuts: ShortcutConfig[] = [
+  const shortcuts: ShortcutConfig[] = useMemo(() => [
     // Navigation shortcuts (Alt + Key)
     { key: "d", alt: true, action: () => navigate("/dashboard"), description: "الذهاب للوحة التحكم", descriptionEn: "Go to Dashboard" },
     { key: "j", alt: true, action: () => navigate("/jobs"), description: "الذهاب للوظائف", descriptionEn: "Go to Jobs" },
@@ -31,7 +31,7 @@ export function useKeyboardShortcuts(enabled = true) {
     { key: "q", alt: true, action: () => navigate("/question-bank"), description: "بنك الأسئلة", descriptionEn: "Question Bank" },
     { key: "w", alt: true, action: () => navigate("/workflow"), description: "سير العمل", descriptionEn: "Workflow Editor" },
     { key: "h", alt: true, action: () => navigate("/hiring-plan"), description: "خطة التوظيف", descriptionEn: "Hiring Plan" },
-  ];
+  ], [navigate]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {

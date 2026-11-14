@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -9,6 +9,7 @@ import {
   Clock,
   AlertCircle,
   ArrowUpRight,
+  Calendar,
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,6 +26,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { downloadTaskIcs } from "@/lib/calendarIcs";
 import {
   taskRequest,
   taskStages,
@@ -39,7 +42,113 @@ import {
   type ChecklistItem,
 } from "@/lib/taskWorkflow";
 import type { Json } from "@/integrations/supabase/types";
+
 const selectClass = "w-full rounded-lg border bg-background p-2 text-sm";
+const TASK_SERVER_LIMIT = 500;
+const TASK_CLIENT_PAGE_SIZE = 50;
+
+async function sendBestEffortTaskNotification({
+  action,
+  payload,
+  updatedTask,
+  ar,
+}: {
+  action: string;
+  payload: Json;
+  updatedTask: WorkflowTask | null;
+  ar: boolean;
+}): Promise<void> {
+  if (typeof supabase.from !== "function") return;
+
+  const payloadObj: Record<string, Json | undefined> =
+    payload && typeof payload === "object" && !Array.isArray(payload)
+      ? payload
+      : {};
+
+  const taskTitle =
+    updatedTask?.title ||
+    (typeof payloadObj.title === "string" ? payloadObj.title.trim() : "");
+  const taskDueDate =
+    updatedTask?.due_date ||
+    (typeof payloadObj.due_date === "string" ? payloadObj.due_date : "");
+  const taskOutcome =
+    updatedTask?.expected_outcome ||
+    (typeof payloadObj.expected_outcome === "string"
+      ? payloadObj.expected_outcome.trim()
+      : "");
+  const assigneeId =
+    updatedTask?.assignee_id ||
+    (typeof payloadObj.assignee_id === "string" ? payloadObj.assignee_id : null);
+  const reviewerId =
+    updatedTask?.reviewer_id ||
+    (typeof payloadObj.reviewer_id === "string" ? payloadObj.reviewer_id : null);
+
+  if (!taskTitle) return;
+
+  let recipientId: string | null = null;
+  let title = "";
+  let description = "";
+
+  if (action === "create" || action === "import" || action === "edit") {
+    recipientId = assigneeId;
+    title = ar
+      ? `مهمة ${action === "edit" ? "محدّثة" : "جديدة"}: ${taskTitle}`
+      : `${action === "edit" ? "Updated" : "New"} task assigned: ${taskTitle}`;
+    description = ar
+      ? `موعد التسليم: ${taskDueDate} · الناتج المطلوب: ${taskOutcome}`
+      : `Due: ${taskDueDate} · Expected outcome: ${taskOutcome}`;
+  } else if (action === "transition" && updatedTask) {
+    const status =
+      typeof payloadObj.status === "string"
+        ? payloadObj.status
+        : updatedTask.column_status;
+    if (status === "in_review" && reviewerId) {
+      recipientId = reviewerId;
+      title = ar
+        ? `مهمة بانتظار مراجعتك: ${taskTitle}`
+        : `Task awaiting your review: ${taskTitle}`;
+      description = ar
+        ? `تم تسليم المهمة للمراجعة بواسطة ${updatedTask.assignee_name}`
+        : `Submitted for review by ${updatedTask.assignee_name}`;
+    } else if (status === "done" && assigneeId) {
+      recipientId = assigneeId;
+      title = ar
+        ? `تم اعتماد وإكمال المهمة: ${taskTitle}`
+        : `Task approved and completed: ${taskTitle}`;
+      description = ar
+        ? `تم إغلاق المهمة بتاريخ التسليم ${taskDueDate}`
+        : `Task completed (due ${taskDueDate})`;
+    } else if (
+      (status === "in_progress" || status === "todo") &&
+      typeof payloadObj.reason === "string" &&
+      payloadObj.reason.trim() &&
+      assigneeId
+    ) {
+      recipientId = assigneeId;
+      title = ar
+        ? `تمت إعادة المهمة للتعديل: ${taskTitle}`
+        : `Task returned for revision: ${taskTitle}`;
+      description = payloadObj.reason.trim();
+    }
+  }
+
+  if (!recipientId) return;
+
+  try {
+    const { error } = await supabase.from("notifications").insert({
+      user_id: recipientId,
+      title,
+      description,
+      type: "task",
+    });
+    if (error) {
+      console.warn("Best-effort task notification skipped:", error.message);
+    }
+  } catch (err) {
+    console.warn("Best-effort task notification failed:", err);
+  }
+}
+
 export default function TaskBoard() {
   const { user } = useAuth();
   const { activeCompanyId, activeCompany, isLoading } = useCompanyContext();
@@ -91,6 +200,7 @@ export default function TaskBoard() {
     </DashboardLayout>
   );
 }
+
 export function TaskWorkspace({
   companyId,
   userId,
@@ -114,6 +224,17 @@ export function TaskWorkspace({
   const [creating, setCreating] = useState(initialCreate || !!initialCycle);
   const [editing, setEditing] = useState(false);
   const [importId, setImportId] = useState("");
+  const [displayLimit, setDisplayLimit] = useState(TASK_CLIENT_PAGE_SIZE);
+  const [extraTasks, setExtraTasks] = useState<WorkflowTask[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [serverWindowExhausted, setServerWindowExhausted] = useState(false);
+
+  useEffect(() => {
+    setDisplayLimit(TASK_CLIENT_PAGE_SIZE);
+    setExtraTasks([]);
+    setServerWindowExhausted(false);
+  }, [archived, companyId, userId]);
+
   const q = useQuery({
     queryKey: ["task-workflow", companyId, userId, archived],
     queryFn: () =>
@@ -121,23 +242,70 @@ export function TaskWorkspace({
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
   });
   const cache = useQueryClient();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (typeof supabase.channel !== "function") return;
+    const channel = supabase
+      .channel(`company_tasks:${companyId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "tasks",
+          filter: `company_id=eq.${companyId}`,
+        },
+        () => {
+          cache.invalidateQueries({
+            queryKey: ["task-workflow", companyId, userId],
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      if (typeof supabase.removeChannel === "function") {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [companyId, userId, cache]);
+
+  const allTasks = useMemo(() => {
+    const base = q.data?.tasks || [];
+    if (!extraTasks.length) return base;
+    const byId = new Map<string, WorkflowTask>();
+    for (const item of extraTasks) byId.set(item.id, item);
+    for (const item of base) byId.set(item.id, item);
+    return Array.from(byId.values());
+  }, [q.data?.tasks, extraTasks]);
+
   const mutation = useMutation({
     mutationFn: ({ action, payload }: { action: string; payload: Json }) =>
       taskRequest<{ id: string }>(companyId, action, payload),
-    onSuccess: async (r) => {
+    onSuccess: async (r, variables) => {
       await cache.invalidateQueries({
         queryKey: ["task-workflow", companyId, userId],
       });
       const latest = await q.refetch();
-      setDetail(latest.data?.tasks.find((t) => t.id === r.id) || null);
+      const updatedTask =
+        latest.data?.tasks.find((t) => t.id === r.id) ||
+        extraTasks.find((t) => t.id === r.id) ||
+        null;
+      setDetail(updatedTask);
       setCreating(false);
       setEditing(false);
       setImportId("");
       setSelected(r.id);
+      void sendBestEffortTaskNotification({
+        action: variables.action,
+        payload: variables.payload,
+        updatedTask,
+        ar,
+      });
       toast({ title: ar ? "تم حفظ التغيير" : "Change saved" });
     },
     onError: (e: Error) => {
@@ -159,6 +327,7 @@ export function TaskWorkspace({
   });
   const act = (action: string, payload: Json) =>
     mutation.mutateAsync({ action, payload });
+
   if (q.isPending)
     return <p role="status">{ar ? "جارٍ تحميل المهام…" : "Loading tasks…"}</p>;
   if (q.isError)
@@ -170,11 +339,12 @@ export function TaskWorkspace({
         </Button>
       </div>
     );
+
   const data = q.data;
   const selectedTask = detail;
-  const remoteTask = data.tasks.find((t) => t.id === selected);
+  const remoteTask = allTasks.find((t) => t.id === selected);
   const owned = (t: WorkflowTask) => data.can_manage || t.user_id === userId;
-  const visible = data.tasks
+  const visible = allTasks
     .filter(
       (t) =>
         (!search ||
@@ -191,6 +361,55 @@ export function TaskWorkspace({
           (filter === "blocked" && !!t.blocked_reason)),
     )
     .sort((a, b) => a.due_date.localeCompare(b.due_date));
+
+  const serverLimitReached = data.tasks.length >= TASK_SERVER_LIMIT;
+  const pagedVisible = visible.slice(0, displayLimit);
+  const hasMoreClient = visible.length > displayLimit;
+  const canLoadMore =
+    hasMoreClient || (serverLimitReached && !serverWindowExhausted);
+
+  const handleLoadMore = async () => {
+    if (hasMoreClient) {
+      setDisplayLimit((prev) => prev + TASK_CLIENT_PAGE_SIZE);
+      if (visible.length - displayLimit > TASK_CLIENT_PAGE_SIZE || !serverLimitReached) {
+        return;
+      }
+    }
+
+    if (serverLimitReached && !serverWindowExhausted) {
+      setLoadingMore(true);
+      try {
+        const nextPage = await taskRequest<TaskWorkspaceData>(companyId, "list", {
+          archived,
+          offset: allTasks.length,
+          limit: TASK_SERVER_LIMIT,
+        });
+        const existingIds = new Set(allTasks.map((t) => t.id));
+        const newlyLoaded = (nextPage.tasks || []).filter(
+          (t) => !existingIds.has(t.id),
+        );
+        if (newlyLoaded.length === 0) {
+          setServerWindowExhausted(true);
+        } else {
+          setExtraTasks((prev) => [...prev, ...newlyLoaded]);
+          setDisplayLimit((prev) => prev + newlyLoaded.length);
+          if (nextPage.tasks.length < TASK_SERVER_LIMIT) {
+            setServerWindowExhausted(true);
+          }
+        }
+      } catch {
+        toast({
+          title: ar
+            ? "تعذر تحميل المزيد من المهام"
+            : "Could not load more tasks",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingMore(false);
+      }
+    }
+  };
+
   const stage = (s: TaskStage) => taskStageLabels[s][ar ? 0 : 1];
   return (
     <>
@@ -204,17 +423,17 @@ export function TaskWorkspace({
           [
             ClipboardList,
             ar ? "مفتوحة" : "Open",
-            data.tasks.filter((t) => t.column_status !== "done").length,
+            allTasks.filter((t) => t.column_status !== "done").length,
           ],
           [
             Clock,
             ar ? "متأخرة عن موعدها" : "Overdue",
-            data.tasks.filter((t) => taskOverdue(t)).length,
+            allTasks.filter((t) => taskOverdue(t)).length,
           ],
           [
             AlertCircle,
             ar ? "بانتظار مراجعتي" : "Awaiting my review",
-            data.tasks.filter(
+            allTasks.filter(
               (t) =>
                 t.column_status === "in_review" && t.reviewer_id === userId,
             ).length,
@@ -222,7 +441,7 @@ export function TaskWorkspace({
           [
             CheckCircle2,
             ar ? "مكتملة" : "Completed",
-            data.tasks.filter((t) => t.column_status === "done").length,
+            allTasks.filter((t) => t.column_status === "done").length,
           ],
         ].map(([Icon, label, count]) => {
           const I = Icon as typeof ClipboardList;
@@ -385,14 +604,29 @@ export function TaskWorkspace({
           ))}
         </select>
       </div>
-      <p className="text-xs text-muted-foreground">
-        {ar
-          ? "تظهر أحدث ٥٠٠ مهمة متاحة لك في الشركة، مرتبة هنا حسب موعد التسليم."
-          : "Shows the latest 500 tasks available to you in this company, ordered here by due date."}
-      </p>
-      {!visible.length ? (
+      {serverLimitReached ? (
+        <div
+          role="status"
+          className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200"
+        >
+          {ar
+            ? `تم الوصول إلى الحد الأقصى للتحميل (${TASK_SERVER_LIMIT} مهمة). يتم عرض ${pagedVisible.length} من أصل ${visible.length} مهمة محمّلة، مرتبة حسب موعد التسليم. استخدم البحث أو الفلاتر للتضييق أو حمّل المزيد.`
+            : `Loaded limit reached (${TASK_SERVER_LIMIT} tasks). Showing ${pagedVisible.length} of ${visible.length} loaded tasks, ordered by due date. Narrow with search/filters or load more.`}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          {visible.length > pagedVisible.length
+            ? ar
+              ? `عرض ${pagedVisible.length} من أصل ${visible.length} مهمة، مرتبة هنا حسب موعد التسليم.`
+              : `Showing ${pagedVisible.length} of ${visible.length} tasks, ordered here by due date.`
+            : ar
+              ? `عرض ${visible.length} مهمة متاحة لك في الشركة، مرتبة هنا حسب موعد التسليم.`
+              : `Showing ${visible.length} tasks available to you in this company, ordered here by due date.`}
+        </p>
+      )}
+      {!pagedVisible.length ? (
         <p className="rounded-xl border border-dashed p-8 text-center">
-          {data.tasks.length
+          {allTasks.length
             ? ar
               ? "لا توجد مهام تطابق الفلاتر."
               : "No tasks match these filters."
@@ -414,11 +648,11 @@ export function TaskWorkspace({
                 <h2 className="flex justify-between rounded-lg bg-muted p-3 font-semibold">
                   <span>{stage(col)}</span>
                   <span>
-                    {visible.filter((t) => t.column_status === col).length}
+                    {pagedVisible.filter((t) => t.column_status === col).length}
                   </span>
                 </h2>
               )}
-              {visible
+              {pagedVisible
                 .filter((t) => col === "all" || t.column_status === col)
                 .map((t) => (
                   <button
@@ -480,6 +714,31 @@ export function TaskWorkspace({
             </section>
           ))}
         </div>
+      )}
+      {canLoadMore && (
+        <div className="flex justify-center pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+          >
+            {loadingMore
+              ? ar
+                ? "جارٍ تحميل المزيد…"
+                : "Loading more…"
+              : ar
+                ? "تحميل المزيد من المهام"
+                : "Load more tasks"}
+          </Button>
+        </div>
+      )}
+      {serverLimitReached && serverWindowExhausted && (
+        <p role="status" className="text-center text-xs text-muted-foreground">
+          {ar
+            ? "تم عرض جميع المهام المتاحة ضمن نافذة الخادم الحالية. استخدم البحث أو الفلاتر لعرض مهام محددة."
+            : "All tasks available in the current server window are displayed. Use search or filters to narrow results."}
+        </p>
       )}
       <Dialog
         open={!!selectedTask && !editing && !creating}
@@ -546,6 +805,7 @@ export function TaskWorkspace({
     </>
   );
 }
+
 function TaskForm({
   ar,
   data,
@@ -842,6 +1102,7 @@ function TaskForm({
     </Card>
   );
 }
+
 function TaskDetails({
   task: t,
   ar,
@@ -876,9 +1137,9 @@ function TaskDetails({
     note !== t.completion_note ||
     blocker !== t.blocked_reason ||
     JSON.stringify(subtasks) !== JSON.stringify(t.subtasks || []);
-  const execute = async (a: string, p: Json = {}) => {
+  const execute = async (a: string, p: Record<string, Json> = {}) => {
     try {
-      await act(a, { id: t.id, version: t.version, ...(p as object) });
+      await act(a, { id: t.id, version: t.version, ...p });
     } catch {
       /* keep unsaved input */
     }
@@ -903,6 +1164,7 @@ function TaskDetails({
           {ar ? "المراجع: " : "Reviewer: "}
           {t.reviewer_name ||
             (ar ? "بدون مراجعة مستقلة" : "No independent review")}
+          {t.due_date ? ` · ${ar ? "التسليم: " : "Due: "}${t.due_date}` : ""}
         </p>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -942,6 +1204,27 @@ function TaskDetails({
                 : ar
                   ? "أرشفة المهمة"
                   : "Archive task"}
+            </Button>
+          )}
+          {!!t.due_date && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                downloadTaskIcs({
+                  id: t.id,
+                  title: t.title,
+                  dueDate: t.due_date,
+                  description: t.description,
+                  expectedOutcome: t.expected_outcome,
+                  assigneeName: t.assignee_name,
+                  priority: t.priority,
+                  status: t.column_status,
+                })
+              }
+            >
+              <Calendar className="me-2 h-4 w-4" />
+              {ar ? "إضافة للتقويم (.ics)" : "Add to Calendar (.ics)"}
             </Button>
           )}
           {t.cycle_id && (

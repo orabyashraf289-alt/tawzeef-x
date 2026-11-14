@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
       return respond("This document is awaiting review or already approved", 409);
     if ((previous?.length || 0) >= 5) return respond("Contact HR to upload another revision", 429);
 
-    const name = file.name.split(/[\\/]/).pop()?.replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 180) || `document.${types[file.type]}`;
+    const rawName = file.name.split(/[\\/]/).pop() || ""; const name = [...rawName].filter((ch) => { const code = ch.charCodeAt(0); return code >= 32 && code !== 127; }).join("").slice(0, 180) || `document.${types[file.type]}`;
     const path = `${order.company_id}/${order.id}/${kind}/${crypto.randomUUID()}.${types[file.type]}`;
     const { error: uploadError } = await db.storage.from(bucket).upload(path, bytes, {
       contentType: file.type, upsert: false, cacheControl: "0",

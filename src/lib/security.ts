@@ -148,7 +148,7 @@ export function logAuditEvent(params: {
       timestamp: new Date().toISOString(),
       ...params,
     });
-  } catch {}
+  } catch { /* ignore audit log failures */ }
 }
 
 // ─── Encryption / Decryption ───

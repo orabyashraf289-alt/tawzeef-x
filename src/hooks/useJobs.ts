@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { generateAndStoreJobQR } from "@/lib/qrCodeService";
-import { loadBrandSettings } from "@/lib/posterBrandSettings";
+import { loadBrandSettings, type PosterBrandSettings } from "@/lib/posterBrandSettings";
 import { notifyGoogleIndexing } from "@/lib/googleIndexingService";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -92,7 +92,7 @@ export async function resolveTenantCompanyScope(userId: string | undefined, spec
         .select("id")
         .eq("parent_company_id", cleanActiveId);
       const branchIds = (branches || [])
-        .map((b: any) => b.id)
+        .map((b) => b.id)
         .filter((bid: string) => bid && bid !== "undefined" && bid !== "null");
       return [cleanActiveId, ...branchIds];
     } catch {
@@ -108,10 +108,10 @@ export async function resolveTenantCompanyScope(userId: string | undefined, spec
         .eq("user_id", userId);
       if (members && members.length > 0) {
         return members
-          .map((m: any) => m.company_id)
+          .map((m) => m.company_id)
           .filter((cid: string) => cid && cid !== "undefined" && cid !== "null");
       }
-    } catch {}
+    } catch { /* ignore company_members scope lookup error */ }
   }
 
   return [];
@@ -169,10 +169,10 @@ export function useAddJob() {
       salaryMin?: string;
       salaryMax?: string;
       experience?: string;
-      approvalChain?: string;
+      approvalChain?: string; company_id?: string | null;
     }) => {
       // Fetch active company_id to attach to job
-      let companyId: string | null = (job as any).company_id || getActiveCompanyId();
+      let companyId: string | null = job.company_id || getActiveCompanyId();
       if (!companyId && user?.id) {
         try {
           const { data: memberData } = await supabase
@@ -231,7 +231,7 @@ export function useAddJob() {
               .eq("id", companyId)
               .maybeSingle();
             if (compData?.brand_settings) {
-              brand = { ...brand, ...(compData.brand_settings as any) };
+              brand = { ...brand, ...(compData.brand_settings as Partial<PosterBrandSettings>) };
             }
           }
         } catch (err) {
@@ -279,7 +279,7 @@ export function useUpdateJob() {
       salaryMin?: string;
       salaryMax?: string;
       experience?: string;
-      approvalChain?: string;
+      approvalChain?: string; company_id?: string | null;
     }) => {
       const payload: Omit<JobPayload, "user_id"> = {
         title: job.title,
@@ -361,7 +361,7 @@ export function useCandidates(specificCompanyId?: string | null) {
           .select("id")
           .or(jobOrConditions.join(","));
         if (scopeError) throw scopeError;
-        scopedJobIds = (scopeJobs || []).map((j: any) => j.id);
+        scopedJobIds = (scopeJobs || []).map((j) => j.id);
       }
 
       // 3. Fetch candidates table strictly scoped to this tenant

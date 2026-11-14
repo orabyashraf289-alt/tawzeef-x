@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
@@ -30,17 +31,24 @@ export interface AgencyAssignment {
   created_at: string;
 }
 
+interface AgencyAssignmentJoined extends AgencyAssignment {
+  company: { name: string } | null;
+  agency: { name: string } | null;
+}
+
+type CandidateRow = Tables<"candidates">;
+
 export function useAllAgencies() {
   return useQuery({
     queryKey: ["all-agencies"],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("agencies" as any)
+        .from("agencies")
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as unknown as Agency[];
+      return data as Agency[];
     },
   });
 }
@@ -54,12 +62,13 @@ export function useMyAgencies() {
     queryFn: async () => {
       if (user?.id) {
         const { data, error } = await supabase
-          .from("agency_members" as any)
+          .from("agency_members")
           .select("member_role, agency:agency_id(*)")
           .eq("user_id", user.id);
 
         if (!error && data && data.length > 0) {
-          return (data as any[]).map((r) => ({ ...r.agency, member_role: r.member_role })) as (Agency & { member_role: string })[];
+          const rows = data as unknown as Array<{ member_role: string; agency: Agency | null }>;
+          return rows.map((r) => ({ ...(r.agency as Agency), member_role: r.member_role })) as (Agency & { member_role: string })[];
         }
       }
 
@@ -74,18 +83,18 @@ export function useCreateAgency() {
   return useMutation({
     mutationFn: async (input: Partial<Agency>) => {
       const { data, error } = await supabase
-        .from("agencies" as any)
-        .insert(input as any)
+        .from("agencies")
+        .insert(input as TablesInsert<"agencies">)
         .select()
         .single();
       if (error) throw error;
-      return data as unknown as Agency;
+      return data as Agency;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["all-agencies"] });
       toast({ title: "تم إنشاء المكتب ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -93,14 +102,14 @@ export function useUpdateAgency() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...input }: Partial<Agency> & { id: string }) => {
-      const { error } = await supabase.from("agencies" as any).update(input as any).eq("id", id);
+      const { error } = await supabase.from("agencies").update(input as TablesUpdate<"agencies">).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["all-agencies"] });
       toast({ title: "تم التحديث ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -108,14 +117,14 @@ export function useDeleteAgency() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("agencies" as any).delete().eq("id", id);
+      const { error } = await supabase.from("agencies").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["all-agencies"] });
       toast({ title: "تم الحذف ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -126,21 +135,21 @@ export function useAgencyAssignments(agencyId?: string, companyId?: string) {
     gcTime: 10 * 60 * 1000,
     queryFn: async () => {
       let q = supabase
-        .from("agency_assignments" as any)
+        .from("agency_assignments")
         .select("*, company:companies!agency_assignments_company_id_fkey(name), agency:agencies!agency_assignments_agency_id_fkey(name)")
         .order("created_at", { ascending: false });
       if (agencyId) q = q.eq("agency_id", agencyId);
       if (companyId) q = q.eq("company_id", companyId);
       const { data, error } = await q;
       if (error) throw error;
-      const rows = (data || []) as any[];
-      const candidateIds = [...new Set(rows.map(row => row.candidate_id).filter(Boolean))];
+      const rows = (data || []) as unknown as AgencyAssignmentJoined[];
+      const candidateIds = [...new Set(rows.map(row => row.candidate_id).filter((id): id is string => Boolean(id)))];
       if (!candidateIds.length) return rows.map(row => ({ ...row, candidate: null }));
       const { data: candidates, error: candidateError } = await supabase.from("candidates")
         .select("id,name,email,stage,status").in("id", candidateIds);
       if (candidateError) throw candidateError;
       const byId = new Map((candidates || []).map(candidate => [candidate.id, candidate]));
-      return rows.map(row => ({ ...row, candidate: byId.get(row.candidate_id) || null }));
+      return rows.map(row => ({ ...row, candidate: (row.candidate_id ? byId.get(row.candidate_id) : null) || null }));
     },
   });
 }
@@ -149,7 +158,7 @@ export function useDeleteAssignment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("agency_assignments" as any).delete().eq("id", id);
+      const { error } = await supabase.from("agency_assignments").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -163,14 +172,14 @@ export function useCreateAssignment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: Partial<AgencyAssignment>) => {
-      const { error } = await supabase.from("agency_assignments" as any).insert(input as any);
+      const { error } = await supabase.from("agency_assignments").insert(input as TablesInsert<"agency_assignments">);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["agency-assignments"] });
       toast({ title: "تم الربط ✅" });
     },
-    onError: (e: any) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "خطأ", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -181,16 +190,16 @@ export function useAgencyCandidates(agencyId: string | undefined) {
     staleTime: 3 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     queryFn: async () => {
-      const direct = await (supabase as any).from("candidates").select("*").eq("agency_id", agencyId!);
+      const direct = await supabase.from("candidates").select("*").eq("agency_id", agencyId!);
       const assignments = await supabase
-        .from("agency_assignments" as any)
+        .from("agency_assignments")
         .select("candidate_id, company_id")
         .eq("agency_id", agencyId!)
         .eq("status", "active")
         .not("candidate_id", "is", null);
 
-      const idsFromAssignments = (assignments.data as any[] || []).map((a) => a.candidate_id).filter(Boolean);
-      let extra: any[] = [];
+      const idsFromAssignments = (assignments.data || []).map((a) => a.candidate_id).filter((id): id is string => Boolean(id));
+      let extra: CandidateRow[] = [];
       if (idsFromAssignments.length > 0) {
         const { data } = await supabase.from("candidates").select("*").in("id", idsFromAssignments);
         extra = data || [];

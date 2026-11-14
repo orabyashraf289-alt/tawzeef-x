@@ -173,7 +173,7 @@ ${job.salary_min ? `💰 الراتب: من ${job.salary_min} إلى ${job.salar
         status,
         status_code: statusCode,
         error_message: errorMessage,
-      } as any);
+      });
 
     if (logError) console.error("Failed to log delivery to database:", logError);
 

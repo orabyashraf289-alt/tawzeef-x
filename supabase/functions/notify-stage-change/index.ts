@@ -1,4 +1,37 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+interface JobRelation {
+  title?: string | null;
+  user_id?: string | null;
+  company_id?: string | null;
+}
+
+interface CandidateRecord {
+  id: string;
+  company_id: string | null;
+  user_id: string;
+  stage: string | null;
+  name: string;
+  email: string;
+  jobs?: JobRelation | null;
+  [key: string]: unknown;
+}
+
+interface ApplicationRecord {
+  id: string;
+  company_id: string | null;
+  job_id: string;
+  name: string;
+  email: string;
+  phone: string;
+  specialty?: string | null;
+  tracking_code?: string | null;
+  experience?: string | null;
+  resume_url?: string | null;
+  skills?: string[] | null;
+  cover_letter?: string | null;
+  jobs?: JobRelation | null;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -98,7 +131,7 @@ function buildAssessmentEmail(candidateName: string, assessmentTitle: string, as
 }
 
 async function getCustomTemplate(
-  supabase: any,
+  supabase: SupabaseClient,
   companyId: string | null,
   templateType: "approval" | "rejection" | "assessment"
 ) {
@@ -197,8 +230,8 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    let candidate: any = null;
-    let application: any = null;
+    let candidate: CandidateRecord | null = null;
+    let application: ApplicationRecord | null = null;
     const { data: candData, error: candidateError } = await supabase
       .from("candidates")
       .select("*, jobs(title, user_id)")
@@ -265,9 +298,10 @@ Deno.serve(async (req) => {
       candidate = createdCand;
     }
 
+    if (!candidate) throw new Error("Candidate not found");
     const oldStage = candidate.stage;
     const jobTitle = candidate.jobs?.title || "";
-    const updates: Record<string, any> = {};
+    const updates: Record<string, unknown> = {};
 
     if (action === "reject") {
       updates.status = "مرفوض";
@@ -422,7 +456,7 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

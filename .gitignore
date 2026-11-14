@@ -39,6 +39,8 @@ test-*.ts
 create-*.ts
 check-*.ts
 
-
+# Playwright artifacts
+playwright-report/
+test-results/
 
 .vercel

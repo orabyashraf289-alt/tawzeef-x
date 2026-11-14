@@ -89,6 +89,13 @@ jobs:
             IF to_regprocedure('public.get_auth_triggers()') IS NOT NULL THEN
               RAISE EXCEPTION 'Privileged Auth diagnostic must not be exposed';
             END IF;
+            IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.company_departments'::regclass)
+               OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.job_requisitions'::regclass)
+               OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.requisition_approvals'::regclass)
+               OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.automation_outbound_queue'::regclass)
+               OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.company_retention_policies'::regclass) THEN
+              RAISE EXCEPTION 'Phase 1/2/4 tables must enforce Row Level Security';
+            END IF;
           END $$;
           SQL
       - name: Verify custom role tenant isolation
@@ -226,6 +233,12 @@ jobs:
           database_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
           test -n "$database_container"
           docker exec -i "$database_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/hiring_integrity.sql
+
+      - name: Verify manpower planning and job requisitions RLS and lifecycle
+        run: |
+          database_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
+          test -n "$database_container"
+          docker exec -i "$database_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/job_requisitions.sql
 
       - name: Stop local database
         if: always()

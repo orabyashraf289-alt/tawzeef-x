@@ -1,4 +1,4 @@
-import { parseJobCustomSpecs } from "./jobSpecsHelper";
+import { parseJobCustomSpecs, type JobSpecsSource } from "./jobSpecsHelper";
 
 const ARABIC_MONTHS: Record<string, number> = {
   "يناير": 0, "كانون الثاني": 0,
@@ -56,7 +56,7 @@ export function parseDeadlineDate(raw?: string | null): Date | null {
   }
 
   // 3. DD/MM/YYYY or DD-MM-YYYY
-  const slashMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  const slashMatch = str.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (slashMatch) {
     const day = parseInt(slashMatch[1], 10);
     const month = parseInt(slashMatch[2], 10) - 1;
@@ -74,10 +74,15 @@ export interface JobAvailability {
   reason?: string;
 }
 
+export interface JobSeoInput extends JobSpecsSource {
+  status?: string | null;
+  created_at?: string | null;
+}
+
 /**
  * Assesses whether a job is currently active, open for applications, or expired according to Google JobPosting standards.
  */
-export function getJobAvailability(job: any): JobAvailability {
+export function getJobAvailability(job?: JobSeoInput | null): JobAvailability {
   if (!job) {
     return { isOpen: false, isExpired: false, validThroughIso: "", reason: "not_found" };
   }
@@ -120,7 +125,7 @@ export function getJobAvailability(job: any): JobAvailability {
 /**
  * Returns true if a job is public, active, and has not passed its expiration deadline.
  */
-export function isJobActiveAndOpen(job: any): boolean {
+export function isJobActiveAndOpen(job?: JobSeoInput | null): boolean {
   const availability = getJobAvailability(job);
   return availability.isOpen;
 }

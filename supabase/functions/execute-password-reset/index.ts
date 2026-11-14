@@ -79,8 +79,8 @@ Deno.serve(async (req) => {
 
     console.log(`Password successfully reset for user: ${normalizedEmail}`);
     return json({ success: true, message: "تم تغيير كلمة المرور بنجاح." });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("execute-password-reset error:", error);
-    return json({ error: error.message || "حدث خطأ أثناء معالجة الطلب" }, 500);
+    return json({ error: error instanceof Error ? error.message : "حدث خطأ أثناء معالجة الطلب" }, 500);
   }
 });

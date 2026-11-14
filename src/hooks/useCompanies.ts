@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Json, Tables } from "@/integrations/supabase/types";
+import type { Json, Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -8,6 +8,8 @@ import {
   purgeOrphanedBranches,
   deactivateCompany,
   reactivateCompany,
+  type CompanyDeletionResult,
+  type OrphanPurgeResult,
 } from "@/services/companyDeletionService";
 
 export type CompanyRow = Tables<"companies">;
@@ -29,12 +31,15 @@ export interface CompanyMember extends CompanyMemberRow {
 }
 
 // Helper to encode custom company metadata into DB-safe notes JSON
-export function prepareCompanyPayload(input: Record<string, any>, existingNotes?: string | null) {
-  let existingMeta: Record<string, any> = {};
+export function prepareCompanyPayload(
+  input: Record<string, unknown> | Partial<Company>,
+  existingNotes?: string | null
+) {
+  let existingMeta: Record<string, unknown> = {};
   if (existingNotes) {
     try {
       existingMeta = typeof existingNotes === "string" && existingNotes.startsWith("{")
-        ? JSON.parse(existingNotes)
+        ? (JSON.parse(existingNotes) as Record<string, unknown>)
         : { description: existingNotes };
     } catch {
       existingMeta = { description: existingNotes };
@@ -44,13 +49,24 @@ export function prepareCompanyPayload(input: Record<string, any>, existingNotes?
   // Extract non-schema custom fields
   // NOTE: parent_company_id IS a real column in the DB (migration 20260708130000)
   //       so it must be written to the actual column AND optionally kept in notes for backward compat.
-  const { parent_company_id, manager_user_id, address, e2e_encryption, brand_settings, notes: inputNotes, description: inputDesc, ...schemaFields } = input;
+  const {
+    parent_company_id,
+    manager_user_id,
+    address,
+    e2e_encryption,
+    brand_settings,
+    notes: inputNotes,
+    description: inputDesc,
+    ...schemaFields
+  } = input as Record<string, unknown>;
 
   const cleanDesc = typeof inputNotes === "string" && !inputNotes.startsWith("{")
     ? inputNotes
     : typeof inputDesc === "string"
     ? inputDesc
-    : existingMeta.description || null;
+    : typeof existingMeta.description === "string"
+    ? existingMeta.description
+    : null;
 
   // Remove parent_company_id from notes JSON (it now lives in the real column)
   const { parent_company_id: _old, ...existingMetaClean } = existingMeta;
@@ -67,8 +83,8 @@ export function prepareCompanyPayload(input: Record<string, any>, existingNotes?
   return {
     ...schemaFields,
     // Write parent_company_id to the REAL column so RLS branch policies work
-    ...(parent_company_id !== undefined ? { parent_company_id: parent_company_id || null } : {}),
-    ...(manager_user_id !== undefined ? { manager_user_id: manager_user_id || null } : {}),
+    ...(parent_company_id !== undefined ? { parent_company_id: (parent_company_id as string | null) || null } : {}),
+    ...(manager_user_id !== undefined ? { manager_user_id: (manager_user_id as string | null) || null } : {}),
     notes: Object.keys(mergedMeta).length > 0 ? JSON.stringify(mergedMeta) : null,
   };
 }
@@ -236,7 +252,7 @@ export function useAddCompanyMember() {
         company_id: companyId,
         user_id: userId,
         member_role: role,
-      } as any);
+      });
       if (error) throw error;
     },
     onSuccess: (_, v) => {
@@ -288,7 +304,7 @@ export function useCreateCompany() {
       const payload = prepareCompanyPayload(input);
       const { data, error } = await supabase
         .from("companies")
-        .insert(payload as any)
+        .insert(payload as TablesInsert<"companies">)
         .select()
         .single();
       if (error) throw error;
@@ -345,7 +361,7 @@ export function useUpdateCompany() {
         .maybeSingle();
 
       const payload = prepareCompanyPayload(input, existing?.notes);
-      const { error } = await supabase.from("companies").update(payload as any).eq("id", id);
+      const { error } = await supabase.from("companies").update(payload as TablesUpdate<"companies">).eq("id", id);
       if (error) throw error;
     },
     onSuccess: (_, v) => {
@@ -364,7 +380,7 @@ export function useDeleteCompany() {
     mutationFn: async (id: string) => {
       return await deleteCompanyPermanently(id);
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: CompanyDeletionResult) => {
       qc.invalidateQueries({ queryKey: ["all-companies"] });
       qc.invalidateQueries({ queryKey: ["company-branches"] });
       qc.invalidateQueries({ queryKey: ["my-companies"] });
@@ -398,7 +414,7 @@ export function usePurgeOrphanedBranches() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (_branchIds: string[]) => purgeOrphanedBranches(),
-    onSuccess: (res: any) => {
+    onSuccess: (res: OrphanPurgeResult) => {
       qc.invalidateQueries({ queryKey: ["all-companies"] });
       qc.invalidateQueries({ queryKey: ["company-branches"] });
       qc.invalidateQueries({ queryKey: ["my-companies"] });
@@ -480,7 +496,7 @@ export function useCompanyBranches(parentId: string | undefined) {
       const managerUserIds = Array.from(
         new Set(branchCompanies.map((c) => c.manager_user_id).filter(Boolean))
       ) as string[];
-      let profilesMap: Record<string, unknown> = {};
+      const profilesMap: Record<string, ProfileRow> = {};
 
       if (managerUserIds.length > 0) {
         const { data: profs } = await supabase
@@ -517,7 +533,7 @@ export function useCreateCompanyBranch() {
       // 1) Insert branch company
       const { data: comp, error: compErr } = await supabase
         .from("companies")
-        .insert(payload as any)
+        .insert(payload as TablesInsert<"companies">)
         .select()
         .single();
 
@@ -532,7 +548,7 @@ export function useCreateCompanyBranch() {
             company_id: comp.id,
             user_id: user.id,
             member_role: "owner"
-          } as any);
+          });
       }
 
       // 3) Add assigned branch manager to company_members if specified and not user
@@ -543,7 +559,7 @@ export function useCreateCompanyBranch() {
             company_id: comp.id,
             user_id: input.manager_user_id,
             member_role: "hr"
-          } as any);
+          });
       }
 
       return comp as unknown as Company;

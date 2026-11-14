@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import IntegrationRealitySummary from "@/components/roadmap/IntegrationRealitySummary";
 
 interface TaskItem {
   key: string;
@@ -28,6 +29,13 @@ interface TaskItem {
   titleEn: string;
   defaultDone: boolean;
   icon: React.ElementType;
+  note?: string;
+  noteEn?: string;
+}
+
+interface RoadmapTaskRow {
+  task_key: string;
+  done: boolean;
 }
 
 interface SubSection {
@@ -145,7 +153,15 @@ const phases: Phase[] = [
       {
         title: "تحسين الأمان", titleEn: "Security Enhancement", icon: Lock,
         tasks: [
-          { key: "p2-e2e", title: "تشفير البيانات الحساسة end-to-end", titleEn: "End-to-end encryption", defaultDone: true, icon: Lock },
+          {
+            key: "p2-e2e",
+            title: "تشفير البيانات الحساسة end-to-end (قيد الاستكمال)",
+            titleEn: "End-to-end encryption (incomplete)",
+            defaultDone: false,
+            icon: Lock,
+            note: "تشفير AES-GCM مطبّق على بيانات SMTP فقط؛ التشفير الكامل من طرف لطرف لبيانات المرشحين والشركات غير مكتمل.",
+            noteEn: "AES-GCM applies to SMTP credentials only; full end-to-end encryption across candidate and tenant records is incomplete.",
+          },
           { key: "p2-sessions", title: "سجل جلسات تسجيل الدخول", titleEn: "Login session log", defaultDone: true, icon: Shield },
           { key: "p2-pw-policy", title: "سياسة كلمة مرور قابلة للتخصيص", titleEn: "Customizable password policy", defaultDone: true, icon: KeyRound },
           { key: "p2-suspicious", title: "تنبيهات أمنية عند تسجيل دخول مشبوه", titleEn: "Suspicious login alerts", defaultDone: true, icon: Shield },
@@ -180,11 +196,51 @@ const phases: Phase[] = [
       {
         title: "تكاملات خارجية", titleEn: "External Integrations", icon: Link2,
         tasks: [
-          { key: "p3-linkedin", title: "ربط مباشر مع LinkedIn Recruiter API", titleEn: "LinkedIn Recruiter API integration", defaultDone: true, icon: Link2 },
-          { key: "p3-indeed", title: "ربط مع Indeed و Bayt.com", titleEn: "Indeed & Bayt.com integration", defaultDone: true, icon: Globe },
-          { key: "p3-hr", title: "تكامل مع أنظمة HR", titleEn: "HR system integration (SAP, Oracle)", defaultDone: true, icon: Building },
-          { key: "p3-slack", title: "تكامل مع Slack/Teams", titleEn: "Slack/Teams integration", defaultDone: true, icon: Zap },
-          { key: "p3-calendar", title: "ربط مع Google Calendar و Outlook", titleEn: "Google Calendar & Outlook integration", defaultDone: true, icon: Clock },
+          {
+            key: "p3-linkedin",
+            title: "ربط LinkedIn OAuth ونشر الوظائف (+ Zapier)",
+            titleEn: "LinkedIn OAuth & job publishing (+ Zapier)",
+            defaultDone: true,
+            icon: Link2,
+            note: "مفعّل عبر linkedin-oauth و linkedin-post و Zapier Webhook؛ مزامنة مقاعد LinkedIn Recruiter الكاملة غير مشمولة.",
+            noteEn: "Live via linkedin-oauth, linkedin-post & Zapier webhook; full LinkedIn Recruiter seat sync is not included.",
+          },
+          {
+            key: "p3-indeed",
+            title: "ربط مع Indeed و Bayt.com",
+            titleEn: "Indeed & Bayt.com integration",
+            defaultDone: false,
+            icon: Globe,
+            note: "غير مبني بعد — لا يوجد تكامل API فعلي مع Indeed أو Bayt.com حتى الآن.",
+            noteEn: "Unbuilt — no live Indeed or Bayt.com API connector exists yet.",
+          },
+          {
+            key: "p3-hr",
+            title: "تكامل مع أنظمة HR (SAP, Oracle)",
+            titleEn: "HR system integration (SAP, Oracle)",
+            defaultDone: false,
+            icon: Building,
+            note: "غير مبني بعد — لا يوجد موصّل فعلي لأنظمة SAP أو Oracle HRIS.",
+            noteEn: "Unbuilt — no live SAP or Oracle HRIS connector exists yet.",
+          },
+          {
+            key: "p3-slack",
+            title: "تكامل مع Slack/Teams",
+            titleEn: "Slack/Teams integration",
+            defaultDone: false,
+            icon: Zap,
+            note: "غير مبني بعد — لا يوجد موصّل مباشر لـ Slack أو Teams (تتوفر Webhooks عامة صادرة).",
+            noteEn: "Unbuilt — no native Slack or Teams app yet (generic outgoing webhooks are available).",
+          },
+          {
+            key: "p3-calendar",
+            title: "مزامنة ثنائية مع Google Calendar و Outlook (تغذية .ics مفعّلة)",
+            titleEn: "Google Calendar & Outlook two-way sync (.ics feed live; OAuth pending)",
+            defaultDone: false,
+            icon: Clock,
+            note: "اشتراك تغذية .ics الموقّعة (calendar-ics-feed) وزر الإضافة السريعة متاحان؛ المزامنة الثنائية عبر OAuth ما زالت مخططة.",
+            noteEn: "Signed read-only .ics feed (calendar-ics-feed) and quick-add link are live; two-way OAuth sync remains pending.",
+          },
         ],
       },
       {
@@ -348,13 +404,15 @@ function useRoadmapTasks() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
-        .from("roadmap_tasks" as any)
+      const { data, error } = await supabase
+        .from("roadmap_tasks")
         .select("task_key, done")
         .eq("user_id", user.id);
-      if (data && (data as any[]).length > 0) {
+      if (!error && data && data.length > 0) {
         const merged = { ...defaultState };
-        (data as any[]).forEach((row: any) => { merged[row.task_key] = row.done; });
+        data.forEach((row: RoadmapTaskRow) => {
+          merged[row.task_key] = row.done;
+        });
         setTaskStates(merged);
       }
       setLoaded(true);
@@ -367,8 +425,11 @@ function useRoadmapTasks() {
     setTaskStates(prev => ({ ...prev, [key]: newVal }));
 
     const { error } = await supabase
-      .from("roadmap_tasks" as any)
-      .upsert({ user_id: user.id, task_key: key, done: newVal, updated_at: new Date().toISOString() } as any, { onConflict: "user_id,task_key" });
+      .from("roadmap_tasks")
+      .upsert(
+        { user_id: user.id, task_key: key, done: newVal, updated_at: new Date().toISOString() },
+        { onConflict: "user_id,task_key" }
+      );
     
     if (error) {
       setTaskStates(prev => ({ ...prev, [key]: !newVal }));
@@ -540,16 +601,24 @@ function PhaseCard({ phase, isAr, taskStates, onToggle }: { phase: Phase; isAr: 
                     <div className="grid gap-1.5 ps-6">
                       {section.tasks.map((task) => {
                         const isDone = taskStates[task.key] ?? task.defaultDone;
+                        const taskNote = isAr ? task.note : task.noteEn;
                         return (
                           <div
                             key={task.key}
-                            className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded-md px-1 py-0.5 transition-colors"
+                            className="space-y-0.5 cursor-pointer hover:bg-muted/50 rounded-md px-1 py-0.5 transition-colors"
                             onClick={(e) => { e.stopPropagation(); onToggle(task.key); }}
                           >
-                            <Checkbox checked={isDone} className="shrink-0" onCheckedChange={() => onToggle(task.key)} onClick={(e) => e.stopPropagation()} />
-                            <span className={cn(isDone ? "text-muted-foreground line-through" : "text-foreground")}>
-                              {isAr ? task.title : task.titleEn}
-                            </span>
+                            <div className="flex items-center gap-2 text-sm">
+                              <Checkbox checked={isDone} className="shrink-0" onCheckedChange={() => onToggle(task.key)} onClick={(e) => e.stopPropagation()} />
+                              <span className={cn(isDone ? "text-muted-foreground line-through" : "text-foreground")}>
+                                {isAr ? task.title : task.titleEn}
+                              </span>
+                            </div>
+                            {taskNote && (
+                              <p className="text-xs text-muted-foreground ps-6 leading-relaxed">
+                                {taskNote}
+                              </p>
+                            )}
                           </div>
                         );
                       })}
@@ -638,6 +707,9 @@ export default function Roadmap() {
             <Progress value={overallPercent} className="mt-2 h-1.5" />
           </Card>
         </div>
+
+        {/* Verified Integration Reality Summary */}
+        <IntegrationRealitySummary isAr={isAr} />
 
         {/* Timeline Chart */}
         <TimelineChart isAr={isAr} taskStates={taskStates} />

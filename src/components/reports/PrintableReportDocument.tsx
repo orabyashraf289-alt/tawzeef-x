@@ -1,23 +1,20 @@
 import React from "react";
 import {
+  Award,
   BarChart3,
   Briefcase,
-  Users,
-  Calendar,
-  Award,
-  CheckCircle2,
-  DollarSign,
-  Clock,
   Building2,
-  TrendingUp,
-  ShieldCheck,
-  FileSpreadsheet,
+  CheckCircle2,
   Globe,
+  ShieldCheck,
   Sparkles,
+  TrendingUp,
+  Users,
 } from "lucide-react";
-import SARSymbol, { formatSAR } from "@/components/SARSymbol";
+import { formatSAR } from "@/components/SARSymbol";
+import type { ReportsDocumentPayload } from "./reportTypes";
 
-export interface PrintableReportData {
+export interface PrintableReportData extends Partial<ReportsDocumentPayload> {
   companyName?: string;
   reportTitle?: string;
   reportType?: string;
@@ -25,31 +22,11 @@ export interface PrintableReportData {
   dateRangeText?: string;
   includeSignatures?: boolean;
   includeRecommendations?: boolean;
-  activeCompany?: any;
-  branchesData?: any[];
-  allCandidates: any[];
-  allJobs: any[];
-  allInterviews: any[];
-  allOffers: any[];
-  funnelData?: any[];
-  departmentData?: any[];
-  sourceData?: any[];
-  qualityRadarData?: any[];
-  kpis: {
-    totalJobs: number;
-    activeJobs: number;
-    totalCandidates: number;
-    shortlistedCandidates: number;
-    totalInterviews: number;
-    completedInterviews: number;
-    totalOffers: number;
-    acceptedOffers: number;
-    rejectedOffers: number;
-    acceptanceRate: number;
-    avgDaysToHire: number | null;
-    estimatedCostPerHire: number;
-    totalHiringCost: number;
-  };
+  allCandidates: ReportsDocumentPayload["allCandidates"];
+  allJobs: ReportsDocumentPayload["allJobs"];
+  allInterviews: ReportsDocumentPayload["allInterviews"];
+  allOffers: ReportsDocumentPayload["allOffers"];
+  kpis: ReportsDocumentPayload["kpis"];
 }
 
 interface Props {
@@ -78,8 +55,6 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
     const showDepartments = isAll || selectedReportKey === "departments";
     const showSources = isAll || selectedReportKey === "sources";
     const showOffers = isAll || selectedReportKey === "offers";
-    const showQuality = isAll || selectedReportKey === "quality";
-    const showInterviews = isAll || selectedReportKey === "interviews";
 
     return (
       <div
@@ -88,9 +63,6 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
         className="w-full max-w-[210mm] mx-auto bg-white text-slate-900 font-sans p-8 sm:p-10 shadow-sm border border-slate-200 rounded-lg print:border-none print:shadow-none print:p-0 print:m-0 print:w-full print:max-w-none leading-relaxed text-sm"
         dir={isAr ? "rtl" : "ltr"}
       >
-        {/* ==================================================================== */}
-        {/* DOCUMENT HEADER */}
-        {/* ==================================================================== */}
         <header className="border-b-2 border-emerald-600 pb-6 mb-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -118,7 +90,9 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
             <div className="text-left rtl:text-right space-y-1 text-xs text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-200 min-w-[200px]">
               <div className="flex justify-between gap-2">
                 <span className="font-semibold text-slate-500">{isAr ? "رقم المستند:" : "Doc Ref:"}</span>
-                <span className="font-mono font-bold text-slate-800">TX-REP-{new Date().getFullYear()}-{Math.floor(1000 + Math.random() * 9000)}</span>
+                <span className="font-mono font-bold text-slate-800">
+                  TX-REP-{new Date().getFullYear()}-{Math.floor(1000 + Math.random() * 9000)}
+                </span>
               </div>
               <div className="flex justify-between gap-2">
                 <span className="font-semibold text-slate-500">{isAr ? "تاريخ الإصدار:" : "Issue Date:"}</span>
@@ -140,7 +114,10 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
           <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
             <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
               <BarChart3 className="w-6 h-6 text-emerald-600" />
-              {data.reportTitle || (isAr ? "التقرير التنفيذي الشامل للتوظيف ومؤشرات الأداء" : "Comprehensive Recruitment & KPI Executive Report")}
+              {data.reportTitle ||
+                (isAr
+                  ? "التقرير التنفيذي الشامل للتوظيف ومؤشرات الأداء"
+                  : "Comprehensive Recruitment & KPI Executive Report")}
             </h1>
             <span className="text-xs bg-slate-100 text-slate-700 px-3 py-1 rounded-full font-bold">
               {isAr ? "نسخة جاهزة للطباعة والاعتماد" : "Print & Archive Ready"}
@@ -148,9 +125,6 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
           </div>
         </header>
 
-        {/* ==================================================================== */}
-        {/* EXECUTIVE SUMMARY BOX */}
-        {/* ==================================================================== */}
         <section className="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-200">
           <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-2 flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-emerald-600" />
@@ -160,7 +134,8 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
             {isAr ? (
               <>
                 يقدم هذا التقرير تحليلاً شاملاً لأداء عمليات التوظيف ومسارات الفرز في المؤسسة خلال الفترة المحددة. بلغ إجمالي الشواغر الوظيفية{" "}
-                <strong className="text-slate-900 font-bold">{data.kpis.totalJobs} وظيفة</strong> (منها {data.kpis.activeJobs} شاغر نشط)، باستقبال{" "}
+                <strong className="text-slate-900 font-bold">{data.kpis.totalJobs} وظيفة</strong> (منها{" "}
+                {data.kpis.activeJobs} شاغر نشط)، باستقبال{" "}
                 <strong className="text-slate-900 font-bold">{data.kpis.totalCandidates} متقدم</strong>، وإجراء{" "}
                 <strong className="text-slate-900 font-bold">{data.kpis.totalInterviews} مقابلة</strong>. بلغت نسبة قبول العروض الوظيفية{" "}
                 <strong className="text-emerald-700 font-bold">{data.kpis.acceptanceRate}%</strong> بمتوسط وقت توظيف قدره{" "}
@@ -180,9 +155,6 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
           </p>
         </section>
 
-        {/* ==================================================================== */}
-        {/* KPI METRIC CARDS (GRID) */}
-        {/* ==================================================================== */}
         {showOverview && (
           <section className="mb-8">
             <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2 border-b border-slate-200 pb-1.5">
@@ -216,7 +188,10 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
 
               <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-center">
                 <div className="text-[11px] font-semibold text-slate-500 mb-1">{isAr ? "متوسط سرعة التعيين" : "Avg Time to Hire"}</div>
-                <div className="text-2xl font-black text-slate-900">{data.kpis.avgDaysToHire || 14} <span className="text-xs font-normal text-slate-500">{isAr ? "يوم" : "days"}</span></div>
+                <div className="text-2xl font-black text-slate-900">
+                  {data.kpis.avgDaysToHire || 14}{" "}
+                  <span className="text-xs font-normal text-slate-500">{isAr ? "يوم" : "days"}</span>
+                </div>
                 <div className="text-[10px] text-slate-500 mt-0.5">{isAr ? "من التقديم إلى القبول" : "From application"}</div>
               </div>
 
@@ -237,7 +212,8 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
                 <div className="text-2xl font-black text-emerald-700">
                   {data.kpis.totalCandidates > 0
                     ? Math.round((data.kpis.acceptedOffers / data.kpis.totalCandidates) * 100)
-                    : 0}%
+                    : 0}
+                  %
                 </div>
                 <div className="text-[10px] text-slate-500 mt-0.5">{isAr ? "نسبة التحويل الإجمالية" : "End-to-end conversion"}</div>
               </div>
@@ -245,9 +221,6 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
           </section>
         )}
 
-        {/* ==================================================================== */}
-        {/* SECTION 1: RECRUITMENT PIPELINE & FUNNEL */}
-        {/* ==================================================================== */}
         {showPipeline && data.funnelData && data.funnelData.length > 0 && (
           <section className="mb-8 break-inside-avoid">
             <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2 border-b border-slate-200 pb-1.5">
@@ -274,10 +247,7 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
                         <td className="p-2.5 text-center font-mono font-bold text-emerald-700">{f.rate}</td>
                         <td className="p-2.5">
                           <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200">
-                            <div
-                              className="bg-emerald-600 h-full rounded-full"
-                              style={{ width: `${Math.max(pct, 4)}%` }}
-                            />
+                            <div className="bg-emerald-600 h-full rounded-full" style={{ width: `${Math.max(pct, 4)}%` }} />
                           </div>
                         </td>
                       </tr>
@@ -289,9 +259,6 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
           </section>
         )}
 
-        {/* ==================================================================== */}
-        {/* SECTION 2: BRANCH PERFORMANCE */}
-        {/* ==================================================================== */}
         {showBranches && data.branchesData && data.branchesData.length > 0 && (
           <section className="mb-8 break-inside-avoid">
             <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2 border-b border-slate-200 pb-1.5">
@@ -316,14 +283,20 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
                     <tr key={i} className="hover:bg-slate-50">
                       <td className="p-2.5 font-bold text-slate-900">
                         {b.name}
-                        {b.isBranch && <span className="text-[10px] text-slate-400 font-normal mr-1.5">({isAr ? "فرع" : "Branch"})</span>}
+                        {b.isBranch && (
+                          <span className="text-[10px] text-slate-400 font-normal mr-1.5">
+                            ({isAr ? "فرع" : "Branch"})
+                          </span>
+                        )}
                       </td>
                       <td className="p-2.5 text-center font-mono">{b.jobsCount}</td>
                       <td className="p-2.5 text-center font-mono font-bold text-emerald-700">{b.candidatesCount}</td>
                       <td className="p-2.5 text-center font-mono">{b.interviewsCount}</td>
                       <td className="p-2.5 text-center font-mono font-bold text-slate-900">{b.hiredCount}</td>
                       <td className="p-2.5 text-center font-mono font-bold text-emerald-600">{b.conversionRate}%</td>
-                      <td className="p-2.5 text-center font-mono">{b.avgDaysToHire ? `${b.avgDaysToHire} ${isAr ? "يوم" : "d"}` : "-"}</td>
+                      <td className="p-2.5 text-center font-mono">
+                        {b.avgDaysToHire ? `${b.avgDaysToHire} ${isAr ? "يوم" : "d"}` : "-"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -332,9 +305,6 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
           </section>
         )}
 
-        {/* ==================================================================== */}
-        {/* SECTION 3: DEPARTMENT BREAKDOWN & SOURCES */}
-        {/* ==================================================================== */}
         {(showDepartments || showSources) && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 break-inside-avoid">
             {showDepartments && data.departmentData && data.departmentData.length > 0 && (
@@ -395,9 +365,6 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
           </div>
         )}
 
-        {/* ==================================================================== */}
-        {/* SECTION 4: JOB OFFERS & SALARIES TABLE */}
-        {/* ==================================================================== */}
         {showOffers && data.allOffers && data.allOffers.length > 0 && (
           <section className="mb-8 break-inside-avoid">
             <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2 border-b border-slate-200 pb-1.5">
@@ -419,17 +386,19 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
                   {data.allOffers.slice(0, 8).map((o, i) => {
                     const statusText =
                       o.status === "accepted"
-                        ? (isAr ? "مقبول ✅" : "Accepted")
+                        ? isAr ? "مقبول ✅" : "Accepted"
                         : o.status === "rejected"
-                        ? (isAr ? "مرفوض ❌" : "Rejected")
-                        : (isAr ? "قيد الانتظار ⏳" : "Pending");
+                          ? isAr ? "مرفوض ❌" : "Rejected"
+                          : isAr ? "قيد الانتظار ⏳" : "Pending";
                     return (
                       <tr key={i} className="hover:bg-slate-50">
                         <td className="p-2 font-bold text-slate-900">{o.position}</td>
                         <td className="p-2 font-mono font-bold text-emerald-700">
                           {formatSAR(o.salary, locale)}
                         </td>
-                        <td className="p-2 text-center text-slate-600">{o.offer_type || (isAr ? "دوام كامل" : "Full-time")}</td>
+                        <td className="p-2 text-center text-slate-600">
+                          {o.offer_type || (isAr ? "دوام كامل" : "Full-time")}
+                        </td>
                         <td className="p-2 text-center font-bold text-xs">{statusText}</td>
                         <td className="p-2 text-slate-500 font-mono text-[11px]">
                           {new Date(o.created_at).toLocaleDateString(isAr ? "ar-SA" : "en-US")}
@@ -443,9 +412,6 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
           </section>
         )}
 
-        {/* ==================================================================== */}
-        {/* SECTION 5: STRATEGIC RECOMMENDATIONS */}
-        {/* ==================================================================== */}
         {data.includeRecommendations !== false && (
           <section className="mb-8 p-4 rounded-xl bg-emerald-50/50 border border-emerald-200 break-inside-avoid">
             <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-900 mb-2 flex items-center gap-1.5">
@@ -470,16 +436,17 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
           </section>
         )}
 
-        {/* ==================================================================== */}
-        {/* SECTION 6: OFFICIAL SIGN-OFF & STAMPS */}
-        {/* ==================================================================== */}
         {data.includeSignatures !== false && (
           <footer className="pt-6 border-t-2 border-slate-300 break-inside-avoid">
             <div className="grid grid-cols-2 gap-8 mb-6">
               <div className="space-y-4">
-                <div className="text-xs font-bold text-slate-700">{isAr ? "إعداد ومراجعة مسؤول التوظيف:" : "Prepared & Reviewed by:"}</div>
+                <div className="text-xs font-bold text-slate-700">
+                  {isAr ? "إعداد ومراجعة مسؤول التوظيف:" : "Prepared & Reviewed by:"}
+                </div>
                 <div className="h-12 border-b border-dashed border-slate-300 flex items-end">
-                  <span className="text-xs text-slate-500 font-mono italic">{data.generatedBy || "مدير عمليات التوظيف"}</span>
+                  <span className="text-xs text-slate-500 font-mono italic">
+                    {data.generatedBy || "مدير عمليات التوظيف"}
+                  </span>
                 </div>
                 <div className="flex justify-between text-[11px] text-slate-500">
                   <span>{isAr ? "التوقيع: ____________" : "Signature: ____________"}</span>
@@ -488,7 +455,9 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
               </div>
 
               <div className="space-y-4">
-                <div className="text-xs font-bold text-slate-700">{isAr ? "اعتماد الإدارة التنفيذية / الموارد البشرية:" : "Approved by Head of HR / Exec:"}</div>
+                <div className="text-xs font-bold text-slate-700">
+                  {isAr ? "اعتماد الإدارة التنفيذية / الموارد البشرية:" : "Approved by Head of HR / Exec:"}
+                </div>
                 <div className="h-12 border-b border-dashed border-slate-300 flex items-end justify-between">
                   <span className="text-xs text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                     {isAr ? "معتمد وموثق رقمياً" : "Digitally Verified"}
@@ -502,14 +471,18 @@ export const PrintableReportDocument = React.forwardRef<HTMLDivElement, Props>(
             </div>
 
             <div className="flex items-center justify-between text-[10px] text-slate-400 pt-3 border-t border-slate-100">
-              <span>{isAr ? "تم إصدار هذا التقرير آلياً عبر منصة TawzeefX للتوظيف الذكي." : "Generated automatically via TawzeefX AI Hiring Platform."}</span>
+              <span>
+                {isAr
+                  ? "تم إصدار هذا التقرير آلياً عبر منصة TawzeefX للتوظيف الذكي."
+                  : "Generated automatically via TawzeefX AI Hiring Platform."}
+              </span>
               <span className="font-mono">https://www.tawzeefx.com</span>
             </div>
           </footer>
         )}
       </div>
     );
-  }
+  },
 );
 
 PrintableReportDocument.displayName = "PrintableReportDocument";

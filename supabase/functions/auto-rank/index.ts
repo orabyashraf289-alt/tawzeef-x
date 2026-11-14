@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
       .limit(1000);
     if (error) throw error;
     const rankings = (candidates || []).flatMap((candidate) => {
-      let report: any;
+      let report: { evidenceVersion?: unknown; score: number; summary?: unknown; evaluatedAt?: unknown } | null;
       try {
         report = typeof candidate.ai_evaluation === "string"
           ? JSON.parse(candidate.ai_evaluation)

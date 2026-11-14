@@ -63,24 +63,24 @@ Deno.serve(async (req) => {
         .select("id")
         .is("parent_company_id", null);
 
-      const parentIds = (parents || []).map((p: any) => p.id);
+      const parentIds = (parents || []).map((p: { id: string }) => p.id);
 
       const { data: allBranches } = await adminClient
         .from("companies")
         .select("id, name, parent_company_id")
         .not("parent_company_id", "is", null);
 
-      const orphanedBranches = (allBranches || []).filter((b: any) => !parentIds.includes(b.parent_company_id));
-      const orphanBranchIds = orphanedBranches.map((b: any) => b.id);
+      const orphanedBranches = (allBranches || []).filter((b: { id: string; name?: string | null; parent_company_id?: string | null }) => !parentIds.includes(b.parent_company_id));
+      const orphanBranchIds = orphanedBranches.map((b: { id: string }) => b.id);
 
       const validCompanyIds = new Set([
         ...parentIds,
-        ...(allBranches || []).filter((b: any) => parentIds.includes(b.parent_company_id)).map((b: any) => b.id),
+        ...(allBranches || []).filter((b: { id: string; parent_company_id?: string | null }) => parentIds.includes(b.parent_company_id)).map((b: { id: string }) => b.id),
       ]);
 
       const { data: allJobs } = await adminClient.from("jobs").select("id, company_id, title");
-      const orphanedJobs = (allJobs || []).filter((j: any) => !validCompanyIds.has(j.company_id));
-      const orphanJobIds = orphanedJobs.map((j: any) => j.id);
+      const orphanedJobs = (allJobs || []).filter((j: { id: string; company_id?: string | null; title?: string | null }) => !validCompanyIds.has(j.company_id));
+      const orphanJobIds = orphanedJobs.map((j: { id: string }) => j.id);
 
       if (orphanJobIds.length > 0) {
         await adminClient.from("applications").delete().in("job_id", orphanJobIds);
@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
           purged_branches_count: orphanBranchIds.length,
           purged_jobs_count: orphanJobIds.length,
           purged_users_count: purgedUsersCount,
-          purged_branches: orphanedBranches.map((o: any) => o.name),
+          purged_branches: orphanedBranches.map((o: { name?: string | null }) => o.name),
         }),
         {
           status: 200,
@@ -205,7 +205,7 @@ Deno.serve(async (req) => {
       .select("id, name")
       .eq("parent_company_id", companyId);
 
-    const allCompanyIds = [companyId, ...(branches || []).map((b: any) => b.id)];
+    const allCompanyIds = [companyId, ...(branches || []).map((b: { id: string }) => b.id)];
 
     // Collect jobs
     const { data: jobs = [] } = await adminClient
@@ -213,7 +213,7 @@ Deno.serve(async (req) => {
       .select("id, title")
       .in("company_id", allCompanyIds);
 
-    const jobIds = (jobs || []).map((j: any) => j.id);
+    const jobIds = (jobs || []).map((j: { id: string }) => j.id);
 
     // Collect applications
     const { count: applicationsCount = 0 } = await adminClient
@@ -246,9 +246,9 @@ Deno.serve(async (req) => {
 
     const candidateUserIds = Array.from(
       new Set([
-        ...(memberRows || []).map((m: any) => m.user_id),
-        ...(ownerRows || []).map((o: any) => o.owner_user_id),
-        ...(ownerRows || []).map((o: any) => o.user_id),
+        ...(memberRows || []).map((m: { user_id?: string | null }) => m.user_id),
+        ...(ownerRows || []).map((o: { owner_user_id?: string | null }) => o.owner_user_id),
+        ...(ownerRows || []).map((o: { user_id?: string | null }) => o.user_id),
       ].filter(Boolean))
     );
 
@@ -302,7 +302,7 @@ Deno.serve(async (req) => {
             companyName: targetCompany.name,
             status: targetCompany.status,
             branchesCount: branches.length,
-            branchesList: branches.map((b: any) => b.name),
+            branchesList: branches.map((b: { name: string }) => b.name),
             jobsCount: jobs.length,
             applicationsCount: applicationsCount || 0,
             candidatesCount: candidatesCount || 0,
@@ -363,7 +363,7 @@ Deno.serve(async (req) => {
             .list(cId, { limit: 100 });
 
           if (!listErr && fileList && fileList.length > 0) {
-            const filesToRemove = fileList.map((f: any) => `${cId}/${f.name}`);
+            const filesToRemove = fileList.map((f: { name: string }) => `${cId}/${f.name}`);
             const { error: removeErr } = await adminClient.storage
               .from(bucketName)
               .remove(filesToRemove);
@@ -452,11 +452,11 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("delete-company saga error:", err);
     return new Response(
       JSON.stringify({
-        error: err.message || "Internal server error during company deletion",
+        error: err instanceof Error ? err.message : "Internal server error during company deletion",
         code: "COMPANY_DELETE_ERROR",
       }),
       {

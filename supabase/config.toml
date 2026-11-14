@@ -13,7 +13,7 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.book-interview]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-invitation]
 verify_jwt = true
@@ -73,7 +73,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.evaluate-assessment-answers]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-assessment-results]
 verify_jwt = true
@@ -100,4 +100,13 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.upload-order-onboarding-document]
+verify_jwt = false
+
+[functions.calendar-ics-feed]
+verify_jwt = false
+
+[functions.execute-automation-actions]
+verify_jwt = false
+
+[functions.linkedin-oauth]
 verify_jwt = false

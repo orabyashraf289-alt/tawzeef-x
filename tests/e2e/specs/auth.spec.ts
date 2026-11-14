@@ -1,10 +1,12 @@
 import { test, expect } from "@playwright/test";
 import { AuthPagePom } from "../pages/AuthPage.pom";
+import { setupSupabaseMocks } from "../fixtures/supabaseMockHelper";
 
 test.describe("Authentication Page — Smoke & Security Validations", () => {
   let authPage: AuthPagePom;
 
   test.beforeEach(async ({ page }) => {
+    await setupSupabaseMocks(page);
     authPage = new AuthPagePom(page);
     await authPage.navigate();
   });
@@ -15,16 +17,17 @@ test.describe("Authentication Page — Smoke & Security Validations", () => {
     await expect(authPage.submitButton).toBeVisible();
   });
 
-  test("allows switching between Login and Signup tabs", async () => {
-    if (await authPage.tabSignup.isVisible()) {
-      await authPage.tabSignup.click();
-      await expect(authPage.tabSignup).toHaveAttribute("aria-selected", "true");
-    }
+  test("allows switching between Login and Signup views", async () => {
+    await authPage.switchToSignup();
+    await expect(authPage.fullNameInput).toBeVisible({ timeout: 5000 });
+    await expect(authPage.companyNameInput).toBeVisible();
+
+    await authPage.switchToLogin();
+    await expect(authPage.fullNameInput).toBeHidden();
   });
 
   test("shows client validation error on empty submit", async () => {
     await authPage.submitButton.click();
-    // HTML5 validation or form error
     const isValid = await authPage.emailInput.evaluate((el: HTMLInputElement) => el.checkValidity());
     expect(isValid).toBe(false);
   });

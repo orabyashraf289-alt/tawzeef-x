@@ -1,7 +1,20 @@
 import { motion } from "framer-motion";
 import { ArrowRightLeft, Users, AlertCircle } from "lucide-react";
 
-export default function BulkMovedCard({ data }: { data: { moved: any[]; failed: string[]; new_stage: string; moved_count: number; failed_count: number } }) {
+export interface BulkMovedEntry {
+  name: string;
+  old_stage: string;
+}
+
+export interface BulkMovedData {
+  moved: BulkMovedEntry[];
+  failed: string[];
+  new_stage: string;
+  moved_count: number;
+  failed_count: number;
+}
+
+export default function BulkMovedCard({ data }: { data: BulkMovedData }) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}

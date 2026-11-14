@@ -85,7 +85,20 @@ export function encodeJobDescription(description: string, specs?: JobCustomSpecs
 /**
  * Parses custom job specifications from a job object
  */
-export function parseJobCustomSpecs(job: any): { cleanDescription: string; specs: JobCustomSpecs; hasSpecs: boolean } {
+export interface JobSpecsSource {
+  description?: string | null;
+  school_type?: string | null;
+  curriculum?: string | null;
+  grade_level?: string | null;
+  weekly_classes?: string | null;
+  benefits_package?: string | null;
+  work_start_date?: string | null;
+  working_hours?: string | null;
+  class_size?: string | null;
+  application_deadline?: string | null;
+}
+
+export function parseJobCustomSpecs(job: JobSpecsSource | null | undefined): { cleanDescription: string; specs: JobCustomSpecs; hasSpecs: boolean } {
   if (!job) {
     return { cleanDescription: "", specs: {}, hasSpecs: false };
   }
@@ -93,7 +106,7 @@ export function parseJobCustomSpecs(job: any): { cleanDescription: string; specs
   const rawDescription = job.description || "";
   const match = rawDescription.match(SPECS_TAG_REGEX);
 
-  let cleanDescription = rawDescription.replace(SPECS_TAG_REGEX, "").trim();
+  const cleanDescription = rawDescription.replace(SPECS_TAG_REGEX, "").trim();
   let specs: JobCustomSpecs = {};
   let hasSpecs = false;
 

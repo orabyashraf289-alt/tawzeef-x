@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { DEFAULT_BRAND, loadBrandSettings, saveBrandSettings, type PosterBrandSettings } from "@/lib/posterBrandSettings";
 
@@ -41,7 +42,11 @@ export function useBrandSettings() {
 
       if (compErr || !compData?.brand_settings) return localFallback;
 
-      const merged = { ...DEFAULT_BRAND, ...localFallback, ...(compData.brand_settings as any) } as PosterBrandSettings;
+      const remoteBrand =
+        typeof compData.brand_settings === "object" && compData.brand_settings !== null && !Array.isArray(compData.brand_settings)
+          ? (compData.brand_settings as Partial<PosterBrandSettings>)
+          : {};
+      const merged: PosterBrandSettings = { ...DEFAULT_BRAND, ...localFallback, ...remoteBrand };
       saveBrandSettings(merged);
       return merged;
     },
@@ -66,7 +71,7 @@ export function useBrandSettings() {
 
       await supabase
         .from("companies")
-        .update({ brand_settings: next } as any)
+        .update({ brand_settings: next as unknown as Json })
         .eq("id", activeCompanyId);
     },
     onSuccess: () => {

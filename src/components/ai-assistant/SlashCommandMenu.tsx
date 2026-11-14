@@ -1,4 +1,4 @@
-import { Briefcase, Users, Calendar, FileText, BarChart3, Search, Mail } from "lucide-react";
+import { Briefcase, Users, Calendar, FileText, BarChart3, Search, Mail, type LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 
 export interface SlashCommand {
@@ -6,7 +6,7 @@ export interface SlashCommand {
   label: string;
   description: string;
   prompt: string;
-  icon: any;
+  icon: LucideIcon;
   autoSend?: boolean;
 }
 

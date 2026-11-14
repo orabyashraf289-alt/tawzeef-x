@@ -14,7 +14,11 @@ export function useCompactView() {
   const toggleCompact = useCallback(() => {
     setIsCompact(prev => {
       const next = !prev;
-      try { localStorage.setItem(STORAGE_KEY, String(next)); } catch {}
+      try {
+        localStorage.setItem(STORAGE_KEY, String(next));
+      } catch {
+        /* ignore storage write errors */
+      }
       return next;
     });
   }, []);

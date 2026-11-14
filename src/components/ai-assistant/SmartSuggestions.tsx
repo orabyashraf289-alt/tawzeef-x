@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Briefcase, Users, TrendingUp, Calendar, Mail, FileText, BarChart3, MessageSquare, Brain, ArrowUpRight, CheckCircle2 } from "lucide-react";
+import { Sparkles, Briefcase, Users, TrendingUp, Calendar, Mail, FileText, BarChart3, MessageSquare, Brain, ArrowUpRight, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 export interface SmartSuggestion {
   text: string;
-  icon: any;
+  icon: LucideIcon;
   category: "daily" | "action" | "analysis" | "communication";
   label: string;
 }

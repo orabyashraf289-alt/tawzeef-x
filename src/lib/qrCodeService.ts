@@ -141,7 +141,7 @@ export async function generateAndStoreJobQR(params: {
 
     await supabase
       .from("jobs")
-      .update({ qr_code_url: publicUrl } as any)
+      .update({ qr_code_url: publicUrl })
       .eq("id", params.jobId);
 
     return publicUrl;

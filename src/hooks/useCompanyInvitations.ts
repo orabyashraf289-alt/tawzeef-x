@@ -112,7 +112,7 @@ export function useCreateCompanyInvitation() {
         .select("name")
         .eq("id", companyId)
         .maybeSingle();
-      const companyName = companyData ? (companyData as { name?: string })?.name : "شركتنا";
+      const companyName = companyData ? companyData.name : "شركتنا";
 
       const { data, error } = await supabase
         .from("company_invitations")
@@ -121,15 +121,15 @@ export function useCreateCompanyInvitation() {
           branch_id: branchId || null,
           email: email.trim().toLowerCase(),
           member_role: role,
-          invited_by: user?.id,
-        } as any)
+          invited_by: user?.id ?? null,
+        })
         .select()
         .single();
       if (error) throw error;
-      return { ...(data as Record<string, unknown>), companyName, branchName, branchId };
+      return { ...data, companyName, branchName, branchId };
     },
 
-    onSuccess: (data: Record<string, unknown>, variables) => {
+    onSuccess: (data, variables) => {
       qc.invalidateQueries({ queryKey: ["company-invitations", data.company_id] });
       toast({ title: "تم إرسال دعوة الانضمام بنجاح 📩", description: "سيتم إرسال البريد الإلكتروني مع تفاصيل الفرع للموظف" });
 
@@ -199,7 +199,7 @@ export function useAcceptInvitation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (token: string) => {
-      const { data, error } = await supabase.rpc("accept_company_invitation" as any, { _token: token });
+      const { data, error } = await supabase.rpc("accept_company_invitation", { _token: token });
       if (error) throw error;
       return data as { success: boolean; code?: string; company_id?: string; branch_id?: string };
     },
@@ -223,7 +223,7 @@ export function useDeclineInvitation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (token: string) => {
-      const { data, error } = await supabase.rpc("decline_company_invitation" as any, { _token: token });
+      const { data, error } = await supabase.rpc("decline_company_invitation", { _token: token });
       if (error) throw error;
       return data as { success: boolean; code?: string };
     },

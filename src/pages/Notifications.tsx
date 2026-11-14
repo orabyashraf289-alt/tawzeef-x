@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Bell, UserPlus, Briefcase, Calendar, CheckCircle, Trash2, BellOff, FileText, Send, ArrowLeftRight, XCircle, Eye, EyeOff, MailOpen, Search, SlidersHorizontal, RefreshCw } from "lucide-react";
+import { Bell, UserPlus, Briefcase, Calendar, Trash2, BellOff, FileText, Send, ArrowLeftRight, XCircle, Eye, EyeOff, MailOpen, Search, SlidersHorizontal, RefreshCw, ClipboardList, Clock } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/hooks/useJobs";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,6 +31,8 @@ const typeIcons: Record<string, typeof Bell> = {
   candidate: UserPlus,
   job: Briefcase,
   interview: Calendar,
+  interview_reminder: Clock,
+  task: ClipboardList,
   application: FileText,
   offer: Send,
   stage_change: ArrowLeftRight,
@@ -41,6 +44,8 @@ const typeStyles: Record<string, string> = {
   candidate: "bg-primary/10 text-primary",
   job: "bg-success/10 text-success",
   interview: "bg-warning/10 text-warning",
+  interview_reminder: "bg-warning/10 text-warning",
+  task: "bg-info/10 text-info",
   application: "bg-info/10 text-info",
   offer: "bg-accent text-accent-foreground",
   stage_change: "bg-primary/10 text-primary",
@@ -53,6 +58,8 @@ const typeLabels: Record<string, string> = {
   candidate: "المرشحين",
   job: "الوظائف",
   interview: "المقابلات",
+  interview_reminder: "تذكير مقابلة",
+  task: "المهام",
   application: "الطلبات",
   offer: "العروض",
   stage_change: "تغيير المراحل",
@@ -71,12 +78,40 @@ const item = {
 };
 
 export default function Notifications() {
+  const { user } = useAuth();
   const { data: notifications, isLoading } = useNotifications();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [openClearAllDialog, setOpenClearAllDialog] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id || typeof supabase.channel !== "function") return;
+
+    const channel = supabase
+      .channel(`notifications-live:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["notifications"] });
+          queryClient.invalidateQueries({ queryKey: ["unread-notif-count"] });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      if (typeof supabase.removeChannel === "function") {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [user?.id, queryClient]);
 
   const allNotifications = notifications || [];
   const unreadCount = allNotifications.filter(n => !n.read).length;
@@ -120,26 +155,63 @@ export default function Notifications() {
     return Object.entries(groups);
   }, [filtered]);
 
-  const markAllRead = async () => {
-    await supabase.from("notifications").update({ read: true }).eq("read", false);
+  const invalidateNotificationQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["unread-notif-count"] });
+  };
+
+  const markAllRead = async () => {
+    let query = supabase.from("notifications").update({ read: true }).eq("read", false);
+    if (user?.id) {
+      query = query.eq("user_id", user.id);
+    }
+    const { error } = await query;
+    if (error) {
+      toast({ title: "تعذر تحديث الإشعارات", description: error.message, variant: "destructive" });
+      return;
+    }
+    invalidateNotificationQueries();
     toast({ title: "تم تحديد جميع الإشعارات كمقروءة ✅" });
   };
 
   const markRead = async (id: string) => {
-    await supabase.from("notifications").update({ read: true }).eq("id", id);
-    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    let query = supabase.from("notifications").update({ read: true }).eq("id", id);
+    if (user?.id) {
+      query = query.eq("user_id", user.id);
+    }
+    const { error } = await query;
+    if (error) {
+      toast({ title: "تعذر تحديث الإشعار", description: error.message, variant: "destructive" });
+      return;
+    }
+    invalidateNotificationQueries();
   };
 
   const deleteNotification = async (id: string) => {
-    await supabase.from("notifications").delete().eq("id", id);
-    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    let query = supabase.from("notifications").delete().eq("id", id);
+    if (user?.id) {
+      query = query.eq("user_id", user.id);
+    }
+    const { error } = await query;
+    if (error) {
+      toast({ title: "تعذر حذف الإشعار", description: error.message, variant: "destructive" });
+      return;
+    }
+    invalidateNotificationQueries();
     toast({ title: "تم حذف الإشعار 🗑️" });
   };
 
   const handleClearAllConfirm = async () => {
-    await supabase.from("notifications").delete().neq("id", "");
-    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    let query = supabase.from("notifications").delete().neq("id", "");
+    if (user?.id) {
+      query = query.eq("user_id", user.id);
+    }
+    const { error } = await query;
+    if (error) {
+      toast({ title: "تعذر مسح الإشعارات", description: error.message, variant: "destructive" });
+      return;
+    }
+    invalidateNotificationQueries();
     toast({ title: "تم مسح جميع الإشعارات 🗑️" });
     setOpenClearAllDialog(false);
   };
@@ -161,7 +233,8 @@ export default function Notifications() {
     if (notif.type === "application" || notif.type === "candidate" || notif.type === "stage_change" || notif.type === "rejection") {
       return "/candidates";
     }
-    if (notif.type === "interview") return "/interviews";
+    if (notif.type === "interview" || notif.type === "interview_reminder") return "/interviews";
+    if (notif.type === "task") return "/tasks";
     if (notif.type === "offer") return "/offers";
     if (notif.type === "job") return "/jobs";
     return null;
@@ -199,7 +272,7 @@ export default function Notifications() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ["notifications"] })} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={invalidateNotificationQueries} className="gap-1.5">
               <RefreshCw className="w-3.5 h-3.5" />تحديث
             </Button>
             {unreadCount > 0 && (
@@ -327,7 +400,7 @@ export default function Notifications() {
                 </div>
                 <div className="space-y-2">
                   <AnimatePresence>
-                    {items.map((notif, i) => {
+                    {items.map((notif) => {
                       const Icon = typeIcons[notif.type] || Bell;
                       const link = getNotificationLink(notif);
                       

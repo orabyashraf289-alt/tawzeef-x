@@ -38,7 +38,7 @@ export default function VoiceInputButton({ onTranscript, language = "ara", disab
 
       mediaRecorder.start();
       setIsRecording(true);
-    } catch (e: any) {
+    } catch (_e: unknown) {
       toast({
         title: "تعذر الوصول للميكروفون",
         description: "تأكد من السماح بالوصول للميكروفون من إعدادات المتصفح",
@@ -73,8 +73,9 @@ export default function VoiceInputButton({ onTranscript, language = "ara", disab
       } else {
         toast({ title: "لم يتم اكتشاف كلام", variant: "destructive" });
       }
-    } catch (e: any) {
-      toast({ title: "فشل تحويل الصوت", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      const description = e instanceof Error ? e.message : undefined;
+      toast({ title: "فشل تحويل الصوت", description, variant: "destructive" });
     } finally {
       setIsTranscribing(false);
     }

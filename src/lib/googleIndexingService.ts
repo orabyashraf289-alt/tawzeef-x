@@ -92,13 +92,14 @@ export async function notifyGoogleIndexing({
       success: true,
       action,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const errMessage = err instanceof Error ? err.message : String(err);
     // Non-blocking failure handling: Log warning but never throw
-    console.warn(`[Google Indexing API] Background notification notice for ${jobId}:`, err?.message || err);
+    console.warn(`[Google Indexing API] Background notification notice for ${jobId}:`, errMessage);
     return {
       success: false,
       action,
-      error: err?.message || "Network error",
+      error: err instanceof Error ? err.message : "Network error",
     };
   }
 }

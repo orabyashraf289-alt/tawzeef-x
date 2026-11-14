@@ -16,6 +16,13 @@ import {
 
 export type { PermissionRow };
 
+interface HiringPermissionsRpcClient {
+  rpc: (
+    fn: "get_hiring_permissions",
+    args: { _company: string }
+  ) => Promise<{ data: Record<string, Record<string, boolean>> | null; error: Error | null }>;
+}
+
 // Backward-compatibility export of route maps
 export const ROUTE_PERMISSION_MAP: Record<string, string> = Object.entries(
   SCREEN_PERMISSIONS
@@ -36,11 +43,11 @@ export function useAllPermissions() {
     queryKey: ["role-permissions"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("role_permissions" as any)
+        .from("role_permissions")
         .select("*")
         .order("permission_key");
       if (error) throw error;
-      return (data as any[]).map((d: any) => ({
+      return (data || []).map((d) => ({
         permission_key: d.permission_key,
         description: d.description || "",
         admin: Boolean(d.admin),
@@ -81,7 +88,9 @@ export function useScreenPermissions() {
     queryKey: ["hiring-operation-permissions", activeCompanyId, user?.id],
     enabled: !!user && !!activeCompanyId,
     queryFn: async () => {
-      const { data, error } = await (supabase.rpc as any)("get_hiring_permissions", { _company: activeCompanyId });
+      const { data, error } = await (supabase as unknown as HiringPermissionsRpcClient).rpc("get_hiring_permissions", {
+        _company: activeCompanyId!,
+      });
       if (error) throw error;
       return data as Record<string, Record<string, boolean>>;
     },

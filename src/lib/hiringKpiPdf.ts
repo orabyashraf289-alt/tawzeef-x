@@ -1,7 +1,25 @@
+interface KpiCandidate {
+  status: string;
+  updated_at?: string;
+  created_at: string;
+  job_id?: string | null;
+  stage?: string | null;
+}
+
+interface KpiJob {
+  id: string;
+  title: string;
+  department?: string | null;
+}
+
+interface KpiOffer {
+  status: string;
+}
+
 interface KpiData {
-  candidates: any[];
-  jobs: any[];
-  offers: any[];
+  candidates: KpiCandidate[];
+  jobs: KpiJob[];
+  offers: KpiOffer[];
   locale: string;
 }
 
@@ -43,7 +61,7 @@ export async function generateHiringKpiPdf({ candidates, jobs, offers, locale }:
 
   const hiredCandidates = candidates.filter(c => c.status === "مقبول");
   const overallTimeToFill = hiredCandidates.length > 0
-    ? Math.round(hiredCandidates.reduce((sum, c) => sum + Math.max(Math.floor((new Date(c.updated_at).getTime() - new Date(c.created_at).getTime()) / 86400000), 1), 0) / hiredCandidates.length)
+    ? Math.round(hiredCandidates.reduce((sum, c) => sum + Math.max(Math.floor((new Date(c.updated_at || c.created_at).getTime() - new Date(c.created_at).getTime()) / 86400000), 1), 0) / hiredCandidates.length)
     : 0;
 
   const respondedOffers = offers.filter(o => o.status === "accepted" || o.status === "rejected");
@@ -143,7 +161,7 @@ export async function generateHiringKpiPdf({ candidates, jobs, offers, locale }:
     const jobCands = candidates.filter(c => c.job_id === job.id);
     const hired = jobCands.filter(c => c.status === "مقبول");
     const avgDays = hired.length > 0
-      ? Math.round(hired.reduce((sum, c) => sum + Math.max(Math.floor((new Date(c.updated_at).getTime() - new Date(c.created_at).getTime()) / 86400000), 1), 0) / hired.length)
+      ? Math.round(hired.reduce((sum, c) => sum + Math.max(Math.floor((new Date(c.updated_at || c.created_at).getTime() - new Date(c.created_at).getTime()) / 86400000), 1), 0) / hired.length)
       : null;
     return { title: job.title, dept: job.department, avgDays, hired: hired.length };
   }).filter(j => j.avgDays !== null).sort((a, b) => (a.avgDays ?? 0) - (b.avgDays ?? 0));
@@ -185,7 +203,7 @@ export async function generateHiringKpiPdf({ candidates, jobs, offers, locale }:
   candidates.forEach(c => {
     const stage = c.stage || "تقديم الطلب";
     if (!stageMap[stage]) stageMap[stage] = { totalDays: 0, count: 0 };
-    stageMap[stage].totalDays += Math.max(Math.floor((new Date(c.updated_at).getTime() - new Date(c.created_at).getTime()) / 86400000), 1);
+    stageMap[stage].totalDays += Math.max(Math.floor((new Date(c.updated_at || c.created_at).getTime() - new Date(c.created_at).getTime()) / 86400000), 1);
     stageMap[stage].count++;
   });
   const stageTime = Object.entries(stageMap)

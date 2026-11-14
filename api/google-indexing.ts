@@ -1,5 +1,30 @@
 import crypto from "crypto";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
+interface ApiRequest {
+  method?: string;
+  headers: Record<string, string | string[] | undefined>;
+  body?: {
+    jobId?: string;
+    action?: string;
+    url?: string;
+  };
+  socket?: {
+    remoteAddress?: string;
+  };
+}
+
+interface ApiResponse {
+  setHeader(name: string, value: string): void;
+  status(code: number): ApiResponse;
+  json(data: unknown): ApiResponse;
+  end(): ApiResponse;
+}
+
+function getHeaderString(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[0] || "";
+  return value || "";
+}
 
 // In-memory token cache for warm serverless function instances
 let cachedToken: { accessToken: string; expiresAt: number } | null = null;
@@ -100,7 +125,7 @@ async function publishToGoogleIndexing(
   type: "URL_UPDATED" | "URL_DELETED",
   accessToken: string,
   maxRetries = 2
-): Promise<{ status: number; body: any }> {
+): Promise<{ status: number; body: unknown }> {
   let attempt = 0;
 
   while (attempt <= maxRetries) {
@@ -114,7 +139,7 @@ async function publishToGoogleIndexing(
         body: JSON.stringify({ url, type }),
       });
 
-      const body = await res.json().catch(() => ({}));
+      const body: unknown = await res.json().catch(() => ({}));
       if (res.ok) {
         return { status: res.status, body };
       }
@@ -128,7 +153,7 @@ async function publishToGoogleIndexing(
       }
 
       return { status: res.status, body };
-    } catch (networkError: any) {
+    } catch (networkError: unknown) {
       attempt++;
       if (attempt > maxRetries) {
         throw networkError;
@@ -140,14 +165,14 @@ async function publishToGoogleIndexing(
   throw new Error("Maximum retries exceeded calling Google Indexing API");
 }
 
-async function recordIndexingLog(supabase: any, log: {
+async function recordIndexingLog(supabase: SupabaseClient | null, log: {
   company_id: string | null;
   job_id: string | null;
   url: string;
   action: "URL_UPDATED" | "URL_DELETED";
   status: string;
   status_code: number | null;
-  response: any;
+  response: unknown;
   error: string | null;
 }) {
   try {
@@ -168,9 +193,9 @@ async function recordIndexingLog(supabase: any, log: {
   }
 }
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   // 1. Strict CORS domain allowlist
-  const reqOrigin = req.headers["origin"] || "";
+  const reqOrigin = getHeaderString(req.headers["origin"]);
   const isAllowedOrigin =
     ALLOWED_ORIGINS.includes(reqOrigin) ||
     /^https:\/\/tx-hire-buddy-[a-zA-Z0-9_-]+\.vercel\.app$/.test(reqOrigin);
@@ -192,7 +217,7 @@ export default async function handler(req: any, res: any) {
   }
 
   // 2. Rate Limiting Check (30 requests per minute per IP)
-  const clientIp = (req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "unknown").toString().split(",")[0].trim();
+  const clientIp = (getHeaderString(req.headers["x-forwarded-for"]) || req.socket?.remoteAddress || "unknown").split(",")[0].trim();
   const now = Date.now();
   const clientTimestamps = (rateLimitMap.get(clientIp) || []).filter(t => now - t < RATE_LIMIT_WINDOW_MS);
   if (clientTimestamps.length >= MAX_REQUESTS_PER_WINDOW) {
@@ -210,8 +235,8 @@ export default async function handler(req: any, res: any) {
   }
 
   // 4. Mandatory Authentication & Authorization Check
-  const internalSecret = req.headers["x-internal-secret"];
-  const authHeader = req.headers["authorization"] || "";
+  const internalSecret = getHeaderString(req.headers["x-internal-secret"]);
+  const authHeader = getHeaderString(req.headers["authorization"]);
   const expectedSecret = process.env.INTERNAL_SERVICE_SECRET;
 
   let isAuthorized = false;
@@ -380,7 +405,7 @@ export default async function handler(req: any, res: any) {
       url: canonicalJobUrl,
       googleResponse: googleResult.body,
     });
-  } catch (apiError: any) {
+  } catch (apiError: unknown) {
     console.error("[Google Indexing API] Request failed:", apiError);
 
     await recordIndexingLog(supabase, {
@@ -391,7 +416,7 @@ export default async function handler(req: any, res: any) {
       status: "ERROR",
       status_code: 500,
       response: null,
-      error: apiError.message || "Failed to publish URL to Google Indexing API",
+      error: apiError instanceof Error ? apiError.message : "Failed to publish URL to Google Indexing API",
     });
 
     return res.status(500).json({

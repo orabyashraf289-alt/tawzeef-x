@@ -98,8 +98,8 @@ Deno.serve(async (req) => {
     if (updateError) throw updateError;
 
     return json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("verify-login-otp error:", error);
-    return json({ success: false, error: error.message || "تعذر التحقق من الرمز" }, 500);
+    return json({ success: false, error: error instanceof Error ? error.message : "تعذر التحقق من الرمز" }, 500);
   }
 });

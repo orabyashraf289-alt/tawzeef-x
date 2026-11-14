@@ -57,7 +57,7 @@ export function useOffers(specificCompanyId?: string | null) {
             .select("user_id")
             .in("company_id", scopedCompanyIds);
           if (compMems) {
-            companyUserIds = compMems.map((m: any) => m.user_id).filter(Boolean);
+            companyUserIds = compMems.map((m) => m.user_id).filter(Boolean);
           }
         } catch (e) {
           console.warn("Could not fetch user company memberships for offers:", e);
@@ -72,9 +72,11 @@ export function useOffers(specificCompanyId?: string | null) {
             .select("id")
             .in("company_id", scopedCompanyIds);
           if (cands) {
-            scopedCandidateIds = cands.map((c: any) => c.id);
+            scopedCandidateIds = cands.map((c) => c.id);
           }
-        } catch (e) {}
+        } catch (e) {
+          console.warn("Could not fetch scoped candidate IDs for offers:", e);
+        }
       }
 
       const { data, error } = await supabase
@@ -83,14 +85,15 @@ export function useOffers(specificCompanyId?: string | null) {
         .order("created_at", { ascending: false });
       if (error) throw error;
 
+      const offers = (data || []) as JobOffer[];
       if (companyUserIds.length > 0 || scopedCandidateIds.length > 0) {
-        return (data || []).filter((o: any) =>
+        return offers.filter((o) =>
           (companyUserIds.length > 0 && companyUserIds.includes(o.user_id)) ||
-          (scopedCandidateIds.length > 0 && scopedCandidateIds.includes(o.candidate_id))
-        ) as JobOffer[];
+          (scopedCandidateIds.length > 0 && !!o.candidate_id && scopedCandidateIds.includes(o.candidate_id))
+        );
       }
 
-      return (data || []).filter((o: any) => o.user_id === user?.id) as JobOffer[];
+      return offers.filter((o) => o.user_id === user?.id);
     },
     enabled: !!user,
   });

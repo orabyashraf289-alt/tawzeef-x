@@ -1,11 +1,11 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { createClient, type User } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 export interface TenantAuthResult {
   authorized: boolean;
   status?: number;
   error?: string;
   code?: string;
-  user?: any;
+  user?: User;
   isSuperAdmin?: boolean;
   isCandidate?: boolean;
   companyId?: string;
@@ -162,9 +162,20 @@ export async function validateTenantRequest(
     .select("company_id, member_role, company:companies(id, status)")
     .eq("user_id", user.id);
 
-  const activeCompanies = (userMemberships || [])
-    .map((m: any) => m.company)
-    .filter((c: any) => c && c.status === "active");
+  interface MembershipCompanyRow {
+    id: string;
+    status: string | null;
+  }
+
+  interface MembershipWithCompanyRow {
+    company_id: string;
+    member_role: string | null;
+    company: MembershipCompanyRow | MembershipCompanyRow[] | null;
+  }
+
+  const activeCompanies = ((userMemberships || []) as MembershipWithCompanyRow[])
+    .flatMap((m) => (Array.isArray(m.company) ? m.company : m.company ? [m.company] : []))
+    .filter((c): c is MembershipCompanyRow => Boolean(c && c.status === "active"));
 
   if (activeCompanies.length === 0) {
     return {

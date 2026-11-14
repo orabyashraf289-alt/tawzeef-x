@@ -285,8 +285,8 @@ Deno.serve(async (req) => {
         });
         emailSent = true;
         console.log(`Password reset email sent to ${normalizedEmail} via custom SMTP: ${smtpHost}`);
-      } catch (err: any) {
-        console.warn(`Custom SMTP failed for password reset (${err.message}). Falling back to default system SMTP...`);
+      } catch (err: unknown) {
+        console.warn(`Custom SMTP failed for password reset (${err instanceof Error ? err.message : String(err)}). Falling back to default system SMTP...`);
       }
     }
 
@@ -316,8 +316,8 @@ Deno.serve(async (req) => {
     }
 
     return json({ success: true, message: "إذا كان البريد الإلكتروني مسجلاً لدينا، فستتلقى رابطاً لإعادة تعيين كلمة المرور." });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("request-password-reset error:", error);
-    return json({ error: error.message || "حدث خطأ أثناء معالجة الطلب" }, 500);
+    return json({ error: error instanceof Error ? error.message : "حدث خطأ أثناء معالجة الطلب" }, 500);
   }
 });

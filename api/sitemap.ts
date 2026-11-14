@@ -46,7 +46,7 @@ function parseDeadlineDate(raw?: string | null): Date | null {
     }
   }
 
-  const slashMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  const slashMatch = str.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (slashMatch) {
     const day = parseInt(slashMatch[1], 10);
     const month = parseInt(slashMatch[2], 10) - 1;
@@ -92,7 +92,26 @@ function formatDate(isoOrDateStr?: string | null): string {
   }
 }
 
-export default async function handler(req: any, res: any) {
+interface SitemapRequest {
+  method?: string;
+}
+
+interface SitemapResponse {
+  setHeader(name: string, value: string): void;
+  status(code: number): SitemapResponse;
+  send(body: string): SitemapResponse;
+}
+
+interface SitemapJobRow {
+  id: string;
+  title: string | null;
+  status: string | null;
+  description: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export default async function handler(_req: SitemapRequest, res: SitemapResponse) {
   // Local environment fallback: read .env if process.env.SUPABASE_URL is missing
   if (!process.env.SUPABASE_URL && !process.env.VITE_SUPABASE_URL) {
     try {
@@ -108,14 +127,16 @@ export default async function handler(req: any, res: any) {
           }
         });
       }
-    } catch {}
+    } catch (err) {
+      console.warn("[Sitemap] Could not read local .env fallback:", err);
+    }
   }
 
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
-  let activeJobs: any[] = [];
+  let activeJobs: SitemapJobRow[] = [];
 
   if (supabase) {
     try {

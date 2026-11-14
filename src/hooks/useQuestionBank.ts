@@ -1,4 +1,4 @@
-import type { Json } from "@/integrations/supabase/types";
+import type { Json, TablesUpdate } from "@/integrations/supabase/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -67,6 +67,20 @@ export interface AssessmentResponse {
   status: string;
 }
 
+interface QuestionBankRpcClient {
+  rpc: (
+    fn: "create_question_bank_item",
+    args: {
+      _company: string | null;
+      _kind: "question" | "assessment";
+      _item: Record<string, unknown>;
+      _children: Record<string, unknown>[];
+    }
+  ) => Promise<{ data: unknown; error: Error | null }>;
+}
+
+const questionBankRpc = () => supabase as unknown as QuestionBankRpcClient;
+
 export function useQuestions(jobId?: string) {
   const { user } = useAuth();
   const { activeCompanyId } = useCompany();
@@ -90,13 +104,15 @@ export function useQuestions(jobId?: string) {
 }
 
 export function useCreateQuestion() {
-  const { user } = useAuth();
   const { activeCompanyId } = useCompany();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ question, options }: { question: Omit<Question, "id" | "user_id" | "created_at" | "updated_at" | "options" | "jobs">; options?: QuestionOption[] }) => {
-      const { data, error } = await (supabase.rpc as any)("create_question_bank_item", {
-        _company: activeCompanyId, _kind: "question", _item: question, _children: options || [],
+      const { data, error } = await questionBankRpc().rpc("create_question_bank_item", {
+        _company: activeCompanyId,
+        _kind: "question",
+        _item: question as Record<string, unknown>,
+        _children: (options || []) as unknown as Record<string, unknown>[],
       });
       if (error) throw error;
       return data;
@@ -119,7 +135,7 @@ export function useDeleteQuestion() {
       qc.invalidateQueries({ queryKey: ["questions"] });
       toast({ title: "تم حذف السؤال" });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       console.error("Error deleting question:", error);
       toast({ title: "خطأ في حذف السؤال", description: error.message, variant: "destructive" });
     },
@@ -142,14 +158,15 @@ export function useBulkDeleteQuestions() {
 }
 
 export function useDuplicateQuestion() {
-  const { user } = useAuth();
   const { activeCompanyId } = useCompany();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (q: Question) => {
-      const { data, error } = await (supabase.rpc as any)("create_question_bank_item", {
-        _company: activeCompanyId, _kind: "question",
-        _item: { ...q, question_text: `${q.question_text} (نسخة)` }, _children: q.options || [],
+      const { data, error } = await questionBankRpc().rpc("create_question_bank_item", {
+        _company: activeCompanyId,
+        _kind: "question",
+        _item: { ...q, question_text: `${q.question_text} (نسخة)` } as Record<string, unknown>,
+        _children: (q.options || []) as unknown as Record<string, unknown>[],
       });
       if (error) throw error;
       return data;
@@ -165,7 +182,11 @@ export function useBulkUpdateQuestions() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ ids, updates }: { ids: string[]; updates: Partial<Question> }) => {
-      const { data, error } = await supabase.from("question_bank").update(updates as any).in("id", ids).select("id");
+      const { data, error } = await supabase
+        .from("question_bank")
+        .update(updates as TablesUpdate<"question_bank">)
+        .in("id", ids)
+        .select("id");
       if (error) throw error;
       if (data?.length !== new Set(ids).size) throw new Error("لم تتغير كل السجلات المطلوبة. راجع الصلاحيات وحدّث القائمة.");
     },
@@ -177,7 +198,6 @@ export function useBulkUpdateQuestions() {
 }
 
 export function useDuplicateAssessment() {
-  const { user } = useAuth();
   const { activeCompanyId } = useCompany();
   const qc = useQueryClient();
   return useMutation({
@@ -188,10 +208,13 @@ export function useDuplicateAssessment() {
         .eq("id", assessmentId)
         .single();
       if (e1 || !orig) throw e1;
-      const { data: created, error: e2 } = await (supabase.rpc as any)("create_question_bank_item", {
-        _company: activeCompanyId, _kind: "assessment",
-        _item: { ...orig, title: `${orig.title} (نسخة)`, is_active: false },
-        _children: (orig as any).assessment_questions || [],
+      const origChildren =
+        (orig as unknown as { assessment_questions?: Record<string, unknown>[] }).assessment_questions || [];
+      const { data: created, error: e2 } = await questionBankRpc().rpc("create_question_bank_item", {
+        _company: activeCompanyId,
+        _kind: "assessment",
+        _item: { ...orig, title: `${orig.title} (نسخة)`, is_active: false } as Record<string, unknown>,
+        _children: origChildren,
       });
       if (e2) throw e2;
       return created;
@@ -207,7 +230,7 @@ export function useToggleAssessmentActive() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
-      const { error } = await supabase.from("assessments").update({ is_active } as any).eq("id", id).select("id").single();
+      const { error } = await supabase.from("assessments").update({ is_active }).eq("id", id).select("id").single();
       if (error) throw error;
     },
     onSuccess: () => {
@@ -238,13 +261,14 @@ export function useAssessments() {
 }
 
 export function useCreateAssessment() {
-  const { user } = useAuth();
   const { activeCompanyId } = useCompany();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ assessment, questionIds }: { assessment: { title: string; description?: string; job_id?: string | null; duration_minutes: number; passing_score: number; is_randomized: boolean }; questionIds: string[] }) => {
-      const { data, error } = await (supabase.rpc as any)("create_question_bank_item", {
-        _company: activeCompanyId, _kind: "assessment", _item: assessment,
+      const { data, error } = await questionBankRpc().rpc("create_question_bank_item", {
+        _company: activeCompanyId,
+        _kind: "assessment",
+        _item: assessment as Record<string, unknown>,
         _children: questionIds.map(question_id => ({ question_id })),
       });
       if (error) throw error;
@@ -268,7 +292,7 @@ export function useDeleteAssessment() {
       qc.invalidateQueries({ queryKey: ["assessments"] });
       toast({ title: "تم حذف الاختبار" });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       console.error("Error deleting assessment:", error);
       toast({ title: "خطأ في حذف الاختبار", description: error.message, variant: "destructive" });
     },

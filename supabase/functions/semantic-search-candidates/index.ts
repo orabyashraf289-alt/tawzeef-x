@@ -6,7 +6,21 @@ import { getExtendedCorsHeaders } from "../_shared/cors.ts";
 
 const EMBED_MODEL = "google/gemini-2.0-flash";
 
-function buildCandidateText(c: any): string {
+interface CandidateSearchRow {
+  id: string;
+  name?: string | null;
+  role?: string | null;
+  summary?: string | null;
+  skills?: string[] | null;
+  experience?: string | null;
+  education?: string | null;
+  location?: string | null;
+  embedding?: unknown;
+  embedding_text?: string | null;
+  [key: string]: unknown;
+}
+
+function buildCandidateText(c: CandidateSearchRow): string {
   return [
     c.name,
     c.role,
@@ -26,7 +40,7 @@ function buildCandidateText(c: any): string {
 // results without requiring an embeddings endpoint.
 function hashEmbed(text: string, dim = 128): number[] {
   const v = new Array(dim).fill(0);
-  const tokens = text.toLowerCase().split(/[\s,/|.;:!?()\[\]{}"'`-]+/).filter(Boolean);
+  const tokens = text.toLowerCase().split(/[\s,/|.;:!?()[\]{}"'`-]+/).filter(Boolean);
   for (const tok of tokens) {
     let h = 5381;
     for (let i = 0; i < tok.length; i++) h = ((h << 5) + h) ^ tok.charCodeAt(i);
@@ -102,7 +116,7 @@ serve(async (req) => {
     const expandedQuery = await expandQueryWithAI(query);
     const expandedVec = hashEmbed(`${query} ${expandedQuery}`);
 
-    type Scored = { c: any; score: number; matchedTerms: string[] };
+    type Scored = { c: CandidateSearchRow; score: number; matchedTerms: string[] };
     const scored: Scored[] = [];
 
     for (const c of (candidates || [])) {

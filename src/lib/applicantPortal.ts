@@ -6,12 +6,20 @@ export interface ApplicantPortalData {
   interviews: Array<{ id: string; company_id: string; position: string; date: string; time: string; type: string; status: string; meeting_url?: string }>;
   offers: Array<{ id: string; company_id: string; position: string; department?: string; salary: number; currency: string; status: string; token?: string }>;
 }
+
+type UntypedRpcClient = {
+  rpc: <T = unknown>(
+    fn: string,
+    params?: Record<string, unknown>,
+  ) => Promise<{ data: T | null; error: unknown }>;
+};
+
 export async function loadApplicantPortal(): Promise<ApplicantPortalData> {
   // The server derives the verified identity and scope; no client email or
   // company ID can select another applicant's records.
-  const { data, error } = await supabase.rpc("get_my_applicant_portal" as any);
+  const { data, error } = await (supabase as unknown as UntypedRpcClient).rpc<Record<string, unknown>>("get_my_applicant_portal");
   if (error) throw error;
-  if (!data || typeof data !== "object" || ["applications", "candidates", "interviews", "offers"].some(key => !Array.isArray((data as any)[key]))) {
+  if (!data || typeof data !== "object" || ["applications", "candidates", "interviews", "offers"].some(key => !Array.isArray(data[key]))) {
     throw new Error("Invalid applicant portal response");
   }
   return data as unknown as ApplicantPortalData;

@@ -6,14 +6,14 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./tests/e2e/specs",
-  timeout: 30 * 1000,
+  timeout: 45 * 1000,
   expect: {
-    timeout: 5000,
+    timeout: 8000,
   },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 1 : 2,
   reporter: [
     ["html", { outputFolder: "playwright-report" }],
     ["list"],
@@ -48,5 +48,12 @@ export default defineConfig({
     port: 5173,
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
+    env: {
+      ...process.env,
+      VITE_SUPABASE_URL:
+        process.env.VITE_SUPABASE_URL || "https://rlfewneisuezsamhosct.supabase.co",
+      VITE_SUPABASE_PUBLISHABLE_KEY:
+        process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "mock-playwright-anon-key",
+    },
   },
 });

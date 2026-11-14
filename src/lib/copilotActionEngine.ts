@@ -230,7 +230,7 @@ export async function executeCopilotAction(
           description: action.jobPayload.description || null,
           requirements: action.jobPayload.requirements || [],
           status: "منشورة",
-        } as any)
+        })
         .select()
         .single();
 
@@ -261,7 +261,7 @@ export async function executeCopilotAction(
           interviewer: p.interviewer || "مدير التوظيف",
           meeting_url: p.meeting_url || null,
           status: "مجدولة",
-        } as any)
+        })
         .select()
         .single();
 
@@ -287,7 +287,7 @@ export async function executeCopilotAction(
           stage: p.target_stage,
           stage_entered_at: nowIso,
           updated_at: nowIso,
-        } as any)
+        })
         .eq("id", p.candidate_id);
 
       if (error) throw error;
@@ -339,7 +339,7 @@ export async function rollbackCopilotAction(action: CopilotActionData): Promise<
         stage: action.movePayload.previous_stage,
         stage_entered_at: nowIso,
         updated_at: nowIso,
-      } as any)
+      })
       .eq("id", action.movePayload.candidate_id);
 
     if (error) throw error;

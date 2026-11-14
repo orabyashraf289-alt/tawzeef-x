@@ -1,75 +1,233 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import {
+  buildReminderEmailHtml,
+  DEFAULT_REMINDER_MAX_INCLUSIVE,
+  DEFAULT_REMINDER_MIN_EXCLUSIVE,
+  evaluateReminderWindow,
+  formatInterviewLocalTime,
+  getCandidateDateStrings,
+  isReminderAuthorized,
+  type CompanyTimezoneSource,
+  type InterviewReminderRecord,
+  type ReminderEvaluationItem,
+  type ReminderRunSummary,
+} from "../_shared/interviewReminders.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+interface ExistingNotificationRow {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+}
+
+interface CompanyRow {
+  id: string;
+  country: string | null;
+  brand_settings: Record<string, unknown> | null;
+}
+
+function getReminderCorsHeaders(req: Request): Record<string, string> {
+  const base = getCorsHeaders(req);
+  return {
+    ...base,
+    "Access-Control-Allow-Headers": `${base["Access-Control-Allow-Headers"]}, x-cron-secret`,
+  };
+}
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const corsHeaders = getReminderCorsHeaders(req);
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    const cronSecret = Deno.env.get("CRON_SECRET");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const cronSecret = Deno.env.get("CRON_SECRET") || "";
 
-    // Verify caller authorization
-    const authHeader = req.headers.get("Authorization");
-    const isAuthorized =
-      (cronSecret && authHeader === `Bearer ${cronSecret}`) ||
-      (authHeader && (authHeader.includes(supabaseKey) || (anonKey && authHeader.includes(anonKey)))) ||
-      req.headers.get("x-cron-secret") === cronSecret;
+    if (!supabaseUrl || !serviceRoleKey) {
+      return new Response(
+        JSON.stringify({ error: "Server configuration missing" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
 
-    if (!isAuthorized && (cronSecret || supabaseKey)) {
+    const authorized = isReminderAuthorized({
+      authorizationHeader: req.headers.get("Authorization"),
+      cronSecretHeader: req.headers.get("x-cron-secret"),
+      cronSecret,
+      serviceRoleKey,
+    });
+
+    if (!authorized) {
       return new Response(JSON.stringify({ error: "Unauthorized access" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
     const now = new Date();
-    const todayStr = now.toISOString().split("T")[0];
+    const candidateDates = getCandidateDateStrings(now);
 
-    // Get today's scheduled interviews
-    const { data: interviews, error } = await supabase
+    // Fetch scheduled interviews spanning [-1, +2] UTC days to cover all timezones across midnight
+    const { data: interviewsData, error: interviewsError } = await supabase
       .from("interviews")
-      .select("*")
-      .eq("date", todayStr)
+      .select(
+        "id, user_id, interviewer_id, company_id, candidate_name, position, date, time, time_zone, starts_at, status, interviewer, meeting_url",
+      )
+      .in("date", candidateDates)
       .eq("status", "مجدولة");
 
-    if (error) {
-      console.error("Query error:", error);
-      throw error;
+    if (interviewsError) {
+      console.error("Query error:", interviewsError);
+      throw interviewsError;
+    }
+
+    const interviews = (interviewsData || []) as InterviewReminderRecord[];
+
+    const companyIds = Array.from(
+      new Set(
+        interviews
+          .map((item) => item.company_id)
+          .filter((id): id is string => typeof id === "string" && id.length > 0),
+      ),
+    );
+
+    const companyMap = new Map<string, CompanyTimezoneSource>();
+    if (companyIds.length > 0) {
+      const { data: companiesData, error: companiesError } = await supabase
+        .from("companies")
+        .select("id, country, brand_settings")
+        .in("id", companyIds);
+
+      if (companiesError) {
+        console.warn("Failed loading company timezone metadata:", companiesError.message);
+      } else {
+        for (const company of (companiesData || []) as CompanyRow[]) {
+          const brandSettings =
+            company.brand_settings &&
+            typeof company.brand_settings === "object" &&
+            !Array.isArray(company.brand_settings)
+              ? company.brand_settings
+              : null;
+          companyMap.set(company.id, {
+            country: company.country,
+            brand_settings: brandSettings,
+          });
+        }
+      }
+    }
+
+    const lookbackIso = new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString();
+    const recipientUserIds = Array.from(
+      new Set(
+        interviews
+          .flatMap((item) => [item.user_id, item.interviewer_id])
+          .filter((id): id is string => typeof id === "string" && id.length > 0),
+      ),
+    );
+
+    const recentNotifsByUser = new Map<string, ExistingNotificationRow[]>();
+    if (recipientUserIds.length > 0) {
+      const { data: existingData, error: existingError } = await supabase
+        .from("notifications")
+        .select("id, user_id, title, description")
+        .in("user_id", recipientUserIds)
+        .eq("type", "interview_reminder")
+        .gte("created_at", lookbackIso)
+        .limit(500);
+
+      if (existingError) {
+        console.warn("Failed fetching recent reminder notifications:", existingError.message);
+      } else {
+        for (const row of (existingData || []) as ExistingNotificationRow[]) {
+          const list = recentNotifsByUser.get(row.user_id) || [];
+          list.push(row);
+          recentNotifsByUser.set(row.user_id, list);
+        }
+      }
     }
 
     let remindersCreated = 0;
+    let emailsSent = 0;
+    let eligibleInWindow = 0;
+    let skippedDuplicate = 0;
+    let skippedOutOfWindow = 0;
+    let skippedInvalid = 0;
+    let failed = 0;
+    const details: ReminderEvaluationItem[] = [];
 
-    for (const interview of interviews || []) {
-      const [hours, minutes] = interview.time.split(":").map(Number);
-      const interviewTime = new Date(now);
-      interviewTime.setHours(hours, minutes, 0, 0);
+    for (const interview of interviews) {
+      const company = interview.company_id ? companyMap.get(interview.company_id) : null;
+      const evaluation = evaluateReminderWindow(interview, {
+        now,
+        company,
+        minExclusiveMinutes: DEFAULT_REMINDER_MIN_EXCLUSIVE,
+        maxInclusiveMinutes: DEFAULT_REMINDER_MAX_INCLUSIVE,
+      });
 
-      const diffMs = interviewTime.getTime() - now.getTime();
-      const diffMin = diffMs / 60000;
+      if (evaluation.reason === "invalid_time" || !evaluation.startsAtUtc) {
+        skippedInvalid += 1;
+        details.push({
+          interview_id: interview.id,
+          candidate_name: interview.candidate_name,
+          time_zone: evaluation.timeZone,
+          starts_at_utc: null,
+          minutes_until: null,
+          status: "skipped_invalid_time",
+          reason: "Invalid date, time, or timezone",
+        });
+        continue;
+      }
 
-      if (diffMin > 30 && diffMin <= 90) {
-        // Check if reminder already sent
-        const { data: existing } = await supabase
-          .from("notifications")
-          .select("id")
-          .eq("user_id", interview.user_id)
-          .eq("type", "interview_reminder")
-          .ilike("title", `%تذكير%${interview.candidate_name}%`)
-          .gte("created_at", todayStr)
-          .limit(1);
+      if (!evaluation.eligible) {
+        skippedOutOfWindow += 1;
+        details.push({
+          interview_id: interview.id,
+          candidate_name: interview.candidate_name,
+          time_zone: evaluation.timeZone,
+          starts_at_utc: evaluation.startsAtUtc.toISOString(),
+          minutes_until:
+            evaluation.minutesUntil !== null ? Math.round(evaluation.minutesUntil) : null,
+          status: "skipped_out_of_window",
+        });
+        continue;
+      }
 
-        if (existing && existing.length > 0) continue;
+      eligibleInWindow += 1;
+      const localTime = formatInterviewLocalTime(evaluation.startsAtUtc, evaluation.timeZone);
+      const recipients = Array.from(
+        new Set(
+          [interview.user_id, interview.interviewer_id].filter(
+            (id): id is string => typeof id === "string" && id.length > 0,
+          ),
+        ),
+      );
 
-        // Build notification description with meeting link
+      let notifiedForInterview = 0;
+      let duplicateForInterview = 0;
+      let emailSentForInterview = false;
+      let failureReason: string | undefined;
+
+      for (const recipientId of recipients) {
+        const userRecent = recentNotifsByUser.get(recipientId) || [];
+        const alreadySent = userRecent.some(
+          (n) =>
+            n.title.includes(interview.candidate_name) &&
+            (n.description || "").includes(localTime),
+        );
+
+        if (alreadySent) {
+          duplicateForInterview += 1;
+          continue;
+        }
+
         const meetingInfo = interview.meeting_url
           ? `\n🔗 رابط المقابلة: ${interview.meeting_url}`
           : "";
@@ -77,71 +235,127 @@ serve(async (req) => {
           ? ` | المحاور: ${interview.interviewer}`
           : "";
 
-        // Create reminder notification for the recruiter/owner
-        await supabase.from("notifications").insert({
-          user_id: interview.user_id,
-          title: `⏰ تذكير: مقابلة ${interview.candidate_name} بعد ساعة`,
-          description: `لديك مقابلة مع ${interview.candidate_name} لوظيفة ${interview.position} الساعة ${interview.time.slice(0, 5)}${interviewerInfo}${meetingInfo}`,
+        const notificationTitle = `⏰ تذكير: مقابلة ${interview.candidate_name} بعد ساعة`;
+        const notificationDescription = `لديك مقابلة مع ${interview.candidate_name} لوظيفة ${interview.position} الساعة ${localTime} (${evaluation.timeZone})${interviewerInfo}${meetingInfo}`;
+
+        const { error: insertError } = await supabase.from("notifications").insert({
+          user_id: recipientId,
+          title: notificationTitle,
+          description: notificationDescription,
           type: "interview_reminder",
         });
 
-        // Send email reminder to the recruiter/interviewer
-        try {
-          const emailHtml = `
-            <div dir="rtl" style="font-family: 'Cairo', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; background: #f8fafc; border-radius: 16px;">
-              <div style="background: linear-gradient(135deg, #f59e0b, #eab308); padding: 24px 32px; border-radius: 12px; margin-bottom: 24px;">
-                <h1 style="color: white; margin: 0; font-size: 22px;">⏰ تذكير بموعد مقابلة</h1>
-              </div>
-              <div style="background: white; padding: 28px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                <p style="font-size: 16px; color: #1e293b;">لديك مقابلة قادمة خلال <strong>ساعة</strong>:</p>
-                <div style="background: #fffbeb; padding: 16px 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #fde68a;">
-                  <p style="margin: 6px 0; font-size: 14px; color: #92400e;">👤 <strong>المرشح:</strong> ${interview.candidate_name}</p>
-                  <p style="margin: 6px 0; font-size: 14px; color: #92400e;">💼 <strong>الوظيفة:</strong> ${interview.position}</p>
-                  <p style="margin: 6px 0; font-size: 14px; color: #92400e;">⏰ <strong>الوقت:</strong> ${interview.time.slice(0, 5)}</p>
-                  ${interview.interviewer ? `<p style="margin: 6px 0; font-size: 14px; color: #92400e;">🎤 <strong>المحاور:</strong> ${interview.interviewer}</p>` : ""}
-                </div>
-                ${interview.meeting_url ? `
-                  <a href="${interview.meeting_url}" style="display: inline-block; background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-size: 15px; font-weight: bold;">
-                    🎥 انضم للمقابلة الآن
-                  </a>
-                  <p style="font-size: 12px; color: #94a3b8; margin-top: 12px; word-break: break-all;">${interview.meeting_url}</p>
-                ` : ""}
-              </div>
-            </div>
-          `;
+        if (insertError) {
+          console.error("Failed to insert reminder notification:", insertError);
+          failureReason = insertError.message;
+          continue;
+        }
 
-          // Send email to the recruiter (owner)
-          await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        remindersCreated += 1;
+        notifiedForInterview += 1;
+        userRecent.push({
+          id: `${interview.id}-${recipientId}`,
+          user_id: recipientId,
+          title: notificationTitle,
+          description: notificationDescription,
+        });
+        recentNotifsByUser.set(recipientId, userRecent);
+
+        try {
+          const emailHtml = buildReminderEmailHtml(interview, localTime, evaluation.timeZone);
+          const emailResp = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${supabaseKey}`,
+              Authorization: `Bearer ${serviceRoleKey}`,
             },
             body: JSON.stringify({
-              user_id: interview.user_id,
+              user_id: recipientId,
               notify_recruiter: true,
-              subject: `⏰ تذكير: مقابلة ${interview.candidate_name} الساعة ${interview.time.slice(0, 5)}`,
+              subject: `⏰ تذكير: مقابلة ${interview.candidate_name} الساعة ${localTime} (${evaluation.timeZone})`,
               html: emailHtml,
             }),
           });
+
+          if (emailResp.ok) {
+            emailsSent += 1;
+            emailSentForInterview = true;
+          } else {
+            const errText = await emailResp.text();
+            console.warn("Reminder email delivery returned non-OK status:", emailResp.status, errText);
+          }
         } catch (emailErr) {
           console.error("Failed to send reminder email:", emailErr);
-          // Don't fail the whole function if email fails
         }
+      }
 
-        remindersCreated++;
+      if (notifiedForInterview > 0) {
+        details.push({
+          interview_id: interview.id,
+          candidate_name: interview.candidate_name,
+          time_zone: evaluation.timeZone,
+          starts_at_utc: evaluation.startsAtUtc.toISOString(),
+          minutes_until:
+            evaluation.minutesUntil !== null ? Math.round(evaluation.minutesUntil) : null,
+          status: "sent",
+          email_sent: emailSentForInterview,
+          recipients_notified: notifiedForInterview,
+        });
+      } else if (duplicateForInterview === recipients.length && recipients.length > 0) {
+        skippedDuplicate += 1;
+        details.push({
+          interview_id: interview.id,
+          candidate_name: interview.candidate_name,
+          time_zone: evaluation.timeZone,
+          starts_at_utc: evaluation.startsAtUtc.toISOString(),
+          minutes_until:
+            evaluation.minutesUntil !== null ? Math.round(evaluation.minutesUntil) : null,
+          status: "skipped_duplicate",
+        });
+      } else {
+        failed += 1;
+        details.push({
+          interview_id: interview.id,
+          candidate_name: interview.candidate_name,
+          time_zone: evaluation.timeZone,
+          starts_at_utc: evaluation.startsAtUtc.toISOString(),
+          minutes_until:
+            evaluation.minutesUntil !== null ? Math.round(evaluation.minutesUntil) : null,
+          status: "failed",
+          reason: failureReason || "No eligible recipients or notification insert failed",
+        });
       }
     }
 
-    return new Response(
-      JSON.stringify({ success: true, reminders_created: remindersCreated }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    const summary: ReminderRunSummary = {
+      success: true,
+      evaluated_at: now.toISOString(),
+      window_minutes: {
+        minExclusive: DEFAULT_REMINDER_MIN_EXCLUSIVE,
+        maxInclusive: DEFAULT_REMINDER_MAX_INCLUSIVE,
+      },
+      total_evaluated: interviews.length,
+      eligible_in_window: eligibleInWindow,
+      reminders_created: remindersCreated,
+      emails_sent: emailsSent,
+      skipped_duplicate: skippedDuplicate,
+      skipped_out_of_window: skippedOutOfWindow,
+      skipped_invalid: skippedInvalid,
+      failed,
+      details,
+    };
+
+    return new Response(JSON.stringify(summary), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
     console.error("interview-reminders error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 });

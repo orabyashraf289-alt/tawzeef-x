@@ -386,8 +386,8 @@ function htmlToPlainText(htmlStr: string): string {
           const errText = await resendResp.text();
           console.warn(`Resend API response not OK (${resendResp.status}: ${errText}). Falling back to SMTP...`);
         }
-      } catch (err: any) {
-        console.warn(`Resend API call failed (${err.message}). Falling back to SMTP...`);
+      } catch (err: unknown) {
+        console.warn(`Resend API call failed (${err instanceof Error ? err.message : String(err)}). Falling back to SMTP...`);
       }
     }
 
@@ -425,10 +425,11 @@ function htmlToPlainText(htmlStr: string): string {
         });
         emailSent = true;
         console.log(`Email sent successfully to ${to} via custom SMTP ${smtpHost}`);
-      } catch (err: any) {
-        console.warn(`Custom SMTP sending failed (${err.message}).`);
+      } catch (err: unknown) {
+        console.warn(`Custom SMTP sending failed (${err instanceof Error ? err.message : String(err)}).`);
         if (isSmtpTest) {
-          const authFailed = err.code === "EAUTH" || err.responseCode === 535;
+          const smtpErr = err as { code?: string; responseCode?: number } | null;
+          const authFailed = smtpErr?.code === "EAUTH" || smtpErr?.responseCode === 535;
           return new Response(JSON.stringify({
             error: authFailed
               ? "رفض Gmail بيانات الدخول (535). تحقق من البريد وكلمة مرور التطبيق، ثم احفظ الإعدادات وأعد الاختبار."

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 
 export type SearchScope = "global" | "candidates" | "jobs" | "interviews" | "offers";
@@ -9,7 +10,7 @@ export interface SearchHistoryEntry {
   query: string;
   scope: SearchScope;
   result_count: number;
-  filters: Record<string, any>;
+  filters: Record<string, unknown>;
   created_at: string;
 }
 
@@ -22,7 +23,7 @@ export function useSearchHistory(scope?: SearchScope, limit = 20) {
     gcTime: 10 * 60 * 1000,
     queryFn: async () => {
       let q = supabase
-        .from("search_history" as any)
+        .from("search_history")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(limit);
@@ -40,16 +41,16 @@ export function useRecordSearch() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: { query: string; scope: SearchScope; result_count?: number; filters?: Record<string, any> }) => {
+    mutationFn: async (params: { query: string; scope: SearchScope; result_count?: number; filters?: Record<string, unknown> }) => {
       if (!user || !params.query.trim() || params.query.trim().length < 2) return null;
       const { data, error } = await supabase
-        .from("search_history" as any)
+        .from("search_history")
         .insert({
           user_id: user.id,
           query: params.query.trim().slice(0, 200),
           scope: params.scope,
           result_count: params.result_count ?? 0,
-          filters: params.filters ?? {},
+          filters: (params.filters ?? {}) as Json,
         })
         .select()
         .single();
@@ -69,7 +70,7 @@ export function useClearSearchHistory() {
   return useMutation({
     mutationFn: async (scope?: SearchScope) => {
       if (!user) return;
-      let q = supabase.from("search_history" as any).delete().eq("user_id", user.id);
+      let q = supabase.from("search_history").delete().eq("user_id", user.id);
       if (scope) q = q.eq("scope", scope);
       const { error } = await q;
       if (error) throw error;
@@ -84,7 +85,7 @@ export function useDeleteSearchEntry() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("search_history" as any).delete().eq("id", id);
+      const { error } = await supabase.from("search_history").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["search-history"] }),

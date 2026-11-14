@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
         // Saving unrelated fields must not claim success when the credential is unusable.
         await decrypt(existing.smtp_password, encKey);
       }
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         user_id: userId,
         config_type: configType,
         smtp_host: settings.smtp_host,

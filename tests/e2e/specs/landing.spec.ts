@@ -1,10 +1,12 @@
 import { test, expect } from "@playwright/test";
 import { LandingPagePom } from "../pages/LandingPage.pom";
+import { setupSupabaseMocks } from "../fixtures/supabaseMockHelper";
 
 test.describe("Landing Page — Smoke & UI Verifications", () => {
   let landingPage: LandingPagePom;
 
   test.beforeEach(async ({ page }) => {
+    await setupSupabaseMocks(page);
     landingPage = new LandingPagePom(page);
     await landingPage.navigate();
   });
@@ -19,7 +21,7 @@ test.describe("Landing Page — Smoke & UI Verifications", () => {
     expect(isRtl).toBe(true);
   });
 
-  test("has active CTA buttons redirecting to auth", async ({ page }) => {
+  test("has active CTA buttons redirecting to auth", async () => {
     await expect(landingPage.startFreeButton).toBeVisible();
     const href = await landingPage.startFreeButton.getAttribute("href");
     expect(href).toContain("/auth");

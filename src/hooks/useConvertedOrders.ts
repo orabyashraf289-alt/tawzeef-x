@@ -7,6 +7,30 @@ import { isConvertedOrder } from "@/types/convertedOrders";
 import type { ConvertedOrder, OrderStatus, OrderChecklist, OrderType } from "@/types/convertedOrders";
 import { resolveTenantCompanyScope } from "@/hooks/useJobs";
 
+interface ConvertedOrdersQueryResult<T> {
+  data: T | null;
+  error: { message: string } | null;
+}
+
+interface ConvertedOrdersFilterBuilder<T> extends PromiseLike<ConvertedOrdersQueryResult<T>> {
+  eq: (column: string, value: string) => ConvertedOrdersFilterBuilder<T>;
+  in: (column: string, values: string[]) => ConvertedOrdersFilterBuilder<T>;
+  order: (column: string, options: { ascending: boolean }) => ConvertedOrdersFilterBuilder<T>;
+  select: (columns: string) => ConvertedOrdersFilterBuilder<T>;
+  single: () => Promise<ConvertedOrdersQueryResult<T>>;
+}
+
+interface ConvertedOrdersClient {
+  from: (table: "converted_orders") => {
+    select: <T = Record<string, unknown>[]>(columns: string) => ConvertedOrdersFilterBuilder<T>;
+    insert: <T = ConvertedOrder>(values: Record<string, unknown>) => ConvertedOrdersFilterBuilder<T>;
+    update: <T = { id: string }>(values: Record<string, unknown>) => ConvertedOrdersFilterBuilder<T>;
+    delete: <T = { id: string }>() => ConvertedOrdersFilterBuilder<T>;
+  };
+}
+
+const convertedOrdersTable = () => (supabase as unknown as ConvertedOrdersClient).from("converted_orders");
+
 const STORAGE_KEY_PREFIX = "tawzeef_converted_orders_";
 const isDatabaseOrder = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
@@ -211,10 +235,12 @@ export function useConvertedOrders() {
     queryFn: async () => {
       const scope = await resolveTenantCompanyScope(user?.id, activeCompanyId);
       if (!scope.length) return [];
-      const { data, error } = await supabase.from("converted_orders" as any)
-        .select("*").in("company_id", scope).order("created_at", { ascending: false });
+      const { data, error } = await convertedOrdersTable()
+        .select<Record<string, unknown>[]>("*")
+        .in("company_id", scope)
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      const rawOrders: unknown[] = ((data || []) as unknown as Record<string, unknown>[])
+      const rawOrders: unknown[] = (data || [])
         .map(row => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, value === null ? undefined : value])));
       const serverOrders = rawOrders.filter(isConvertedOrder);
       // Keep legacy, real browser records visible on the device where they were
@@ -233,7 +259,6 @@ export function useCreateConvertedOrder() {
   const qc = useQueryClient();
   const { activeCompanyId } = useCompany();
   const { user } = useAuth();
-  const companyId = activeCompanyId || "default";
 
   return useMutation({
     mutationFn: async (payload: Partial<ConvertedOrder>) => {
@@ -304,10 +329,12 @@ export function useCreateConvertedOrder() {
         notes: payload.notes,
         created_by: user?.email,
       };
-      const { data, error } = await supabase.from("converted_orders" as any)
-        .insert(newOrder).select("*").single();
+      const { data, error } = await convertedOrdersTable()
+        .insert<ConvertedOrder>(newOrder)
+        .select("*")
+        .single();
       if (error) throw error;
-      return data as unknown as ConvertedOrder;
+      return data!;
     },
     onSuccess: (newOrder) => {
       qc.invalidateQueries({ queryKey: ["converted-orders"] });
@@ -316,7 +343,7 @@ export function useCreateConvertedOrder() {
         description: `رقم الأمر: ${newOrder.order_number} (${newOrder.candidate_name})`,
       });
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast({
         title: "خطأ في إنشاء أمر التحويل",
         description: err.message,
@@ -342,10 +369,13 @@ export function useUpdateConvertedOrderStatus() {
       notes?: string;
     }) => {
       if (isDatabaseOrder(id)) {
-        const { data, error } = await supabase.from("converted_orders" as any)
-          .update({ status, ...(notes ? { notes } : {}) }).eq("id", id).select("id").single();
+        const { data, error } = await convertedOrdersTable()
+          .update<{ id: string }>({ status, ...(notes ? { notes } : {}) })
+          .eq("id", id)
+          .select("id")
+          .single();
         if (error) throw error;
-        return { id: (data as any).id, status };
+        return { id: data!.id, status };
       }
       const existing = getStoredOrders(companyId);
       const updated = existing.map((o) =>
@@ -393,12 +423,16 @@ export function useUpdateConvertedOrderChecklist() {
       requiredKinds?: string[];
     }) => {
       if (isDatabaseOrder(id)) {
-        const { data, error } = await supabase.from("converted_orders" as any)
-          .update({ documents_checklist: checklist,
-            ...(requiredKinds ? { required_document_kinds: requiredKinds } : {}) })
-          .eq("id", id).select("id").single();
+        const { data, error } = await convertedOrdersTable()
+          .update<{ id: string }>({
+            documents_checklist: checklist,
+            ...(requiredKinds ? { required_document_kinds: requiredKinds } : {}),
+          })
+          .eq("id", id)
+          .select("id")
+          .single();
         if (error) throw error;
-        return { id: (data as any).id, checklist };
+        return { id: data!.id, checklist };
       }
       const existing = getStoredOrders(companyId);
       const updated = existing.map((o) =>
@@ -439,12 +473,18 @@ export function useTransferOrderBranch() {
       transferReason: string;
     }) => {
       if (isDatabaseOrder(id)) {
-        const { data, error } = await supabase.from("converted_orders" as any)
-          .update({ order_type: "branch_transfer", target_branch: targetBranch,
-            transfer_reason: transferReason, status: "contract_issued" })
-          .eq("id", id).select("id").single();
+        const { data, error } = await convertedOrdersTable()
+          .update<{ id: string }>({
+            order_type: "branch_transfer",
+            target_branch: targetBranch,
+            transfer_reason: transferReason,
+            status: "contract_issued",
+          })
+          .eq("id", id)
+          .select("id")
+          .single();
         if (error) throw error;
-        return { id: (data as any).id, targetBranch };
+        return { id: data!.id, targetBranch };
       }
       const existing = getStoredOrders(companyId);
       const updated = existing.map((o) =>
@@ -478,10 +518,13 @@ export function useDeleteConvertedOrder() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (isDatabaseOrder(id)) {
-        const { data, error } = await supabase.from("converted_orders" as any)
-          .delete().eq("id", id).select("id").single();
+        const { data, error } = await convertedOrdersTable()
+          .delete<{ id: string }>()
+          .eq("id", id)
+          .select("id")
+          .single();
         if (error) throw error;
-        return (data as any).id as string;
+        return data!.id;
       }
       const existing = getStoredOrders(companyId);
       const updated = existing.filter((o) => o.id !== id);

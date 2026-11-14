@@ -40,8 +40,11 @@ export function useProgressiveRender<T>(
     };
 
     const schedule = () => {
-      if ("requestIdleCallback" in window) {
-        (window as any).requestIdleCallback(tick, { timeout: 200 });
+      const idleWindow = window as Window & {
+        requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+      };
+      if (typeof idleWindow.requestIdleCallback === "function") {
+        idleWindow.requestIdleCallback(tick, { timeout: 200 });
       } else {
         setTimeout(tick, 16);
       }
