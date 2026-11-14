@@ -187,8 +187,9 @@ export default function LandingPage() {
   return (
     <div ref={motionScope} className="min-h-screen bg-md-surface text-md-on-surface overflow-x-hidden w-full max-w-full font-sans antialiased selection:bg-md-primary selection:text-md-on-primary" dir="rtl">
       <SEO
-        title="TawzeefX | وظائف وفرص عمل ومنصة توظيف ذكية"
-        description="اكتشف أحدث الوظائف وفرص العمل مع TawzeefX، منصة توظيف ذكية تساعد الباحثين عن عمل على الوصول للفرص المناسبة وتساعد الشركات على العثور على أفضل المرشحين."
+        title="توظيف إكس (TawzeefX) | منصة توظيف ذكية ووظائف شاغرة ونظام تتبع المتقدمين ATS"
+        description="توظيف إكس (TawzeefX - توظيف اكس) منصة توظيف ذكية ونظام تتبع المتقدمين (ATS) في السعودية والعالم العربي: تصفح أحدث الوظائف وفرص العمل، فرز السير الذاتية بالذكاء الاصطناعي، مقابلات الفيديو، والعروض الوظيفية الرقمية."
+        keywords="توظيف إكس, توظيف اكس, منصة توظيف إكس, TawzeefX, Tawzeef-X, منصة توظيف ذكية, نظام تتبع المتقدمين, ATS عربي, وظائف شاغرة, فرص عمل في السعودية, فرز السير الذاتية بالذكاء الاصطناعي"
         canonical="https://www.tawzeefx.com/"
         image="https://www.tawzeefx.com/icon-512x512.png"
         jsonLd={{
@@ -197,17 +198,20 @@ export default function LandingPage() {
             {
               "@type": "Organization",
               "@id": "https://www.tawzeefx.com/#organization",
-              "name": "TawzeefX",
+              "name": "توظيف إكس | TawzeefX",
+              "alternateName": ["توظيف إكس", "توظيف اكس", "منصة توظيف إكس", "TawzeefX", "Tawzeef-X", "Tawzeef X"],
               "url": "https://www.tawzeefx.com/",
               "logo": "https://www.tawzeefx.com/icon-512x512.png",
-              "description": "منصة توظيف ذكية تربط الباحثين عن عمل بالشركات وأصحاب الأعمال لاكتشاف أحدث الوظائف واستقطاب أفضل الكفاءات."
+              "description": "توظيف إكس (TawzeefX) منصة توظيف ذكية ونظام تتبع المتقدمين (ATS) تربط الباحثين عن عمل بالشركات وأصحاب الأعمال لاكتشاف أحدث الوظائف واستقطاب أفضل الكفاءات بالذكاء الاصطناعي."
             },
             {
               "@type": "WebSite",
               "@id": "https://www.tawzeefx.com/#website",
               "url": "https://www.tawzeefx.com/",
-              "name": "TawzeefX",
-              "description": "منصة توظيف ذكية للباحثين عن عمل والشركات",
+              "name": "توظيف إكس | TawzeefX",
+              "alternateName": ["توظيف إكس", "توظيف اكس", "TawzeefX", "Tawzeef-X"],
+              "inLanguage": ["ar-SA", "ar", "en"],
+              "description": "منصة توظيف إكس (TawzeefX) الذكية للباحثين عن عمل والشركات",
               "publisher": {
                 "@id": "https://www.tawzeefx.com/#organization"
               },
@@ -392,7 +396,7 @@ export default function LandingPage() {
                 data-hero-reveal
                 className="text-md3-body-lg text-md-on-surface-variant max-w-xl mx-auto lg:mx-0 mb-8 leading-relaxed font-medium"
               >
-                منظومة توظيف سحابية ذكية: تصفح أحدث الوظائف وفرص العمل المعتمدة، وفرز السير الذاتية بالذكاء الاصطناعي، ومقابلات الفيديو المدمجة، وإدارة استقطاب الكفاءات للشركات بكل سهولة.
+                توظيف إكس (Tawzeef-X) منظومة توظيف سحابية ذكية ونظام تتبع المتقدمين (ATS): تصفح أحدث الوظائف وفرص العمل المعتمدة، وفرز السير الذاتية بالذكاء الاصطناعي، ومقابلات الفيديو المدمجة، وإدارة استقطاب الكفاءات للشركات بكل سهولة.
               </p>
 
               {/* CTAs */}

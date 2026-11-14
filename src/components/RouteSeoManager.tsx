@@ -6,70 +6,87 @@ export const SEO_BASE_URL = "https://www.tawzeefx.com";
 export interface RouteSeoMetadata {
   title: string;
   description: string;
+  keywords: string;
   canonicalUrl: string;
   robots: string;
 }
 
 const DEFAULT_PRIVATE_METADATA: Omit<RouteSeoMetadata, "canonicalUrl"> = {
-  title: "TawzeefX | منصة التوظيف الذكية",
-  description: "منصة TawzeefX لإدارة عمليات التوظيف واستقطاب الكفاءات.",
+  title: "توظيف إكس (TawzeefX) | منصة التوظيف الذكية",
+  description: "منصة توظيف إكس (TawzeefX) لإدارة عمليات التوظيف واستقطاب الكفاءات.",
+  keywords: "توظيف إكس, TawzeefX, نظام تتبع المتقدمين",
   robots: "noindex, nofollow",
 };
 
 const PUBLIC_ROUTE_METADATA: Record<string, Omit<RouteSeoMetadata, "canonicalUrl" | "robots">> = {
   "/": {
-    title: "TawzeefX | وظائف وفرص عمل ومنصة توظيف ذكية",
+    title: "توظيف إكس (TawzeefX) | منصة توظيف ذكية ووظائف شاغرة ونظام تتبع المتقدمين ATS",
     description:
-      "اكتشف أحدث الوظائف وفرص العمل مع TawzeefX، منصة توظيف ذكية تساعد الباحثين عن عمل على الوصول للفرص المناسبة وتساعد الشركات على العثور على أفضل المرشحين.",
+      "توظيف إكس (TawzeefX - توظيف اكس) منصة توظيف ذكية ونظام تتبع المتقدمين (ATS) في السعودية والعالم العربي: تصفح أحدث الوظائف وفرص العمل، فرز السير الذاتية بالذكاء الاصطناعي، مقابلات الفيديو، والعروض الوظيفية الرقمية.",
+    keywords:
+      "توظيف إكس, توظيف اكس, منصة توظيف إكس, TawzeefX, Tawzeef-X, منصة توظيف ذكية, نظام تتبع المتقدمين, ATS عربي, وظائف شاغرة, فرص عمل في السعودية, فرز السير الذاتية بالذكاء الاصطناعي",
   },
   "/features": {
-    title: "المميزات | TawzeefX - منصة التوظيف الذكية وأتمتة الاستقطاب",
+    title: "المميزات | توظيف إكس (TawzeefX) - نظام تتبع المتقدمين ATS وأتمتة الاستقطاب",
     description:
-      "تعرف على مميزات TawzeefX لإدارة التوظيف بالذكاء الاصطناعي، فرز السير الذاتية، جدولة المقابلات، وأتمتة التواصل مع المرشحين.",
+      "تعرف على مميزات منصة توظيف إكس (TawzeefX) لإدارة التوظيف بالذكاء الاصطناعي، فرز السير الذاتية، جدولة المقابلات، وأتمتة التواصل مع المرشحين.",
+    keywords:
+      "مميزات توظيف إكس, نظام تتبع المتقدمين ATS, فرز السير الذاتية بالذكاء الاصطناعي, مقابلات فيديو للتوظيف, برنامج توظيف للشركات, TawzeefX features",
   },
   "/pricing": {
-    title: "الأسعار والباقات | TawzeefX - حلول توظيف مرنة للشركات",
+    title: "الأسعار والباقات | توظيف إكس (TawzeefX) - حلول توظيف مرنة للشركات",
     description:
-      "استعرض باقات وأسعار منصة TawzeefX المصممة للشركات الناشئة والمتوسطة والمؤسسات مع أدوات توظيف ذكية متكاملة.",
+      "استعرض باقات وأسعار منصة توظيف إكس (TawzeefX) المصممة للشركات الناشئة والمتوسطة والمؤسسات مع أدوات توظيف ذكية متكاملة.",
+    keywords:
+      "أسعار توظيف إكس, باقات توظيف إكس, اشتراك منصة توظيف, أسعار نظام ATS, TawzeefX pricing",
   },
   "/careers": {
-    title: "الوظائف المتاحة | TawzeefX - تصفح أحدث فرص العمل",
+    title: "الوظائف المتاحة | توظيف إكس (TawzeefX) - تصفح أحدث فرص العمل",
     description:
-      "تصفح أحدث الوظائف الشاغرة وفرص العمل المتاحة عبر منصة TawzeefX وقدّم سيرتك الذاتية مباشرة للشركات الموثوقة.",
+      "تصفح أحدث الوظائف الشاغرة وفرص العمل المتاحة عبر منصة توظيف إكس (TawzeefX) وقدّم سيرتك الذاتية مباشرة للشركات الموثوقة.",
+    keywords:
+      "وظائف توظيف إكس, وظائف شاغرة, فرص عمل في السعودية, تقديم وظائف, بوابة التوظيف, TawzeefX careers",
   },
   "/blog": {
-    title: "المدونة | TawzeefX - مقالات ونصائح التوظيف والموارد البشرية",
+    title: "المدونة | توظيف إكس (TawzeefX) - مقالات ونصائح التوظيف والموارد البشرية",
     description:
-      "اقرأ أحدث المقالات والأدلة المتخصصة في التوظيف الذكي، إدارة المواهب، وأفضل ممارسات الموارد البشرية على مدونة TawzeefX.",
+      "اقرأ أحدث المقالات والأدلة المتخصصة في التوظيف الذكي، إدارة المواهب، وأفضل ممارسات الموارد البشرية على مدونة توظيف إكس (TawzeefX).",
+    keywords:
+      "مدونة توظيف إكس, مقالات الموارد البشرية, نصائح المقابلات الشخصية, التوظيف الذكي, TawzeefX blog",
   },
   "/about": {
-    title: "عن المنصة | TawzeefX - رؤيتنا لمستقبل التوظيف الذكي",
+    title: "عن المنصة | توظيف إكس (TawzeefX) - رؤيتنا لمستقبل التوظيف الذكي",
     description:
-      "تعرف على منصة TawzeefX ورؤيتنا في تطوير تجربة التوظيف وربط الكفاءات بأفضل جهات العمل عبر تقنيات الذكاء الاصطناعي.",
+      "تعرف على منصة توظيف إكس (TawzeefX - توظيف اكس) ورؤيتنا في تطوير تجربة التوظيف وربط الكفاءات بأفضل جهات العمل عبر تقنيات الذكاء الاصطناعي.",
+    keywords: "عن توظيف إكس, من نحن توظيف اكس, شركة TawzeefX, منصة التوظيف الذكية",
   },
   "/contact": {
-    title: "تواصل معنا | TawzeefX - فريق الدعم والمبيعات",
+    title: "تواصل معنا | توظيف إكس (TawzeefX) - فريق الدعم والمبيعات",
     description:
-      "تواصل مع فريق TawzeefX للاستفسارات، طلب عرض توضيحي للمنصة، أو الحصول على الدعم الفني للشركات والباحثين عن عمل.",
+      "تواصل مع فريق توظيف إكس (TawzeefX) للاستفسارات، طلب عرض توضيحي للمنصة، أو الحصول على الدعم الفني للشركات والباحثين عن عمل.",
+    keywords: "تواصل مع توظيف إكس, دعم توظيف إكس, حجز عرض توضيحي TawzeefX",
   },
   "/privacy": {
-    title: "سياسة الخصوصية | TawzeefX",
+    title: "سياسة الخصوصية | توظيف إكس (TawzeefX)",
     description:
-      "اطلع على سياسة الخصوصية وحماية البيانات الشخصية للمرشحين والشركات في منصة TawzeefX وفق أعلى معايير الأمان.",
+      "اطلع على سياسة الخصوصية وحماية البيانات الشخصية للمرشحين والشركات في منصة توظيف إكس (TawzeefX) وفق أعلى معايير الأمان.",
+    keywords: "سياسة الخصوصية توظيف إكس, حماية البيانات TawzeefX",
   },
   "/terms": {
-    title: "الشروط والأحكام | TawzeefX",
+    title: "الشروط والأحكام | توظيف إكس (TawzeefX)",
     description:
-      "تعرف على الشروط والأحكام المنظمة لاستخدام منصة TawzeefX لخدمات التوظيف الذكي للشركات والمرشحين.",
+      "تعرف على الشروط والأحكام المنظمة لاستخدام منصة توظيف إكس (TawzeefX) لخدمات التوظيف الذكي للشركات والمرشحين.",
+    keywords: "الشروط والأحكام توظيف إكس, شروط استخدام TawzeefX",
   },
   "/apply": {
-    title: "التقديم على وظيفة | TawzeefX",
+    title: "التقديم على وظيفة | توظيف إكس (TawzeefX)",
     description:
-      "قدّم طلبك وسيرتك الذاتية للوظيفة الشاغرة عبر بوابة التوظيف الذكية في TawzeefX.",
+      "قدّم طلبك وسيرتك الذاتية للوظيفة الشاغرة عبر بوابة التوظيف الذكية في توظيف إكس (TawzeefX).",
+    keywords: "التقديم على وظيفة, توظيف إكس, رفع السيرة الذاتية, TawzeefX apply",
   },
 };
 
-/** Resolve SEO title, description, canonical URL, and robots policy for a route path. */
+/** Resolve SEO title, description, keywords, canonical URL, and robots policy for a route path. */
 export function getRouteSeoMetadata(pathname: string): RouteSeoMetadata {
   const trimmed = pathname.replace(/^\/+|\/+$/g, "");
   const cleanPath = trimmed ? `/${trimmed}` : "/";
@@ -125,7 +142,7 @@ function upsertCanonicalLink(href: string) {
   element.setAttribute("href", href);
 }
 
-/** Sync document title, canonical link, and social/search meta tags on route changes. */
+/** Sync document title, canonical link, keywords, and social/search meta tags on route changes. */
 export function RouteSeoManager() {
   const location = useLocation();
 
@@ -134,7 +151,9 @@ export function RouteSeoManager() {
     document.title = meta.title;
     upsertCanonicalLink(meta.canonicalUrl);
     upsertMetaTag("name", "description", meta.description);
+    upsertMetaTag("name", "keywords", meta.keywords);
     upsertMetaTag("name", "robots", meta.robots);
+    upsertMetaTag("property", "og:site_name", "توظيف إكس | TawzeefX");
     upsertMetaTag("property", "og:title", meta.title);
     upsertMetaTag("property", "og:description", meta.description);
     upsertMetaTag("property", "og:url", meta.canonicalUrl);

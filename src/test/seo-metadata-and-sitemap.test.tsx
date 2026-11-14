@@ -8,10 +8,14 @@ import { getRouteSeoMetadata, RouteSeoManager } from "@/components/RouteSeoManag
 const ROOT = process.cwd();
 
 describe("Technical SEO metadata, canonical tags, and sitemap URL consistency", () => {
-  it("declares the root canonical URL in index.html matching og:url", () => {
+  it("declares the root canonical URL, Arabic brand keywords, and JSON-LD alternateName in index.html", () => {
     const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf-8");
     expect(html).toContain('<link rel="canonical" href="https://www.tawzeefx.com/" />');
     expect(html).toContain('<meta property="og:url" content="https://www.tawzeefx.com/" />');
+    expect(html).toContain("توظيف إكس");
+    expect(html).toContain("توظيف اكس");
+    expect(html).toContain('<meta name="keywords"');
+    expect(html).toContain('"alternateName"');
   });
 
   it("uses path '/' for the homepage in both sitemap generators to match index.html", () => {
@@ -21,15 +25,19 @@ describe("Technical SEO metadata, canonical tags, and sitemap URL consistency", 
     expect(apiGen).toContain('{ path: "/", changefreq: "daily", priority: "1.0" }');
   });
 
-  it("resolves indexable metadata for public routes and noindex for private routes", () => {
+  it("resolves bilingual indexable metadata for public routes and noindex for private routes", () => {
     const home = getRouteSeoMetadata("/");
     expect(home.canonicalUrl).toBe("https://www.tawzeefx.com/");
     expect(home.robots).toBe("index, follow");
+    expect(home.title).toContain("توظيف إكس");
+    expect(home.description).toContain("توظيف إكس");
+    expect(home.keywords).toContain("توظيف إكس");
 
     const features = getRouteSeoMetadata("/features/");
     expect(features.canonicalUrl).toBe("https://www.tawzeefx.com/features");
     expect(features.robots).toBe("index, follow");
     expect(features.title).toContain("المميزات");
+    expect(features.keywords).toContain("نظام تتبع المتقدمين");
 
     const pricing = getRouteSeoMetadata("/pricing");
     expect(pricing.canonicalUrl).toBe("https://www.tawzeefx.com/pricing");
@@ -49,7 +57,7 @@ describe("Technical SEO metadata, canonical tags, and sitemap URL consistency", 
     expect(dashboard.robots).toBe("noindex, nofollow");
   });
 
-  it("updates document title, canonical link, and meta tags on client-side navigation", async () => {
+  it("updates document title, canonical link, keywords, and meta tags on client-side navigation", async () => {
     render(
       <MemoryRouter initialEntries={["/features"]}>
         <RouteSeoManager />
@@ -58,11 +66,15 @@ describe("Technical SEO metadata, canonical tags, and sitemap URL consistency", 
 
     await waitFor(() => {
       expect(document.title).toContain("المميزات");
+      expect(document.title).toContain("توظيف إكس");
       expect(document.head.querySelector('link[rel="canonical"]')?.getAttribute("href")).toBe(
         "https://www.tawzeefx.com/features"
       );
       expect(document.head.querySelector('meta[name="description"]')?.getAttribute("content")).toContain(
-        "مميزات TawzeefX"
+        "توظيف إكس"
+      );
+      expect(document.head.querySelector('meta[name="keywords"]')?.getAttribute("content")).toContain(
+        "توظيف إكس"
       );
       expect(document.head.querySelector('meta[property="og:url"]')?.getAttribute("content")).toBe(
         "https://www.tawzeefx.com/features"

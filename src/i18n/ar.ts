@@ -1240,8 +1240,8 @@ const ar: Record<string, string> = {
   "marketing.footer.support": "الدعم",
 
   // About page
-  "about.seo.title": "عن منصة TawzeefX | منصة التوظيف الذكية للشركات والباحثين عن عمل",
-  "about.seo.description": "تعرّف على TawzeefX، المنصة الذكية التي تجمع بين الكفاءات المهنية وأصحاب الأعمال بأحدث تقنيات الذكاء الاصطناعي.",
+  "about.seo.title": "عن منصة توظيف إكس (TawzeefX) | منصة التوظيف الذكية للشركات والباحثين عن عمل",
+  "about.seo.description": "تعرّف على منصة توظيف إكس (TawzeefX - توظيف اكس)، المنصة الذكية ونظام تتبع المتقدمين (ATS) التي تجمع بين الكفاءات المهنية وأصحاب الأعمال بأحدث تقنيات الذكاء الاصطناعي.",
   "about.hero.badge": "قصتنا",
   "about.hero.title": "نُعيد تعريف التوظيف",
   "about.hero.highlight": "بالذكاء الاصطناعي",
@@ -1266,8 +1266,8 @@ const ar: Record<string, string> = {
   "about.cta.subtitle": "ابدأ مع آلاف الشركات التي تثق بـ Tawzeef-X",
 
   // Features page
-  "features.seo.title": "ميزات TawzeefX | أدوات ذكية للبحث عن الوظائف والتوظيف",
-  "features.seo.description": "اكتشف أدوات TawzeefX للتوظيف والبحث عن الوظائف: الذكاء الاصطناعي، تتبع المتقدمين، مقابلات الفيديو، والعروض الوظيفية الرقمية.",
+  "features.seo.title": "ميزات توظيف إكس (TawzeefX) | نظام تتبع المتقدمين ATS وأدوات التوظيف الذكي",
+  "features.seo.description": "اكتشف أدوات توظيف إكس (TawzeefX) للتوظيف والبحث عن الوظائف: فرز السير الذاتية بالذكاء الاصطناعي، تتبع المتقدمين ATS، مقابلات الفيديو، والعروض الوظيفية الرقمية.",
   "features.hero.title": "كل ما تحتاجه لتوظيف",
   "features.hero.highlight": "أفضل الكفاءات",
   "features.hero.subtitle": "أدوات احترافية متكاملة لإدارة دورة التوظيف بالكامل — من نشر الوظيفة حتى التعيين.",
@@ -1275,8 +1275,8 @@ const ar: Record<string, string> = {
   "features.cta.subtitle": "بدون بطاقة ائتمان. ابدأ في أقل من دقيقة.",
 
   // Contact page
-  "contact.seo.title": "تواصل معنا | TawzeefX",
-  "contact.seo.description": "تواصل مع فريق منصة TawzeefX لاستفسارات حلول التوظيف للشركات، أو مساعدة الباحثين عن عمل، أو الدعم الفني المباشر.",
+  "contact.seo.title": "تواصل معنا | توظيف إكس (TawzeefX)",
+  "contact.seo.description": "تواصل مع فريق منصة توظيف إكس (TawzeefX) لاستفسارات حلول التوظيف للشركات، أو مساعدة الباحثين عن عمل، أو الدعم الفني المباشر.",
   "contact.hero.title": "نحن هنا",
   "contact.hero.highlight": "لمساعدتك",
   "contact.hero.subtitle": "تواصل معنا في أي وقت — فريقنا متاح للرد على استفساراتك وحجز عروض تجريبية.",
@@ -1297,8 +1297,8 @@ const ar: Record<string, string> = {
   "contact.info.hoursValue": "الأحد - الخميس، 9 ص - 6 م (KSA)",
 
   // Blog
-  "blog.seo.title": "مدونة TawzeefX | مقالات التوظيف، المقابلات والنصائح المهنية",
-  "blog.seo.description": "مقالات وأدلة شاملة حول التوظيف الذكي، اجتياز المقابلات الشخصية، وأحدث استراتيجيات استقطاب الكفاءات والبحث عن عمل.",
+  "blog.seo.title": "مدونة توظيف إكس (TawzeefX) | مقالات التوظيف، المقابلات والنصائح المهنية",
+  "blog.seo.description": "مقالات وأدلة شاملة من توظيف إكس (TawzeefX) حول التوظيف الذكي، اجتياز المقابلات الشخصية، وأحدث استراتيجيات استقطاب الكفاءات والبحث عن عمل.",
   "blog.hero.title": "أفكار ونصائح",
   "blog.hero.highlight": "في عالم التوظيف",
   "blog.hero.subtitle": "أحدث المقالات والأدلة من فريق Tawzeef-X",

@@ -36,8 +36,9 @@ export default function About() {
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "Organization",
-          name: "TawzeefX",
-          url: "https://www.tawzeefx.com",
+          name: "توظيف إكس | TawzeefX",
+          alternateName: ["توظيف إكس", "توظيف اكس", "TawzeefX", "Tawzeef-X"],
+          url: "https://www.tawzeefx.com/",
           description: t("about.seo.description"),
         }}
       />

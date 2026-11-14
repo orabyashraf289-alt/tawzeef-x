@@ -4,6 +4,7 @@ import { useI18n } from "@/contexts/I18nContext";
 export interface SEOProps {
   title: string;
   description: string;
+  keywords?: string;
   canonical?: string;
   image?: string;
   type?: "website" | "article";
@@ -13,6 +14,8 @@ export interface SEOProps {
 
 const DEFAULT_OG_IMAGE = "https://www.tawzeefx.com/icon-512x512.png";
 const BASE_DOMAIN = "https://www.tawzeefx.com";
+const DEFAULT_KEYWORDS =
+  "توظيف إكس, توظيف اكس, منصة توظيف إكس, TawzeefX, Tawzeef-X, منصة توظيف ذكية, نظام تتبع المتقدمين, ATS, وظائف شاغرة, فرص عمل, فرز السير الذاتية بالذكاء الاصطناعي";
 
 /**
  * Lightweight SEO manager — sets <title>, meta description, OG/Twitter tags,
@@ -21,6 +24,7 @@ const BASE_DOMAIN = "https://www.tawzeefx.com";
 export function SEO({
   title,
   description,
+  keywords,
   canonical,
   image = DEFAULT_OG_IMAGE,
   type = "website",
@@ -54,7 +58,8 @@ export function SEO({
 
     // Primary Meta Tags
     ensureMeta(`meta[name="description"]`, "name", "description", description);
-    ensureMeta(`meta[property="og:site_name"]`, "property", "og:site_name", "TawzeefX");
+    ensureMeta(`meta[name="keywords"]`, "name", "keywords", keywords || DEFAULT_KEYWORDS);
+    ensureMeta(`meta[property="og:site_name"]`, "property", "og:site_name", "توظيف إكس | TawzeefX");
     ensureMeta(`meta[property="og:title"]`, "property", "og:title", title);
     ensureMeta(`meta[property="og:description"]`, "property", "og:description", description);
     ensureMeta(`meta[property="og:type"]`, "property", "og:type", type);
@@ -105,7 +110,7 @@ export function SEO({
     } else if (scriptEl) {
       scriptEl.remove();
     }
-  }, [title, description, canonical, image, type, jsonLd, noindex, locale, dir]);
+  }, [title, description, keywords, canonical, image, type, jsonLd, noindex, locale, dir]);
 
   return null;
 }

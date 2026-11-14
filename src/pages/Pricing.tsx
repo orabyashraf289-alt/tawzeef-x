@@ -40,8 +40,8 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <SEO
-        title="باقات وأسعار TawzeefX | خطط التوظيف الذكي للشركات وأصحاب الأعمال"
-        description="تعرف على باقات وخطط أسعار TawzeefX للتوظيف واستقطاب الكفاءات ونشر الوظائف. باقات مرنة تناسب الشركات ومسؤولي التوظيف بمختلف الأحجام."
+        title="الأسعار والباقات | توظيف إكس (TawzeefX) - خطط التوظيف الذكي للشركات"
+        description="تعرف على باقات وخطط أسعار منصة توظيف إكس (TawzeefX) للتوظيف الذكي واستقطاب الكفاءات ونشر الوظائف. باقات مرنة تناسب الشركات ومسؤولي التوظيف بمختلف الأحجام."
         canonical="https://www.tawzeefx.com/pricing"
       />
       {/* Header */}
