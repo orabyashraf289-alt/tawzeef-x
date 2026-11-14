@@ -5,6 +5,7 @@ import { useLandingMotion } from "@/hooks/useLandingMotion";
 import AnimatedCounter from "@/components/motion/AnimatedCount";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
 import { Link } from "react-router-dom";
+import seoRoutesConfig from "@/data/seoRoutes.json";
 import {
   Users, Bot, ArrowLeft, TrendingUp, Shield, Globe, CheckCircle2, Zap,
   Briefcase, FileText, Video, Sparkles, Award, Play, Layout,
@@ -243,23 +244,34 @@ export default function LandingPage() {
           </Link>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden lg:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-6" aria-label="التنقل الرئيسي">
             {[
-              { label: "الوظائف الشاغرة", href: "/careers" },
-              { label: "شركات انضمت إلينا", href: "#companies" },
-              { label: "المميزات والحلول", href: "#features" },
-              { label: "معاينة النظام الحي", href: "#showcase" },
-              { label: "باقات المنشآت", href: "#pricing" },
-              { label: "الأمان والموثوقية", href: "#security" },
-            ].map((item) => (
-              <a
-                key={item.label}
-                href={item.href}
-                className="text-md3-label-lg font-bold text-md-on-surface-variant hover:text-md-primary transition-colors"
-              >
-                {item.label}
-              </a>
-            ))}
+              { label: "الوظائف الشاغرة", href: "/careers", isRoute: true },
+              { label: "المميزات والحلول", href: "#features", isRoute: false },
+              { label: "معاينة النظام الحي", href: "#showcase", isRoute: false },
+              { label: "باقات المنشآت", href: "#pricing", isRoute: false },
+              { label: "المدونة", href: "/blog", isRoute: true },
+              { label: "عن المنصة", href: "/about", isRoute: true },
+              { label: "تواصل معنا", href: "/contact", isRoute: true },
+            ].map((item) =>
+              item.isRoute ? (
+                <Link
+                  key={item.label}
+                  to={item.href}
+                  className="text-md3-label-lg font-bold text-md-on-surface-variant hover:text-md-primary transition-colors"
+                >
+                  {item.label}
+                </Link>
+              ) : (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  className="text-md3-label-lg font-bold text-md-on-surface-variant hover:text-md-primary transition-colors"
+                >
+                  {item.label}
+                </a>
+              )
+            )}
           </nav>
 
           {/* Actions */}
@@ -319,24 +331,36 @@ export default function LandingPage() {
               </button>
             </div>
 
-            <nav className="flex flex-col gap-5 py-8 text-md3-title-md font-bold">
+            <nav className="flex flex-col gap-5 py-8 text-md3-title-md font-bold" aria-label="قائمة الجوال">
               {[
-                { label: "الوظائف الشاغرة", href: "/careers" },
-                { label: "شركات انضمت إلينا", href: "#companies" },
-                { label: "المميزات والحلول", href: "#features" },
-                { label: "معاينة النظام الحي", href: "#showcase" },
-                { label: "باقات المنشآت", href: "#pricing" },
-                { label: "الأمان والموثوقية", href: "#security" },
-              ].map((item) => (
-                <a
-                  key={item.label}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-md-on-surface hover:text-md-primary py-2 border-b border-md-outline-variant/40"
-                >
-                  {item.label}
-                </a>
-              ))}
+                { label: "الوظائف الشاغرة", href: "/careers", isRoute: true },
+                { label: "مميزات المنصة", href: "/features", isRoute: true },
+                { label: "الأسعار والباقات", href: "/pricing", isRoute: true },
+                { label: "معاينة النظام الحي", href: "#showcase", isRoute: false },
+                { label: "المدونة", href: "/blog", isRoute: true },
+                { label: "عن توظيف إكس", href: "/about", isRoute: true },
+                { label: "تواصل معنا", href: "/contact", isRoute: true },
+              ].map((item) =>
+                item.isRoute ? (
+                  <Link
+                    key={item.label}
+                    to={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-md-on-surface hover:text-md-primary py-2 border-b border-md-outline-variant/40"
+                  >
+                    {item.label}
+                  </Link>
+                ) : (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-md-on-surface hover:text-md-primary py-2 border-b border-md-outline-variant/40"
+                  >
+                    {item.label}
+                  </a>
+                )
+              )}
             </nav>
 
             <div className="mt-auto flex flex-col gap-3">
@@ -1320,6 +1344,62 @@ export default function LandingPage() {
       </section>
 
       {/* ── 8. Enterprise Footer (NO PUBLIC JOBS LISTINGS) ── */}
+      {/* ===================================================================== */}
+      {/* FAQ & INTERNAL SEO HUB SECTION                                        */}
+      {/* ===================================================================== */}
+      <section id="faq" className="py-20 bg-md-surface-container-low border-t border-md-outline-variant">
+        <div className="max-w-5xl mx-auto px-5 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <span className="inline-block px-3 py-1 rounded-full bg-md-primary-container text-md-on-primary-container text-xs font-black mb-3">
+              الأسئلة الشائعة | توظيف إكس (TawzeefX)
+            </span>
+            <h2 className="text-2xl lg:text-3xl font-black text-md-on-surface mb-3">
+              إجابات سريعة حول منصة التوظيف الذكية ونظام تتبع المتقدمين
+            </h2>
+            <p className="text-sm text-md-on-surface-variant font-medium">
+              استكشف كيف تساعدك منصة توظيف إكس (TawzeefX) في إدارة الوظائف الشاغرة وفرز السير الذاتية بالذكاء الاصطناعي.
+            </p>
+          </div>
+
+          <div className="grid gap-4">
+            {seoRoutesConfig.faq.map((item) => (
+              <details
+                key={item.question}
+                className="group rounded-md3-lg border border-md-outline-variant bg-md-surface p-5 transition-colors hover:border-md-primary/50"
+              >
+                <summary className="cursor-pointer list-none font-black text-base text-md-on-surface flex items-center justify-between gap-4">
+                  <span>{item.question}</span>
+                  <span className="material-symbols-rounded text-md-primary transition-transform group-open:rotate-180">
+                    expand_more
+                  </span>
+                </summary>
+                <p className="mt-3 text-sm leading-7 text-md-on-surface-variant font-medium">
+                  {item.answer}
+                </p>
+              </details>
+            ))}
+          </div>
+
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-3 text-xs font-bold">
+            <Link to="/features" className="px-4 py-2 rounded-full border border-md-outline-variant bg-md-surface hover:border-md-primary hover:text-md-primary transition-colors">
+              استعراض مميزات نظام ATS
+            </Link>
+            <Link to="/pricing" className="px-4 py-2 rounded-full border border-md-outline-variant bg-md-surface hover:border-md-primary hover:text-md-primary transition-colors">
+              مقارنة باقات وأسعار المنشآت
+            </Link>
+            <Link to="/careers" className="px-4 py-2 rounded-full border border-md-outline-variant bg-md-surface hover:border-md-primary hover:text-md-primary transition-colors">
+              تصفح الوظائف الشاغرة
+            </Link>
+            <Link to="/blog" className="px-4 py-2 rounded-full border border-md-outline-variant bg-md-surface hover:border-md-primary hover:text-md-primary transition-colors">
+              مقالات وأدلة التوظيف الذكي
+            </Link>
+            <Link to="/about" className="px-4 py-2 rounded-full border border-md-outline-variant bg-md-surface hover:border-md-primary hover:text-md-primary transition-colors">
+              تعرف على توظيف إكس
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <footer className="bg-md-surface-variant text-md-on-surface-variant pt-16 pb-12 border-t border-md-outline-variant">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
@@ -1340,12 +1420,14 @@ export default function LandingPage() {
 
             {/* Column 2: Navigation */}
             <div>
-              <h4 className="font-black text-sm text-md-on-surface mb-4">روابط سريعة</h4>
+              <h4 className="font-black text-sm text-md-on-surface mb-4">صفحات المنصة</h4>
               <ul className="space-y-3 text-xs font-bold">
-                <li><a href="#features" className="hover:text-md-primary transition-colors">المميزات والحلول</a></li>
-                <li><a href="#showcase" className="hover:text-md-primary transition-colors">معاينة النظام الحي</a></li>
-                <li><a href="#pricing" className="hover:text-md-primary transition-colors">باقات المنشآت</a></li>
-                <li><a href="#security" className="hover:text-md-primary transition-colors">الأمان والخصوصية</a></li>
+                <li><Link to="/features" className="hover:text-md-primary transition-colors">مميزات نظام التوظيف ATS</Link></li>
+                <li><Link to="/pricing" className="hover:text-md-primary transition-colors">الأسعار وباقات المنشآت</Link></li>
+                <li><Link to="/careers" className="hover:text-md-primary transition-colors">الوظائف الشاغرة المتاحة</Link></li>
+                <li><Link to="/blog" className="hover:text-md-primary transition-colors">مدونة التوظيف الذكي</Link></li>
+                <li><Link to="/about" className="hover:text-md-primary transition-colors">عن منصة توظيف إكس</Link></li>
+                <li><Link to="/contact" className="hover:text-md-primary transition-colors">تواصل معنا واحجز عرضاً</Link></li>
               </ul>
             </div>
 

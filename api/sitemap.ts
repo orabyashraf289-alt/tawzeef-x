@@ -137,15 +137,29 @@ export default async function handler(_req: SitemapRequest, res: SitemapResponse
   const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
   let activeJobs: SitemapJobRow[] = [];
+  let publishedPosts: Array<{
+    slug: string;
+    published_at?: string | null;
+    updated_at?: string | null;
+    created_at?: string | null;
+  }> = [];
 
   if (supabase) {
     try {
-      const { data, error } = await supabase
-        .from("jobs")
-        .select("id, title, status, description, created_at, updated_at")
-        .in("status", ["نشطة", "active"])
-        .order("updated_at", { ascending: false });
+      const [jobsResult, postsResult] = await Promise.all([
+        supabase
+          .from("jobs")
+          .select("id, title, status, description, created_at, updated_at")
+          .in("status", ["نشطة", "active"])
+          .order("updated_at", { ascending: false }),
+        supabase
+          .from("blog_posts")
+          .select("slug, published_at, updated_at, created_at")
+          .eq("published", true)
+          .order("published_at", { ascending: false }),
+      ]);
 
+      const { data, error } = jobsResult;
       if (!error && data) {
         const now = Date.now();
         activeJobs = data.filter((job) => {
@@ -172,10 +186,22 @@ export default async function handler(_req: SitemapRequest, res: SitemapResponse
           return true;
         });
       }
+
+      if (!postsResult.error && postsResult.data) {
+        publishedPosts = postsResult.data.filter((post) => Boolean(post.slug));
+      }
     } catch (err) {
-      console.warn("[Sitemap] Notice fetching jobs from Supabase:", err);
+      console.warn("[Sitemap] Notice fetching public sitemap entities from Supabase:", err);
     }
   }
+
+  const escapeXml = (value: string) =>
+    value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -185,10 +211,21 @@ export default async function handler(_req: SitemapRequest, res: SitemapResponse
   // Static marketing routes
   for (const route of STATIC_ROUTES) {
     xml += `  <url>\n`;
-    xml += `    <loc>${APP_BASE_URL}${route.path}</loc>\n`;
+    xml += `    <loc>${escapeXml(`${APP_BASE_URL}${route.path}`)}</loc>\n`;
     xml += `    <lastmod>${today}</lastmod>\n`;
     xml += `    <changefreq>${route.changefreq}</changefreq>\n`;
     xml += `    <priority>${route.priority}</priority>\n`;
+    xml += `  </url>\n`;
+  }
+
+  // Published blog posts
+  for (const post of publishedPosts) {
+    const lastmod = formatDate(post.updated_at || post.published_at || post.created_at);
+    xml += `  <url>\n`;
+    xml += `    <loc>${escapeXml(`${APP_BASE_URL}/blog/${encodeURIComponent(post.slug)}`)}</loc>\n`;
+    xml += `    <lastmod>${lastmod}</lastmod>\n`;
+    xml += `    <changefreq>weekly</changefreq>\n`;
+    xml += `    <priority>0.7</priority>\n`;
     xml += `  </url>\n`;
   }
 
@@ -196,7 +233,7 @@ export default async function handler(_req: SitemapRequest, res: SitemapResponse
   for (const job of activeJobs) {
     const lastmod = formatDate(job.updated_at || job.created_at);
     xml += `  <url>\n`;
-    xml += `    <loc>${APP_BASE_URL}/apply/${job.id}</loc>\n`;
+    xml += `    <loc>${escapeXml(`${APP_BASE_URL}/apply/${encodeURIComponent(job.id)}`)}</loc>\n`;
     xml += `    <lastmod>${lastmod}</lastmod>\n`;
     xml += `    <changefreq>daily</changefreq>\n`;
     xml += `    <priority>0.8</priority>\n`;

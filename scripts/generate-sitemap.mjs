@@ -1,78 +1,49 @@
 import fs from "fs";
 import path from "path";
-import { createClient } from "@supabase/supabase-js";
-// Zero-dependency env loader
-try {
-  const envPath = path.resolve(process.cwd(), ".env");
-  if (fs.existsSync(envPath)) {
-    const content = fs.readFileSync(envPath, "utf-8");
-    content.split("\n").forEach((line) => {
-      const [k, ...rest] = line.split("=");
-      if (k && rest.length && !process.env[k.trim()]) {
-        process.env[k.trim()] = rest.join("=").trim().replace(/^["']|["']$/g, "");
-      }
-    });
-  }
-} catch {}
+import { fileURLToPath } from "url";
+import {
+  escapeXml,
+  fetchPublicSeoEntities,
+  formatDateIso,
+  getStaticSitemapRoutes,
+  loadSeoRoutesConfig,
+  resolveAppBaseUrl,
+} from "./seo-helpers.mjs";
 
-const APP_BASE_URL = (
-  process.env.APP_BASE_URL ||
-  process.env.VITE_APP_BASE_URL ||
-  "https://www.tawzeefx.com"
-).replace(/\/+$/, "");
-
-const STATIC_ROUTES = [
-  { path: "/", changefreq: "daily", priority: "1.0" },
-  { path: "/features", changefreq: "weekly", priority: "0.9" },
-  { path: "/pricing", changefreq: "weekly", priority: "0.8" },
-  { path: "/careers", changefreq: "daily", priority: "0.8" },
-  { path: "/blog", changefreq: "weekly", priority: "0.7" },
-  { path: "/about", changefreq: "monthly", priority: "0.7" },
-  { path: "/contact", changefreq: "monthly", priority: "0.7" },
-  { path: "/privacy", changefreq: "monthly", priority: "0.5" },
-  { path: "/terms", changefreq: "monthly", priority: "0.5" },
-];
-
-async function generate() {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-  let activeJobs = [];
-
-  if (supabaseUrl && supabaseKey) {
-    try {
-      const supabase = createClient(supabaseUrl, supabaseKey);
-      const { data, error } = await supabase
-        .from("jobs")
-        .select("id, title, status, description, created_at, updated_at")
-        .in("status", ["نشطة", "active"])
-        .order("updated_at", { ascending: false });
-
-      if (!error && data) {
-        activeJobs = data;
-      }
-    } catch (e) {
-      console.warn("Could not fetch jobs for static sitemap fallback:", e.message);
-    }
-  }
-
+/** Build XML sitemap string from shared static routes, active jobs, and published blog posts. */
+export async function generateSitemapXml(cwd = process.cwd(), options = {}) {
+  const config = loadSeoRoutesConfig(cwd);
+  const appBaseUrl = resolveAppBaseUrl(config);
+  const staticRoutes = getStaticSitemapRoutes(config);
+  const { activeJobs, publishedPosts } = options.entities ?? (await fetchPublicSeoEntities(cwd));
   const today = new Date().toISOString().split("T")[0];
+
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
   xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
 
-  for (const route of STATIC_ROUTES) {
+  for (const route of staticRoutes) {
     xml += `  <url>\n`;
-    xml += `    <loc>${APP_BASE_URL}${route.path}</loc>\n`;
+    xml += `    <loc>${escapeXml(`${appBaseUrl}${route.path}`)}</loc>\n`;
     xml += `    <lastmod>${today}</lastmod>\n`;
     xml += `    <changefreq>${route.changefreq}</changefreq>\n`;
     xml += `    <priority>${route.priority}</priority>\n`;
     xml += `  </url>\n`;
   }
 
-  for (const job of activeJobs) {
-    const lastmod = (job.updated_at || job.created_at || today).split("T")[0];
+  for (const post of publishedPosts) {
+    const lastmod = formatDateIso(post.updated_at || post.published_at || post.created_at, today);
     xml += `  <url>\n`;
-    xml += `    <loc>${APP_BASE_URL}/apply/${job.id}</loc>\n`;
+    xml += `    <loc>${escapeXml(`${appBaseUrl}/blog/${encodeURIComponent(post.slug)}`)}</loc>\n`;
+    xml += `    <lastmod>${lastmod}</lastmod>\n`;
+    xml += `    <changefreq>weekly</changefreq>\n`;
+    xml += `    <priority>0.7</priority>\n`;
+    xml += `  </url>\n`;
+  }
+
+  for (const job of activeJobs) {
+    const lastmod = formatDateIso(job.updated_at || job.created_at, today);
+    xml += `  <url>\n`;
+    xml += `    <loc>${escapeXml(`${appBaseUrl}/apply/${encodeURIComponent(job.id)}`)}</loc>\n`;
     xml += `    <lastmod>${lastmod}</lastmod>\n`;
     xml += `    <changefreq>daily</changefreq>\n`;
     xml += `    <priority>0.8</priority>\n`;
@@ -80,12 +51,23 @@ async function generate() {
   }
 
   xml += `</urlset>\n`;
+  return xml;
+}
 
+async function generate() {
+  const xml = await generateSitemapXml();
   const distDir = path.resolve(process.cwd(), "dist");
   if (fs.existsSync(distDir)) {
     fs.writeFileSync(path.join(distDir, "sitemap.xml"), xml, "utf-8");
-    console.log("Generated fallback sitemap in dist/sitemap.xml");
+    console.log("Generated sitemap in dist/sitemap.xml");
   }
 }
 
-generate();
+const isDirectExecution =
+  typeof process !== "undefined" &&
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+
+if (isDirectExecution) {
+  generate();
+}

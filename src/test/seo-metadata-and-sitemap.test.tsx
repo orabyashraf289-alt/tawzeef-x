@@ -1,13 +1,27 @@
 import fs from "fs";
+import os from "os";
 import path from "path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { getRouteSeoMetadata, RouteSeoManager } from "@/components/RouteSeoManager";
+import seoRoutesConfig from "@/data/seoRoutes.json";
+import { prerenderSeoRoutes } from "../../scripts/prerender-seo-routes.mjs";
+import { generateSitemapXml } from "../../scripts/generate-sitemap.mjs";
+import { filterActiveJobs, getStaticSitemapRoutes } from "../../scripts/seo-helpers.mjs";
 
 const ROOT = process.cwd();
+const tempDirs: string[] = [];
 
-describe("Technical SEO metadata, canonical tags, and sitemap URL consistency", () => {
+afterEach(() => {
+  while (tempDirs.length > 0) {
+    const dir = tempDirs.pop()!;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  document.getElementById("route-seo-jsonld")?.remove();
+});
+
+describe("Technical SEO metadata, pre-rendering, internal links, and sitemap consistency", () => {
   it("declares the root canonical URL, Arabic brand keywords, and JSON-LD alternateName in index.html", () => {
     const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf-8");
     expect(html).toContain('<link rel="canonical" href="https://www.tawzeefx.com/" />');
@@ -18,14 +32,49 @@ describe("Technical SEO metadata, canonical tags, and sitemap URL consistency", 
     expect(html).toContain('"alternateName"');
   });
 
-  it("uses path '/' for the homepage in both sitemap generators to match index.html", () => {
-    const staticGen = fs.readFileSync(path.join(ROOT, "scripts", "generate-sitemap.mjs"), "utf-8");
-    const apiGen = fs.readFileSync(path.join(ROOT, "api", "sitemap.ts"), "utf-8");
-    expect(staticGen).toContain('{ path: "/", changefreq: "daily", priority: "1.0" }');
-    expect(apiGen).toContain('{ path: "/", changefreq: "daily", priority: "1.0" }');
+  it("enables cleanUrls in vercel.json so flat pre-rendered HTML files serve without extensions", () => {
+    const vercel = JSON.parse(fs.readFileSync(path.join(ROOT, "vercel.json"), "utf-8"));
+    expect(vercel.cleanUrls).toBe(true);
+    expect(vercel.rewrites[0]).toEqual({ source: "/sitemap.xml", destination: "/api/sitemap" });
   });
 
-  it("resolves bilingual indexable metadata for public routes and noindex for private routes", () => {
+  it("keeps static sitemap routes aligned between seoRoutes.json, api/sitemap.ts, and generate-sitemap.mjs", async () => {
+    const expectedRoutes = getStaticSitemapRoutes(seoRoutesConfig);
+    const apiGen = fs.readFileSync(path.join(ROOT, "api", "sitemap.ts"), "utf-8");
+
+    expect(expectedRoutes[0]).toEqual({ path: "/", changefreq: "daily", priority: "1.0" });
+    for (const route of expectedRoutes) {
+      expect(apiGen).toContain(`path: "${route.path}"`);
+    }
+    expect(apiGen).toContain('.from("blog_posts")');
+
+    const xml = await generateSitemapXml(ROOT, {
+      entities: {
+        activeJobs: [{ id: "job-123", updated_at: "2026-11-10T00:00:00Z" }],
+        publishedPosts: [{ slug: "ai-hiring", published_at: "2026-11-12T00:00:00Z" }],
+      },
+    });
+    expect(xml).toContain("<loc>https://www.tawzeefx.com/</loc>");
+    expect(xml).toContain("<loc>https://www.tawzeefx.com/features</loc>");
+    expect(xml).toContain("<loc>https://www.tawzeefx.com/blog/ai-hiring</loc>");
+    expect(xml).toContain("<loc>https://www.tawzeefx.com/apply/job-123</loc>");
+  });
+
+  it("filters expired or stale jobs out of build-time sitemaps", () => {
+    const now = new Date("2026-11-15T12:00:00Z").getTime();
+    const jobs = [
+      { id: "fresh", created_at: "2026-11-01T00:00:00Z", description: "" },
+      { id: "old", created_at: "2025-01-01T00:00:00Z", description: "" },
+      {
+        id: "expired",
+        created_at: "2026-10-01T00:00:00Z",
+        description: '{"application_deadline":"2026-11-10"}',
+      },
+    ];
+    expect(filterActiveJobs(jobs, now).map((j: { id: string }) => j.id)).toEqual(["fresh"]);
+  });
+
+  it("resolves bilingual indexable metadata for public routes and noindex for auth and private routes", () => {
     const home = getRouteSeoMetadata("/");
     expect(home.canonicalUrl).toBe("https://www.tawzeefx.com/");
     expect(home.robots).toBe("index, follow");
@@ -39,25 +88,26 @@ describe("Technical SEO metadata, canonical tags, and sitemap URL consistency", 
     expect(features.title).toContain("المميزات");
     expect(features.keywords).toContain("نظام تتبع المتقدمين");
 
-    const pricing = getRouteSeoMetadata("/pricing");
-    expect(pricing.canonicalUrl).toBe("https://www.tawzeefx.com/pricing");
-    expect(pricing.robots).toBe("index, follow");
-
-    const careers = getRouteSeoMetadata("/careers");
-    expect(careers.canonicalUrl).toBe("https://www.tawzeefx.com/careers");
-    expect(careers.robots).toBe("index, follow");
-
     const apply = getRouteSeoMetadata("/apply/job-1");
     expect(apply.canonicalUrl).toBe("https://www.tawzeefx.com/apply/job-1");
     expect(apply.robots).toBe("index, follow");
     expect(apply.title).toContain("التقديم");
+
+    const auth = getRouteSeoMetadata("/auth");
+    expect(auth.canonicalUrl).toBe("https://www.tawzeefx.com/auth");
+    expect(auth.robots).toBe("noindex, follow");
 
     const dashboard = getRouteSeoMetadata("/dashboard");
     expect(dashboard.canonicalUrl).toBe("https://www.tawzeefx.com/dashboard");
     expect(dashboard.robots).toBe("noindex, nofollow");
   });
 
-  it("updates document title, canonical link, keywords, and meta tags on client-side navigation", async () => {
+  it("updates document head tags and removes stale pre-rendered JSON-LD on navigation", async () => {
+    const staleJsonLd = document.createElement("script");
+    staleJsonLd.id = "route-seo-jsonld";
+    staleJsonLd.setAttribute("data-route", "/");
+    document.head.appendChild(staleJsonLd);
+
     render(
       <MemoryRouter initialEntries={["/features"]}>
         <RouteSeoManager />
@@ -82,6 +132,56 @@ describe("Technical SEO metadata, canonical tags, and sitemap URL consistency", 
       expect(document.head.querySelector('meta[name="robots"]')?.getAttribute("content")).toBe(
         "index, follow"
       );
+      expect(document.getElementById("route-seo-jsonld")).toBeNull();
     });
+  });
+
+  it("pre-renders route-specific canonical HTML files with semantic content and schema markup", async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tx-seo-prerender-"));
+    tempDirs.push(tmpRoot);
+
+    fs.mkdirSync(path.join(tmpRoot, "dist"), { recursive: true });
+    fs.mkdirSync(path.join(tmpRoot, "src", "data"), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, "src", "data", "seoRoutes.json"), path.join(tmpRoot, "src", "data", "seoRoutes.json"));
+    fs.copyFileSync(path.join(ROOT, "index.html"), path.join(tmpRoot, "dist", "index.html"));
+
+    const generated = await prerenderSeoRoutes(tmpRoot, {
+      entities: {
+        activeJobs: [{ id: "job-abc", title: "مهندس برمجيات" }],
+        publishedPosts: [{ slug: "ai-hiring", title_ar: "دليل التوظيف الذكي", excerpt_ar: "ملخص المقال" }],
+      },
+    });
+
+    expect(generated).toContain("features.html");
+    expect(generated).toContain("blog.html");
+    expect(generated).toContain("auth.html");
+
+    const featuresHtml = fs.readFileSync(path.join(tmpRoot, "dist", "features.html"), "utf-8");
+    expect(featuresHtml).toContain('<link rel="canonical" href="https://www.tawzeefx.com/features" />');
+    expect(featuresHtml).toContain('href="/pricing"');
+    expect(featuresHtml).toContain("BreadcrumbList");
+
+    const homeHtml = fs.readFileSync(path.join(tmpRoot, "dist", "index.html"), "utf-8");
+    expect(homeHtml).toContain('<link rel="canonical" href="https://www.tawzeefx.com/" />');
+    expect(homeHtml).toContain("FAQPage");
+    expect(homeHtml).toContain("SoftwareApplication");
+
+    const careersHtml = fs.readFileSync(path.join(tmpRoot, "dist", "careers.html"), "utf-8");
+    expect(careersHtml).toContain('href="/apply/job-abc"');
+
+    const blogHtml = fs.readFileSync(path.join(tmpRoot, "dist", "blog.html"), "utf-8");
+    expect(blogHtml).toContain('href="/blog/ai-hiring"');
+
+    const authHtml = fs.readFileSync(path.join(tmpRoot, "dist", "auth.html"), "utf-8");
+    expect(authHtml).toContain('<meta name="robots" content="noindex, follow" />');
+    expect(authHtml).not.toContain('id="route-seo-jsonld"');
+  });
+
+  it("links from LandingPage directly to core public routes and renders FAQ copy", () => {
+    const landingSource = fs.readFileSync(path.join(ROOT, "src", "pages", "LandingPage.tsx"), "utf-8");
+    for (const route of ["/features", "/pricing", "/careers", "/blog", "/about", "/contact", "/privacy", "/terms"]) {
+      expect(landingSource).toContain(route);
+    }
+    expect(landingSource).toContain("seoRoutesConfig.faq");
   });
 });
