@@ -70,7 +70,7 @@ interface StaticRoute {
 }
 
 const STATIC_ROUTES: StaticRoute[] = [
-  { path: "", changefreq: "daily", priority: "1.0" },
+  { path: "/", changefreq: "daily", priority: "1.0" },
   { path: "/features", changefreq: "weekly", priority: "0.9" },
   { path: "/pricing", changefreq: "weekly", priority: "0.8" },
   { path: "/careers", changefreq: "daily", priority: "0.8" },

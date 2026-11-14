@@ -15,6 +15,7 @@ import { lazy, Suspense, useState } from "react";
 import { PageSkeleton } from "@/components/Skeletons";
 import { SessionManager } from "@/components/SessionManager";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { RouteSeoManager } from "@/components/RouteSeoManager";
 
 // Eagerly loaded (critical path)
 import LandingPage from "./pages/LandingPage";
@@ -88,9 +89,12 @@ function PageLoader() {
 
 function RouteTransitionLayout() {
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Outlet />
-    </Suspense>
+    <>
+      <RouteSeoManager />
+      <Suspense fallback={<PageLoader />}>
+        <Outlet />
+      </Suspense>
+    </>
   );
 }
 
