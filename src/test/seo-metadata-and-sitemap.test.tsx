@@ -32,10 +32,16 @@ describe("Technical SEO metadata, pre-rendering, internal links, and sitemap con
     expect(html).toContain('"alternateName"');
   });
 
-  it("enables cleanUrls in vercel.json so flat pre-rendered HTML files serve without extensions", () => {
+  it("rewrites pre-rendered public routes to _seo HTML files while keeping SPA fallback for dynamic nested paths", () => {
     const vercel = JSON.parse(fs.readFileSync(path.join(ROOT, "vercel.json"), "utf-8"));
-    expect(vercel.cleanUrls).toBe(true);
+    expect(vercel.cleanUrls).toBeUndefined();
     expect(vercel.rewrites[0]).toEqual({ source: "/sitemap.xml", destination: "/api/sitemap" });
+    expect(vercel.rewrites).toContainEqual({ source: "/features", destination: "/_seo/features.html" });
+    expect(vercel.rewrites).toContainEqual({ source: "/blog", destination: "/_seo/blog.html" });
+    expect(vercel.rewrites[vercel.rewrites.length - 1]).toEqual({
+      source: "/((?!api/|sitemap\\.xml|robots\\.txt|_seo/).*)",
+      destination: "/index.html",
+    });
   });
 
   it("keeps static sitemap routes aligned between seoRoutes.json, api/sitemap.ts, and generate-sitemap.mjs", async () => {
@@ -152,11 +158,11 @@ describe("Technical SEO metadata, pre-rendering, internal links, and sitemap con
       },
     });
 
-    expect(generated).toContain("features.html");
-    expect(generated).toContain("blog.html");
-    expect(generated).toContain("auth.html");
+    expect(generated).toContain("_seo/features.html");
+    expect(generated).toContain("_seo/blog.html");
+    expect(generated).toContain("_seo/auth.html");
 
-    const featuresHtml = fs.readFileSync(path.join(tmpRoot, "dist", "features.html"), "utf-8");
+    const featuresHtml = fs.readFileSync(path.join(tmpRoot, "dist", "_seo", "features.html"), "utf-8");
     expect(featuresHtml).toContain('<link rel="canonical" href="https://www.tawzeefx.com/features" />');
     expect(featuresHtml).toContain('href="/pricing"');
     expect(featuresHtml).toContain("BreadcrumbList");
@@ -166,13 +172,13 @@ describe("Technical SEO metadata, pre-rendering, internal links, and sitemap con
     expect(homeHtml).toContain("FAQPage");
     expect(homeHtml).toContain("SoftwareApplication");
 
-    const careersHtml = fs.readFileSync(path.join(tmpRoot, "dist", "careers.html"), "utf-8");
+    const careersHtml = fs.readFileSync(path.join(tmpRoot, "dist", "_seo", "careers.html"), "utf-8");
     expect(careersHtml).toContain('href="/apply/job-abc"');
 
-    const blogHtml = fs.readFileSync(path.join(tmpRoot, "dist", "blog.html"), "utf-8");
+    const blogHtml = fs.readFileSync(path.join(tmpRoot, "dist", "_seo", "blog.html"), "utf-8");
     expect(blogHtml).toContain('href="/blog/ai-hiring"');
 
-    const authHtml = fs.readFileSync(path.join(tmpRoot, "dist", "auth.html"), "utf-8");
+    const authHtml = fs.readFileSync(path.join(tmpRoot, "dist", "_seo", "auth.html"), "utf-8");
     expect(authHtml).toContain('<meta name="robots" content="noindex, follow" />');
     expect(authHtml).not.toContain('id="route-seo-jsonld"');
   });

@@ -230,14 +230,17 @@ export async function prerenderSeoRoutes(cwd = process.cwd(), options = {}) {
   const baseUrl = resolveAppBaseUrl(config);
   const entities = options.entities ?? (await fetchPublicSeoEntities(cwd));
 
+  const seoOutDir = path.join(distDir, "_seo");
+  fs.mkdirSync(seoOutDir, { recursive: true });
+
   const renderedFiles = [];
   for (const [routePath, entry] of Object.entries(config.routes)) {
     if (!entry.prerender) continue;
-    const outputName = routePath === "/" ? "index.html" : `${routePath.replace(/^\/+/, "")}.html`;
-    const outputPath = path.join(distDir, outputName);
+    const outputRelPath = routePath === "/" ? "index.html" : `_seo/${routePath.replace(/^\/+/, "")}.html`;
+    const outputPath = path.join(distDir, outputRelPath);
     const renderedHtml = renderRouteHtml(templateHtml, routePath, entry, config, baseUrl, entities);
     fs.writeFileSync(outputPath, renderedHtml, "utf-8");
-    renderedFiles.push(outputName);
+    renderedFiles.push(outputRelPath.replace(/\\/g, "/"));
   }
 
   console.log(`[SEO Prerender] Generated ${renderedFiles.length} pre-rendered HTML files: ${renderedFiles.join(", ")}`);

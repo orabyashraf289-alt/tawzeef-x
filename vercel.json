@@ -1,13 +1,48 @@
 {
   "framework": "vite",
-  "cleanUrls": true,
   "rewrites": [
     {
       "source": "/sitemap.xml",
       "destination": "/api/sitemap"
     },
     {
-      "source": "/((?!api/|sitemap\\.xml|robots\\.txt).*)",
+      "source": "/features",
+      "destination": "/_seo/features.html"
+    },
+    {
+      "source": "/pricing",
+      "destination": "/_seo/pricing.html"
+    },
+    {
+      "source": "/careers",
+      "destination": "/_seo/careers.html"
+    },
+    {
+      "source": "/blog",
+      "destination": "/_seo/blog.html"
+    },
+    {
+      "source": "/about",
+      "destination": "/_seo/about.html"
+    },
+    {
+      "source": "/contact",
+      "destination": "/_seo/contact.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/_seo/privacy.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/_seo/terms.html"
+    },
+    {
+      "source": "/auth",
+      "destination": "/_seo/auth.html"
+    },
+    {
+      "source": "/((?!api/|sitemap\\.xml|robots\\.txt|_seo/).*)",
       "destination": "/index.html"
     }
   ],
