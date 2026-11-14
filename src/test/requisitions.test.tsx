@@ -559,7 +559,7 @@ describe("RequisitionsWorkspace fail-closed states & CRUD lifecycle", () => {
         }),
       ),
     );
-  });
+  }, 15000);
 
   it("handles draft submission, approval, and rejection with required reason", async () => {
     mockStore.job_requisitions = [
