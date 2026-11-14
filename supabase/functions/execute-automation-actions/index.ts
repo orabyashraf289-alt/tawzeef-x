@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPrelight } from "../_shared/cors.ts";
 
-export type OutboundActionType = "send_email" | "send_whatsapp" | "trigger_webhook";
+export type OutboundActionType = "send_email" | "send_whatsapp" | "send_sms" | "trigger_webhook";
 export type QueueItemStatus = "pending" | "dispatched" | "failed" | "skipped_unconfigured";
 
 export interface QueueItemRow {
@@ -1093,6 +1093,189 @@ async function processWhatsappItem(
   }
 }
 
+async function processSmsItem(
+  adminClient: RuntimeAdminClient,
+  item: QueueItemRow,
+  context: { company: CompanyRow | null; candidate: CandidateRow | null; job: JobRow | null; rule: AutomationRuleRow | null },
+  getEnv: (key: string) => string | undefined,
+  fetcher: FetchFn,
+): Promise<ActionExecutionResult> {
+  const twilioSid = (getEnv("TWILIO_ACCOUNT_SID") || "").trim();
+  const twilioToken = (getEnv("TWILIO_AUTH_TOKEN") || "").trim();
+  const twilioFrom = (getEnv("TWILIO_FROM_NUMBER") || "").trim();
+  const smsGatewayUrl = (getEnv("SMS_GATEWAY_URL") || "").trim();
+  const smsGatewayToken = (getEnv("SMS_GATEWAY_TOKEN") || "").trim();
+
+  const hasTwilio = Boolean(twilioSid && twilioToken && twilioFrom);
+  const hasGateway = Boolean(smsGatewayUrl);
+
+  // Never fake SMS delivery when gateway/provider credentials are absent.
+  if (!hasTwilio && !hasGateway) {
+    await completeQueueItem(
+      adminClient,
+      item.id,
+      "skipped_unconfigured",
+      "SMS_PROVIDER_NOT_CONFIGURED",
+      {
+        code: "SMS_PROVIDER_NOT_CONFIGURED",
+        provider: "twilio_or_sms_gateway",
+      },
+    );
+    return {
+      queueId: item.id,
+      actionType: "send_sms",
+      status: "skipped_unconfigured",
+      code: "SMS_PROVIDER_NOT_CONFIGURED",
+      error: "SMS_PROVIDER_NOT_CONFIGURED",
+    };
+  }
+
+  const actionPayload = isRecord(item.payload.action_payload) ? item.payload.action_payload : item.payload;
+  const recipientType =
+    typeof actionPayload.recipient_type === "string" && actionPayload.recipient_type.trim()
+      ? actionPayload.recipient_type.trim()
+      : "candidate";
+
+  const rawPhone =
+    recipientType === "custom"
+      ? typeof actionPayload.to_phone === "string"
+        ? actionPayload.to_phone
+        : typeof actionPayload.phone === "string"
+          ? actionPayload.phone
+          : ""
+      : context.candidate?.phone || "";
+
+  const normalizedDigits = normalizeWhatsappPhone(rawPhone);
+  if (!normalizedDigits) {
+    const errMsg = "SMS_RECIPIENT_MISSING: No valid recipient phone number";
+    await completeQueueItem(adminClient, item.id, "failed", errMsg, {
+      code: "sms_recipient_missing",
+    });
+    return {
+      queueId: item.id,
+      actionType: "send_sms",
+      status: "failed",
+      code: "sms_recipient_missing",
+      error: errMsg,
+    };
+  }
+  const e164Phone = `+${normalizedDigits}`;
+
+  const variables = buildCandidateVariables(item, context.company, context.candidate, context.job, context.rule);
+  const rawMessage = typeof actionPayload.message === "string" ? actionPayload.message : "";
+  const renderedMessage = rawMessage ? renderTemplate(rawMessage, variables, false).trim() : "";
+
+  if (!renderedMessage) {
+    const errMsg = "SMS_MESSAGE_MISSING: Missing message text";
+    await completeQueueItem(adminClient, item.id, "failed", errMsg, {
+      code: "invalid_action",
+    });
+    return {
+      queueId: item.id,
+      actionType: "send_sms",
+      status: "failed",
+      code: "invalid_action",
+      error: errMsg,
+    };
+  }
+
+  try {
+    let resp: Response;
+    let providerName: string;
+
+    if (hasTwilio) {
+      providerName = "twilio";
+      const formBody = new URLSearchParams({
+        To: e164Phone,
+        From: twilioFrom,
+        Body: renderedMessage.slice(0, 1600),
+      });
+      const authHeader = btoa(`${twilioSid}:${twilioToken}`);
+      resp = await fetchWithTimeout(
+        fetcher,
+        `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(twilioSid)}/Messages.json`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Basic ${authHeader}`,
+          },
+          body: formBody.toString(),
+        },
+        15000,
+      );
+    } else {
+      providerName = "sms_gateway";
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (smsGatewayToken) {
+        headers.Authorization = `Bearer ${smsGatewayToken}`;
+      }
+      resp = await fetchWithTimeout(
+        fetcher,
+        smsGatewayUrl,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            to: e164Phone,
+            message: renderedMessage.slice(0, 1600),
+            company_id: item.company_id,
+            candidate_id: context.candidate?.id || item.candidate_id || null,
+          }),
+        },
+        15000,
+      );
+    }
+
+    if (!resp.ok) {
+      const errBody = (await resp.text().catch(() => "")).slice(0, 300);
+      const errMsg = `SMS_DELIVERY_FAILED: HTTP ${resp.status}${errBody ? ` - ${errBody}` : ""}`;
+      await completeQueueItem(adminClient, item.id, "failed", errMsg, {
+        code: "sms_delivery_failed",
+        provider: providerName,
+        status_code: resp.status,
+      });
+      return {
+        queueId: item.id,
+        actionType: "send_sms",
+        status: "failed",
+        code: "sms_delivery_failed",
+        error: errMsg,
+      };
+    }
+
+    const parsedBody = (await resp.json().catch(() => ({}))) as { sid?: string; id?: string; message_id?: string };
+    const messageId = parsedBody.sid || parsedBody.message_id || parsedBody.id || null;
+
+    await completeQueueItem(adminClient, item.id, "dispatched", null, {
+      code: "completed",
+      provider: providerName,
+      ...(messageId ? { message_id: messageId } : {}),
+    });
+
+    return {
+      queueId: item.id,
+      actionType: "send_sms",
+      status: "dispatched",
+      code: "completed",
+    };
+  } catch (err: unknown) {
+    const errMsg = `SMS_DELIVERY_FAILED: ${err instanceof Error ? err.message : "Request failed"}`;
+    await completeQueueItem(adminClient, item.id, "failed", errMsg, {
+      code: "sms_delivery_failed",
+    });
+    return {
+      queueId: item.id,
+      actionType: "send_sms",
+      status: "failed",
+      code: "sms_delivery_failed",
+      error: errMsg,
+    };
+  }
+}
+
 async function processClaimedItems(
   adminClient: RuntimeAdminClient,
   claimedItems: QueueItemRow[],
@@ -1111,6 +1294,8 @@ async function processClaimedItems(
       results.push(await processEmailItem(adminClient, item, context, supabaseUrl, serviceKey, fetcher));
     } else if (item.action_type === "send_whatsapp") {
       results.push(await processWhatsappItem(adminClient, item, context, getEnv, fetcher));
+    } else if (item.action_type === "send_sms") {
+      results.push(await processSmsItem(adminClient, item, context, getEnv, fetcher));
     } else {
       await completeQueueItem(adminClient, item.id, "failed", "UNSUPPORTED_OUTBOUND_ACTION", {
         code: "unsupported_action",
@@ -1139,6 +1324,19 @@ function buildProviderStatus(getEnv: (key: string) => string | undefined) {
   if (!hasWaToken) missingWhatsappEnv.push("WHATSAPP_ACCESS_TOKEN");
   if (!hasWaPhoneId) missingWhatsappEnv.push("WHATSAPP_PHONE_NUMBER_ID");
 
+  const hasTwilio = Boolean(
+    (getEnv("TWILIO_ACCOUNT_SID") || "").trim() &&
+      (getEnv("TWILIO_AUTH_TOKEN") || "").trim() &&
+      (getEnv("TWILIO_FROM_NUMBER") || "").trim(),
+  );
+  const hasSmsGateway = Boolean((getEnv("SMS_GATEWAY_URL") || "").trim());
+  const missingSmsEnv: string[] = [];
+  if (!hasTwilio && !hasSmsGateway) {
+    if (!(getEnv("TWILIO_ACCOUNT_SID") || "").trim()) missingSmsEnv.push("TWILIO_ACCOUNT_SID");
+    if (!(getEnv("TWILIO_AUTH_TOKEN") || "").trim()) missingSmsEnv.push("TWILIO_AUTH_TOKEN");
+    if (!(getEnv("TWILIO_FROM_NUMBER") || "").trim()) missingSmsEnv.push("TWILIO_FROM_NUMBER");
+  }
+
   return {
     send_email: {
       configured: hasResend || hasSystemSmtp,
@@ -1152,6 +1350,11 @@ function buildProviderStatus(getEnv: (key: string) => string | undefined) {
       configured: hasWaToken && hasWaPhoneId,
       code: hasWaToken && hasWaPhoneId ? "READY" : "WHATSAPP_PROVIDER_NOT_CONFIGURED",
       ...(missingWhatsappEnv.length > 0 ? { missing_env: missingWhatsappEnv } : {}),
+    },
+    send_sms: {
+      configured: hasTwilio || hasSmsGateway,
+      code: hasTwilio || hasSmsGateway ? "READY" : "SMS_PROVIDER_NOT_CONFIGURED",
+      ...(missingSmsEnv.length > 0 ? { missing_env: missingSmsEnv } : {}),
     },
   };
 }
@@ -1383,6 +1586,7 @@ export async function handleAutomationActionRequest(
       .filter((entry) =>
         entry.action.type === "send_email" ||
         entry.action.type === "send_whatsapp" ||
+        entry.action.type === "send_sms" ||
         entry.action.type === "trigger_webhook",
       );
 

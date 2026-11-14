@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, KeyRound, Loader2, Shield } from "lucide-react";
+import { Check, KeyRound, Loader2, Shield, Scale, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { toast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -29,6 +30,7 @@ function clampMinLength(raw: string): number {
 export function SecuritySettingsSection() {
   const { t, locale } = useI18n();
   const { user } = useAuth();
+  const { activeCompanyId } = useCompany();
   const { isAdmin } = useUserRole();
   const [loading, setLoading] = useState(false);
   const [savingPolicy, setSavingPolicy] = useState(false);
@@ -44,6 +46,89 @@ export function SecuritySettingsSection() {
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  // PDPL / GDPR Company Data Retention Policy & Execution State
+  const [candidateRetentionDays, setCandidateRetentionDays] = useState(365);
+  const [rejectedRetentionDays, setRejectedRetentionDays] = useState(180);
+  const [auditRetentionDays, setAuditRetentionDays] = useState(730);
+  const [autoAnonymizeEnabled, setAutoAnonymizeEnabled] = useState(false);
+  const [savingRetention, setSavingRetention] = useState(false);
+  const [executingRetention, setExecutingRetention] = useState(false);
+  const [confirmRetentionAnonymize, setConfirmRetentionAnonymize] = useState(false);
+  const [retentionReport, setRetentionReport] = useState<{
+    dry_run: boolean;
+    eligible_candidates: number;
+    anonymized_candidates: number;
+  } | null>(null);
+
+  const loadRetentionPolicy = useCallback(async () => {
+    if (!activeCompanyId) return;
+    const { data } = await (supabase.from as any)("company_retention_policies")
+      .select("candidate_retention_days, rejected_application_days, audit_log_retention_days, auto_anonymize_enabled")
+      .eq("company_id", activeCompanyId)
+      .maybeSingle();
+    if (data) {
+      setCandidateRetentionDays(Number(data.candidate_retention_days) || 365);
+      setRejectedRetentionDays(Number(data.rejected_application_days) || 180);
+      setAuditRetentionDays(Number(data.audit_log_retention_days) || 730);
+      setAutoAnonymizeEnabled(Boolean(data.auto_anonymize_enabled));
+    }
+  }, [activeCompanyId]);
+
+  useEffect(() => {
+    void loadRetentionPolicy();
+  }, [loadRetentionPolicy]);
+
+  const handleSaveRetentionPolicy = async () => {
+    if (!activeCompanyId || !user?.id || savingRetention) return;
+    setSavingRetention(true);
+    try {
+      const payload = {
+        company_id: activeCompanyId,
+        candidate_retention_days: Math.min(3650, Math.max(30, Number(candidateRetentionDays) || 365)),
+        rejected_application_days: Math.min(1825, Math.max(30, Number(rejectedRetentionDays) || 180)),
+        audit_log_retention_days: Math.min(3650, Math.max(90, Number(auditRetentionDays) || 730)),
+        auto_anonymize_enabled: autoAnonymizeEnabled,
+        updated_by: user.id,
+      };
+      const { error } = await (supabase.from as any)("company_retention_policies")
+        .upsert(payload, { onConflict: "company_id" });
+      if (error) throw error;
+      toast({ title: "تم حفظ سياسة الاحتفاظ بالبيانات وحماية الخصوصية ✅" });
+    } catch (e: any) {
+      toast({ title: "تعذّر حفظ السياسة", description: e?.message, variant: "destructive" });
+    } finally {
+      setSavingRetention(false);
+    }
+  };
+
+  const handleExecuteRetention = async (dryRun: boolean) => {
+    if (!activeCompanyId || executingRetention) return;
+    if (!dryRun && !confirmRetentionAnonymize) return;
+    setExecutingRetention(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)("execute_company_data_retention", {
+        _company_id: activeCompanyId,
+        _dry_run: dryRun,
+      });
+      if (error) throw error;
+      setRetentionReport({
+        dry_run: Boolean(data?.dry_run),
+        eligible_candidates: Number(data?.eligible_candidates) || 0,
+        anonymized_candidates: Number(data?.anonymized_candidates) || 0,
+      });
+      toast({
+        title: dryRun
+          ? `نتيجة المعاينة: ${Number(data?.eligible_candidates) || 0} ملف مرشح مستحق للإخفاء`
+          : `تم إخفاء هوية ${Number(data?.anonymized_candidates) || 0} ملف مرشح بنجاح ✅`,
+      });
+      if (!dryRun) setConfirmRetentionAnonymize(false);
+    } catch (e: any) {
+      toast({ title: "تعذّر تنفيذ سياسة الاحتفاظ", description: e?.message, variant: "destructive" });
+    } finally {
+      setExecutingRetention(false);
+    }
+  };
 
   const loadPolicy = useCallback(async () => {
     if (!user) {
@@ -324,6 +409,110 @@ export function SecuritySettingsSection() {
                   </>
                 )}
               </Button>
+            </div>
+          )}
+
+          {activeCompanyId && (
+            <div className="pt-8 space-y-4 max-w-xl">
+              <Separator className="opacity-50" />
+              <div>
+                <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                  <Scale className="w-5 h-5 text-primary" />
+                  الاحتفاظ بالبيانات والامتثال (GDPR / PDPL السعودية)
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  تحديد مدد الاحتفاظ ببيانات المرشحين المرفوضين وغير النشطين وسجلات التدقيق، ومعاينة وتنفيذ إخفاء الهوية التلقائي للامتثال.
+                </p>
+              </div>
+
+              <div className="bg-muted/20 border border-border/40 rounded-xl p-5 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="retention-candidate-days" className="text-xs font-semibold">احتفاظ المرشحين (يوم)</Label>
+                    <Input
+                      id="retention-candidate-days"
+                      type="number"
+                      min={30}
+                      max={3650}
+                      value={candidateRetentionDays}
+                      onChange={(e) => setCandidateRetentionDays(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="retention-rejected-days" className="text-xs font-semibold">الطلبات المرفوضة (يوم)</Label>
+                    <Input
+                      id="retention-rejected-days"
+                      type="number"
+                      min={30}
+                      max={1825}
+                      value={rejectedRetentionDays}
+                      onChange={(e) => setRejectedRetentionDays(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="retention-audit-days" className="text-xs font-semibold">سجلات التدقيق (يوم)</Label>
+                    <Input
+                      id="retention-audit-days"
+                      type="number"
+                      min={90}
+                      max={3650}
+                      value={auditRetentionDays}
+                      onChange={(e) => setAuditRetentionDays(Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div>
+                    <p className="text-xs font-medium text-foreground">تفعيل التجهيل الدوري التلقائي للبيانات المنتهية</p>
+                    <p className="text-[10px] text-muted-foreground">يُسجّل السياسة المعتمدة لتنفيذ إخفاء هوية المرشحين بعد انقضاء المدة.</p>
+                  </div>
+                  <Switch checked={autoAnonymizeEnabled} onCheckedChange={setAutoAnonymizeEnabled} />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" onClick={() => void handleSaveRetentionPolicy()} disabled={savingRetention} className="gap-1.5">
+                    <Check className="w-4 h-4" />
+                    {savingRetention ? "جارٍ الحفظ..." : "حفظ سياسة الاحتفاظ بالبيانات"}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => void handleExecuteRetention(true)} disabled={executingRetention}>
+                    معاينة السجلات المستحقة (Dry Run)
+                  </Button>
+                </div>
+
+                {retentionReport && (
+                  <div role="status" className="rounded-lg border bg-background p-3 text-xs space-y-1">
+                    <p className="font-semibold text-foreground">
+                      {retentionReport.dry_run
+                        ? `عدد ملفات المرشحين المستحقة لإخفاء الهوية: ${retentionReport.eligible_candidates}`
+                        : `تم تنفيذ إخفاء الهوية لـ ${retentionReport.anonymized_candidates} ملف مرشح بنجاح.`}
+                    </p>
+                  </div>
+                )}
+
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2.5">
+                  <label className="flex items-start gap-2 text-xs text-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={confirmRetentionAnonymize}
+                      onChange={(e) => setConfirmRetentionAnonymize(e.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span>أؤكد تنفيذ إخفاء البيانات الشخصية للمرشحين المنتهية مدتهم ولا يمكن التراجع عن التجهيل بعد التنفيذ.</span>
+                  </label>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={!confirmRetentionAnonymize || executingRetention}
+                    onClick={() => void handleExecuteRetention(false)}
+                    className="gap-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    تنفيذ إخفاء الهوية الآن (PDPL/GDPR)
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </div>

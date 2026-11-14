@@ -10,7 +10,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { InterviewsSkeleton } from "@/components/Skeletons";
 import InterviewCalendar from "@/components/InterviewCalendar";
 import InterviewEvaluationForm from "@/components/InterviewEvaluationForm";
-import { Calendar, Clock, Video, MapPin, User, Star, Plus, CheckCircle, XCircle, ExternalLink, Copy, Check, Link2, FileText, CircleDot, LayoutGrid, List, Sparkles, TrendingUp, TrendingDown } from "lucide-react";
+import { Calendar, Clock, Video, MapPin, User, Star, Plus, CheckCircle, XCircle, ExternalLink, Copy, Check, Link2, FileText, CircleDot, LayoutGrid, List, Sparkles, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 
@@ -112,6 +112,53 @@ function parseAIInterviewReport(notes: string | null) {
   }
 }
 
+export interface InterviewOverlapCandidate {
+  id?: string;
+  date: string;
+  time: string;
+  duration_minutes?: number | null;
+  interviewer_id?: string | null;
+  candidate_name?: string | null;
+  status?: string | null;
+}
+
+export function findInterviewTimeConflict(
+  existingInterviews: InterviewOverlapCandidate[],
+  target: {
+    date: string;
+    time: string;
+    durationMinutes?: number;
+    interviewerId?: string | null;
+    excludeInterviewId?: string;
+  },
+): InterviewOverlapCandidate | null {
+  if (!target.date || !target.time) return null;
+  const parseStartMs = (dateStr: string, timeStr: string) => {
+    const normalized = timeStr.slice(0, 5);
+    if (!/^\d{2}:\d{2}$/.test(normalized)) return null;
+    const ms = new Date(`${dateStr}T${normalized}:00`).getTime();
+    return Number.isNaN(ms) ? null : ms;
+  };
+  const targetStart = parseStartMs(target.date, target.time);
+  if (targetStart === null) return null;
+  const targetDuration = Math.max(15, target.durationMinutes || 30);
+  const targetEnd = targetStart + targetDuration * 60_000;
+
+  return (
+    existingInterviews.find((existing) => {
+      if (existing.id && target.excludeInterviewId && existing.id === target.excludeInterviewId) return false;
+      if (existing.status === "ملغاة") return false;
+      if (target.interviewerId && existing.interviewer_id && existing.interviewer_id !== target.interviewerId) {
+        return false;
+      }
+      const itemStart = parseStartMs(existing.date, existing.time || "");
+      if (itemStart === null) return false;
+      const itemEnd = itemStart + Math.max(15, existing.duration_minutes || 30) * 60_000;
+      return targetStart < itemEnd && itemStart < targetEnd;
+    }) || null
+  );
+}
+
 export default function Interviews() {
   const { t } = useI18n();
   const { data: interviews, isLoading } = useInterviews();
@@ -178,6 +225,31 @@ export default function Interviews() {
   const completed = (interviews || []).filter(i => i.status === "مكتملة").length;
   const cancelled = (interviews || []).filter(i => i.status === "ملغاة").length;
 
+  const createConflict = useMemo(
+    () =>
+      findInterviewTimeConflict((interviews || []) as any, {
+        date: form.date,
+        time: form.time,
+        durationMinutes: form.duration_minutes,
+        interviewerId: form.interviewer_id || user?.id,
+      }),
+    [interviews, form.date, form.time, form.duration_minutes, form.interviewer_id, user?.id],
+  );
+
+  const rescheduleConflict = useMemo(
+    () =>
+      rescheduleDialog
+        ? findInterviewTimeConflict((interviews || []) as any, {
+            date: rescheduleDate,
+            time: rescheduleTime,
+            durationMinutes: rescheduleDialog.duration_minutes || 30,
+            interviewerId: rescheduleDialog.interviewer_id || null,
+            excludeInterviewId: rescheduleDialog.id,
+          })
+        : null,
+    [interviews, rescheduleDialog, rescheduleDate, rescheduleTime],
+  );
+
   const handleCancelInterview = async (interviewId: string) => {
     const { error } = await supabase.from("interviews").update({ status: "ملغاة" } as any).eq("id", interviewId).select("id").single();
     if (error) {
@@ -190,6 +262,14 @@ export default function Interviews() {
 
   const handleRescheduleInterview = async () => {
     if (!rescheduleDialog || !rescheduleDate || !rescheduleTime) return;
+    if (rescheduleConflict) {
+      toast({
+        title: "تعارض في موعد المقابلة",
+        description: `يتعارض هذا التوقيت مع مقابلة "${rescheduleConflict.candidate_name || "مرشح آخر"}" الساعة ${String(rescheduleConflict.time || "").slice(0, 5)}.`,
+        variant: "destructive",
+      });
+      return;
+    }
     const { error } = await supabase.from("interviews").update({ date: rescheduleDate, time: rescheduleTime, status: "مجدولة" } as any).eq("id", rescheduleDialog.id).select("id").single();
     if (error) {
       toast({ title: "خطأ", description: error.message, variant: "destructive" });
@@ -202,6 +282,14 @@ export default function Interviews() {
 
   const handleAdd = async () => {
     if (addInterview.isPending || !form.candidate_name || !form.position || !form.date || !form.time) return;
+    if (createConflict) {
+      toast({
+        title: "تعارض مع مقابلة أخرى",
+        description: `المُحاور لديه مقابلة متداخلة مع "${createConflict.candidate_name || "مرشح آخر"}" الساعة ${String(createConflict.time || "").slice(0, 5)}. اختر توقيتًا آخر.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     let meetingUrl = "";
     if (form.type === "عن بُعد") {
@@ -721,10 +809,18 @@ export default function Interviews() {
             <div><Label htmlFor="interview-host">{t("interviews.interviewer")}</Label><select id="interview-host" className="w-full rounded-md border bg-background p-2" value={form.interviewer_id || user?.id || ""} onChange={e => setForm({ ...form, interviewer_id: e.target.value })}>
               <option value={user?.id}>أنا</option>{members.data?.filter(m => m.user_id !== user?.id).map(m => <option key={m.user_id} value={m.user_id}>{m.profiles?.full_name || "عضو الفريق"}</option>)}
             </select>{members.isError && <p className="text-sm text-destructive">تعذّر تحميل أعضاء الفريق.</p>}</div>
+            {createConflict && (
+              <div role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-destructive">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  تعارض زمني مع مقابلة &ldquo;{createConflict.candidate_name || "مرشح آخر"}&rdquo; الساعة {String(createConflict.time || "").slice(0, 5)}.
+                </span>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
-            <Button onClick={handleAdd} disabled={addInterview.isPending} className="bg-primary text-primary-foreground hover:bg-primary/90">{t("common.save")}</Button>
+            <Button onClick={handleAdd} disabled={addInterview.isPending || !!createConflict} className="bg-primary text-primary-foreground hover:bg-primary/90">{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -786,10 +882,18 @@ export default function Interviews() {
               <Label>وقت المقابلة الجديد</Label>
               <Input type="time" value={rescheduleTime} onChange={(e) => setRescheduleTime(e.target.value)} />
             </div>
+            {rescheduleConflict && (
+              <div role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-destructive">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  تعارض زمني مع مقابلة &ldquo;{rescheduleConflict.candidate_name || "مرشح آخر"}&rdquo; الساعة {String(rescheduleConflict.time || "").slice(0, 5)}.
+                </span>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRescheduleDialog(null)}>إلغاء</Button>
-            <Button onClick={handleRescheduleInterview} className="bg-primary text-primary-foreground">تأكيد الموعد الجديد</Button>
+            <Button onClick={handleRescheduleInterview} disabled={!!rescheduleConflict} className="bg-primary text-primary-foreground">تأكيد الموعد الجديد</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

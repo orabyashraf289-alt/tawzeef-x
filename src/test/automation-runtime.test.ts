@@ -1060,6 +1060,116 @@ describe("Client outbound validation, AutomationBuilder UI & migration checks", 
     );
   });
 
+  it("marks send_sms as skipped_unconfigured when SMS credentials are absent and dispatches via Twilio when configured", async () => {
+    const unconfiguredState = createMockDbState();
+    unconfiguredState.queue.push({
+      id: "eeeeeeee-0000-4000-8000-000000000001",
+      company_id: COMPANY_ID,
+      rule_id: RULE_ID,
+      log_id: LOG_ID,
+      candidate_id: CANDIDATE_ID,
+      action_type: "send_sms",
+      action_index: 0,
+      payload: {
+        action_payload: {
+          recipient_type: "candidate",
+          message: "مرحبًا {{candidate_name}} — تم تحديث طلبك",
+        },
+      },
+      status: "pending",
+      attempt_count: 0,
+      last_error: null,
+      processed_at: null,
+      created_at: new Date().toISOString(),
+    });
+
+    const fetcherSpy = vi.fn<FetchFn>();
+    const statusRes = await edgeRuntime.handleAutomationActionRequest(
+      new Request("https://edge.test/execute-automation-actions", {
+        method: "POST",
+        headers: { Authorization: "Bearer owner-jwt" },
+        body: JSON.stringify({ action: "status", activeCompanyId: COMPANY_ID }),
+      }),
+      makeDeps(unconfiguredState, { fetcher: fetcherSpy }),
+    );
+    const statusJson = (await statusRes.json()) as { providers: AutomationProviderStatus };
+    expect(statusJson.providers.send_sms?.configured).toBe(false);
+    expect(statusJson.providers.send_sms?.code).toBe("SMS_PROVIDER_NOT_CONFIGURED");
+
+    const skipRes = await edgeRuntime.handleAutomationActionRequest(
+      new Request("https://edge.test/execute-automation-actions", {
+        method: "POST",
+        headers: { Authorization: "Bearer owner-jwt" },
+        body: JSON.stringify({ action: "process_queue", activeCompanyId: COMPANY_ID }),
+      }),
+      makeDeps(unconfiguredState, { fetcher: fetcherSpy }),
+    );
+    const skipJson = (await skipRes.json()) as { results: ActionExecutionResult[] };
+    expect(fetcherSpy).not.toHaveBeenCalled();
+    expect(skipJson.results[0]).toMatchObject({
+      actionType: "send_sms",
+      status: "skipped_unconfigured",
+      code: "SMS_PROVIDER_NOT_CONFIGURED",
+    });
+
+    // Twilio configured path
+    const twilioState = createMockDbState();
+    twilioState.queue.push({
+      id: "eeeeeeee-0000-4000-8000-000000000002",
+      company_id: COMPANY_ID,
+      rule_id: RULE_ID,
+      log_id: LOG_ID,
+      candidate_id: CANDIDATE_ID,
+      action_type: "send_sms",
+      action_index: 0,
+      payload: {
+        action_payload: {
+          recipient_type: "candidate",
+          message: "تأكيد مقابلة {{job_title}}",
+        },
+      },
+      status: "pending",
+      attempt_count: 0,
+      last_error: null,
+      processed_at: null,
+      created_at: new Date().toISOString(),
+    });
+
+    const smsRequests: Array<{ url: string; headers: Record<string, string>; body: string }> = [];
+    const dispatchRes = await edgeRuntime.handleAutomationActionRequest(
+      new Request("https://edge.test/execute-automation-actions", {
+        method: "POST",
+        headers: { Authorization: "Bearer owner-jwt" },
+        body: JSON.stringify({ action: "process_queue", activeCompanyId: COMPANY_ID }),
+      }),
+      makeDeps(twilioState, {
+        env: {
+          TWILIO_ACCOUNT_SID: "AC123456",
+          TWILIO_AUTH_TOKEN: "twilio-secret",
+          TWILIO_FROM_NUMBER: "+966500000000",
+        },
+        fetcher: async (input, init) => {
+          smsRequests.push({
+            url: String(input),
+            headers: (init?.headers as Record<string, string>) || {},
+            body: String(init?.body || ""),
+          });
+          return new Response(JSON.stringify({ sid: "SM_123" }), { status: 201 });
+        },
+      }),
+    );
+    const dispatchJson = (await dispatchRes.json()) as { results: ActionExecutionResult[] };
+    expect(dispatchJson.results[0]).toMatchObject({
+      actionType: "send_sms",
+      status: "dispatched",
+      code: "completed",
+    });
+    expect(smsRequests).toHaveLength(1);
+    expect(smsRequests[0].url).toContain("api.twilio.com/2010-04-01/Accounts/AC123456/Messages.json");
+    expect(validateAutomationActionConfig({ type: "send_sms", payload: { recipient_type: "candidate", message: "hello" } })).toBeNull();
+    expect(validateAutomationActionConfig({ type: "send_sms", payload: { recipient_type: "custom", to_phone: "bad", message: "hello" } })).not.toBeNull();
+  });
+
   it("verifies outbound queue migration structure, RLS, service-only claim/complete RPCs, and rule preservation", () => {
     const sqlPath = path.resolve(
       process.cwd(),

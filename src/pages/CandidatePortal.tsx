@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { SEO } from "@/components/marketing/SEO";
 
 const PORTAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/candidate-portal`;
@@ -32,6 +33,16 @@ const statusStyles: Record<string, string> = {
   "مرفوض": "bg-red-100 text-red-800",
 };
 
+interface CandidateCompanyReview {
+  id?: string;
+  overall_rating: number;
+  communication_rating?: number | null;
+  fairness_rating?: number | null;
+  comment?: string | null;
+  is_anonymous?: boolean;
+  updated_at?: string;
+}
+
 interface CandidateResult {
   id: string;
   name: string;
@@ -47,6 +58,7 @@ interface CandidateResult {
   licenseExpiry?: string | null;
   universityDegree?: string | null;
   demoVideoUrl?: string | null;
+  companyReview?: CandidateCompanyReview | null;
 }
 
 function PipelineProgress({ currentStage, stages }: { currentStage: string; stages: typeof DEFAULT_STAGES }) {
@@ -135,6 +147,15 @@ export default function CandidatePortal() {
   const [licenseExpiryInput, setLicenseExpiryInput] = useState("");
   const [degreeInput, setDegreeInput] = useState("");
   const [demoVideoInput, setDemoVideoInput] = useState("");
+
+  // Candidate Company Review Modal State
+  const [reviewModal, setReviewModal] = useState<CandidateResult | null>(null);
+  const [overallRatingInput, setOverallRatingInput] = useState(5);
+  const [communicationRatingInput, setCommunicationRatingInput] = useState(5);
+  const [fairnessRatingInput, setFairnessRatingInput] = useState(5);
+  const [reviewCommentInput, setReviewCommentInput] = useState("");
+  const [reviewAnonymousInput, setReviewAnonymousInput] = useState(false);
+  const [savingReview, setSavingReview] = useState(false);
 
   const clearSearch = useCallback(() => {
     activeSearch.current?.abort();
@@ -252,6 +273,45 @@ export default function CandidatePortal() {
       performSearch(input, searchType);
     } catch (e: any) {
       toast({ title: "خطأ في التحديث", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleSubmitCompanyReview = async () => {
+    if (!reviewModal || savingReview) return;
+    setSavingReview(true);
+    try {
+      const resp = await fetch(PORTAL_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "submitReview",
+          trackingCode: reviewModal.trackingCode,
+          overallRating: overallRatingInput,
+          communicationRating: communicationRatingInput,
+          fairnessRating: fairnessRatingInput,
+          comment: reviewCommentInput,
+          isAnonymous: reviewAnonymousInput,
+        }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.ok) {
+        throw new Error(data?.error || "تعذّر حفظ تقييم التجربة.");
+      }
+      setCandidates((prev) =>
+        prev
+          ? prev.map((item) =>
+              item.trackingCode === reviewModal.trackingCode
+                ? { ...item, companyReview: data.review }
+                : item,
+            )
+          : prev,
+      );
+      toast({ title: "شكراً لمشاركتك تقييم تجربة التوظيف ⭐" });
+      setReviewModal(null);
+    } catch (e: any) {
+      toast({ title: "تعذّر إرسال التقييم", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingReview(false);
     }
   };
 
@@ -404,6 +464,45 @@ export default function CandidatePortal() {
                       تحديث الرخصة والدرس التجريبي ✏️
                     </Button>
                   </div>
+
+                  {/* Candidate Company Experience Review Card */}
+                  <div className="p-4 rounded-2xl bg-muted/20 border border-border/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-amber-600 flex items-center gap-1">
+                        <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                        تقييم تجربتك في عملية التوظيف:
+                      </span>
+                      {c.companyReview ? (
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-bold text-foreground">
+                            تقييمك المسجل: {c.companyReview.overall_rating} / 5 نجوم
+                            {c.companyReview.is_anonymous ? " (مجهول الهوية)" : ""}
+                          </p>
+                          {c.companyReview.comment && (
+                            <p className="text-[11px] text-muted-foreground line-clamp-2">{c.companyReview.comment}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">شاركنا رأيك في وضوح التواصل ومهنية التوظيف بالشركة.</p>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-xl text-xs gap-1.5 border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+                      onClick={() => {
+                        setReviewModal(c);
+                        setOverallRatingInput(c.companyReview?.overall_rating || 5);
+                        setCommunicationRatingInput(c.companyReview?.communication_rating || 5);
+                        setFairnessRatingInput(c.companyReview?.fairness_rating || 5);
+                        setReviewCommentInput(c.companyReview?.comment || "");
+                        setReviewAnonymousInput(Boolean(c.companyReview?.is_anonymous));
+                      }}
+                    >
+                      <Star className="w-3.5 h-3.5" />
+                      {c.companyReview ? "تحديث تقييم الشركة ⭐" : "تقييم تجربة التوظيف ⭐"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -471,6 +570,98 @@ export default function CandidatePortal() {
             <Button onClick={handleSaveTeacherCredentials} className="w-full h-10 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-500">
               <Check className="w-4 h-4" />
               حفظ بيانات الرخصة والمؤهلات
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Candidate Company Experience Review Modal */}
+      <Dialog open={!!reviewModal} onOpenChange={() => setReviewModal(null)}>
+        <DialogContent className="sm:max-w-lg" dir="rtl">
+          <DialogHeader className="text-right">
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+              تقييم تجربتك مع المدرسة / الشركة
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              يساعد تقييمك في تحسين تجربة التوظيف وسرعة التواصل مع المتقدمين.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">التقييم العام للتجربة ({overallRatingInput} / 5)</Label>
+              <div className="flex items-center gap-1.5">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    aria-label={`تقييم عام ${star} نجوم`}
+                    onClick={() => setOverallRatingInput(star)}
+                    className="p-1"
+                  >
+                    <Star className={cn("w-6 h-6 transition-colors", star <= overallRatingInput ? "fill-amber-500 text-amber-500" : "text-muted-foreground/40")} />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="review-comm-rating" className="text-xs font-semibold">وضوح وسرعة التواصل (1-5)</Label>
+                <Input
+                  id="review-comm-rating"
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={communicationRatingInput}
+                  onChange={(e) => setCommunicationRatingInput(Math.min(5, Math.max(1, Number(e.target.value) || 5)))}
+                  className="h-9 text-xs rounded-xl"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="review-fairness-rating" className="text-xs font-semibold">عدالة ومهنية المقابلة (1-5)</Label>
+                <Input
+                  id="review-fairness-rating"
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={fairnessRatingInput}
+                  onChange={(e) => setFairnessRatingInput(Math.min(5, Math.max(1, Number(e.target.value) || 5)))}
+                  className="h-9 text-xs rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="review-comment" className="text-xs font-semibold">ملاحظاتك واقتراحاتك (اختياري)</Label>
+              <Textarea
+                id="review-comment"
+                rows={3}
+                maxLength={1500}
+                value={reviewCommentInput}
+                onChange={(e) => setReviewCommentInput(e.target.value)}
+                placeholder="اكتب انطباعك عن خطوات التقديم والمقابلة..."
+                className="text-xs rounded-xl"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                checked={reviewAnonymousInput}
+                onChange={(e) => setReviewAnonymousInput(e.target.checked)}
+              />
+              <span>نشر التقييم لدى إدارة التوظيف كملاحظة مجهولة الهوية</span>
+            </label>
+
+            <Button
+              onClick={handleSubmitCompanyReview}
+              disabled={savingReview}
+              className="w-full h-10 text-xs font-bold rounded-xl bg-amber-600 text-white hover:bg-amber-500"
+            >
+              <Check className="w-4 h-4" />
+              {savingReview ? "جارٍ إرسال التقييم..." : "إرسال تقييم التجربة"}
             </Button>
           </div>
         </DialogContent>

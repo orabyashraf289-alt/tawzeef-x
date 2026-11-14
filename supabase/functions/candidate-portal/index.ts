@@ -14,7 +14,17 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405, corsHeaders);
 
   try {
-    const { trackingCode, email, action, credentials } = await req.json();
+    const {
+      trackingCode,
+      email,
+      action,
+      credentials,
+      overallRating,
+      communicationRating,
+      fairnessRating,
+      comment,
+      isAnonymous,
+    } = await req.json();
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
@@ -57,6 +67,61 @@ Deno.serve(async (req) => {
       }
       // User-provided license details are saved, never marked as verified.
       return json({ success: true }, 200, corsHeaders);
+    }
+
+    if (action === "submitReview") {
+      const code = typeof trackingCode === "string" ? trackingCode.trim().toUpperCase() : "";
+      if (!/^TX-[0-9A-F]{32}$/.test(code)) {
+        return json({ error: "رمز التتبع غير صالح." }, 400, corsHeaders);
+      }
+      const ratingNum = Number(overallRating);
+      if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+        return json({ error: "التقييم العام يجب أن يكون بين 1 و 5." }, 400, corsHeaders);
+      }
+      const parseOptionalRating = (value: unknown) => {
+        if (value === null || value === undefined || value === "") return null;
+        const parsed = Number(value);
+        if (!Number.isInteger(parsed) || parsed < 1 || parsed > 5) return undefined;
+        return parsed;
+      };
+      const commNum = parseOptionalRating(communicationRating);
+      const fairNum = parseOptionalRating(fairnessRating);
+      if (commNum === undefined || fairNum === undefined) {
+        return json({ error: "التقييمات الفرعية يجب أن تكون بين 1 و 5." }, 400, corsHeaders);
+      }
+      const cleanComment = typeof comment === "string" && comment.trim() ? comment.trim().slice(0, 1500) : null;
+
+      const { data: cand, error: candError } = await supabase
+        .from("candidates")
+        .select("id, company_id, job_id")
+        .eq("tracking_code", code)
+        .limit(1)
+        .maybeSingle();
+      if (candError) throw candError;
+      if (!cand || !cand.company_id) {
+        return json({ error: "لم يتم العثور على ملف مرشح مرتبط بهذا الرمز لإضافة التقييم." }, 404, corsHeaders);
+      }
+
+      const { data: savedReview, error: reviewErr } = await supabase
+        .from("candidate_company_reviews")
+        .upsert(
+          {
+            company_id: cand.company_id,
+            candidate_id: cand.id,
+            job_id: cand.job_id || null,
+            overall_rating: ratingNum,
+            communication_rating: commNum,
+            fairness_rating: fairNum,
+            comment: cleanComment,
+            is_anonymous: Boolean(isAnonymous),
+          },
+          { onConflict: "candidate_id" },
+        )
+        .select("id, overall_rating, communication_rating, fairness_rating, comment, is_anonymous, updated_at")
+        .single();
+      if (reviewErr) throw reviewErr;
+
+      return json({ ok: true, review: savedReview }, 200, corsHeaders);
     }
 
     if (typeof email === "string" && email.trim()) {
@@ -151,7 +216,35 @@ Deno.serve(async (req) => {
       : { data: [], error: null };
     if (jobsError) throw jobsError;
     const titles = new Map((jobs || []).map((j) => [j.id, j.title]));
-    return json({ candidates: matches.map(({ jobId, ...c }) => ({ ...c, jobTitle: titles.get(jobId) || c.role, aiScore: null })) }, 200, corsHeaders);
+
+    const candidateIds = (candidates || []).map((c) => c.id);
+    const reviewByCandidate = new Map<string, Record<string, unknown>>();
+    if (candidateIds.length > 0) {
+      const { data: reviews, error: reviewsError } = await supabase
+        .from("candidate_company_reviews")
+        .select("id, candidate_id, overall_rating, communication_rating, fairness_rating, comment, is_anonymous, updated_at")
+        .in("candidate_id", candidateIds);
+      if (reviewsError) {
+        console.warn("candidate-portal reviews lookup:", reviewsError.message);
+      } else {
+        for (const rev of reviews || []) {
+          reviewByCandidate.set(rev.candidate_id, rev);
+        }
+      }
+    }
+
+    return json(
+      {
+        candidates: matches.map(({ jobId, ...c }) => ({
+          ...c,
+          jobTitle: titles.get(jobId) || c.role,
+          aiScore: null,
+          companyReview: reviewByCandidate.get(c.id) || null,
+        })),
+      },
+      200,
+      corsHeaders,
+    );
   } catch (error) {
     console.error("candidate-portal:", error);
     return json({ error: "Unable to load the application" }, 500, corsHeaders);

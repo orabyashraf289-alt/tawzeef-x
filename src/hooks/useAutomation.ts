@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 export type AutomationActionType =
   | "send_email"
   | "send_whatsapp"
+  | "send_sms"
   | "move_stage"
   | "assign_reviewer"
   | "trigger_webhook";
@@ -60,7 +61,7 @@ export interface AutomationOutboundQueueItem {
   rule_id: string | null;
   log_id: string | null;
   candidate_id: string | null;
-  action_type: "send_email" | "send_whatsapp" | "trigger_webhook";
+  action_type: "send_email" | "send_whatsapp" | "send_sms" | "trigger_webhook";
   action_index: number;
   payload: Record<string, unknown>;
   status: AutomationOutboundQueueStatus;
@@ -80,6 +81,11 @@ export interface AutomationProviderStatus {
     ssrf_protection: boolean;
   };
   send_whatsapp: {
+    configured: boolean;
+    code: string;
+    missing_env?: string[];
+  };
+  send_sms?: {
     configured: boolean;
     code: string;
     missing_env?: string[];
@@ -144,6 +150,10 @@ export const automationMessages: Record<string, string> = {
   whatsapp_recipient_missing: "لا يوجد رقم هاتف صالح للمرشح لإرسال واتساب",
   whatsapp_delivery_failed: "تعذر إرسال رسالة واتساب عبر Meta Cloud API",
   WHATSAPP_PROVIDER_NOT_CONFIGURED: "مزوّد واتساب (Meta Cloud API) غير مهيأ — يلزم إضافة WHATSAPP_ACCESS_TOKEN وWHATSAPP_PHONE_NUMBER_ID",
+  invalid_sms_recipient: "رقم هاتف SMS غير صالح",
+  sms_recipient_missing: "لا يوجد رقم هاتف صالح للمرشح لإرسال SMS",
+  sms_delivery_failed: "تعذر إرسال رسالة SMS عبر المزود الخارجي",
+  SMS_PROVIDER_NOT_CONFIGURED: "مزوّد رسائل SMS غير مهيأ — يلزم إضافة بيانات Twilio أو SMS_GATEWAY_URL",
   sla_stage_required: "اختر شرطًا يساوي مرحلة محددة لقاعدة المهلة",
   invalid_sla_stage: "يلزم اسم مرحلة نشطة غير مكرر داخل الشركة ومهلة من ساعة إلى 8760 ساعة",
   offer_candidate_mismatch: "العرض والمرشح والوظيفة يجب أن يتبعوا الشركة نفسها",
@@ -297,6 +307,33 @@ export function validateAutomationActionConfig(
       const digits = rawPhone.replace(/[^0-9]/g, "");
       if (!/^[0-9]{7,15}$/.test(digits)) {
         return automationMessages.invalid_whatsapp_recipient;
+      }
+    }
+    return null;
+  }
+
+  if (action.type === "send_sms") {
+    const message = typeof payload.message === "string" ? payload.message.trim() : "";
+    if (!message || message.length > 1600) {
+      return !message ? automationMessages.unsupported_action : automationMessages.invalid_action;
+    }
+    const recipientType =
+      typeof payload.recipient_type === "string" && payload.recipient_type.trim()
+        ? payload.recipient_type.trim()
+        : "candidate";
+    if (!["candidate", "custom"].includes(recipientType)) {
+      return automationMessages.invalid_sms_recipient;
+    }
+    if (recipientType === "custom") {
+      const rawPhone =
+        typeof payload.to_phone === "string"
+          ? payload.to_phone
+          : typeof payload.phone === "string"
+            ? payload.phone
+            : "";
+      const digits = rawPhone.replace(/[^0-9]/g, "");
+      if (!/^[0-9]{7,15}$/.test(digits)) {
+        return automationMessages.invalid_sms_recipient;
       }
     }
     return null;

@@ -60,6 +60,7 @@ const actionTypeLabels: Record<string, string> = {
   send_email: "بريد إلكتروني",
   trigger_webhook: "Webhook خارجي",
   send_whatsapp: "واتساب",
+  send_sms: "رسالة SMS",
 };
 
 function activationBlock(rule: AutomationRule): string | null {
@@ -140,6 +141,17 @@ export default function AutomationBuilder() {
   const [whatsappMessage, setWhatsappMessage] = useState("");
   const [whatsappTemplateName, setWhatsappTemplateName] = useState("");
 
+  // Outbound SMS fields
+  const [smsRecipientType, setSmsRecipientType] = useState<"candidate" | "custom">("candidate");
+  const [smsCustomPhone, setSmsCustomPhone] = useState("");
+  const [smsMessage, setSmsMessage] = useState("");
+
+  // Multi-step conditional rule fields
+  const [minAiScoreCondition, setMinAiScoreCondition] = useState("");
+  const [secondaryActionType, setSecondaryActionType] = useState<"none" | "send_email" | "send_whatsapp" | "send_sms">("none");
+  const [secondarySubject, setSecondarySubject] = useState("");
+  const [secondaryMessage, setSecondaryMessage] = useState("");
+
   const [saving, setSaving] = useState(false);
   const [activating, setActivating] = useState<AutomationRule | null>(null);
 
@@ -182,6 +194,12 @@ export default function AutomationBuilder() {
           if (!tpl && !msg) return String(action.payload.details || "مسودة إجراء تحتاج تكاملًا");
           return `واتساب: ${tpl || msg.slice(0, 60)}`;
         }
+        if (action.type === "send_sms") {
+          const msg = typeof action.payload.message === "string" ? action.payload.message.trim() : "";
+          if (!msg) return String(action.payload.details || "مسودة إجراء تحتاج تكاملًا");
+          const rec = action.payload.recipient_type === "custom" ? String(action.payload.to_phone || action.payload.phone || "") : "المرشح";
+          return `SMS (${rec}): ${msg.slice(0, 60)}`;
+        }
         return String(action.payload.details || "مسودة إجراء تحتاج تكاملًا");
       })
       .join("، ");
@@ -198,6 +216,13 @@ export default function AutomationBuilder() {
     setWhatsappCustomPhone("");
     setWhatsappMessage("");
     setWhatsappTemplateName("");
+    setSmsRecipientType("candidate");
+    setSmsCustomPhone("");
+    setSmsMessage("");
+    setMinAiScoreCondition("");
+    setSecondaryActionType("none");
+    setSecondarySubject("");
+    setSecondaryMessage("");
   };
 
   const openEditor = (rule?: AutomationRule) => {
@@ -206,13 +231,17 @@ export default function AutomationBuilder() {
     setTriggerEvent(rule?.trigger_event || "application.created");
     const action = rule?.actions[0];
     const resolvedType: AutomationActionType =
-      action && ["move_stage", "assign_reviewer", "send_email", "trigger_webhook", "send_whatsapp"].includes(action.type)
+      action && ["move_stage", "assign_reviewer", "send_email", "trigger_webhook", "send_whatsapp", "send_sms"].includes(action.type)
         ? action.type
         : "move_stage";
     setActionType(resolvedType);
     setTargetId(String(action?.payload.stage_id || action?.payload.reviewer_id || ""));
-    setConditionStage(String(rule?.conditions[0]?.value || "__any"));
     resetOutboundFields();
+
+    const stageCondition = rule?.conditions.find((c) => c.field === "stage");
+    setConditionStage(String(stageCondition?.value || "__any"));
+    const aiCondition = rule?.conditions.find((c) => c.field === "ai_score");
+    setMinAiScoreCondition(aiCondition?.value !== undefined && aiCondition?.value !== null ? String(aiCondition.value) : "");
 
     if (action && resolvedType === "send_email") {
       const recType = action.payload.recipient_type;
@@ -230,6 +259,22 @@ export default function AutomationBuilder() {
       setWhatsappCustomPhone(String(action.payload.to_phone || action.payload.phone || ""));
       setWhatsappMessage(String(action.payload.message || ""));
       setWhatsappTemplateName(String(action.payload.template_name || ""));
+    } else if (action && resolvedType === "send_sms") {
+      const recType = action.payload.recipient_type;
+      setSmsRecipientType(recType === "custom" ? "custom" : "candidate");
+      setSmsCustomPhone(String(action.payload.to_phone || action.payload.phone || ""));
+      setSmsMessage(String(action.payload.message || ""));
+    }
+
+    const secondAction = rule?.actions[1];
+    if (secondAction && ["send_email", "send_whatsapp", "send_sms"].includes(secondAction.type)) {
+      setSecondaryActionType(secondAction.type as "send_email" | "send_whatsapp" | "send_sms");
+      if (secondAction.type === "send_email") {
+        setSecondarySubject(String(secondAction.payload.subject || ""));
+        setSecondaryMessage(String(secondAction.payload.body_html || secondAction.payload.body || ""));
+      } else {
+        setSecondaryMessage(String(secondAction.payload.message || ""));
+      }
     }
 
     setIsOpen(true);
@@ -263,6 +308,16 @@ export default function AutomationBuilder() {
         },
       };
     }
+    if (actionType === "send_sms") {
+      return {
+        type: "send_sms",
+        payload: {
+          recipient_type: smsRecipientType,
+          ...(smsRecipientType === "custom" ? { to_phone: smsCustomPhone.trim() } : {}),
+          message: smsMessage.trim(),
+        },
+      };
+    }
     return {
       type: "send_whatsapp",
       payload: {
@@ -274,25 +329,60 @@ export default function AutomationBuilder() {
     };
   };
 
+  const buildSecondaryAction = (): AutomationRule["actions"][number] | null => {
+    if (secondaryActionType === "none") return null;
+    if (secondaryActionType === "send_email") {
+      return {
+        type: "send_email",
+        payload: {
+          recipient_type: "candidate",
+          subject: secondarySubject.trim(),
+          body_html: secondaryMessage.trim(),
+        },
+      };
+    }
+    return {
+      type: secondaryActionType,
+      payload: {
+        recipient_type: "candidate",
+        message: secondaryMessage.trim(),
+      },
+    };
+  };
+
   const draftAction = buildDraftAction();
+  const secondaryAction = buildSecondaryAction();
   const draftActionError = validateAutomationActionConfig(draftAction);
+  const secondaryActionError = secondaryAction ? validateAutomationActionConfig(secondaryAction) : null;
+  const parsedMinScore = minAiScoreCondition.trim() === "" ? null : Number(minAiScoreCondition.trim());
+  const isAiScoreValid = parsedMinScore === null || (!Number.isNaN(parsedMinScore) && parsedMinScore >= 0 && parsedMinScore <= 100);
   const canSaveDraft =
     !saving &&
     canManage &&
     Boolean(title.trim()) &&
     !(triggerEvent === "sla.expired" && conditionStage === "__any") &&
-    draftActionError === null;
+    isAiScoreValid &&
+    draftActionError === null &&
+    secondaryActionError === null;
 
   const handleSave = async () => {
     if (!canSaveDraft) return;
     setSaving(true);
     try {
+      const conditions: AutomationRuleDraft["conditions"] = [];
+      if (conditionStage !== "__any") {
+        conditions.push({ field: "stage", operator: "equals" as const, value: conditionStage });
+      }
+      if (parsedMinScore !== null) {
+        conditions.push({ field: "ai_score", operator: "greater_than" as const, value: parsedMinScore });
+      }
+      const actions = secondaryAction ? [draftAction, secondaryAction] : [draftAction];
       const draft: AutomationRuleDraft = {
         title: title.trim(),
         trigger_event: triggerEvent,
         description: rules.find((rule) => rule.id === editingId)?.description,
-        conditions: conditionStage === "__any" ? [] : [{ field: "stage", operator: "equals" as const, value: conditionStage }],
-        actions: [draftAction],
+        conditions,
+        actions,
       };
       if (editingId) await updateRule({ id: editingId, draft });
       else await createRule(draft);
@@ -314,10 +404,11 @@ export default function AutomationBuilder() {
   };
 
   const hasOutboundRules = rules.some((rule) =>
-    rule.actions.some((action) => ["send_email", "send_whatsapp", "trigger_webhook"].includes(action.type)),
+    rule.actions.some((action) => ["send_email", "send_whatsapp", "send_sms", "trigger_webhook"].includes(action.type)),
   );
   const pendingOutboundCount = outboundQueue.filter((item) => item.status === "pending").length;
   const whatsappConfigured = providerStatus ? providerStatus.send_whatsapp.configured : null;
+  const smsConfigured = providerStatus?.send_sms ? providerStatus.send_sms.configured : null;
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -327,7 +418,7 @@ export default function AutomationBuilder() {
             <Zap className="w-5 h-5 text-amber-500" /> قواعد الأتمتة
           </h3>
           <p className="text-xs text-muted-foreground">
-            نقل المراحل وتعيين المراجعين وإرسال البريد وWebhooks تلقائيًا. تُحفظ القاعدة كمسودة ويُفعّلها مالك الشركة بعد مراجعتها.
+            نقل المراحل وتعيين المراجعين وإرسال البريد وSMS وواتساب وWebhooks تلقائيًا. تُحفظ القاعدة كمسودة ويُفعّلها مالك الشركة بعد مراجعتها.
           </p>
           <div className="flex flex-wrap gap-2 pt-1">
             <Badge variant="secondary" className="text-[11px]">
@@ -347,6 +438,19 @@ export default function AutomationBuilder() {
             ) : (
               <Badge variant="outline" className="text-[11px]">
                 واتساب: يتطلب تهيئة WHATSAPP_ACCESS_TOKEN و WHATSAPP_PHONE_NUMBER_ID
+              </Badge>
+            )}
+            {smsConfigured === true ? (
+              <Badge variant="default" className="text-[11px]">
+                رسائل SMS: مهيأ وجاهز
+              </Badge>
+            ) : smsConfigured === false ? (
+              <Badge variant="outline" className="text-[11px] border-amber-500/50 text-amber-700 dark:text-amber-400">
+                رسائل SMS: غير مهيأ — SMS_PROVIDER_NOT_CONFIGURED
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[11px]">
+                SMS: يدعم Twilio أو SMS_GATEWAY_URL
               </Badge>
             )}
           </div>
@@ -411,6 +515,20 @@ export default function AutomationBuilder() {
               </Select>
             </div>
 
+            <div className="space-y-1.5">
+              <Label htmlFor="automation-min-ai-score">شرط إضافي: درجة التقييم أعلى من (اختياري 0-100)</Label>
+              <Input
+                id="automation-min-ai-score"
+                type="number"
+                min={0}
+                max={100}
+                dir="ltr"
+                value={minAiScoreCondition}
+                onChange={(event) => setMinAiScoreCondition(event.target.value)}
+                placeholder="مثال: 75"
+              />
+            </div>
+
             {triggerEvent === "sla.expired" && (
               <p className="text-xs text-muted-foreground">
                 اختر مرحلة لها مهلة بين ساعة و8760 ساعة في إعدادات المراحل. تُحسب المدة بالساعات المتصلة وتُراجع كل دقيقة. تطبق القاعدة على دخول المرحلة بعد تفعيلها فقط.
@@ -440,6 +558,7 @@ export default function AutomationBuilder() {
                   <SelectItem value="send_email">إرسال بريد إلكتروني</SelectItem>
                   <SelectItem value="trigger_webhook">إرسال Webhook خارجي (HTTPS)</SelectItem>
                   <SelectItem value="send_whatsapp">إرسال رسالة واتساب (Meta Cloud API)</SelectItem>
+                  <SelectItem value="send_sms">إرسال رسالة نصية SMS (Twilio / Gateway)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -641,6 +760,92 @@ export default function AutomationBuilder() {
               </div>
             )}
 
+            {actionType === "send_sms" && (
+              <div className="space-y-3 rounded-xl border p-3 bg-muted/20">
+                {smsConfigured === false && (
+                  <div role="status" className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 text-xs text-amber-800 dark:text-amber-300">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>
+                      مزود SMS غير مهيأ حاليًا (SMS_PROVIDER_NOT_CONFIGURED). ستُسجّل التنفيذات كـ skipped_unconfigured حتى إضافة أسرار Twilio أو SMS_GATEWAY_URL في الخادم.
+                    </span>
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <Label>المستلم</Label>
+                  <Select
+                    value={smsRecipientType}
+                    onValueChange={(value) => setSmsRecipientType(value as "candidate" | "custom")}
+                  >
+                    <SelectTrigger aria-label="مستلم SMS">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="candidate">رقم هاتف المرشح تلقائيًا</SelectItem>
+                      <SelectItem value="custom">رقم هاتف مخصص</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {smsRecipientType === "custom" && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="automation-sms-phone">رقم الهاتف (بصيغة دولية)</Label>
+                    <Input
+                      id="automation-sms-phone"
+                      dir="ltr"
+                      value={smsCustomPhone}
+                      onChange={(event) => setSmsCustomPhone(event.target.value)}
+                      placeholder="+9665XXXXXXXX"
+                    />
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <Label htmlFor="automation-sms-message">نص رسالة SMS</Label>
+                  <Textarea
+                    id="automation-sms-message"
+                    rows={3}
+                    maxLength={1600}
+                    value={smsMessage}
+                    onChange={(event) => setSmsMessage(event.target.value)}
+                    placeholder="مرحبًا {{candidate_name}}، تم تحديث طلبك لوظيفة {{job_title}} إلى {{stage}}."
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2 rounded-xl border border-dashed p-3">
+              <Label>خطوة ثانية متتابعة (اختياري — أتمتة متعددة الخطوات)</Label>
+              <Select
+                value={secondaryActionType}
+                onValueChange={(value) => {
+                  setSecondaryActionType(value as "none" | "send_email" | "send_whatsapp" | "send_sms");
+                }}
+              >
+                <SelectTrigger aria-label="الخطوة الثانية">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">بدون خطوة ثانية</SelectItem>
+                  <SelectItem value="send_email">إرسال بريد متابعة للمرشح</SelectItem>
+                  <SelectItem value="send_whatsapp">إرسال واتساب متابعة للمرشح</SelectItem>
+                  <SelectItem value="send_sms">إرسال SMS متابعة للمرشح</SelectItem>
+                </SelectContent>
+              </Select>
+              {secondaryActionType === "send_email" && (
+                <Input
+                  value={secondarySubject}
+                  onChange={(event) => setSecondarySubject(event.target.value)}
+                  placeholder="عنوان بريد المتابعة للمرشح"
+                />
+              )}
+              {secondaryActionType !== "none" && (
+                <Textarea
+                  rows={2}
+                  value={secondaryMessage}
+                  onChange={(event) => setSecondaryMessage(event.target.value)}
+                  placeholder="نص رسالة المتابعة للمرشح"
+                />
+              )}
+            </div>
+
             <p className="text-xs text-muted-foreground">
               تغيير الحدث أو الشروط أو الإجراءات يوقف القاعدة حتى مراجعتها وتفعيلها مجددًا. شروط المقابلة والتقييم والاختبار تظل مطلوبة عند النقل.
             </p>
@@ -699,12 +904,12 @@ export default function AutomationBuilder() {
         rules.map((rule) => {
           const blocked = activationBlock(rule);
           const editable =
-            rule.actions.length <= 1 &&
-            (rule.conditions.length === 0 ||
-              (rule.conditions.length === 1 &&
-                rule.conditions[0].field === "stage" &&
-                rule.conditions[0].operator === "equals"));
+            rule.actions.length <= 2 &&
+            rule.conditions.every((condition) => ["stage", "ai_score"].includes(condition.field)) &&
+            rule.conditions.filter((condition) => condition.field === "stage").length <= 1 &&
+            rule.conditions.filter((condition) => condition.field === "ai_score").length <= 1;
           const hasWhatsappAction = rule.actions.some((action) => action.type === "send_whatsapp");
+          const hasSmsAction = rule.actions.some((action) => action.type === "send_sms");
           return (
             <Card key={rule.id} className="p-4 rounded-2xl space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -721,6 +926,11 @@ export default function AutomationBuilder() {
               {!blocked && hasWhatsappAction && whatsappConfigured === false && (
                 <p className="text-xs text-amber-700 dark:text-amber-400">
                   تنبيه المزود: WHATSAPP_PROVIDER_NOT_CONFIGURED — لن تُرسل رسائل واتساب حتى إعداد مفاتيح Meta Cloud API.
+                </p>
+              )}
+              {!blocked && hasSmsAction && smsConfigured === false && (
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  تنبيه المزود: SMS_PROVIDER_NOT_CONFIGURED — لن تُرسل رسائل SMS حتى إعداد بيانات Twilio أو SMS_GATEWAY_URL.
                 </p>
               )}
               <div className="flex flex-wrap gap-2">

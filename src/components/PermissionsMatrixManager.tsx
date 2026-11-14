@@ -168,6 +168,10 @@ export default function PermissionsMatrixManager() {
   const [loadError, setLoadError] = useState(false);
   const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
   const [permissions, setPermissions] = useState<Record<string, { can_read: boolean; can_create: boolean; can_edit: boolean; can_delete: boolean }>>({});
+  const [hideSalaryFields, setHideSalaryFields] = useState(false);
+  const [hideContactPii, setHideContactPii] = useState(false);
+  const [departmentScopeInput, setDepartmentScopeInput] = useState("");
+  const [requireOfferApproval, setRequireOfferApproval] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     recruitment: true,
     interviews_offers: true,
@@ -240,6 +244,19 @@ export default function PermissionsMatrixManager() {
       });
 
       setPermissions(permMap);
+
+      const sampleGovernanceRow =
+        (data as any[])?.find((d) => d.module_key === "candidates" || d.module_key === "offers") ||
+        (data as any[])?.[0];
+      const fieldRestrictions = sampleGovernanceRow?.field_restrictions || {};
+      setHideSalaryFields(Boolean(fieldRestrictions.hide_salary_fields));
+      setHideContactPii(Boolean(fieldRestrictions.hide_contact_pii));
+      setDepartmentScopeInput(
+        Array.isArray(sampleGovernanceRow?.department_scope)
+          ? sampleGovernanceRow.department_scope.join(", ")
+          : "",
+      );
+      setRequireOfferApproval(Boolean(sampleGovernanceRow?.requires_approval));
     } catch (e) {
       console.warn("Error loading permissions:", e);
       if (isCurrent()) { setPermissions({}); setLoadError(true); }
@@ -320,6 +337,11 @@ export default function PermissionsMatrixManager() {
       if (!activeCompanyId || (permissionMode === "user" && !selectedUserId)) {
         throw new Error("اختر شركة وموظفًا قبل حفظ الصلاحيات.");
       }
+      const parsedDepartmentScope = departmentScopeInput
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+
       const allPages = MODULE_CATEGORIES.flatMap((c) => c.pages);
       const recordsToUpsert = allPages.map((page) => ({
         company_id: activeCompanyId,
@@ -330,6 +352,12 @@ export default function PermissionsMatrixManager() {
         can_create: permissions[page.key]?.can_create ?? false,
         can_edit: permissions[page.key]?.can_edit ?? false,
         can_delete: permissions[page.key]?.can_delete ?? false,
+        field_restrictions: {
+          hide_salary_fields: hideSalaryFields,
+          hide_contact_pii: hideContactPii,
+        },
+        department_scope: parsedDepartmentScope.length > 0 ? parsedDepartmentScope : null,
+        requires_approval: requireOfferApproval,
         updated_at: new Date().toISOString(),
       }));
 
@@ -498,6 +526,79 @@ export default function PermissionsMatrixManager() {
           </div>
         </div>
       </PageHeader>
+
+      {/* Enterprise Governance: Field-Level Restrictions, Department Scope & Approvals */}
+      <div className="rounded-2xl border border-border/70 bg-card p-5 space-y-4 shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+              <Lock className="w-4 h-4 text-primary" />
+              حوكمة الحقول والأقسام والموافقات (Enterprise Governance)
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              تُحفظ هذه القيود للدور أو العضو المحدد مع المصفوفة وتُقرأ عبر granular_permissions.
+            </p>
+          </div>
+          <Badge variant="outline" className="text-[11px]">
+            {permissionMode === "user" ? "تجاوز فردي للموظف" : `دور: ${selectedRole}`}
+          </Badge>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="flex items-center justify-between gap-3 rounded-xl border p-3 bg-muted/20">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-foreground">إخفاء حقول الرواتب والتعويضات المالية</p>
+              <p className="text-[11px] text-muted-foreground">يقيّد عرض الراتب المتوقع وتفاصيل العروض المالية (hide_salary_fields).</p>
+            </div>
+            <Switch
+              checked={hideSalaryFields}
+              onCheckedChange={setHideSalaryFields}
+              disabled={!canManage || isLoadingPermissions || loadError}
+              aria-label="إخفاء حقول الرواتب"
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-3 rounded-xl border p-3 bg-muted/20">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-foreground">إخفاء بيانات الاتصال الشخصية الحساسة</p>
+              <p className="text-[11px] text-muted-foreground">إخفاء البريد والهاتف في التقارير والتصدير (hide_contact_pii).</p>
+            </div>
+            <Switch
+              checked={hideContactPii}
+              onCheckedChange={setHideContactPii}
+              disabled={!canManage || isLoadingPermissions || loadError}
+              aria-label="إخفاء بيانات الاتصال"
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-3 rounded-xl border p-3 bg-muted/20">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-foreground">إلزام سير عمل الموافقات قبل الاعتماد</p>
+              <p className="text-[11px] text-muted-foreground">يتطلب مراجعة وموافقة إدارية للعروض والطلبات (requires_approval).</p>
+            </div>
+            <Switch
+              checked={requireOfferApproval}
+              onCheckedChange={setRequireOfferApproval}
+              disabled={!canManage || isLoadingPermissions || loadError}
+              aria-label="إلزام سير عمل الموافقات"
+            />
+          </div>
+
+          <div className="rounded-xl border p-3 bg-muted/20 space-y-1.5">
+            <Label htmlFor="enterprise-department-scope" className="text-xs font-semibold">
+              نطاق الأقسام / التخصصات المسموحة (مفصولة بفاصلة)
+            </Label>
+            <Input
+              id="enterprise-department-scope"
+              value={departmentScopeInput}
+              onChange={(e) => setDepartmentScopeInput(e.target.value)}
+              disabled={!canManage || isLoadingPermissions || loadError}
+              placeholder="مثال: الهندسة, الموارد البشرية (فارغ = جميع الأقسام)"
+              className="h-9 text-xs bg-background"
+            />
+          </div>
+        </div>
+      </div>
 
       {/* ── Hierarchical Module Cards & Sub-pages Inventory Grid ── */}
       <div className="space-y-6">
