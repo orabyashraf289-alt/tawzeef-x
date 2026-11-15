@@ -8,7 +8,7 @@ export interface SEOProps {
   canonical?: string;
   image?: string;
   type?: "website" | "article";
-  jsonLd?: Record<string, any>;
+  jsonLd?: Record<string, unknown>;
   noindex?: boolean;
 }
 
@@ -59,7 +59,9 @@ export function SEO({
     // Primary Meta Tags
     ensureMeta(`meta[name="description"]`, "name", "description", description);
     ensureMeta(`meta[name="keywords"]`, "name", "keywords", keywords || DEFAULT_KEYWORDS);
-    ensureMeta(`meta[property="og:site_name"]`, "property", "og:site_name", "توظيف إكس | TawzeefX");
+    ensureMeta(`meta[name="application-name"]`, "name", "application-name", "توظيف إكس");
+    ensureMeta(`meta[name="apple-mobile-web-app-title"]`, "name", "apple-mobile-web-app-title", "توظيف إكس");
+    ensureMeta(`meta[property="og:site_name"]`, "property", "og:site_name", "توظيف إكس");
     ensureMeta(`meta[property="og:title"]`, "property", "og:title", title);
     ensureMeta(`meta[property="og:description"]`, "property", "og:description", description);
     ensureMeta(`meta[property="og:type"]`, "property", "og:type", type);

@@ -188,7 +188,7 @@ export default function LandingPage() {
   return (
     <div ref={motionScope} className="min-h-screen bg-md-surface text-md-on-surface overflow-x-hidden w-full max-w-full font-sans antialiased selection:bg-md-primary selection:text-md-on-primary" dir="rtl">
       <SEO
-        title="توظيف إكس (TawzeefX) | منصة توظيف ذكية ووظائف شاغرة ونظام تتبع المتقدمين ATS"
+        title="توظيف إكس | منصة توظيف ذكية ووظائف شاغرة ونظام تتبع المتقدمين ATS"
         description="توظيف إكس (TawzeefX - توظيف اكس) منصة توظيف ذكية ونظام تتبع المتقدمين (ATS) في السعودية والعالم العربي: تصفح أحدث الوظائف وفرص العمل، فرز السير الذاتية بالذكاء الاصطناعي، مقابلات الفيديو، والعروض الوظيفية الرقمية."
         keywords="توظيف إكس, توظيف اكس, منصة توظيف إكس, TawzeefX, Tawzeef-X, منصة توظيف ذكية, نظام تتبع المتقدمين, ATS عربي, وظائف شاغرة, فرص عمل في السعودية, فرز السير الذاتية بالذكاء الاصطناعي"
         canonical="https://www.tawzeefx.com/"
@@ -199,8 +199,8 @@ export default function LandingPage() {
             {
               "@type": "Organization",
               "@id": "https://www.tawzeefx.com/#organization",
-              "name": "توظيف إكس | TawzeefX",
-              "alternateName": ["توظيف إكس", "توظيف اكس", "منصة توظيف إكس", "TawzeefX", "Tawzeef-X", "Tawzeef X"],
+              "name": "توظيف إكس",
+              "alternateName": ["توظيف اكس", "منصة توظيف إكس", "TawzeefX", "Tawzeef-X", "Tawzeef X"],
               "url": "https://www.tawzeefx.com/",
               "logo": "https://www.tawzeefx.com/icon-512x512.png",
               "description": "توظيف إكس (TawzeefX) منصة توظيف ذكية ونظام تتبع المتقدمين (ATS) تربط الباحثين عن عمل بالشركات وأصحاب الأعمال لاكتشاف أحدث الوظائف واستقطاب أفضل الكفاءات بالذكاء الاصطناعي."
@@ -209,8 +209,8 @@ export default function LandingPage() {
               "@type": "WebSite",
               "@id": "https://www.tawzeefx.com/#website",
               "url": "https://www.tawzeefx.com/",
-              "name": "توظيف إكس | TawzeefX",
-              "alternateName": ["توظيف إكس", "توظيف اكس", "TawzeefX", "Tawzeef-X"],
+              "name": "توظيف إكس",
+              "alternateName": ["توظيف اكس", "منصة توظيف إكس", "TawzeefX", "Tawzeef-X"],
               "inLanguage": ["ar-SA", "ar", "en"],
               "description": "منصة توظيف إكس (TawzeefX) الذكية للباحثين عن عمل والشركات",
               "publisher": {
@@ -233,7 +233,7 @@ export default function LandingPage() {
           {/* Brand Logo */}
           <Link to="/" className="flex items-center gap-3 group">
             <div className="w-10 h-10 rounded-md3-md bg-md-primary-container text-md-on-primary-container flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-              <img src={tawzeefLogo} alt="Tawzeef-X" className="w-7 h-7 object-contain" />
+              <img src={tawzeefLogo} alt="توظيف إكس" className="w-7 h-7 object-contain" />
             </div>
             <div className="flex flex-col">
               <span className="text-md3-title-lg font-black tracking-tight text-md-on-surface leading-tight">

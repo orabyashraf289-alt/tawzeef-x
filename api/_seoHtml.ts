@@ -22,7 +22,7 @@ interface SeoRoutesConfigShape {
 
 const DEFAULT_SEO_ROUTES_CONFIG: SeoRoutesConfigShape = {
   baseUrl: "https://www.tawzeefx.com",
-  siteName: "توظيف إكس | TawzeefX",
+  siteName: "توظيف إكس",
   navLinks: [
     { path: "/", label: "الرئيسية - توظيف إكس" },
     { path: "/features", label: "المميزات والحلول" },

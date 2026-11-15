@@ -30,8 +30,15 @@ describe("Technical SEO metadata, pre-rendering, internal links, and sitemap con
     expect(html).toContain('<meta property="og:url" content="https://www.tawzeefx.com/" />');
     expect(html).toContain("توظيف إكس");
     expect(html).toContain("توظيف اكس");
+    expect(html).toContain('<meta property="og:site_name" content="توظيف إكس" />');
+    expect(html).toContain('<meta name="application-name" content="توظيف إكس" />');
+    expect(html).toContain('"name": "توظيف إكس"');
     expect(html).toContain('<meta name="keywords"');
     expect(html).toContain('"alternateName"');
+
+    const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "public", "manifest.json"), "utf-8"));
+    expect(manifest.short_name).toBe("توظيف إكس");
+    expect(seoRoutesConfig.siteName).toBe("توظيف إكس");
   });
 
   it("rewrites pre-rendered public routes to _seo HTML files while keeping SPA fallback for dynamic nested paths", () => {

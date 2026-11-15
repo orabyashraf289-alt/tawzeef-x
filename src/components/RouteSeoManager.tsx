@@ -120,6 +120,8 @@ export function RouteSeoManager() {
     upsertMetaTag("name", "description", meta.description);
     upsertMetaTag("name", "keywords", meta.keywords);
     upsertMetaTag("name", "robots", meta.robots);
+    upsertMetaTag("name", "application-name", seoRoutesConfig.siteName);
+    upsertMetaTag("name", "apple-mobile-web-app-title", seoRoutesConfig.siteName);
     upsertMetaTag("property", "og:site_name", seoRoutesConfig.siteName);
     upsertMetaTag("property", "og:title", meta.title);
     upsertMetaTag("property", "og:description", meta.description);
