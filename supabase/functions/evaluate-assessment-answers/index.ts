@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: Deno.env.get("ASSESSMENT_GRADING_MODEL")?.trim() || (isDirectGemini ? "gemini-3.8-flash" : "google/gemini-3.8-flash"),
+        model: Deno.env.get("ASSESSMENT_GRADING_MODEL")?.trim() || (isDirectGemini ? "gemini-3.5-flash-lite" : "google/gemini-3.8-flash"),
         messages: [
           {
             role: "system",

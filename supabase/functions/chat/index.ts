@@ -14,6 +14,7 @@ const corsHeaders = {
 // ============================================================================
 const MODEL_FAST = "gemini-3.8-flash";
 const MODEL_PRO = "gemini-2.5-pro";
+const DIRECT_GEMINI_MODEL = "gemini-3.5-flash-lite";
 
 // ============================================================================
 // TOOL DEFINITIONS
@@ -984,14 +985,18 @@ Deno.serve(async (req) => {
     }
     const db = getAdminClient();
     const [roles, memberships, admins] = await Promise.all([
-      db.from("user_roles").select("role").eq("user_id", user.id).in("role", ["admin", "recruiter", "reviewer"]),
-      db.from("company_members").select("id").eq("user_id", user.id).limit(1),
+      db.from("user_roles").select("role").eq("user_id", user.id),
+      db.from("company_members").select("id, member_role").eq("user_id", user.id).limit(1),
       db.from("platform_roles").select("id").eq("user_id", user.id).eq("role", "super_admin").limit(1),
     ]);
     if (roles.error || memberships.error || admins.error) throw new Error("Failed to verify permissions");
     const superAdmin = Boolean(admins.data?.length);
-    const staff = superAdmin || Boolean(memberships.data?.length && roles.data?.some((r) => r.role === "admin" || r.role === "recruiter"));
-    const reviewer = Boolean(memberships.data?.length && roles.data?.some((r) => r.role === "reviewer"));
+    const userRoles = (roles.data || []).map((r) => r.role);
+    const isJobSeekerOnly = userRoles.includes("job_seeker") && !userRoles.some((r) => r === "admin" || r === "recruiter" || r === "reviewer");
+    const hasMembership = Boolean(memberships.data?.length);
+    const memberRole = memberships.data?.[0]?.member_role;
+    const staff = superAdmin || userRoles.some((r) => r === "admin" || r === "recruiter") || (hasMembership && !isJobSeekerOnly && !userRoles.includes("reviewer") && memberRole !== "viewer");
+    const reviewer = !staff && (userRoles.includes("reviewer") || (hasMembership && !isJobSeekerOnly && memberRole === "viewer"));
     if (!staff && !reviewer) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     if (isAnalyticsReportType(report_type)) {
       const { action } = await handleToolCall({ function: { name: "get_stats", arguments: JSON.stringify({ report_type }) } }, user.id, authHeader);
@@ -1017,13 +1022,28 @@ Deno.serve(async (req) => {
     const supportedModels = ["auto", `google/${MODEL_FAST}`, `google/${MODEL_PRO}`];
     const selected = supportedModels.includes(model_override) ? model_override : "auto";
     const fastName = selected === `google/${MODEL_PRO}` ? MODEL_PRO : MODEL_FAST;
-    const effectiveFastModel = isDirectGemini ? fastName : `google/${fastName}`;
+    const effectiveFastModel = isDirectGemini ? DIRECT_GEMINI_MODEL : `google/${fastName}`;
     const synthesisName = selected === `google/${MODEL_FAST}` ? MODEL_FAST : MODEL_PRO;
-    const effectiveProModel = isDirectGemini ? synthesisName : `google/${synthesisName}`;
+    const effectiveProModel = isDirectGemini ? DIRECT_GEMINI_MODEL : `google/${synthesisName}`;
     const toolsDisabled = disable_tools === true;
     const availableTools = allowedChatTools(tools, staff ? "staff" : "reviewer");
 
-    const actualMessages = messages.map((m) => ({ role: m.role, content: m.content }));
+    const ERROR_PLACEHOLDER = "تعذر إكمال الرد. يمكنك إعادة إرسال طلبك.";
+    const cleanedMessages: Array<{ role: string; content: string }> = [];
+    for (const m of messages) {
+      if (m.role === "assistant" && (!m.content.trim() || m.content.trim() === ERROR_PLACEHOLDER)) {
+        continue;
+      }
+      const prev = cleanedMessages[cleanedMessages.length - 1];
+      if (prev && prev.role === m.role) {
+        prev.content = `${prev.content}\n\n${m.content}`;
+      } else {
+        cleanedMessages.push({ role: m.role, content: m.content });
+      }
+    }
+    const actualMessages = cleanedMessages.length > 0
+      ? cleanedMessages
+      : [{ role: "user", content: messages[messages.length - 1].content }];
     if (resume_text || attached_files_text) {
       const lastMsg = actualMessages[actualMessages.length - 1];
       if (lastMsg?.role === "user") {
@@ -1105,6 +1125,14 @@ ${userContext}
     });
 
     if (!detectResponse.ok) {
+      const fallbackStream = await fetchWithRetry(API_URL, {
+        method: "POST",
+        headers: aiHeaders,
+        body: JSON.stringify({ model: effectiveFastModel, messages: [{ role: "system", content: systemPrompt }, ...actualMessages], stream: true }),
+      });
+      if (fallbackStream.ok && fallbackStream.body) {
+        return new Response(fallbackStream.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
+      }
       return new Response(JSON.stringify({ error: detectResponse.status === 429 ? "الخدمة مشغولة الآن، حاول بعد قليل." : "تعذر الاتصال بمحرك الذكاء الاصطناعي. حاول مجددًا." }), { status: detectResponse.status === 429 ? 429 : 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -1236,7 +1264,8 @@ async function getResponseError(response: Response): Promise<string> {
   try {
     const text = await response.text();
     try {
-      const json = JSON.parse(text);
+      const parsed = JSON.parse(text);
+      const json = Array.isArray(parsed) ? parsed[0] : parsed;
       if (json && json.error) {
         if (typeof json.error === "string") return json.error;
         if (json.error.message) return json.error.message;

@@ -116,7 +116,7 @@ Return ONLY valid JSON using the function call extract_resume_data.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: isDirectGemini ? "gemini-2.0-flash" : "google/gemini-2.0-flash",
+        model: isDirectGemini ? "gemini-3.5-flash-lite" : "google/gemini-3.8-flash",
         messages: [
           { role: "system", content: "You are a professional HR AI parsing engine. Always extract structured data with maximum precision into valid JSON tool calls." },
           { role: "user", content: prompt },

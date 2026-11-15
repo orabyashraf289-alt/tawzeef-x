@@ -35,12 +35,15 @@ Deno.serve(async (req) => {
 
     const db = createClient(url, serviceKey);
     const [roles, memberships, admins] = await Promise.all([
-      db.from("user_roles").select("id").eq("user_id", user.id).in("role", ["admin", "recruiter"]).limit(1),
-      db.from("company_members").select("id").eq("user_id", user.id).limit(1),
+      db.from("user_roles").select("id, role").eq("user_id", user.id),
+      db.from("company_members").select("id, member_role").eq("user_id", user.id).limit(1),
       db.from("platform_roles").select("id").eq("user_id", user.id).eq("role", "super_admin").limit(1),
     ]);
     if (roles.error || memberships.error || admins.error) throw roles.error || memberships.error || admins.error;
-    if (!canUseTool(Boolean(roles.data?.length), Boolean(memberships.data?.length), Boolean(admins.data?.length))) {
+    const userRoles = (roles.data || []).map((r) => r.role);
+    const hasStaffRole = userRoles.some((r) => r === "admin" || r === "recruiter") ||
+      Boolean(memberships.data?.length && !userRoles.includes("job_seeker") && !userRoles.includes("reviewer") && memberships.data[0]?.member_role !== "viewer");
+    if (!canUseTool(hasStaffRole, Boolean(memberships.data?.length), Boolean(admins.data?.length))) {
       return reply({ error: "Forbidden" }, 403, cors);
     }
 

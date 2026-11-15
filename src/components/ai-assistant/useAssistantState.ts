@@ -491,8 +491,13 @@ export function useAssistantState() {
       setAttachedFiles([]);
       setMessages((prev) => [...prev, userMsg]);
 
+      const ERROR_PLACEHOLDER = "تعذر إكمال الرد. يمكنك إعادة إرسال طلبك.";
       const allMessages = [...messages, userMsg]
-        .filter((m) => m.role === "user" || m.role === "assistant")
+        .filter(
+          (m) =>
+            (m.role === "user" || m.role === "assistant") &&
+            !(m.role === "assistant" && (!m.content.trim() || m.content.trim() === ERROR_PLACEHOLDER)),
+        )
         .slice(-40);
 
       try {

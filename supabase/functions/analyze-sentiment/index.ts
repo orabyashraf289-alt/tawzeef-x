@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: isDirectGemini ? "gemini-2.0-flash" : "google/gemini-2.0-flash",
+        model: isDirectGemini ? "gemini-3.5-flash-lite" : "google/gemini-3.8-flash",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
       }),
@@ -72,10 +72,11 @@ Deno.serve(async (req) => {
 async function getResponseError(response: Response): Promise<string> {
   try {
     const json = await response.clone().json();
-    if (json && json.error) {
-      if (typeof json.error === "string") return json.error;
-      if (json.error.message) return json.error.message;
-      return JSON.stringify(json.error);
+    const root = Array.isArray(json) ? json[0] : json;
+    if (root && root.error) {
+      if (typeof root.error === "string") return root.error;
+      if (root.error.message) return root.error.message;
+      return JSON.stringify(root.error);
     }
   } catch {
     try {
