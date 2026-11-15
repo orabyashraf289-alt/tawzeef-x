@@ -142,10 +142,10 @@ const AIMascot = memo(function AIMascot({ focusedField, showPassword = false, is
         />
 
         {/* Head Base */}
-        <div className="relative w-16 h-13 rounded-[22px] bg-gradient-to-b from-white to-slate-50 border-2 border-emerald-500/30 shadow-[0_8px_20px_rgba(16,185,129,0.15)] flex flex-col items-center justify-center p-1.5 overflow-hidden transition-colors duration-300">
+        <div className="relative w-16 h-13 rounded-[22px] bg-md-surface-container-lowest border-2 border-md-primary/30 shadow-elevation-2 flex flex-col items-center justify-center p-1.5 overflow-hidden transition-colors duration-300">
           
           {/* Top Antenna Spark */}
-          <div className="absolute -top-1.5 w-2.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
+          <div className="absolute -top-1.5 w-2.5 h-1.5 rounded-full bg-md-primary shadow-[0_0_8px_hsl(var(--primary)/0.6)] animate-pulse" />
 
           {/* Screen Visor / Face Area */}
           <div className="w-full h-8 rounded-[14px] bg-slate-900 flex items-center justify-center px-2 relative overflow-hidden shadow-inner">
@@ -244,8 +244,8 @@ const AIMascot = memo(function AIMascot({ focusedField, showPassword = false, is
         </div>
 
         {/* Status Mini Badge */}
-        <div className="absolute -bottom-1 px-1.5 py-0.5 rounded-full bg-white/90 border border-emerald-200 shadow-xs flex items-center gap-1 text-[8px] font-black text-emerald-700">
-          <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping" />
+        <div className="absolute -bottom-1 px-1.5 py-0.5 rounded-full bg-md-surface-container-lowest border border-md-outline-variant shadow-xs flex items-center gap-1 text-[8px] font-black text-md-primary">
+          <span className="w-1 h-1 rounded-full bg-md-primary animate-ping" />
           <span>{isPassword ? "حماية 🔐" : isEmailOrName ? "يكتب... ✍️" : "مساعد ذكي ✨"}</span>
         </div>
       </motion.div>
@@ -285,25 +285,25 @@ const TawzeefXSystemShowcase = memo(function TawzeefXSystemShowcase() {
   }, [activeFeatureTab]);
 
   return (
-    <div className="w-full max-w-[480px] mx-auto rounded-[24px] bg-white border border-slate-200/80 shadow-[0_20px_50px_rgba(15,23,42,0.06)] p-5 relative overflow-hidden select-none text-right">
-      {/* Top Emerald Brand Header Bar */}
-      <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 mb-4">
+    <div className="w-full max-w-[480px] mx-auto rounded-[24px] bg-md-surface-container-lowest border border-md-outline-variant/60 shadow-elevation-2 p-5 relative overflow-hidden select-none text-right">
+      {/* Top Brand Header Bar */}
+      <div className="flex items-center justify-between pb-3.5 border-b border-md-outline-variant/40 mb-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="w-2.5 h-2.5 rounded-full bg-md-primary animate-pulse" />
           <div>
-            <span className="text-xs font-black text-slate-800">نظام توظيف إكس الذكي</span>
-            <span className="text-[10px] text-emerald-600 font-bold mr-1.5">(عرض حي مباشر)</span>
+            <span className="text-xs font-black text-md-on-surface">نظام توظيف إكس الذكي</span>
+            <span className="text-[10px] text-md-primary font-bold mr-1.5">(عرض حي مباشر)</span>
           </div>
         </div>
         
         {/* Interactive Feature Mini Tabs */}
-        <div className="flex items-center bg-slate-100/80 p-1 rounded-xl gap-1 text-[10px] font-bold">
+        <div className="flex items-center bg-md-surface-container p-1 rounded-xl gap-1 text-[10px] font-bold">
           <button
             onClick={() => setActiveFeatureTab("pipeline")}
             className={`px-2.5 py-1 rounded-lg transition-all duration-200 ${
               activeFeatureTab === "pipeline"
-                ? "bg-white text-emerald-700 shadow-xs font-black"
-                : "text-slate-500 hover:text-slate-800"
+                ? "bg-md-surface-container-lowest text-md-primary shadow-xs font-black"
+                : "text-md-on-surface-variant hover:text-md-on-surface"
             }`}
           >
             المراحل
@@ -312,8 +312,8 @@ const TawzeefXSystemShowcase = memo(function TawzeefXSystemShowcase() {
             onClick={() => setActiveFeatureTab("ai_matcher")}
             className={`px-2.5 py-1 rounded-lg transition-all duration-200 ${
               activeFeatureTab === "ai_matcher"
-                ? "bg-white text-emerald-700 shadow-xs font-black"
-                : "text-slate-500 hover:text-slate-800"
+                ? "bg-md-surface-container-lowest text-md-primary shadow-xs font-black"
+                : "text-md-on-surface-variant hover:text-md-on-surface"
             }`}
           >
             تحليل AI
@@ -322,8 +322,8 @@ const TawzeefXSystemShowcase = memo(function TawzeefXSystemShowcase() {
             onClick={() => setActiveFeatureTab("interviews")}
             className={`px-2.5 py-1 rounded-lg transition-all duration-200 ${
               activeFeatureTab === "interviews"
-                ? "bg-white text-emerald-700 shadow-xs font-black"
-                : "text-slate-500 hover:text-slate-800"
+                ? "bg-md-surface-container-lowest text-md-primary shadow-xs font-black"
+                : "text-md-on-surface-variant hover:text-md-on-surface"
             }`}
           >
             المقابلات
@@ -487,78 +487,71 @@ const TawzeefXSystemShowcase = memo(function TawzeefXSystemShowcase() {
       )}
 
       {/* Bottom KPI Bar */}
-      <div className="pt-3 border-t border-slate-100 grid grid-cols-4 gap-2 text-center mt-3">
+      <div className="pt-3 border-t border-md-outline-variant/40 grid grid-cols-4 gap-2 text-center mt-3">
         <div>
-          <span className="text-base font-black text-slate-800 block">1,250+</span>
-          <span className="text-[8px] font-bold text-slate-400">وظيفة نشطة</span>
+          <span className="text-base font-black text-md-on-surface block">1,250+</span>
+          <span className="text-[8px] font-bold text-md-on-surface-variant">وظيفة نشطة</span>
         </div>
         <div>
-          <span className="text-base font-black text-emerald-600 block">98%</span>
-          <span className="text-[8px] font-bold text-slate-400">دقة الـ AI</span>
+          <span className="text-base font-black text-md-primary block">98%</span>
+          <span className="text-[8px] font-bold text-md-on-surface-variant">دقة الـ AI</span>
         </div>
         <div>
-          <span className="text-base font-black text-teal-600 block">3X</span>
-          <span className="text-[8px] font-bold text-slate-400">أسرع توظيفاً</span>
+          <span className="text-base font-black text-md-primary block">3X</span>
+          <span className="text-[8px] font-bold text-md-on-surface-variant">أسرع توظيفاً</span>
         </div>
         <div>
-          <span className="text-base font-black text-slate-800 block">4.9 ★</span>
-          <span className="text-[8px] font-bold text-slate-400">تقييم المنصة</span>
+          <span className="text-base font-black text-md-on-surface block">4.9 ★</span>
+          <span className="text-[8px] font-bold text-md-on-surface-variant">تقييم المنصة</span>
         </div>
       </div>
     </div>
   );
 });
 
-/* ─── Right Branding Panel (Tawzeef-X Authentic Showcase) ─── */
+/* ─── Right Branding Panel (توظيف إكس Authentic MD3 Showcase) ─── */
 const BrandingPanel = memo(function BrandingPanel() {
   return (
-    <div className="hidden lg:flex flex-col justify-between h-full relative overflow-hidden p-12 select-none">
-      {/* Clean System Background using theme tokens */}
+    <div className="hidden lg:flex flex-col justify-between h-full relative overflow-hidden p-12 select-none border-l border-md-outline-variant/40 bg-md-surface-container-low/50">
+      {/* Clean System Background using MD3 theme tokens */}
       <div
-        className="absolute inset-0 bg-background"
+        className="absolute inset-0"
         style={{
-          background: "radial-gradient(circle at 100% 0%, hsl(var(--primary) / 0.05) 0%, hsl(var(--background)) 60%, hsl(var(--secondary) / 0.4) 100%)",
-        }}
-      />
-
-      {/* Subtle Dot Grid */}
-      <div
-        className="absolute inset-0 opacity-[0.035] pointer-events-none"
-        style={{
-          backgroundImage: "radial-gradient(circle, #0f172a 1.2px, transparent 1.2px)",
-          backgroundSize: "28px 28px",
+          background: "radial-gradient(circle at 100% 0%, hsl(var(--primary) / 0.08) 0%, transparent 60%)",
         }}
       />
 
       {/* Header Info */}
       <div className="relative z-10 space-y-6">
         {/* Brand Logo */}
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center border border-emerald-500/20 bg-white shadow-sm p-2">
-            <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
+        <Link to="/" className="inline-flex items-center gap-3.5 group">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center border border-md-outline-variant/60 bg-md-surface-container-lowest shadow-sm p-2 group-hover:scale-105 transition-transform">
+            <img src={tawzeefLogo} alt="توظيف إكس" className="w-8 h-8 object-contain" />
           </div>
           <div className="flex flex-col">
-            <span className="text-xl font-black tracking-wide leading-tight text-slate-800">Tawzeef-X</span>
-            <span className="text-[9.5px] font-bold tracking-[0.18em] text-emerald-600 uppercase">المنصة الذكية لإدارة التوظيف</span>
+            <span className="text-xl font-black tracking-wide leading-tight text-md-on-surface">
+              توظيف <span className="text-md-primary">إكس</span>
+            </span>
+            <span className="text-[10px] font-bold text-md-primary">المنصة الذكية لإدارة التوظيف ونظام ATS</span>
           </div>
-        </div>
+        </Link>
 
         {/* Title & Pitch */}
         <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/20 bg-emerald-50/80">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
-            <span className="text-xs font-bold text-emerald-800">منصة التوظيف وتقييم الكفاءات #1</span>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-md-primary/20 bg-md-primary-container/50">
+            <Sparkles className="w-3.5 h-3.5 text-md-primary animate-pulse" />
+            <span className="text-xs font-bold text-md-on-primary-container">منصة التوظيف وتقييم الكفاءات الذكية</span>
           </div>
 
-          <h2 className="text-3xl xl:text-4xl font-black text-slate-800 leading-tight">
+          <h2 className="text-3xl xl:text-4xl font-black text-md-on-surface leading-tight">
             أتمتة رحلة التوظيف بالكامل <br />
-            <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 bg-clip-text text-transparent">
+            <span className="text-md-primary">
               بدقة وذكاء استثنائي
             </span>
           </h2>
 
-          <p className="text-xs leading-relaxed text-slate-500 max-w-[420px]">
-            من نشر الوظائف وتحديد المواصفات التعليمية والمهنية، إلى الفرز التلقائي والمقابلات المدمجة والعروض الوظيفية الرقمية.
+          <p className="text-xs leading-relaxed text-md-on-surface-variant max-w-[430px]">
+            من نشر الوظائف وتحديد المواصفات المهنية، إلى الفرز التلقائي للسير الذاتية بالذكاء الاصطناعي والمقابلات المدمجة والعروض الوظيفية الرقمية.
           </p>
         </div>
       </div>
@@ -569,9 +562,12 @@ const BrandingPanel = memo(function BrandingPanel() {
       </div>
 
       {/* Footer Trust Note */}
-      <div className="relative z-10 flex items-center justify-between text-[11px] font-semibold text-slate-400 pt-3 border-t border-slate-200/60">
+      <div className="relative z-10 flex items-center justify-between text-[11px] font-semibold text-md-on-surface-variant pt-3 border-t border-md-outline-variant/50">
         <span>🔒 بيانات مشفرة وعزل تام بين الشركات</span>
-        <span>⚡ متوافق مع كافة المعايير المهنية</span>
+        <Link to="/careers" className="text-md-primary hover:underline font-bold inline-flex items-center gap-1">
+          <span>تصفح الوظائف المتاحة</span>
+          <ArrowLeft className="w-3 h-3" />
+        </Link>
       </div>
     </div>
   );
@@ -784,7 +780,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
           sessionStorage.setItem("tx_show_welcome_video", "true");
         } catch {}
         confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ["#10b981", "#06b6d4", "#f59e0b"] });
-        toast({ title: "تم تسجيل الدخول بنجاح ✅", description: tenantCheck.isApplicant ? "مرحباً بك في بوابة المتقدمين" : "مرحباً بك في منصة Tawzeef-X" });
+        toast({ title: "تم تسجيل الدخول بنجاح ✅", description: tenantCheck.isApplicant ? "مرحباً بك في بوابة المتقدمين" : "مرحباً بك في منصة توظيف إكس" });
         logAuditEvent({ eventType: "login.success", userId: loginData.user?.id, userEmail: normalizedEmail, details: { method: "direct_login_instant" } });
         navigate(accountHome(tenantCheck));
         return;
@@ -908,23 +904,23 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
   const inputClass = (field: string) =>
     `h-[50px] pr-11 rounded-2xl text-[14px] font-medium transition-all duration-300 border focus-visible:ring-0 focus-visible:ring-offset-0 ${
       focused(field)
-        ? "bg-white border-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.12)] text-slate-900"
-        : "bg-slate-50/70 border-slate-200/90 hover:border-slate-300 hover:bg-white text-slate-800 placeholder:text-slate-400"
+        ? "bg-md-surface-container-lowest border-md-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.12)] text-md-on-surface"
+        : "bg-md-surface-container-low/70 border-md-outline-variant/80 hover:border-md-primary/40 hover:bg-md-surface-container-lowest text-md-on-surface placeholder:text-md-on-surface-variant/60"
     }`;
 
   const iconClass = (field: string) =>
     `absolute right-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 transition-all duration-300 ${
-      focused(field) ? "text-emerald-600 scale-110" : "text-slate-400"
+      focused(field) ? "text-md-primary scale-110" : "text-md-on-surface-variant"
     }`;
 
   return (
     <div className="w-full max-w-[460px] mx-auto px-2 sm:px-4 select-none">
 
       {/* Styled Google Material 3 Elevated Card */}
-      <div className="relative rounded-[28px] bg-white/95 backdrop-blur-2xl border border-slate-200/80 shadow-[0_20px_50px_rgba(16,185,129,0.07)] p-6 sm:p-8 space-y-6 overflow-hidden">
+      <div className="relative rounded-[28px] bg-md-surface-container-lowest/95 backdrop-blur-2xl border border-md-outline-variant/60 shadow-elevation-3 p-6 sm:p-8 space-y-6 overflow-hidden">
         
-        {/* Top Gemini Gradient Accent Line */}
-        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-500" />
+        {/* Top MD3 Brand Accent Line */}
+        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-primary via-accent to-primary" />
         
         {emailConfirmation ? (
           <motion.div
@@ -1068,16 +1064,18 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
         ) : (
           <div className="space-y-5">
             {/* Top Brand Logo & Animated Interactive Google-Style Mascot */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-2">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl flex items-center justify-center overflow-hidden p-2 bg-gradient-to-tr from-emerald-50 to-cyan-50 border border-emerald-500/20 shadow-xs">
-                  <img src={tawzeefLogo} alt="Tawzeef-X" className="w-7 h-7 object-contain" />
+            <div className="flex items-center justify-between pb-3.5 border-b border-md-outline-variant/40 mb-2">
+              <Link to="/" className="flex items-center gap-3 group">
+                <div className="w-11 h-11 rounded-2xl flex items-center justify-center overflow-hidden p-2 bg-md-primary-container/50 border border-md-primary/20 shadow-xs group-hover:scale-105 transition-transform">
+                  <img src={tawzeefLogo} alt="توظيف إكس" className="w-7 h-7 object-contain" />
                 </div>
                 <div>
-                  <h1 className="text-base font-black text-slate-800 leading-tight">Tawzeef-X</h1>
-                  <p className="text-[8.5px] font-bold tracking-[0.18em] text-emerald-600 uppercase">منصة التوظيف الذكية</p>
+                  <h1 className="text-base font-black text-md-on-surface leading-tight">
+                    توظيف <span className="text-md-primary">إكس</span>
+                  </h1>
+                  <p className="text-[10px] font-bold text-md-primary">منصة التوظيف الذكية</p>
                 </div>
-              </div>
+              </Link>
 
               {/* Interactive Mascot */}
               <div className="shrink-0">
@@ -1087,18 +1085,38 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
             {/* Back link */}
             <div className="hidden lg:block">
-              <a href="/" className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-700 transition-all duration-300 font-medium group">
+              <Link to="/" className="inline-flex items-center gap-1.5 text-xs text-md-on-surface-variant hover:text-md-on-surface transition-all duration-300 font-bold group">
                 <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform duration-300" />
                 <span>العودة للرئيسية</span>
-              </a>
+              </Link>
             </div>
 
             {isLogin && (
-              <nav aria-label="نوع تسجيل الدخول" className="grid grid-cols-2 gap-2 rounded-xl bg-muted/40 p-1 text-center text-xs font-bold">
-                <Link to="/auth?mode=login" aria-current={!isApplicantLogin ? "page" : undefined}
-                  className={`rounded-lg px-3 py-3 ${!isApplicantLogin ? "bg-white shadow-sm text-primary" : "text-slate-600"}`}>جهة توظيف / HR</Link>
-                <Link to="/auth?mode=login&type=applicant" aria-current={isApplicantLogin ? "page" : undefined}
-                  className={`rounded-lg px-3 py-3 ${isApplicantLogin ? "bg-white shadow-sm text-primary" : "text-slate-600"}`}>تسجيل دخول المتقدم</Link>
+              <nav aria-label="نوع تسجيل الدخول" className="grid grid-cols-2 gap-1.5 rounded-2xl bg-md-surface-container p-1.5 text-center text-xs font-bold border border-md-outline-variant/40">
+                <Link
+                  to="/auth?mode=login"
+                  aria-current={!isApplicantLogin ? "page" : undefined}
+                  className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 transition-all duration-200 ${
+                    !isApplicantLogin
+                      ? "bg-md-surface-container-lowest shadow-sm text-md-primary font-black border border-md-outline-variant/40"
+                      : "text-md-on-surface-variant hover:text-md-on-surface"
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>جهة توظيف / HR</span>
+                </Link>
+                <Link
+                  to="/auth?mode=login&type=applicant"
+                  aria-current={isApplicantLogin ? "page" : undefined}
+                  className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 transition-all duration-200 ${
+                    isApplicantLogin
+                      ? "bg-md-surface-container-lowest shadow-sm text-md-primary font-black border border-md-outline-variant/40"
+                      : "text-md-on-surface-variant hover:text-md-on-surface"
+                  }`}
+                >
+                  <User className="w-3.5 h-3.5 shrink-0" />
+                  <span>تسجيل دخول المتقدم</span>
+                </Link>
               </nav>
             )}
 
@@ -1110,18 +1128,18 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                 exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
                 transition={{ duration: 0.3 }}
-                className="space-y-1 text-right"
+                className="space-y-1.5 text-right"
               >
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-500/20 bg-emerald-50 text-emerald-700 mb-1">
-                  <Sparkles className="w-3 h-3 text-emerald-600 animate-pulse" />
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-md-primary/20 bg-md-primary-container/50 text-md-on-primary-container mb-1">
+                  <Sparkles className="w-3 h-3 text-md-primary animate-pulse" />
                   <span className="text-[10px] font-bold tracking-wide">
                     {isApplicantLogin ? "بوابة المتقدمين للوظائف" : isLogin ? "مرحباً بعودتك" : "انضم للمنصة الأذكى"}
                   </span>
                 </div>
-                <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-tight">
+                <h2 className="text-2xl font-black text-md-on-surface tracking-tight leading-tight">
                   {isApplicantLogin ? "تسجيل دخول المتقدمين" : isLogin ? "تسجيل الدخول" : "إنشاء حساب جديد"}
                 </h2>
-                <p className="text-slate-500 text-xs leading-normal">
+                <p className="text-md-on-surface-variant text-xs leading-normal">
                   {isApplicantLogin
                     ? "ادخل بالبريد الذي استخدمته للتقديم وكلمة المرور الخاصة بحسابك"
                     : isLogin 
@@ -1129,12 +1147,12 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                     : "ابدأ رحلتك في التوظيف الذكي وتتبع المرشحين"}
                 </p>
                 {isApplicantLogin && (
-                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-right space-y-1 my-2">
-                    <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                  <div className="bg-md-primary-container/40 border border-md-primary/25 rounded-2xl p-3.5 text-right space-y-1.5 my-2">
+                    <div className="flex items-center gap-1.5 text-md-primary font-bold text-xs">
                       <User className="w-4 h-4" />
                       <span>حساب متقدم مُنشأ تلقائياً 👤✨</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-[11px] text-md-on-surface-variant leading-relaxed">
                       يتجهز حسابك عند تقديم طلب وظيفة. في أول مرة، افتح رسالة التفعيل على بريدك وحدد كلمة مرور خاصة بك. ستجد بيانات تقديمك وطلباتك لدى الشركات التي تقدمت إليها فقط.
                     </p>
                   </div>
@@ -1155,15 +1173,15 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
               >
                 {!isLogin && (
                   <div className="space-y-4">
-                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-50 p-3 text-right text-xs space-y-2">
-                      <p className="font-bold text-emerald-800">إنشاء حساب جهة توظيف / HR</p>
-                      <p className="text-slate-600">تفعيل شركتك يتم بعد مراجعة إدارة توظيف إكس.</p>
-                      <Link to="/auth?mode=login&type=applicant" className="inline-flex font-bold text-primary underline underline-offset-4">قدمت على وظيفة؟ سجّل دخولك كمتقدم</Link>
+                    <div className="rounded-2xl border border-md-primary/25 bg-md-primary-container/40 p-3.5 text-right text-xs space-y-2">
+                      <p className="font-bold text-md-on-primary-container">إنشاء حساب جهة توظيف / HR</p>
+                      <p className="text-md-on-surface-variant">تفعيل شركتك يتم بعد مراجعة إدارة توظيف إكس.</p>
+                      <Link to="/auth?mode=login&type=applicant" className="inline-flex font-bold text-md-primary underline underline-offset-4">قدمت على وظيفة؟ سجّل دخولك كمتقدم</Link>
                     </div>
 
                     {/* Full Name */}
                     <div className="space-y-1.5 text-right">
-                      <label htmlFor="auth-fullname" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
+                      <label htmlFor="auth-fullname" className="text-xs font-semibold text-md-on-surface-variant tracking-wide block cursor-pointer">
                         الاسم الكامل
                       </label>
                       <div className="relative">
@@ -1192,7 +1210,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                         transition={{ duration: 0.25 }}
                         className="space-y-1.5 text-right"
                       >
-                        <label htmlFor="auth-company" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
+                        <label htmlFor="auth-company" className="text-xs font-semibold text-md-on-surface-variant tracking-wide block cursor-pointer">
                           اسم الشركة / المؤسسة
                         </label>
                         <div className="relative">
@@ -1220,7 +1238,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
                 </p>}
                 {/* Email */}
                 <div className="space-y-1.5 text-right">
-                  <label htmlFor="auth-email" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
+                  <label htmlFor="auth-email" className="text-xs font-semibold text-md-on-surface-variant tracking-wide block cursor-pointer">
                     البريد الإلكتروني
                   </label>
                   <div className="relative">
@@ -1244,7 +1262,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
 
                 {/* Password */}
                 <div className="space-y-1.5 text-right">
-                  <label htmlFor="auth-password" className="text-xs font-semibold text-slate-600 tracking-wide block cursor-pointer">
+                  <label htmlFor="auth-password" className="text-xs font-semibold text-md-on-surface-variant tracking-wide block cursor-pointer">
                     كلمة المرور
                   </label>
                   <div className="relative">
@@ -1363,19 +1381,19 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
               </>
             )}
 
-            <p className="text-center text-[10px] text-muted-foreground/35 leading-relaxed select-none">
+            <p className="text-center text-[11px] text-md-on-surface-variant/75 leading-relaxed select-none">
               بالمتابعة أنت توافق على{" "}
-              <span className="text-muted-foreground/50 underline-offset-2 hover:underline cursor-pointer">شروط الاستخدام</span>
+              <Link to="/terms" className="text-md-primary font-semibold underline-offset-2 hover:underline">شروط الاستخدام</Link>
               {" "}و{" "}
-              <span className="text-muted-foreground/50 underline-offset-2 hover:underline cursor-pointer">سياسة الخصوصية</span>
+              <Link to="/privacy" className="text-md-primary font-semibold underline-offset-2 hover:underline">سياسة الخصوصية</Link>
             </p>
 
             {/* Mobile back button */}
             <div className="lg:hidden text-center pt-2">
-              <a href="/" className="text-muted-foreground hover:text-foreground text-xs inline-flex items-center gap-1.5 transition-colors font-bold group">
+              <Link to="/" className="text-md-on-surface-variant hover:text-md-on-surface text-xs inline-flex items-center gap-1.5 transition-colors font-bold group">
                 <span>العودة للرئيسية</span>
                 <ArrowLeft className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300 rotate-180" />
-              </a>
+              </Link>
             </div>
           </div>
         )}
@@ -1444,13 +1462,13 @@ export default function Auth() {
     if (errorParam === "company_deleted") {
       toast({
         title: "الحساب غير متاح ⛔",
-        description: "تم حذف حساب هذه الشركة نهائياً من منصة Tawzeef-X، ولا يمكن تسجيل الدخول بهذا الحساب.",
+        description: "تم حذف حساب هذه الشركة نهائياً من منصة توظيف إكس، ولا يمكن تسجيل الدخول بهذا الحساب.",
         variant: "destructive",
       });
     } else if (errorParam === "company_inactive") {
       toast({
         title: "حساب الشركة موقوف ⚠️",
-        description: "تم إيقاف حساب الشركة مؤقتاً من قِبل إدارة المنصة. يرجى التواصل مع إدارة Tawzeef-X.",
+        description: "تم إيقاف حساب الشركة مؤقتاً من قِبل إدارة المنصة. يرجى التواصل مع إدارة توظيف إكس.",
         variant: "destructive",
       });
     } else if (errorParam === "agency_unavailable") {
@@ -1476,10 +1494,10 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen min-h-[100dvh] relative overflow-hidden bg-gradient-to-tr from-emerald-50/30 via-slate-50 to-cyan-50/30 text-slate-800" dir="rtl">
+    <div className="min-h-screen min-h-[100dvh] relative overflow-hidden bg-md-surface text-md-on-surface" dir="rtl">
       <SEO
         title={isLogin ? "تسجيل الدخول | توظيف إكس" : "إنشاء حساب جديد | توظيف إكس"}
-        description="بوابة الدخول الموحدة لمنصة Tawzeef-X للتوظيف والفرص الوظيفية الذكية."
+        description="بوابة الدخول الموحدة لمنصة توظيف إكس للتوظيف والفرص الوظيفية الذكية."
         noindex={true}
       />
       {/* Styles for sweeping border gradient + off-thread hardware accelerated CSS animations */}

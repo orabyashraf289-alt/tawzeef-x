@@ -1,10 +1,11 @@
+import type { FormEvent } from "react";
 import { usePublicContactSettings } from "@/hooks/usePublicContactSettings";
 import "@/styles/landing-motion.css";
-import TalentOrbit from "@/components/three/TalentOrbit";
+import HeroMotionStage from "@/components/motion/HeroMotionStage";
 import { useLandingMotion } from "@/hooks/useLandingMotion";
 import AnimatedCounter from "@/components/motion/AnimatedCount";
 import tawzeefLogo from "@/assets/tawzeef-x-logo.png";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import seoRoutesConfig from "@/data/seoRoutes.json";
 import {
   Users, Bot, ArrowLeft, TrendingUp, Shield, Globe, CheckCircle2, Zap,
@@ -13,7 +14,7 @@ import {
   Layers, Server, Database, MessageSquare, CheckSquare,
   FileCheck, Flame, ChevronLeft, ChevronRight, PenTool,
   Volume2, ShieldCheck, PieChart, BarChart3, Star, Clock, Laptop,
-  KeyRound, HelpCircle, Eye, ArrowUpRight
+  KeyRound, HelpCircle, Eye, ArrowUpRight, Search, UserCheck, UserPlus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
@@ -141,8 +142,29 @@ export default function LandingPage() {
   const motionScope = useRef<HTMLDivElement>(null);
   useLandingMotion(motionScope);
   const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeModule, setActiveModule] = useState("ai-screening");
+  const [heroSearch, setHeroSearch] = useState("");
+  const [audienceTab, setAudienceTab] = useState<"employers" | "candidates">("employers");
+
+  const activeModuleIndex = SYSTEM_MODULES.findIndex((m) => m.id === activeModule);
+  const currentModuleMeta = SYSTEM_MODULES[activeModuleIndex] || SYSTEM_MODULES[0];
+
+  const handleHeroSearch = (e: FormEvent) => {
+    e.preventDefault();
+    const q = heroSearch.trim();
+    navigate(q ? `/careers?q=${encodeURIComponent(q)}` : "/careers");
+  };
+
+  const handleStepModule = (direction: "prev" | "next") => {
+    const idx = activeModuleIndex >= 0 ? activeModuleIndex : 0;
+    const nextIdx =
+      direction === "next"
+        ? (idx + 1) % SYSTEM_MODULES.length
+        : (idx - 1 + SYSTEM_MODULES.length) % SYSTEM_MODULES.length;
+    setActiveModule(SYSTEM_MODULES[nextIdx].id);
+  };
 
   // Publicly visible counts only; private recruiting records cannot be counted by visitors.
   const [systemStats, setSystemStats] = useState({
@@ -354,19 +376,41 @@ export default function LandingPage() {
 
       {/* ── 1. Hero Section ── */}
       <section data-hero className="relative min-h-[92vh] pt-32 lg:pt-36 pb-16 overflow-hidden flex items-center">
-        {/* Dynamic Glowing Ambient Blobs */}
+        {/* Dynamic Glowing Ambient Blobs + Kinetic Vector Beams */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10">
           <div className="absolute -top-[10%] right-0 w-[50vw] h-[50vw] rounded-full bg-md-primary-container/35 blur-[140px]" />
           <div className="absolute bottom-0 -left-[10%] w-[45vw] h-[45vw] rounded-full bg-md-secondary-container/30 blur-[120px]" />
           <div className="absolute top-1/2 left-1/3 w-[30vw] h-[30vw] rounded-full bg-md-tertiary-container/15 blur-[100px]" />
           <div className="absolute inset-0 bg-[radial-gradient(circle,hsl(var(--md-outline-variant))_1px,transparent_1px)] bg-[size:32px_32px] opacity-25" />
+          <svg
+            viewBox="0 0 1440 720"
+            className="absolute inset-0 w-full h-full opacity-35"
+            aria-hidden="true"
+            preserveAspectRatio="none"
+          >
+            <path
+              data-hero-beam
+              d="M -60 540 C 260 410, 560 630, 920 420 C 1180 270, 1320 330, 1500 220"
+              fill="none"
+              stroke="hsl(var(--md-primary))"
+              strokeWidth="1.5"
+            />
+            <path
+              data-hero-beam
+              d="M -60 210 C 310 320, 620 120, 980 290 C 1220 395, 1360 280, 1500 370"
+              fill="none"
+              stroke="hsl(var(--md-tertiary, var(--md-primary)))"
+              strokeWidth="1.15"
+              strokeDasharray="6 6"
+            />
+          </svg>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 w-full">
-          <div className="grid lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+          <div className="grid lg:grid-cols-12 gap-10 items-center">
             {/* Right: Text & Content */}
             <div
-              className="lg:col-span-7 text-center lg:text-right"
+              className="lg:col-span-6 text-center lg:text-right"
             >
               <div data-hero-reveal className="inline-flex mb-5">
                 <div className="bg-md-primary-container text-md-on-primary-container rounded-md3-full px-4 py-1.5 flex items-center gap-2 border border-md-primary/20 shadow-sm">
@@ -387,21 +431,49 @@ export default function LandingPage() {
 
               <p
                 data-hero-reveal
-                className="text-md3-body-lg text-md-on-surface-variant max-w-xl mx-auto lg:mx-0 mb-8 leading-relaxed font-medium"
+                className="text-md3-body-lg text-md-on-surface-variant max-w-xl mx-auto lg:mx-0 mb-6 leading-relaxed font-medium"
               >
-                توظيف إكس (Tawzeef-X) منظومة توظيف سحابية ذكية ونظام تتبع المتقدمين (ATS): تصفح أحدث الوظائف وفرص العمل المعتمدة، وفرز السير الذاتية بالذكاء الاصطناعي، ومقابلات الفيديو المدمجة، وإدارة استقطاب الكفاءات للشركات بكل سهولة.
+                توظيف إكس منظومة توظيف سحابية ذكية ونظام تتبع المتقدمين (ATS): تصفح أحدث الوظائف وفرص العمل المعتمدة، وفرز السير الذاتية بالذكاء الاصطناعي، ومقابلات الفيديو المدمجة، وإدارة استقطاب الكفاءات للشركات بكل سهولة.
               </p>
 
-              {/* CTAs */}
+              {/* MD3 Instant Job Search Bar */}
+              <form
+                data-hero-reveal
+                onSubmit={handleHeroSearch}
+                role="search"
+                aria-label="البحث الفوري في الوظائف المتاحة"
+                className="bg-md-surface-container-lowest border border-md-outline-variant focus-within:border-md-primary focus-within:ring-2 focus-within:ring-md-primary/20 rounded-md3-2xl p-2 shadow-md3-2 max-w-xl mx-auto lg:mx-0 mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 transition-all"
+              >
+                <div className="flex items-center gap-2.5 flex-1 px-3 py-1.5">
+                  <Search className="w-4 h-4 text-md-primary shrink-0" aria-hidden="true" />
+                  <input
+                    type="search"
+                    value={heroSearch}
+                    onChange={(e) => setHeroSearch(e.target.value)}
+                    aria-label="ابحث بالمسمى الوظيفي أو التخصص أو المدينة"
+                    placeholder="ابحث بالمسمى الوظيفي، التخصص، أو المدينة..."
+                    className="w-full bg-transparent text-sm font-medium text-md-on-surface placeholder:text-md-on-surface-variant/70 focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="bg-md-primary text-md-on-primary hover:bg-md-primary/90 rounded-md3-xl px-5 py-2.5 text-sm font-bold flex items-center justify-center gap-2 shrink-0 transition-colors cursor-pointer"
+                >
+                  <span>ابحث في الوظائف</span>
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+              </form>
+
+              {/* Primary CTAs */}
               <div
                 data-hero-reveal
-                className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start mb-8"
+                className="flex flex-col sm:flex-row items-center gap-3.5 justify-center lg:justify-start mb-6"
               >
                 <Link
                   data-magnetic
                   data-button-sheen
                   to="/careers"
-                  className="w-full sm:w-auto bg-md-primary text-md-on-primary rounded-md3-full h-14 px-9 text-md3-title-sm font-bold flex items-center justify-center gap-2.5 shadow-md3-2 hover:shadow-md3-4 transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-md-primary"
+                  className="w-full sm:w-auto bg-md-primary text-md-on-primary rounded-md3-full h-14 px-8 text-md3-title-sm font-bold flex items-center justify-center gap-2.5 shadow-md3-2 hover:shadow-md3-4 transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-md-primary"
                 >
                   <Briefcase className="w-4 h-4" />
                   <span>تصفح أحدث الوظائف</span>
@@ -411,155 +483,66 @@ export default function LandingPage() {
                   data-magnetic
                   data-button-sheen
                   to="/auth?mode=signup"
-                  className="w-full sm:w-auto bg-md-secondary-container text-md-on-secondary-container rounded-md3-full h-14 px-8 text-md3-title-sm font-bold flex items-center justify-center gap-2 hover:bg-md-secondary-container/80 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-md-primary border border-md-outline-variant/80"
+                  className="w-full sm:w-auto bg-md-secondary-container text-md-on-secondary-container rounded-md3-full h-14 px-7 text-md3-title-sm font-bold flex items-center justify-center gap-2 hover:bg-md-secondary-container/80 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-md-primary border border-md-outline-variant/80"
                 >
                   <Building2 className="w-4 h-4" />
                   <span>انضم كصاحب عمل وابدأ التوظيف</span>
                 </Link>
               </div>
 
-              {/* Live Status Indicators */}
-              <div data-hero-reveal className="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-xs">
-                <div className="flex items-center gap-2 bg-md-surface-container px-3.5 py-1.5 rounded-md3-full border border-md-outline-variant">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              {/* Quick-Entry Action Pills & Trust Signals */}
+              <div data-hero-reveal className="flex flex-wrap items-center justify-center lg:justify-start gap-2.5 text-xs">
+                <Link
+                  to="/auth?mode=login&type=applicant"
+                  className="inline-flex items-center gap-1.5 bg-md-surface-container hover:bg-md-primary-container hover:text-md-on-primary-container text-md-on-surface px-3.5 py-1.5 rounded-md3-full border border-md-outline-variant font-bold transition-colors"
+                >
+                  <UserCheck className="w-3.5 h-3.5 text-md-primary" />
+                  <span>متابعة طلب التقديم للمرشحين</span>
+                </Link>
+                <Link
+                  to="/auth?mode=login"
+                  className="inline-flex items-center gap-1.5 bg-md-surface-container hover:bg-md-secondary-container hover:text-md-on-secondary-container text-md-on-surface px-3.5 py-1.5 rounded-md3-full border border-md-outline-variant font-bold transition-colors"
+                >
+                  <KeyRound className="w-3.5 h-3.5 text-md-secondary" />
+                  <span>بوابة الشركات / HR</span>
+                </Link>
+                <div className="inline-flex items-center gap-2 bg-md-surface-container-low px-3.5 py-1.5 rounded-md3-full border border-md-outline-variant">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="font-bold text-md-on-surface">استجابة حية لنظام التوظيف</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-md-on-surface-variant font-medium">
+                <div className="inline-flex items-center gap-1.5 text-md-on-surface-variant font-medium px-1.5">
                   <Lock className="w-3.5 h-3.5 text-md-primary" />
                   <span>عزل مشفر لبيانات المنشآت RLS</span>
                 </div>
               </div>
             </div>
 
-            {/* Left: Floating Animated System Teaser */}
+            {/* Left: Interactive Motion Graphics Storyboard Stage */}
             <div
               data-hero-visual
-              className="lg:col-span-5 relative"
+              className="lg:col-span-6 relative"
             >
-              <div className="bg-md-surface-container rounded-md3-2xl p-4 shadow-md3-4 border border-md-outline-variant relative">
-                <TalentOrbit />
-                {/* Header Mockup */}
-                <div className="bg-md-surface rounded-md3-xl p-5 border border-md-outline-variant/60 space-y-4">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-md3-md bg-md-primary text-md-on-primary flex items-center justify-center font-black text-xs">
-                        TX
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-md-on-surface">غرفة عمليات التوظيف الفوري</div>
-                        <div className="text-[10px] text-md-on-surface-variant">البيئة السحابية المؤتمتة</div>
-                      </div>
-                    </div>
-                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-md3-full flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      عرض تجريبي
-                    </span>
-                  </div>
-
-                  {/* AI Match Scorecard Sample Card */}
-                  <div data-hero-detail className="bg-md-surface-container p-4 rounded-md3-lg border border-md-outline-variant/60 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-md-primary-container text-md-on-primary-container font-black text-xs flex items-center justify-center">
-                          س
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold text-md-on-surface">سارة العتيبي</div>
-                          <div className="text-[10px] text-md-on-surface-variant">مهندسة نظم أولى</div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-black text-md-primary">94%</div>
-                        <div className="text-[9px] text-md-on-surface-variant">مؤشر التوافق</div>
-                      </div>
-                    </div>
-
-                    <div className="w-full bg-md-surface rounded-full h-2 overflow-hidden border border-md-outline-variant/30">
-                      <div
-                        data-hero-score
-                        style={{ width: "94%" }}
-                        className="h-full bg-gradient-to-r from-md-primary via-indigo-500 to-emerald-500 rounded-full"
-                      />
-                    </div>
-
-                    <div className="flex gap-2 text-[10px] font-bold flex-wrap">
-                      <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md3-sm">خبرة 5+ سنوات</span>
-                      <span className="bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-md3-sm">جدارات تقنية عالية</span>
-                      <span className="bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-md3-sm">توصية فورية</span>
-                    </div>
-                  </div>
-
-                  {/* Dynamic Interactive Pipeline Stages */}
-                  <div data-hero-stages className="grid grid-cols-3 gap-2 text-center text-[11px] font-bold">
-                    <div className="bg-md-surface-container p-2.5 rounded-md3-md border border-md-outline-variant/50">
-                      <div className="text-md-on-surface-variant text-[10px]">فرز AI</div>
-                      <div className="text-sm font-black text-md-on-surface mt-0.5">
-                        <AnimatedCounter value={34} />
-                      </div>
-                    </div>
-                    <div className="bg-md-primary-container/40 p-2.5 rounded-md3-md border border-md-primary/30">
-                      <div className="text-md-primary text-[10px]">المقابلات</div>
-                      <div className="text-sm font-black text-md-primary mt-0.5">
-                        <AnimatedCounter value={12} />
-                      </div>
-                    </div>
-                    <div className="bg-emerald-500/10 p-2.5 rounded-md3-md border border-emerald-500/20">
-                      <div className="text-emerald-600 dark:text-emerald-400 text-[10px]">الشواغر</div>
-                      <div className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
-                        <AnimatedCounter value={8} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Floating Widget 1: Real-time AI Match */}
-                <div
-                  data-hero-float
-                  className="absolute -top-4 -right-4 bg-md-surface px-4 py-3 rounded-md3-xl shadow-md3-3 border border-md-outline-variant flex items-center gap-3"
-                >
-                  <div className="w-9 h-9 rounded-md3-full bg-md-primary-container text-md-on-primary-container flex items-center justify-center">
-                    <Bot className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-md-on-surface-variant font-bold">فحص السير الذاتية</div>
-                    <div className="text-xs font-black text-md-primary">تطابق جدارات 96%</div>
-                  </div>
-                </div>
-
-                {/* Floating Widget 2: Certified E-Sign */}
-                <div
-                  data-hero-float
-                  className="absolute -bottom-4 -left-4 bg-md-surface px-4 py-3 rounded-md3-xl shadow-md3-3 border border-md-outline-variant flex items-center gap-3"
-                >
-                  <div className="w-9 h-9 rounded-md3-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-md-on-surface-variant font-bold">العروض الموقعة</div>
-                    <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">توقيع رقمي موثق</div>
-                  </div>
-                </div>
-              </div>
+              <HeroMotionStage />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── 2. Public active jobs ── */}
+      {/* ── 2. Public active jobs & Platform Bento Overview ── */}
       <section className="bg-md-surface-container-low border-y border-md-outline-variant py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8 pb-6 border-b border-md-outline-variant/60">
             <div className="flex items-center gap-3">
-              <div className={`w-3 h-3 rounded-full ${systemStats.isLoaded && !systemStats.hasError ? "bg-emerald-500" : "bg-md-outline"}`} />
+              <div className={`w-3 h-3 rounded-full ${systemStats.isLoaded && !systemStats.hasError ? "bg-emerald-500 animate-pulse" : "bg-md-outline"}`} />
               <div>
-                <h3 className="text-md3-title-md font-black text-md-on-surface flex items-center gap-2">
-                  <span>الشواغر المتاحة للزوار</span>
-                  <span className="text-xs font-normal text-md-primary bg-md-primary-container px-2.5 py-0.5 rounded-md3-full font-mono">
-                    Live Public Jobs
+                <h3 className="text-md3-title-md font-black text-md-on-surface flex flex-wrap items-center gap-2">
+                  <span>بوابات المنصة والشواغر الحية</span>
+                  <span className="text-xs font-bold text-md-primary bg-md-primary-container px-2.5 py-0.5 rounded-md3-full">
+                    مباشر الآن
                   </span>
                 </h3>
                 <p className="text-xs text-md-on-surface-variant">
-                  عدد الوظائف النشطة الظاهرة للعامة الآن
+                  الوظائف النشطة المعلنة للزوار مع وصول فوري لبوابة المتقدمين ومنشآت التوظيف
                 </p>
               </div>
             </div>
@@ -568,46 +551,260 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {!systemStats.hasError && systemStats.isLoaded && <motion.div
+          <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
-            className="max-w-sm mx-auto"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
           >
+            {/* Card 1: Genuine Live Public Active Jobs Counter */}
+            <motion.div
+              variants={fadeUp}
+              className="bg-md-surface-container-lowest rounded-md3-2xl p-6 border-2 border-md-primary/30 shadow-md3-1 flex flex-col justify-between hover:border-md-primary transition-all group"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xs font-black text-md-primary bg-md-primary-container px-2.5 py-1 rounded-md3-full">
+                    الشواغر المعلنة للزوار
+                  </span>
+                  <div className="w-10 h-10 rounded-md3-xl bg-md-primary-container/60 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <Briefcase className="w-5 h-5 text-md-primary" />
+                  </div>
+                </div>
+                <div className="text-3xl lg:text-4xl font-black text-md-on-surface mb-1 font-mono tracking-tight">
+                  {!systemStats.hasError && systemStats.isLoaded ? (
+                    <AnimatedCounter value={systemStats.activeJobs} />
+                  ) : systemStats.hasError ? (
+                    "—"
+                  ) : (
+                    "..."
+                  )}
+                </div>
+                <p className="text-xs text-md-on-surface-variant font-medium leading-relaxed mb-4">
+                  وظيفة نشطة متاحة الآن للتقديم المباشر وفق صلاحيات العرض العام
+                </p>
+              </div>
+              <Link
+                to="/careers"
+                className="inline-flex items-center justify-between gap-2 text-xs font-bold text-md-primary hover:underline pt-3 border-t border-md-outline-variant/60"
+              >
+                <span>استعراض جميع الوظائف</span>
+                <ArrowLeft className="w-3.5 h-3.5" />
+              </Link>
+            </motion.div>
+
             {[
               {
-                label: "الشواغر النشطة المتاحة للزائر",
-                value: systemStats.activeJobs,
-                icon: Briefcase,
-                desc: "وظيفة ظاهرة وفق صلاحيات العرض العام",
-                color: "text-md-primary",
+                badge: "للمتقدمين والمرشحين",
+                title: "تقديم سريع ومتابعة الطلب",
+                desc: "ارفع سيرتك الذاتية خلال ثوانٍ وتابع مراحل الفرز والمقابلات والعروض من حساب واحد.",
+                cta: "دخول بوابة المتقدمين",
+                href: "/auth?mode=login&type=applicant",
+                isHash: false,
+                icon: UserCheck,
+                iconBg: "bg-md-secondary-container/70 text-md-on-secondary-container",
               },
-            ].map((stat, idx) => (
+              {
+                badge: "للشركات وفرق الموارد البشرية",
+                title: "لوحة تحكم ATS معزولة",
+                desc: "انشر الوظائف، نسّق لجان التقييم، وأدر عروض العمل الرقمية بخصوصية مشفرة لمنشأتك.",
+                cta: "انضم كصاحب عمل",
+                href: "/auth?mode=signup",
+                isHash: false,
+                icon: Building2,
+                iconBg: "bg-md-tertiary-container/70 text-md-on-tertiary-container",
+              },
+              {
+                badge: "الذكاء الاصطناعي التوظيفي",
+                title: "فرز السير الذاتية وتنبيهات حية",
+                desc: "تقييم آلي لنسب التطابق مع المهارات المطلوبة وإشعارات فورية في كل مرحلة ترشيح.",
+                cta: "شاهد المعاينة الحية",
+                href: "#showcase",
+                isHash: true,
+                icon: Bot,
+                iconBg: "bg-md-primary-container/60 text-md-primary",
+              },
+            ].map((card) => (
               <motion.div
-                key={idx}
+                key={card.title}
                 variants={fadeUp}
-                className="bg-md-surface rounded-md3-xl p-6 border border-md-outline-variant shadow-sm flex flex-col justify-between hover:border-md-primary transition-all group"
+                className="bg-md-surface rounded-md3-2xl p-6 border border-md-outline-variant shadow-sm flex flex-col justify-between hover:border-md-primary/70 transition-all group"
               >
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-bold text-md-on-surface-variant">{stat.label}</span>
-                  <div className="w-10 h-10 rounded-md3-lg bg-md-surface-container flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                  </div>
-                </div>
                 <div>
-                  <div className="text-3xl lg:text-4xl font-black text-md-on-surface mb-1 font-mono tracking-tight">
-                    <AnimatedCounter value={stat.value} />
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[11px] font-bold text-md-on-surface-variant bg-md-surface-container px-2.5 py-1 rounded-md3-full">
+                      {card.badge}
+                    </span>
+                    <div className={`w-10 h-10 rounded-md3-xl flex items-center justify-center group-hover:scale-105 transition-transform ${card.iconBg}`}>
+                      <card.icon className="w-5 h-5" />
+                    </div>
                   </div>
-                  <div className="text-[11px] text-md-on-surface-variant font-medium">{stat.desc}</div>
+                  <h4 className="text-base font-black text-md-on-surface mb-2 leading-snug">
+                    {card.title}
+                  </h4>
+                  <p className="text-xs text-md-on-surface-variant font-medium leading-relaxed mb-4">
+                    {card.desc}
+                  </p>
                 </div>
+                {card.isHash ? (
+                  <a
+                    href={card.href}
+                    className="inline-flex items-center justify-between gap-2 text-xs font-bold text-md-primary hover:underline pt-3 border-t border-md-outline-variant/60"
+                  >
+                    <span>{card.cta}</span>
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                  </a>
+                ) : (
+                  <Link
+                    to={card.href}
+                    className="inline-flex items-center justify-between gap-2 text-xs font-bold text-md-primary hover:underline pt-3 border-t border-md-outline-variant/60"
+                  >
+                    <span>{card.cta}</span>
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                  </Link>
+                )}
               </motion.div>
             ))}
-          </motion.div>}
+          </motion.div>
         </div>
       </section>
 
       <JoinedCompanies />
+
+      {/* ── 2.5 Interactive How-It-Works Workflow (Employers vs Candidates) ── */}
+      <section className="py-20 bg-md-surface-container-lowest border-b border-md-outline-variant">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center max-w-3xl mx-auto mb-10">
+            <div className="inline-flex items-center gap-2 bg-md-secondary-container text-md-on-secondary-container text-xs font-black px-4 py-1.5 rounded-md3-full mb-4">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>مسار عمل واضح ومخصص لكل طرف</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-md-on-surface mb-3 leading-normal">
+              كيف تعمل منصة توظيف إكس في 3 خطوات؟
+            </h2>
+            <p className="text-sm sm:text-base text-md-on-surface-variant font-medium leading-relaxed mb-7">
+              بدّل بين مسار الشركات ومسار الباحثين عن عمل لاستكشاف رحلة التوظيف المتكاملة
+            </p>
+
+            {/* MD3 Segmented Switch */}
+            <div
+              role="tablist"
+              aria-label="اختر مسار الاستخدام"
+              className="inline-flex p-1.5 bg-md-surface-container rounded-md3-full border border-md-outline-variant shadow-sm gap-1"
+            >
+              {[
+                { id: "employers" as const, label: "للشركات وفرق التوظيف", icon: Building2 },
+                { id: "candidates" as const, label: "للباحثين عن عمل", icon: UserCheck },
+              ].map((tab) => {
+                const isActive = audienceTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setAudienceTab(tab.id)}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-md3-full text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-md-primary text-md-on-primary shadow-md3-1"
+                        : "text-md-on-surface-variant hover:text-md-on-surface hover:bg-md-surface-container-high"
+                    }`}
+                  >
+                    <tab.icon className="w-4 h-4" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <motion.div
+            key={audienceTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          >
+            {(audienceTab === "employers"
+              ? [
+                  {
+                    step: "01",
+                    title: "أنشئ مساحة منشأتك وانشر الشاغر",
+                    desc: "فعّل حساب الشركة خلال دقائق وأطلق صفحة وظائف تحمل هويتك البصرية مع رابط تقديم مباشر.",
+                    icon: UserPlus,
+                  },
+                  {
+                    step: "02",
+                    title: "افرز المرشحين بالذكاء الاصطناعي",
+                    desc: "استعرض درجات التطابق التلقائية، نظّم المراحل بنظام كانبان، وادعُ لجنة التقييم للمشاركة.",
+                    icon: Bot,
+                  },
+                  {
+                    step: "03",
+                    title: "أجرِ المقابلة وأصدر عرض العمل رقمياً",
+                    desc: "جدول مقابلات الفيديو المدمجة وأرسل عرض العمل الرسمي للتوقيع الإلكتروني في لحظات.",
+                    icon: CheckCircle2,
+                  },
+                ]
+              : [
+                  {
+                    step: "01",
+                    title: "ابحث وتصفح الوظائف المعتمدة",
+                    desc: "استخدم البحث الفوري أو فلاتر التخصص والمدينة للوصول إلى أحدث الشواغر النشطة.",
+                    icon: Search,
+                  },
+                  {
+                    step: "02",
+                    title: "أرسل سيرتك الذاتية في خطوة واحدة",
+                    desc: "قدّم بياناتك وسيرتك الذاتية بسهولة دون تعقيد، ليتم ربط طلبك مباشرة بفريق التوظيف.",
+                    icon: FileText,
+                  },
+                  {
+                    step: "03",
+                    title: "تابع حالة طلبك والمقابلات لحظياً",
+                    desc: "ادخل لبوابة المتقدمين لمعرفة مرحلة ترشيحك، مواعيد المقابلات، واستلام عرض العمل.",
+                    icon: Calendar,
+                  },
+                ]
+            ).map((item) => (
+              <div
+                key={item.step}
+                className="bg-md-surface rounded-md3-2xl p-6 sm:p-7 border border-md-outline-variant hover:border-md-primary transition-all shadow-sm flex flex-col justify-between group"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-5">
+                    <span className="text-xs font-black font-mono text-md-primary bg-md-primary-container px-3 py-1 rounded-md3-full">
+                      خطوة {item.step}
+                    </span>
+                    <div className="w-11 h-11 rounded-md3-xl bg-md-surface-container flex items-center justify-center text-md-primary group-hover:scale-105 transition-transform">
+                      <item.icon className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <h3 className="text-lg font-black text-md-on-surface mb-2.5 leading-snug">
+                    {item.title}
+                  </h3>
+                  <p className="text-sm text-md-on-surface-variant font-medium leading-relaxed">
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </motion.div>
+
+          <div className="mt-8 flex justify-center">
+            <Link
+              to={audienceTab === "employers" ? "/auth?mode=signup" : "/careers"}
+              className="inline-flex items-center gap-2 bg-md-secondary-container text-md-on-secondary-container hover:bg-md-primary hover:text-md-on-primary px-6 py-3 rounded-md3-full text-sm font-bold border border-md-outline-variant transition-colors"
+            >
+              <span>
+                {audienceTab === "employers" ? "ابدأ تجربة المنشآت مجاناً الآن" : "استعرض الوظائف المتاحة الآن"}
+              </span>
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* ── 3. Interactive System Showcase: Explore Tawzeef-X from Inside ── */}
       <section id="showcase" className="py-24 bg-md-surface">
@@ -647,13 +844,64 @@ export default function LandingPage() {
             })}
           </div>
 
+          {/* App Window Chrome Header (anchored above animated frame) */}
+          <div className="bg-md-surface-container-high rounded-t-md3-2xl px-4 sm:px-6 py-3.5 border border-md-outline-variant flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center gap-1.5 shrink-0" aria-hidden="true">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-400/80" />
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400/80" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+              </div>
+              <div className="h-4 w-px bg-md-outline-variant hidden sm:block" />
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-6 h-6 rounded-md3-md bg-md-primary-container text-md-on-primary-container flex items-center justify-center shrink-0">
+                  <currentModuleMeta.icon className="w-3.5 h-3.5" />
+                </span>
+                <span className="text-xs sm:text-sm font-black text-md-on-surface truncate">
+                  {currentModuleMeta.title}
+                </span>
+              </div>
+            </div>
+
+            <div className="hidden lg:flex items-center gap-2 bg-md-surface px-3.5 py-1 rounded-md3-full border border-md-outline-variant text-[11px] font-mono text-md-on-surface-variant" dir="ltr">
+              <Lock className="w-3 h-3 text-emerald-500" />
+              <span>app.tawzeefx.com/{currentModuleMeta.id}</span>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[11px] font-mono font-bold text-md-on-surface-variant bg-md-surface px-2.5 py-1 rounded-md3-full border border-md-outline-variant">
+                {activeModuleIndex + 1} / {SYSTEM_MODULES.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleStepModule("prev")}
+                aria-label="الوحدة السابقة"
+                title="الوحدة السابقة"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md3-lg bg-md-surface hover:bg-md-primary-container hover:text-md-on-primary-container text-md-on-surface border border-md-outline-variant text-xs font-bold transition-colors cursor-pointer"
+              >
+                <ChevronRight className="w-4 h-4" />
+                <span className="hidden sm:inline">السابق</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStepModule("next")}
+                aria-label="الوحدة التالية"
+                title="الوحدة التالية"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md3-lg bg-md-surface hover:bg-md-primary-container hover:text-md-on-primary-container text-md-on-surface border border-md-outline-variant text-xs font-bold transition-colors cursor-pointer"
+              >
+                <span className="hidden sm:inline">التالي</span>
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
           {/* Module Live Interactive Frame */}
           <motion.div
             key={activeModule}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="bg-md-surface-container rounded-md3-2xl p-6 sm:p-8 border border-md-outline-variant shadow-md3-3"
+            initial={{ opacity: 0.2 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="bg-md-surface-container rounded-b-md3-2xl p-6 sm:p-8 border border-t-0 border-md-outline-variant shadow-md3-3"
           >
             {/* 1. AI Screening & Resume Scorecard Preview */}
             {activeModule === "ai-screening" && (
@@ -1320,13 +1568,13 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-5 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-12">
             <span className="inline-block px-3 py-1 rounded-full bg-md-primary-container text-md-on-primary-container text-xs font-black mb-3">
-              الأسئلة الشائعة | توظيف إكس (TawzeefX)
+              الأسئلة الشائعة | توظيف إكس
             </span>
             <h2 className="text-2xl lg:text-3xl font-black text-md-on-surface mb-3">
               إجابات سريعة حول منصة التوظيف الذكية ونظام تتبع المتقدمين
             </h2>
             <p className="text-sm text-md-on-surface-variant font-medium">
-              استكشف كيف تساعدك منصة توظيف إكس (TawzeefX) في إدارة الوظائف الشاغرة وفرز السير الذاتية بالذكاء الاصطناعي.
+              استكشف كيف تساعدك منصة توظيف إكس في إدارة الوظائف الشاغرة وفرز السير الذاتية بالذكاء الاصطناعي.
             </p>
           </div>
 

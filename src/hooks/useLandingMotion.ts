@@ -9,12 +9,27 @@ export function useLandingMotion(scope: RefObject<HTMLElement>) {
   useGSAP(() => {
     if (reduced || !scope.current) return;
     const select = gsap.utils.selector(scope);
-    const intro = gsap.timeline({ defaults: { ease: "power3.out", duration: 0.85 } });
-    intro.from(select("[data-hero-reveal]"), { opacity: 0, y: 24, stagger: 0.12, clearProps: "opacity,transform" })
-      .from(select("[data-hero-visual]"), { opacity: 0, y: 28, scale: 0.97, clearProps: "opacity,transform" }, 0.28)
-      .from(select("[data-hero-detail]"), { opacity: 0, x: -18, clearProps: "opacity,transform" }, 0.55)
-      .from(select("[data-hero-stages] > *"), { opacity: 0, y: 14, stagger: 0.12, clearProps: "opacity,transform" }, 0.8)
-      .from(select("[data-hero-score]"), { scaleX: 0, transformOrigin: "right center", duration: 1.3 }, 0.85);
+    const canMeasureSvg =
+      typeof SVGPathElement !== "undefined" &&
+      typeof SVGPathElement.prototype.getTotalLength === "function";
+
+    const intro = gsap.timeline({ defaults: { ease: "studioEase", duration: 0.85 } });
+    intro.from(select("[data-hero-reveal]"), { opacity: 0, y: 24, stagger: 0.1, clearProps: "opacity,transform" })
+      .from(select("[data-hero-visual]"), { opacity: 0, y: 28, scale: 0.96, clearProps: "opacity,transform" }, 0.22);
+
+    const beamNodes = select("[data-hero-beam]");
+    if (canMeasureSvg && beamNodes.length) {
+      gsap.fromTo(
+        beamNodes,
+        { drawSVG: "0%" },
+        {
+          drawSVG: "100%",
+          duration: 1.8,
+          stagger: 0.25,
+          ease: "studioEase",
+        },
+      );
+    }
 
     select("[data-scroll-reveal]").forEach((element: HTMLElement) => {
       gsap.from(element, {
@@ -37,17 +52,33 @@ export function useLandingMotion(scope: RefObject<HTMLElement>) {
       scrollTrigger: { trigger: scope.current, start: "top top", end: "bottom bottom", scrub: 0.2 },
     });
 
-    const floats = gsap.to(select("[data-hero-float]"), {
-      y: (index) => index % 2 ? 7 : -7, duration: 2.8,
-      repeat: -1, yoyo: true, ease: "sine.inOut", paused: true,
-    });
+    const floatNodes = select("[data-hero-float]");
+    const floats = floatNodes.length
+      ? gsap.to(floatNodes, {
+          y: (index) => (index % 2 ? 7 : -7),
+          duration: 2.8,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut",
+          paused: true,
+        })
+      : null;
     let heroVisible = false;
-    const syncPlayback = () => { floats.paused(!heroVisible || document.hidden); };
-    const heroTrigger = ScrollTrigger.create({
-      trigger: select("[data-hero]")[0], start: "top bottom", end: "bottom top",
-      onToggle: (trigger) => { heroVisible = trigger.isActive; syncPlayback(); },
-    });
-    heroVisible = heroTrigger.isActive;
+    const syncPlayback = () => {
+      floats?.paused(!heroVisible || document.hidden);
+    };
+    const heroTrigger = floats
+      ? ScrollTrigger.create({
+          trigger: select("[data-hero]")[0],
+          start: "top bottom",
+          end: "bottom top",
+          onToggle: (trigger) => {
+            heroVisible = trigger.isActive;
+            syncPlayback();
+          },
+        })
+      : null;
+    heroVisible = Boolean(heroTrigger?.isActive);
     syncPlayback();
     document.addEventListener("visibilitychange", syncPlayback);
 
