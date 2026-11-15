@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -5,11 +6,22 @@ import { Calendar, Clock, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import MarketingLayout from "@/components/marketing/MarketingLayout";
 import { SEO } from "@/components/marketing/SEO";
+import { Button } from "@/components/ui/button";
 import { useI18n } from "@/contexts/I18nContext";
+
+const CATEGORY_LABELS: Record<string, { ar: string; en: string }> = {
+  all: { ar: "جميع المقالات", en: "All Articles" },
+  ats: { ar: "نظام تتبع المتقدمين ATS", en: "ATS Systems" },
+  ai: { ar: "الذكاء الاصطناعي", en: "AI Hiring" },
+  hr: { ar: "الموارد البشرية والمقابلات", en: "HR & Interviews" },
+  branding: { ar: "العلامة التجارية للمنشأة", en: "Employer Branding" },
+  general: { ar: "عام", en: "General" },
+};
 
 export default function Blog() {
   const { t, locale } = useI18n();
   const Arrow = locale === "ar" ? ArrowLeft : ArrowRight;
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   const { data: posts, isLoading } = useQuery({
     queryKey: ["blog-posts"],
@@ -24,11 +36,33 @@ export default function Blog() {
     },
   });
 
+  const categories = useMemo(() => {
+    const found = new Set<string>();
+    (posts || []).forEach((p) => {
+      if (p.category) found.add(p.category);
+    });
+    return ["all", ...Array.from(found)];
+  }, [posts]);
+
+  const filteredPosts = useMemo(() => {
+    if (!posts) return [];
+    if (selectedCategory === "all") return posts;
+    return posts.filter((p) => p.category === selectedCategory);
+  }, [posts, selectedCategory]);
+
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "";
     return new Date(dateStr).toLocaleDateString(locale === "ar" ? "ar-SA" : "en-US", {
-      year: "numeric", month: "short", day: "numeric",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
+  };
+
+  const getCategoryLabel = (cat: string) => {
+    const entry = CATEGORY_LABELS[cat];
+    if (entry) return locale === "ar" ? entry.ar : entry.en;
+    return cat;
   };
 
   return (
@@ -36,6 +70,7 @@ export default function Blog() {
       <SEO
         title={t("blog.seo.title")}
         description={t("blog.seo.description")}
+        keywords="مدونة توظيف إكس, TawzeefX blog, نظام تتبع المتقدمين ATS, التوظيف الذكي, فرز السير الذاتية بالذكاء الاصطناعي, مقابلات الفيديو, نصائح الموارد البشرية"
         canonical="https://www.tawzeefx.com/blog"
       />
 
@@ -61,17 +96,33 @@ export default function Blog() {
         </div>
       </section>
 
-      {/* Posts grid */}
-      <section className="container max-w-6xl mx-auto px-6 pb-24">
+      {/* Category Filter + Posts grid */}
+      <section className="container max-w-6xl mx-auto px-6 pb-20">
+        {categories.length > 1 && (
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-10">
+            {categories.map((cat) => (
+              <Button
+                key={cat}
+                size="sm"
+                variant={selectedCategory === cat ? "default" : "outline"}
+                onClick={() => setSelectedCategory(cat)}
+                className="rounded-full"
+              >
+                {getCategoryLabel(cat)}
+              </Button>
+            ))}
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex justify-center py-20">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
           </div>
-        ) : !posts || posts.length === 0 ? (
+        ) : filteredPosts.length === 0 ? (
           <div className="text-center py-20 text-muted-foreground">{t("blog.empty")}</div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {posts.map((post, i) => {
+            {filteredPosts.map((post, i) => {
               const title = locale === "ar" ? post.title_ar : post.title_en;
               const excerpt = locale === "ar" ? post.excerpt_ar : post.excerpt_en;
               return (
@@ -96,7 +147,7 @@ export default function Blog() {
                     <div className="p-6">
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
                         <span className="bg-primary/10 text-primary px-2.5 py-0.5 rounded-md font-semibold uppercase tracking-wide">
-                          {post.category}
+                          {getCategoryLabel(post.category || "general")}
                         </span>
                         <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{post.read_time_minutes} {t("blog.minRead")}</span>
                       </div>
@@ -118,6 +169,31 @@ export default function Blog() {
             })}
           </div>
         )}
+
+        {/* Internal Product & Careers Cross-Links */}
+        <div className="mt-16 rounded-2xl border border-border bg-card/60 p-8 text-center">
+          <h2 className="text-2xl font-black text-foreground mb-2">
+            {locale === "ar" ? "استكشف حلول منصة توظيف إكس (TawzeefX)" : "Explore the TawzeefX Recruitment Platform"}
+          </h2>
+          <p className="text-sm text-muted-foreground max-w-2xl mx-auto mb-6">
+            {locale === "ar"
+              ? "تعرف على نظام تتبع المتقدمين ATS بالذكاء الاصطناعي أو تصفح الوظائف الشاغرة المتاحة حالياً للشركات والباحثين عن عمل."
+              : "Discover our AI-powered Applicant Tracking System or browse live openings across employers."}
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link to="/features">
+              <Button variant="default" className="gradient-primary border-0 text-primary-foreground">
+                {locale === "ar" ? "مميزات نظام ATS" : "Platform Features"}
+              </Button>
+            </Link>
+            <Link to="/pricing">
+              <Button variant="outline">{locale === "ar" ? "الأسعار والباقات" : "Pricing"}</Button>
+            </Link>
+            <Link to="/careers">
+              <Button variant="outline">{locale === "ar" ? "الوظائف الشاغرة" : "Open Jobs"}</Button>
+            </Link>
+          </div>
+        </div>
       </section>
     </MarketingLayout>
   );

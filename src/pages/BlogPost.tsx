@@ -1,13 +1,37 @@
 import { useParams, Link, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Calendar, Clock, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Calendar, Clock, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import MarketingLayout from "@/components/marketing/MarketingLayout";
 import { SEO } from "@/components/marketing/SEO";
+import { Button } from "@/components/ui/button";
 import { useI18n } from "@/contexts/I18nContext";
 
-/** Very small markdown-ish renderer: handles ##, ### headings, **bold**, lists, paragraphs. */
+function escapeInlineHtml(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function applySafeInlineFormatting(rawLine: string): string {
+  const escaped = escapeInlineHtml(rawLine);
+  const withLinks = escaped.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label: string, rawUrl: string) => {
+    const cleanUrl = rawUrl.trim();
+    if (!/^(\/|https?:\/\/)/i.test(cleanUrl)) {
+      return label;
+    }
+    const isExternal = /^https?:\/\//i.test(cleanUrl);
+    const attrs = isExternal ? ' target="_blank" rel="noopener noreferrer"' : "";
+    return `<a href="${cleanUrl}"${attrs} class="text-primary underline underline-offset-4 font-semibold hover:opacity-85">${label}</a>`;
+  });
+  return withLinks.replace(/\*\*([^*]+)\*\*/g, "<strong class=\"text-foreground font-bold\">$1</strong>");
+}
+
+/** Lightweight safe markdown renderer supporting headings, bold, safe links, and lists. */
 function renderMarkdown(md: string) {
   const lines = md.split("\n");
   const blocks: JSX.Element[] = [];
@@ -17,20 +41,21 @@ function renderMarkdown(md: string) {
   const flushList = () => {
     if (listBuf.length === 0) return;
     blocks.push(
-      <ul key={`ul-${key++}`} className="list-disc ms-6 my-4 space-y-1.5 text-muted-foreground">
+      <ul key={`ul-${key++}`} className="list-disc ms-6 my-4 space-y-2 text-muted-foreground">
         {listBuf.map((item, i) => (
-          <li key={i} dangerouslySetInnerHTML={{ __html: applyInline(item) }} />
+          <li key={i} dangerouslySetInnerHTML={{ __html: applySafeInlineFormatting(item) }} />
         ))}
       </ul>
     );
     listBuf = [];
   };
 
-  const applyInline = (s: string) => s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-
   for (const raw of lines) {
     const line = raw.trim();
-    if (!line) { flushList(); continue; }
+    if (!line) {
+      flushList();
+      continue;
+    }
     if (line.startsWith("### ")) {
       flushList();
       blocks.push(<h3 key={key++} className="text-xl font-bold text-foreground mt-7 mb-3">{line.slice(4)}</h3>);
@@ -39,13 +64,17 @@ function renderMarkdown(md: string) {
       blocks.push(<h2 key={key++} className="text-2xl font-extrabold text-foreground mt-9 mb-3">{line.slice(3)}</h2>);
     } else if (line.startsWith("# ")) {
       flushList();
-      blocks.push(<h1 key={key++} className="text-3xl font-black text-foreground mt-10 mb-4">{line.slice(2)}</h1>);
+      blocks.push(<h2 key={key++} className="text-2xl md:text-3xl font-black text-foreground mt-8 mb-4">{line.slice(2)}</h2>);
     } else if (line.startsWith("- ")) {
       listBuf.push(line.slice(2));
     } else {
       flushList();
       blocks.push(
-        <p key={key++} className="text-muted-foreground leading-[1.9] mb-4" dangerouslySetInnerHTML={{ __html: applyInline(line) }} />
+        <p
+          key={key++}
+          className="text-muted-foreground leading-[1.95] mb-4"
+          dangerouslySetInnerHTML={{ __html: applySafeInlineFormatting(line) }}
+        />
       );
     }
   }
@@ -57,6 +86,7 @@ export default function BlogPost() {
   const { slug } = useParams();
   const { t, locale } = useI18n();
   const BackIcon = locale === "ar" ? ArrowRight : ArrowLeft;
+  const ForwardArrow = locale === "ar" ? ArrowLeft : ArrowRight;
 
   const { data: post, isLoading, isError } = useQuery({
     queryKey: ["blog-post", slug],
@@ -69,6 +99,22 @@ export default function BlogPost() {
         .maybeSingle();
       if (error) throw error;
       return data;
+    },
+    enabled: !!slug,
+  });
+
+  const { data: relatedPosts } = useQuery({
+    queryKey: ["blog-related-posts", slug],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("blog_posts")
+        .select("id, slug, title_ar, title_en, excerpt_ar, excerpt_en, category, read_time_minutes, published_at")
+        .eq("published", true)
+        .neq("slug", slug!)
+        .order("published_at", { ascending: false })
+        .limit(3);
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!slug,
   });
@@ -90,30 +136,66 @@ export default function BlogPost() {
   const title = locale === "ar" ? post.title_ar : post.title_en;
   const content = locale === "ar" ? post.content_ar : post.content_en;
   const excerpt = locale === "ar" ? post.excerpt_ar : post.excerpt_en;
+  const encodedSlug = encodeURIComponent(slug || "");
+  const canonicalUrl = `https://www.tawzeefx.com/blog/${encodedSlug}`;
 
   const formattedDate = post.published_at
     ? new Date(post.published_at).toLocaleDateString(locale === "ar" ? "ar-SA" : "en-US", {
-        year: "numeric", month: "long", day: "numeric",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
       })
     : "";
 
   return (
     <MarketingLayout>
       <SEO
-        title={`${title} | TawzeefX`}
+        title={locale === "ar" ? `${title} | مدونة توظيف إكس (TawzeefX)` : `${title} | TawzeefX Blog`}
         description={excerpt || title}
-        canonical={`https://www.tawzeefx.com/blog/${slug}`}
+        keywords={`${title}, توظيف إكس, TawzeefX, مدونة التوظيف الذكي, نظام تتبع المتقدمين ATS`}
+        canonical={canonicalUrl}
         type="article"
         image={post.cover_image || undefined}
         jsonLd={{
           "@context": "https://schema.org",
-          "@type": "BlogPosting",
-          headline: title,
-          datePublished: post.published_at,
-          dateModified: post.updated_at,
-          author: { "@type": "Person", name: post.author_name },
-          description: excerpt,
-          image: post.cover_image,
+          "@graph": [
+            {
+              "@type": "BlogPosting",
+              headline: title,
+              url: canonicalUrl,
+              mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
+              datePublished: post.published_at,
+              dateModified: post.updated_at,
+              author: { "@type": "Person", name: post.author_name },
+              publisher: { "@id": "https://www.tawzeefx.com/#organization" },
+              description: excerpt,
+              image: post.cover_image || "https://www.tawzeefx.com/icon-512x512.png",
+              inLanguage: locale === "ar" ? "ar" : "en",
+            },
+            {
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                {
+                  "@type": "ListItem",
+                  position: 1,
+                  name: locale === "ar" ? "الرئيسية" : "Home",
+                  item: "https://www.tawzeefx.com/",
+                },
+                {
+                  "@type": "ListItem",
+                  position: 2,
+                  name: locale === "ar" ? "المدونة" : "Blog",
+                  item: "https://www.tawzeefx.com/blog",
+                },
+                {
+                  "@type": "ListItem",
+                  position: 3,
+                  name: title,
+                  item: canonicalUrl,
+                },
+              ],
+            },
+          ],
         }}
       />
 
@@ -162,6 +244,71 @@ export default function BlogPost() {
         >
           {renderMarkdown(content || "")}
         </motion.div>
+
+        {/* Internal SEO & Product CTA */}
+        <section className="mt-14 rounded-2xl border border-primary/20 bg-primary/5 p-6 sm:p-8">
+          <div className="flex items-start gap-3">
+            <Sparkles className="w-6 h-6 text-primary shrink-0 mt-1" />
+            <div className="space-y-3">
+              <h2 className="text-xl font-black text-foreground">
+                {locale === "ar"
+                  ? "طوّر التوظيف في منشأتك مع توظيف إكس (TawzeefX)"
+                  : "Accelerate Hiring with TawzeefX"}
+              </h2>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {locale === "ar"
+                  ? "اكتشف نظام تتبع المتقدمين ATS والفرز بالذكاء الاصطناعي وإدارة المقابلات وإشعارات المرشحين في منصة عربية سحابية متكاملة."
+                  : "Explore our bilingual ATS, AI candidate screening, interview workflows, and candidate portal built for modern HR teams."}
+              </p>
+              <div className="flex flex-wrap gap-3 pt-1">
+                <Link to="/features">
+                  <Button size="sm" className="gradient-primary border-0 text-primary-foreground">
+                    {locale === "ar" ? "استعرض المميزات" : "Explore Features"}
+                  </Button>
+                </Link>
+                <Link to="/pricing">
+                  <Button size="sm" variant="outline">
+                    {locale === "ar" ? "الأسعار والباقات" : "Pricing Plans"}
+                  </Button>
+                </Link>
+                <Link to="/careers">
+                  <Button size="sm" variant="ghost">
+                    {locale === "ar" ? "الوظائف الشاغرة" : "Open Careers"}
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Related Blog Posts */}
+        {relatedPosts && relatedPosts.length > 0 && (
+          <section className="mt-14 pt-10 border-t border-border">
+            <h2 className="text-2xl font-black text-foreground mb-6">{t("blog.relatedPosts")}</h2>
+            <div className="grid sm:grid-cols-3 gap-4">
+              {relatedPosts.map((rel) => {
+                const relTitle = locale === "ar" ? rel.title_ar : rel.title_en;
+                return (
+                  <Link
+                    key={rel.id}
+                    to={`/blog/${rel.slug}`}
+                    className="block rounded-xl border border-border bg-card p-4 hover:border-primary/40 transition-colors group"
+                  >
+                    <span className="text-[11px] font-bold uppercase text-primary bg-primary/10 px-2 py-0.5 rounded">
+                      {rel.category}
+                    </span>
+                    <h3 className="font-bold text-sm text-foreground mt-2.5 line-clamp-2 group-hover:text-primary transition-colors">
+                      {relTitle}
+                    </h3>
+                    <span className="inline-flex items-center gap-1 text-xs text-primary font-semibold mt-3">
+                      {t("blog.readMore")} <ForwardArrow className="w-3 h-3" />
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </article>
     </MarketingLayout>
   );

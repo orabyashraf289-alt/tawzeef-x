@@ -1,0 +1,16 @@
+# توظيف إكس | TawzeefX
+
+> منصة توظيف ذكية ونظام تتبع المتقدمين (ATS) باللغة العربية والإنجليزية للشركات والباحثين عن عمل في السعودية والعالم العربي.
+
+## الصفحات الرئيسية (Core Public URLs)
+- [الصفحة الرئيسية](https://www.tawzeefx.com/): نظرة شاملة على منصة توظيف إكس (TawzeefX) ونظام تتبع المتقدمين ATS والأسئلة الشائعة.
+- [المميزات والحلول](https://www.tawzeefx.com/features): فرز السير الذاتية بالذكاء الاصطناعي، مقابلات الفيديو، جدولة المقابلات، وإشعارات المرشحين.
+- [الأسعار والباقات](https://www.tawzeefx.com/pricing): خطط الاشتراك للمنشآت والشركات والمؤسسات.
+- [الوظائف الشاغرة](https://www.tawzeefx.com/careers): استعراض الفرص الوظيفية المتاحة والتقديم المباشر.
+- [المدونة](https://www.tawzeefx.com/blog): مقالات وأدلة متخصصة في التوظيف الذكي والموارد البشرية وأنظمة ATS.
+- [عن المنصة](https://www.tawzeefx.com/about): رؤية منصة توظيف إكس ورسالتها.
+- [تواصل معنا](https://www.tawzeefx.com/contact): حجز عرض توضيحي والتواصل مع فريق الدعم والمبيعات.
+
+## المصادر الآلية (Machine-Readable Resources)
+- [Sitemap XML](https://www.tawzeefx.com/sitemap.xml)
+- [Robots Policy](https://www.tawzeefx.com/robots.txt)

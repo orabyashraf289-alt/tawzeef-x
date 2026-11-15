@@ -1,5 +1,10 @@
 {
   "framework": "vite",
+  "functions": {
+    "api/seo-page.ts": {
+      "includeFiles": "dist/index.html"
+    }
+  },
   "rewrites": [
     {
       "source": "/sitemap.xml",
@@ -42,7 +47,15 @@
       "destination": "/_seo/auth.html"
     },
     {
-      "source": "/((?!api/|sitemap\\.xml|robots\\.txt|_seo/).*)",
+      "source": "/blog/:slug",
+      "destination": "/api/seo-page?kind=blog&slug=:slug"
+    },
+    {
+      "source": "/apply/:id",
+      "destination": "/api/seo-page?kind=apply&id=:id"
+    },
+    {
+      "source": "/((?!api/|sitemap\\.xml|robots\\.txt|llms\\.txt|8b4c9e2a1f7d4036b9c5a2e8d1407f3a\\.txt|_seo/).*)",
       "destination": "/index.html"
     }
   ],

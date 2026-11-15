@@ -9,6 +9,8 @@ import seoRoutesConfig from "@/data/seoRoutes.json";
 import { prerenderSeoRoutes } from "../../scripts/prerender-seo-routes.mjs";
 import { generateSitemapXml } from "../../scripts/generate-sitemap.mjs";
 import { filterActiveJobs, getStaticSitemapRoutes } from "../../scripts/seo-helpers.mjs";
+import { INDEXNOW_KEY } from "../../scripts/ping-indexnow.mjs";
+import { buildDynamicBlogPageHtml, buildDynamicJobPageHtml, isUuid } from "../../api/_seoHtml";
 
 const ROOT = process.cwd();
 const tempDirs: string[] = [];
@@ -38,8 +40,17 @@ describe("Technical SEO metadata, pre-rendering, internal links, and sitemap con
     expect(vercel.rewrites[0]).toEqual({ source: "/sitemap.xml", destination: "/api/sitemap" });
     expect(vercel.rewrites).toContainEqual({ source: "/features", destination: "/_seo/features.html" });
     expect(vercel.rewrites).toContainEqual({ source: "/blog", destination: "/_seo/blog.html" });
+    expect(vercel.rewrites).toContainEqual({
+      source: "/blog/:slug",
+      destination: "/api/seo-page?kind=blog&slug=:slug",
+    });
+    expect(vercel.rewrites).toContainEqual({
+      source: "/apply/:id",
+      destination: "/api/seo-page?kind=apply&id=:id",
+    });
+    expect(vercel.functions["api/seo-page.ts"].includeFiles).toBe("dist/index.html");
     expect(vercel.rewrites[vercel.rewrites.length - 1]).toEqual({
-      source: "/((?!api/|sitemap\\.xml|robots\\.txt|_seo/).*)",
+      source: "/((?!api/|sitemap\\.xml|robots\\.txt|llms\\.txt|8b4c9e2a1f7d4036b9c5a2e8d1407f3a\\.txt|_seo/).*)",
       destination: "/index.html",
     });
   });
@@ -189,5 +200,66 @@ describe("Technical SEO metadata, pre-rendering, internal links, and sitemap con
       expect(landingSource).toContain(route);
     }
     expect(landingSource).toContain("seoRoutesConfig.faq");
+  });
+
+  it("renders SSR metadata, JSON-LD, and XSS-safe HTML for dynamic /blog/:slug and /apply/:id routes", () => {
+    const templateHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf-8");
+
+    const blogHtml = buildDynamicBlogPageHtml(templateHtml, "what-is-ats-applicant-tracking-system", {
+      slug: "what-is-ats-applicant-tracking-system",
+      title_ar: 'ما هو <script>alert(1)</script> نظام ATS',
+      excerpt_ar: "ملخص نظام تتبع المتقدمين",
+      content_ar: "## عنوان\n- ميزة أولى\n\nفقرة [المميزات](/features)",
+      author_name: "فريق توظيف إكس",
+      read_time_minutes: 7,
+      published_at: "2026-11-12T09:00:00Z",
+    });
+    expect(blogHtml).toContain(
+      '<link rel="canonical" href="https://www.tawzeefx.com/blog/what-is-ats-applicant-tracking-system" />'
+    );
+    expect(blogHtml).toContain('<meta property="og:type" content="article" />');
+    expect(blogHtml).toContain("BlogPosting");
+    expect(blogHtml).toContain("BreadcrumbList");
+    expect(blogHtml).not.toContain("<script>alert(1)</script>");
+
+    const missingBlogHtml = buildDynamicBlogPageHtml(templateHtml, "missing-slug", null);
+    expect(missingBlogHtml).toContain('<meta name="robots" content="noindex, follow" />');
+
+    const jobId = "123e4567-e89b-12d3-a456-426614174000";
+    expect(isUuid(jobId)).toBe(true);
+    expect(isUuid("test-123")).toBe(false);
+
+    const activeJobHtml = buildDynamicJobPageHtml(templateHtml, jobId, {
+      id: jobId,
+      title: "مطور برمجيات أول",
+      description: 'وصف الوظيفة\n\n<!--TX_JOB_SPECS:{"school_name":"شركة التقنية","application_deadline":"2099-12-31"}-->',
+      location: "الرياض، السعودية",
+      type: "دوام كامل",
+      status: "نشطة",
+      created_at: new Date().toISOString(),
+    });
+    expect(activeJobHtml).toContain(`<link rel="canonical" href="https://www.tawzeefx.com/apply/${jobId}" />`);
+    expect(activeJobHtml).toContain("JobPosting");
+    expect(activeJobHtml).toContain("شركة التقنية");
+    expect(activeJobHtml).not.toContain("TX_JOB_SPECS");
+
+    const closedJobHtml = buildDynamicJobPageHtml(templateHtml, jobId, {
+      id: jobId,
+      title: "وظيفة مغلقة",
+      status: "مغلقة",
+      created_at: new Date().toISOString(),
+    });
+    expect(closedJobHtml).toContain('<meta name="robots" content="noindex, follow" />');
+  });
+
+  it("includes matching IndexNow verification key file and blog cross-links", () => {
+    const keyFilePath = path.join(ROOT, "public", `${INDEXNOW_KEY}.txt`);
+    expect(fs.existsSync(keyFilePath)).toBe(true);
+    expect(fs.readFileSync(keyFilePath, "utf-8").trim()).toBe(INDEXNOW_KEY);
+
+    const blogPostSource = fs.readFileSync(path.join(ROOT, "src", "pages", "BlogPost.tsx"), "utf-8");
+    expect(blogPostSource).toContain("blog.relatedPosts");
+    expect(blogPostSource).toContain('to="/features"');
+    expect(blogPostSource).toContain('to="/careers"');
   });
 });
