@@ -14,6 +14,9 @@ const errorMap: Record<string, string> = {
   "Auth session missing!": "انتهت صلاحية الجلسة. يرجى تسجيل الدخول مرة أخرى",
   "Token has expired or is invalid": "انتهت صلاحية الرابط. يرجى طلب رابط جديد",
   "User not found": "لم يتم العثور على حساب بهذا البريد الإلكتروني",
+  "Error sending confirmation email": "تعذر إرسال بريد التأكيد. يرجى المحاولة مرة أخرى أو تسجيل الدخول",
+  "unexpected_failure": "حدث خطأ غير متوقع في خدمة المصادقة. يرجى المحاولة مرة أخرى",
+  "Email link is invalid or has expired": "رابط البريد الإلكتروني غير صالح أو انتهت صلاحيته",
 };
 
 export function translateAuthError(message: string): string {

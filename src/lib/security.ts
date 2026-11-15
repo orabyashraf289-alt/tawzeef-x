@@ -59,6 +59,9 @@ export function translateAuthError(errorMessage: string): string {
   if (lower.includes("password should be at least")) {
     return "يجب أن تكون كلمة المرور 6 أحرف على الأقل";
   }
+  if (lower.includes("error sending confirmation email")) {
+    return "تعذر إرسال بريد التأكيد. يرجى المحاولة مرة أخرى أو تسجيل الدخول";
+  }
   return errorMessage;
 }
 

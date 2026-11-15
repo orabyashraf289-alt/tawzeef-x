@@ -1,5 +1,38 @@
 project_id = "rlfewneisuezsamhosct"
 
+[auth]
+enabled = true
+site_url = "https://www.tawzeefx.com"
+additional_redirect_urls = [
+  "https://www.tawzeefx.com/**",
+  "https://tawzeefx.com/**",
+  "http://localhost:8080/**",
+  "http://localhost:5173/**"
+]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_manual_linking = true
+enable_signup = true
+enable_anonymous_sign_ins = false
+minimum_password_length = 6
+
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+secure_password_change = false
+max_frequency = "1m0s"
+otp_length = 6
+otp_expiry = 3600
+
 [functions.chat]
 verify_jwt = true
 
