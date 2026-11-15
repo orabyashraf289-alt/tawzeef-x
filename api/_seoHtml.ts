@@ -1,9 +1,94 @@
-import seoRoutesConfig from "../src/data/seoRoutes.json";
+import fs from "fs";
+import path from "path";
+
+interface SeoRouteMetaFallback {
+  title: string;
+  description: string;
+  keywords: string;
+  h1: string;
+  summary: string;
+}
+
+interface SeoRoutesConfigShape {
+  baseUrl: string;
+  siteName: string;
+  navLinks: Array<{ path: string; label: string }>;
+  routes: {
+    "/blog": SeoRouteMetaFallback;
+    "/careers": SeoRouteMetaFallback;
+    [key: string]: SeoRouteMetaFallback | undefined;
+  };
+}
+
+const DEFAULT_SEO_ROUTES_CONFIG: SeoRoutesConfigShape = {
+  baseUrl: "https://www.tawzeefx.com",
+  siteName: "توظيف إكس | TawzeefX",
+  navLinks: [
+    { path: "/", label: "الرئيسية - توظيف إكس" },
+    { path: "/features", label: "المميزات والحلول" },
+    { path: "/pricing", label: "الأسعار والباقات" },
+    { path: "/careers", label: "الوظائف الشاغرة" },
+    { path: "/blog", label: "المدونة" },
+    { path: "/about", label: "عن المنصة" },
+    { path: "/contact", label: "تواصل معنا" },
+    { path: "/privacy", label: "سياسة الخصوصية" },
+    { path: "/terms", label: "الشروط والأحكام" },
+  ],
+  routes: {
+    "/careers": {
+      title: "الوظائف المتاحة | توظيف إكس (TawzeefX) - تصفح أحدث فرص العمل",
+      description:
+        "تصفح أحدث الوظائف الشاغرة وفرص العمل المتاحة عبر منصة توظيف إكس (TawzeefX) في السعودية والعالم العربي وقدّم سيرتك الذاتية مباشرة للشركات الموثوقة.",
+      keywords: "وظائف توظيف إكس, وظائف شاغرة, فرص عمل في السعودية, تقديم وظائف, بوابة التوظيف, TawzeefX careers",
+      h1: "الوظائف الشاغرة وفرص العمل على منصة توظيف إكس (TawzeefX)",
+      summary: "اكتشف الوظائف المفتوحة في مختلف التخصصات وقدّم طلبك مباشرة مع إمكانية متابعة حالة الترشح.",
+    },
+    "/blog": {
+      title: "المدونة | توظيف إكس (TawzeefX) - مقالات ونصائح التوظيف والموارد البشرية",
+      description:
+        "اقرأ أحدث المقالات والأدلة المتخصصة في التوظيف الذكي، إدارة المواهب، التوظيف عن بُعد، وأفضل ممارسات الموارد البشرية على مدونة توظيف إكس (TawzeefX).",
+      keywords:
+        "مدونة توظيف إكس, مقالات الموارد البشرية, نصائح المقابلات الشخصية, التوظيف الذكي, التوظيف بالذكاء الاصطناعي, TawzeefX blog",
+      h1: "مدونة توظيف إكس (TawzeefX) للتوظيف الذكي والموارد البشرية",
+      summary:
+        "مقالات وأدلة عملية لفرق الموارد البشرية ومديري التوظيف حول الذكاء الاصطناعي، التوظيف عن بُعد، وبناء العلامة التجارية للمنشأة.",
+    },
+  },
+};
+
+let cachedSeoRoutesConfig: SeoRoutesConfigShape | null = null;
+
+/** Load src/data/seoRoutes.json when present on disk, with safe typed fallback for serverless bundles. */
+function getSeoRoutesConfig(): SeoRoutesConfigShape {
+  if (cachedSeoRoutesConfig) return cachedSeoRoutesConfig;
+  try {
+    const configPath = path.resolve(process.cwd(), "src", "data", "seoRoutes.json");
+    if (fs.existsSync(configPath)) {
+      const parsed = JSON.parse(fs.readFileSync(configPath, "utf-8")) as Partial<SeoRoutesConfigShape>;
+      cachedSeoRoutesConfig = {
+        baseUrl: parsed.baseUrl || DEFAULT_SEO_ROUTES_CONFIG.baseUrl,
+        siteName: parsed.siteName || DEFAULT_SEO_ROUTES_CONFIG.siteName,
+        navLinks: Array.isArray(parsed.navLinks) && parsed.navLinks.length > 0
+          ? parsed.navLinks
+          : DEFAULT_SEO_ROUTES_CONFIG.navLinks,
+        routes: {
+          ...DEFAULT_SEO_ROUTES_CONFIG.routes,
+          ...(parsed.routes || {}),
+        },
+      };
+      return cachedSeoRoutesConfig;
+    }
+  } catch {
+    // Fall back to static defaults when serverless bundle excludes src/data/seoRoutes.json.
+  }
+  cachedSeoRoutesConfig = DEFAULT_SEO_ROUTES_CONFIG;
+  return cachedSeoRoutesConfig;
+}
 
 export const SEO_BASE_URL = (
   process.env.APP_BASE_URL ||
   process.env.VITE_APP_BASE_URL ||
-  seoRoutesConfig.baseUrl ||
+  getSeoRoutesConfig().baseUrl ||
   "https://www.tawzeefx.com"
 ).replace(/\/+$/, "");
 
@@ -89,7 +174,8 @@ function buildSeoShellHtml(options: {
   paragraphs?: string[];
   extraLinks?: Array<{ href: string; label: string }>;
 }): string {
-  const navHtml = (seoRoutesConfig.navLinks || [])
+  const config = getSeoRoutesConfig();
+  const navHtml = (config.navLinks || [])
     .map(
       (link) =>
         `<a href="${escapeHtml(link.path)}" style="color:#0b57d0;text-decoration:none;font-weight:700;margin-inline-end:16px">${escapeHtml(link.label)}</a>`
@@ -123,7 +209,7 @@ function buildSeoShellHtml(options: {
         ${extraLinksHtml}
       </main>
       <footer style="margin-top:32px;border-top:1px solid #e2e8f0;padding-top:16px;font-size:0.9rem;color:#64748b">
-        <p>© ${escapeHtml(seoRoutesConfig.siteName)}</p>
+        <p>© ${escapeHtml(config.siteName)}</p>
       </footer>
     </div>`;
 }
@@ -216,7 +302,7 @@ export function buildDynamicBlogPageHtml(
   const routePath = `/blog/${encodedSlug}`;
 
   if (!post) {
-    const blogMeta = seoRoutesConfig.routes["/blog"];
+    const blogMeta = getSeoRoutesConfig().routes["/blog"];
     return injectDynamicDocumentMetadata(templateHtml, {
       routePath,
       title: blogMeta.title,
@@ -349,7 +435,7 @@ export function buildDynamicJobPageHtml(
   const isOpen = Boolean(job && isActiveStatus && Date.now() <= validThroughTime);
 
   if (!job || !isOpen) {
-    const careersMeta = seoRoutesConfig.routes["/careers"];
+    const careersMeta = getSeoRoutesConfig().routes["/careers"];
     return injectDynamicDocumentMetadata(templateHtml, {
       routePath,
       title: job?.title

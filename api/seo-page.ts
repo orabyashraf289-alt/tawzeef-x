@@ -8,7 +8,7 @@ import {
   SEO_BASE_URL,
   type BlogSeoRecord,
   type JobSeoRecord,
-} from "./_seoHtml";
+} from "./_seoHtml.js";
 
 interface SeoRequest {
   query?: Record<string, string | string[] | undefined>;
@@ -141,6 +141,7 @@ export default async function handler(req: SeoRequest, res: SeoResponse) {
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=3600");
+    res.setHeader("X-Tawzeefx-Seo", kind ? `dynamic-${kind}` : "dynamic-ssr");
     return res.status(200).send(renderedHtml);
   } catch (err) {
     console.error("[SEO Dynamic Page] Error rendering metadata shell:", err);
