@@ -6,7 +6,7 @@ export default function Terms() {
   return (
     <div className="min-h-screen bg-background text-right p-6 md:p-12 space-y-8 max-w-4xl mx-auto" dir="rtl">
       <SEO
-        title="الشروط والأحكام | توظيف إكس (TawzeefX)"
+        title="الشروط والأحكام | توظيف إكس"
         description="تعرف على الشروط والأحكام المنظمة لاستخدام منصة توظيف إكس (TawzeefX) لخدمات التوظيف الذكي للشركات والمرشحين."
         keywords="الشروط والأحكام توظيف إكس, شروط استخدام TawzeefX, اتفاقية منصة التوظيف"
         canonical="https://www.tawzeefx.com/terms"

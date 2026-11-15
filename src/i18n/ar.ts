@@ -1240,12 +1240,12 @@ const ar: Record<string, string> = {
   "marketing.footer.support": "الدعم",
 
   // About page
-  "about.seo.title": "عن منصة توظيف إكس (TawzeefX) | منصة التوظيف الذكية للشركات والباحثين عن عمل",
+  "about.seo.title": "عن المنصة | توظيف إكس - رؤيتنا لمستقبل التوظيف الذكي",
   "about.seo.description": "تعرّف على منصة توظيف إكس (TawzeefX - توظيف اكس)، المنصة الذكية ونظام تتبع المتقدمين (ATS) التي تجمع بين الكفاءات المهنية وأصحاب الأعمال بأحدث تقنيات الذكاء الاصطناعي.",
   "about.hero.badge": "قصتنا",
   "about.hero.title": "نُعيد تعريف التوظيف",
   "about.hero.highlight": "بالذكاء الاصطناعي",
-  "about.hero.subtitle": "Tawzeef-X هي منصة توظيف متكاملة تجمع بين تقنيات الذكاء الاصطناعي وتجربة مستخدم استثنائية لمساعدة الشركات على إيجاد أفضل المواهب وتسريع قرارات التوظيف.",
+  "about.hero.subtitle": "توظيف إكس هي منصة توظيف متكاملة تجمع بين تقنيات الذكاء الاصطناعي وتجربة مستخدم استثنائية لمساعدة الشركات على إيجاد أفضل المواهب وتسريع قرارات التوظيف.",
   "about.mission.title": "رسالتنا",
   "about.mission.text": "تمكين الشركات والباحثين عن عمل من الوصول إلى الفرص والكفاءات المثالية بأسرع وقت وأعلى دقة، مدعومة بالذكاء الاصطناعي.",
   "about.vision.title": "رؤيتنا",
@@ -1263,10 +1263,10 @@ const ar: Record<string, string> = {
   "about.team.title": "الفريق",
   "about.team.subtitle": "خبراء في الذكاء الاصطناعي، الموارد البشرية، وهندسة المنتج",
   "about.cta.title": "انضم إلى رحلتنا",
-  "about.cta.subtitle": "ابدأ مع آلاف الشركات التي تثق بـ Tawzeef-X",
+  "about.cta.subtitle": "ابدأ مع آلاف الشركات التي تثق بمنصة توظيف إكس",
 
   // Features page
-  "features.seo.title": "ميزات توظيف إكس (TawzeefX) | نظام تتبع المتقدمين ATS وأدوات التوظيف الذكي",
+  "features.seo.title": "المميزات | توظيف إكس - نظام تتبع المتقدمين ATS وأتمتة الاستقطاب",
   "features.seo.description": "اكتشف أدوات توظيف إكس (TawzeefX) للتوظيف والبحث عن الوظائف: فرز السير الذاتية بالذكاء الاصطناعي، تتبع المتقدمين ATS، مقابلات الفيديو، والعروض الوظيفية الرقمية.",
   "features.hero.title": "كل ما تحتاجه لتوظيف",
   "features.hero.highlight": "أفضل الكفاءات",
@@ -1275,7 +1275,7 @@ const ar: Record<string, string> = {
   "features.cta.subtitle": "بدون بطاقة ائتمان. ابدأ في أقل من دقيقة.",
 
   // Contact page
-  "contact.seo.title": "تواصل معنا | توظيف إكس (TawzeefX)",
+  "contact.seo.title": "تواصل معنا | توظيف إكس - فريق الدعم والمبيعات",
   "contact.seo.description": "تواصل مع فريق منصة توظيف إكس (TawzeefX) لاستفسارات حلول التوظيف للشركات، أو مساعدة الباحثين عن عمل، أو الدعم الفني المباشر.",
   "contact.hero.title": "نحن هنا",
   "contact.hero.highlight": "لمساعدتك",
@@ -1297,11 +1297,11 @@ const ar: Record<string, string> = {
   "contact.info.hoursValue": "الأحد - الخميس، 9 ص - 6 م (KSA)",
 
   // Blog
-  "blog.seo.title": "مدونة توظيف إكس (TawzeefX) | مقالات التوظيف، المقابلات والنصائح المهنية",
+  "blog.seo.title": "المدونة | توظيف إكس - مقالات ونصائح التوظيف والموارد البشرية",
   "blog.seo.description": "مقالات وأدلة شاملة من توظيف إكس (TawzeefX) حول التوظيف الذكي، اجتياز المقابلات الشخصية، وأحدث استراتيجيات استقطاب الكفاءات والبحث عن عمل.",
   "blog.hero.title": "أفكار ونصائح",
   "blog.hero.highlight": "في عالم التوظيف",
-  "blog.hero.subtitle": "أحدث المقالات والأدلة من فريق Tawzeef-X",
+  "blog.hero.subtitle": "أحدث المقالات والأدلة من فريق توظيف إكس",
   "blog.empty": "لا توجد مقالات منشورة بعد.",
   "blog.readMore": "اقرأ المزيد",
   "blog.minRead": "دقائق قراءة",

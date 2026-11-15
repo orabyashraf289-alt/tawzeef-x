@@ -7,7 +7,7 @@ export default function Privacy() {
   return (
     <div className="min-h-screen bg-background text-right p-6 md:p-12 space-y-8 max-w-4xl mx-auto" dir="rtl">
       <SEO
-        title="سياسة الخصوصية | توظيف إكس (TawzeefX)"
+        title="سياسة الخصوصية | توظيف إكس"
         description="اطلع على سياسة الخصوصية وحماية البيانات الشخصية للمرشحين والشركات في منصة توظيف إكس (TawzeefX) وفق أعلى معايير الأمان."
         keywords="سياسة الخصوصية توظيف إكس, حماية البيانات TawzeefX, أمان معلومات المرشحين"
         canonical="https://www.tawzeefx.com/privacy"

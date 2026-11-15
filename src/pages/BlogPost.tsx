@@ -150,7 +150,7 @@ export default function BlogPost() {
   return (
     <MarketingLayout>
       <SEO
-        title={locale === "ar" ? `${title} | مدونة توظيف إكس (TawzeefX)` : `${title} | TawzeefX Blog`}
+        title={locale === "ar" ? `${title} | مدونة توظيف إكس` : `${title} | TawzeefX Blog`}
         description={excerpt || title}
         keywords={`${title}, توظيف إكس, TawzeefX, مدونة التوظيف الذكي, نظام تتبع المتقدمين ATS`}
         canonical={canonicalUrl}

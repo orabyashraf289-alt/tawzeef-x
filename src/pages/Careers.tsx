@@ -184,7 +184,7 @@ export default function Careers() {
   return (
     <div className="min-h-screen bg-background" dir="rtl" style={styleVars}>
       <SEO 
-        title={brand ? `فرص العمل والتوظيف في ${brand.name} | توظيف إكس (TawzeefX)` : "الوظائف المتاحة وفرص العمل | توظيف إكس (TawzeefX)"} 
+        title={brand ? `فرص العمل والتوظيف في ${brand.name} | توظيف إكس` : "الوظائف المتاحة وفرص العمل | توظيف إكس"} 
         description="تصفح أحدث الوظائف وفرص العمل الشاغرة في مختلف المجالات والتخصصات. قدّم سيرتك الذاتية مباشرة وتتبع حالة طلبك بسهولة مع منصة توظيف إكس (TawzeefX)." 
         canonical="https://www.tawzeefx.com/careers"
       />

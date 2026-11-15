@@ -1478,7 +1478,7 @@ export default function Auth() {
   return (
     <div className="min-h-screen min-h-[100dvh] relative overflow-hidden bg-gradient-to-tr from-emerald-50/30 via-slate-50 to-cyan-50/30 text-slate-800" dir="rtl">
       <SEO
-        title={isLogin ? "تسجيل الدخول | TawzeefX" : "إنشاء حساب جديد | TawzeefX"}
+        title={isLogin ? "تسجيل الدخول | توظيف إكس" : "إنشاء حساب جديد | توظيف إكس"}
         description="بوابة الدخول الموحدة لمنصة Tawzeef-X للتوظيف والفرص الوظيفية الذكية."
         noindex={true}
       />

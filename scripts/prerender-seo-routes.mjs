@@ -108,7 +108,7 @@ function buildSemanticShellHtml(routePath, entry, config, { activeJobs, publishe
   if (routePath === "/" && Array.isArray(config.faq) && config.faq.length > 0) {
     dynamicSectionHtml = `
       <section aria-label="الأسئلة الشائعة" style="margin-top:28px;border-top:1px solid #e2e8f0;padding-top:20px">
-        <h2 style="font-size:1.25rem;margin-bottom:12px">الأسئلة الشائعة حول منصة توظيف إكس (TawzeefX)</h2>
+        <h2 style="font-size:1.25rem;margin-bottom:12px">الأسئلة الشائعة حول منصة توظيف إكس</h2>
         ${config.faq
           .map(
             (item) =>

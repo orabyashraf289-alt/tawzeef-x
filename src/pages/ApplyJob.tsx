@@ -422,7 +422,7 @@ export default function ApplyJob() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4" dir="rtl">
         <SEO
-          title="شاغر وظيفي معتمد | TawzeefX"
+          title="شاغر وظيفي معتمد | توظيف إكس"
           description="بوابة التقديم والتوظيف الذكي عبر منصة TawzeefX."
           canonical={`https://www.tawzeefx.com/apply/${id}`}
           noindex={false}
@@ -439,7 +439,7 @@ export default function ApplyJob() {
     return (
       <div className="min-h-screen bg-muted/30 text-foreground flex flex-col font-sans" dir="rtl">
         <SEO
-          title={`${job?.title ? `الشاغر الوظيفي (${job.title}) مغلق` : "الشاغر الوظيفي غير متاح"} | TawzeefX`}
+          title={`${job?.title ? `الشاغر الوظيفي (${job.title}) مغلق` : "الشاغر الوظيفي غير متاح"} | توظيف إكس`}
           description="عذراً، هذا الشاغر الوظيفي غير متاح حالياً أو انتهت فترة التقديم عليه."
           canonical={`https://www.tawzeefx.com/apply/${id}`}
           noindex={true}
@@ -508,7 +508,7 @@ export default function ApplyJob() {
   return (
     <div className="min-h-screen bg-muted/30 text-foreground flex flex-col font-sans" dir="rtl">
       <SEO
-        title={`${job?.title || "شاغر وظيفي معتمد"} | ${schoolDisplayName} | TawzeefX`}
+        title={`${job?.title || "شاغر وظيفي معتمد"} | ${schoolDisplayName} | توظيف إكس`}
         description={`قدم الآن على شاغر ${job?.title || "وظيفة"} لدى ${schoolDisplayName} عبر منصة TawzeefX. أرفق سيرتك وراجع بياناتك ومتطلبات الوظيفة قبل الإرسال.`}
         canonical={`https://www.tawzeefx.com/apply/${id}`}
         jsonLd={jobPostingJsonLd}
