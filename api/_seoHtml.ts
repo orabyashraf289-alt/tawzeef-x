@@ -36,7 +36,7 @@ const DEFAULT_SEO_ROUTES_CONFIG: SeoRoutesConfigShape = {
   ],
   routes: {
     "/careers": {
-      title: "الوظائف المتاحة | توظيف إكس (TawzeefX) - تصفح أحدث فرص العمل",
+      title: "الوظائف المتاحة | توظيف إكس - تصفح أحدث فرص العمل",
       description:
         "تصفح أحدث الوظائف الشاغرة وفرص العمل المتاحة عبر منصة توظيف إكس (TawzeefX) في السعودية والعالم العربي وقدّم سيرتك الذاتية مباشرة للشركات الموثوقة.",
       keywords: "وظائف توظيف إكس, وظائف شاغرة, فرص عمل في السعودية, تقديم وظائف, بوابة التوظيف, TawzeefX careers",
@@ -44,7 +44,7 @@ const DEFAULT_SEO_ROUTES_CONFIG: SeoRoutesConfigShape = {
       summary: "اكتشف الوظائف المفتوحة في مختلف التخصصات وقدّم طلبك مباشرة مع إمكانية متابعة حالة الترشح.",
     },
     "/blog": {
-      title: "المدونة | توظيف إكس (TawzeefX) - مقالات ونصائح التوظيف والموارد البشرية",
+      title: "المدونة | توظيف إكس - مقالات ونصائح التوظيف والموارد البشرية",
       description:
         "اقرأ أحدث المقالات والأدلة المتخصصة في التوظيف الذكي، إدارة المواهب، التوظيف عن بُعد، وأفضل ممارسات الموارد البشرية على مدونة توظيف إكس (TawzeefX).",
       keywords:
@@ -439,7 +439,7 @@ export function buildDynamicJobPageHtml(
     return injectDynamicDocumentMetadata(templateHtml, {
       routePath,
       title: job?.title
-        ? `${job.title} (مغلقة) | توظيف إكس (TawzeefX)`
+        ? `${job.title} (مغلقة) | توظيف إكس`
         : careersMeta.title,
       description: careersMeta.description,
       keywords: careersMeta.keywords,
@@ -462,7 +462,7 @@ export function buildDynamicJobPageHtml(
   const location = job.location || "المملكة العربية السعودية";
   const plainDesc = (cleanDescription || `وظيفة ${job.title} لدى ${employerName} في ${location}`).trim();
   const metaDesc = `قدّم الآن على شاغر ${job.title} لدى ${employerName} (${location}) عبر منصة توظيف إكس (TawzeefX).`;
-  const title = `وظيفة ${job.title} | ${employerName} | توظيف إكس (TawzeefX)`;
+  const title = `وظيفة ${job.title} | ${employerName} | توظيف إكس`;
   const logoUrl = resolveAbsoluteImageUrl(job.companies?.logo_url);
 
   const employmentTypeMap: Record<string, string> = {

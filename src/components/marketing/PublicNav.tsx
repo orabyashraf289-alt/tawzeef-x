@@ -33,8 +33,8 @@ export default function PublicNav() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-4">
         <div className="bg-background/75 backdrop-blur-2xl border border-border/50 rounded-2xl px-4 sm:px-6 h-14 flex items-center justify-between shadow-sm">
           <Link to="/" className="flex items-center gap-2.5 shrink-0">
-            <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
-            <span className="text-base font-bold text-foreground hidden sm:inline">Tawzeef-X</span>
+            <img src={tawzeefLogo} alt="توظيف إكس" className="w-8 h-8 object-contain" />
+            <span className="text-base font-bold text-foreground hidden sm:inline">توظيف إكس</span>
           </Link>
 
           <div className="hidden lg:flex items-center gap-7 text-sm text-muted-foreground">
@@ -115,7 +115,7 @@ export default function PublicNav() {
             )}
           >
             <div className="flex items-center justify-between mb-6">
-              <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
+              <img src={tawzeefLogo} alt="توظيف إكس" className="w-8 h-8 object-contain" />
               <button onClick={() => setMobileOpen(false)} className="p-2 rounded-lg hover:bg-muted">
                 <X className="w-5 h-5" />
               </button>

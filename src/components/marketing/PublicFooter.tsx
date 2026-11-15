@@ -43,8 +43,8 @@ export default function PublicFooter() {
         <div className="grid lg:grid-cols-5 gap-10">
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center gap-3 mb-4">
-              <img src={tawzeefLogo} alt="Tawzeef-X" className="w-9 h-9 object-contain" />
-              <span className="font-bold text-xl text-foreground">Tawzeef-X</span>
+              <img src={tawzeefLogo} alt="توظيف إكس" className="w-9 h-9 object-contain" />
+              <span className="font-bold text-xl text-foreground">توظيف إكس</span>
             </Link>
             <p className="text-muted-foreground text-sm leading-relaxed max-w-sm">
               {t("marketing.footer.tagline")}
@@ -83,7 +83,7 @@ export default function PublicFooter() {
 
         <div className="mt-12 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-muted-foreground text-xs">
-            © {year} Tawzeef-X. {t("marketing.footer.rights")}
+            © {year} توظيف إكس. {t("marketing.footer.rights")}
           </p>
           <div className="flex flex-wrap justify-center gap-6 text-xs text-muted-foreground">
             {contact?.contact_phone && <a dir="ltr" href={`tel:${contact.contact_phone.replace(/[^+0-9]/g, "")}`}>{contact.contact_phone}</a>}

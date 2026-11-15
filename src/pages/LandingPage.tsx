@@ -210,8 +210,8 @@ export default function LandingPage() {
               "@id": "https://www.tawzeefx.com/#website",
               "url": "https://www.tawzeefx.com/",
               "name": "توظيف إكس",
-              "alternateName": ["توظيف اكس", "منصة توظيف إكس", "TawzeefX", "Tawzeef-X"],
-              "inLanguage": ["ar-SA", "ar", "en"],
+              "alternateName": ["توظيف اكس", "منصة توظيف إكس", "TawzeefX", "Tawzeef-X", "tawzeefx.com"],
+              "inLanguage": "ar",
               "description": "منصة توظيف إكس (TawzeefX) الذكية للباحثين عن عمل والشركات",
               "publisher": {
                 "@id": "https://www.tawzeefx.com/#organization"
@@ -237,7 +237,7 @@ export default function LandingPage() {
             </div>
             <div className="flex flex-col">
               <span className="text-md3-title-lg font-black tracking-tight text-md-on-surface leading-tight">
-                Tawzeef-<span className="text-md-primary">X</span>
+                توظيف <span className="text-md-primary">إكس</span>
               </span>
               <span className="text-[10px] text-md-on-surface-variant font-bold tracking-wider">منصة التوظيف الذكية</span>
             </div>
@@ -320,8 +320,8 @@ export default function LandingPage() {
           >
             <div className="flex justify-between items-center pb-6 border-b border-md-outline-variant">
               <div className="flex items-center gap-2.5">
-                <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
-                <span className="text-md3-title-lg font-black text-md-primary">Tawzeef-X</span>
+                <img src={tawzeefLogo} alt="توظيف إكس" className="w-8 h-8 object-contain" />
+                <span className="text-md3-title-lg font-black text-md-primary">توظيف إكس</span>
               </div>
               <button
                 onClick={() => setMobileMenuOpen(false)}
@@ -409,7 +409,7 @@ export default function LandingPage() {
               <h1
                 className="text-4xl sm:text-5xl lg:text-[54px] font-black leading-[1.22] text-md-on-surface mb-6 tracking-normal"
               >
-                <span data-hero-reveal className="block">منصة توظيف ذكية للباحثين عن عمل والشركات</span>
+                <span data-hero-reveal className="block">توظيف إكس — منصة توظيف ذكية للباحثين عن عمل والشركات</span>
                 <span data-hero-reveal lang="en" dir="ltr" className="font-sans text-lg sm:text-xl lg:text-2xl leading-relaxed text-md-primary relative inline-block mt-3">
                   Smart Recruitment &amp; Job Search Platform
                   <span className="absolute left-0 bottom-1 w-full h-2.5 bg-md-primary-container/60 -z-10 rounded-full" />
@@ -649,7 +649,7 @@ export default function LandingPage() {
               <span>مختبر تجربة النظام الحي</span>
             </div>
             <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-black text-md-on-surface mb-4">
-              استكشف قدرات Tawzeef-X الحقيقية من الداخل
+              استكشف قدرات توظيف إكس الحقيقية من الداخل
             </h2>
             <p className="text-md3-body-md text-md-on-surface-variant">
               شاهد كيف تعمل محركات الذكاء الاصطناعي، لوحات الكانبان، غرف المقابلات، والتوقيع الرقمي في تجربة تفاعلية حية
@@ -1406,8 +1406,8 @@ export default function LandingPage() {
             {/* Column 1: Brand */}
             <div>
               <div className="flex items-center gap-2.5 mb-4">
-                <img src={tawzeefLogo} alt="Tawzeef-X" className="w-8 h-8 object-contain" />
-                <span className="text-md3-title-lg font-black text-md-on-surface">Tawzeef-X</span>
+                <img src={tawzeefLogo} alt="توظيف إكس" className="w-8 h-8 object-contain" />
+                <span className="text-md3-title-lg font-black text-md-on-surface">توظيف إكس</span>
               </div>
               <p className="text-xs text-md-on-surface-variant leading-relaxed mb-6 font-medium">
                 المنصة السحابية المتقدمة لرقمنة وإدارة عمليات التوظيف والاستقطاب الذكي المدعومة بالذكاء الاصطناعي في الشرق الأوسط.
@@ -1468,7 +1468,7 @@ export default function LandingPage() {
           </div>
 
           <div className="border-t border-md-outline-variant/60 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-medium">
-            <p>© {new Date().getFullYear()} Tawzeef-X. جميع الحقوق محفوظة لمنصة توظيف إكس.</p>
+            <p>© {new Date().getFullYear()} توظيف إكس. جميع الحقوق محفوظة لمنصة توظيف إكس.</p>
             <div className="flex items-center gap-6">
               <Link to="/privacy" className="hover:text-md-primary transition-colors">سياسة الخصوصية</Link>
               <Link to="/terms" className="hover:text-md-primary transition-colors">الشروط والأحكام</Link>
