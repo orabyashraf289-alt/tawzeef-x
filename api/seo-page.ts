@@ -147,7 +147,7 @@ export default async function handler(req: SeoRequest, res: SeoResponse) {
     console.error("[SEO Dynamic Page] Error rendering metadata shell:", err);
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     return res.status(200).send(
-      `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="UTF-8" /><meta name="robots" content="noindex, follow" /><title>توظيف إكس | TawzeefX</title><meta http-equiv="refresh" content="0;url=/" /></head><body><div id="root"></div></body></html>`
+      `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="UTF-8" /><meta name="robots" content="noindex, follow" /><title>توظيف إكس</title><meta http-equiv="refresh" content="0;url=/" /></head><body><div id="root"></div></body></html>`
     );
   }
 }

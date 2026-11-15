@@ -40,7 +40,7 @@ const DEFAULT_SEO_ROUTES_CONFIG: SeoRoutesConfigShape = {
       description:
         "تصفح أحدث الوظائف الشاغرة وفرص العمل المتاحة عبر منصة توظيف إكس (TawzeefX) في السعودية والعالم العربي وقدّم سيرتك الذاتية مباشرة للشركات الموثوقة.",
       keywords: "وظائف توظيف إكس, وظائف شاغرة, فرص عمل في السعودية, تقديم وظائف, بوابة التوظيف, TawzeefX careers",
-      h1: "الوظائف الشاغرة وفرص العمل على منصة توظيف إكس (TawzeefX)",
+      h1: "الوظائف الشاغرة وفرص العمل على منصة توظيف إكس",
       summary: "اكتشف الوظائف المفتوحة في مختلف التخصصات وقدّم طلبك مباشرة مع إمكانية متابعة حالة الترشح.",
     },
     "/blog": {
@@ -49,7 +49,7 @@ const DEFAULT_SEO_ROUTES_CONFIG: SeoRoutesConfigShape = {
         "اقرأ أحدث المقالات والأدلة المتخصصة في التوظيف الذكي، إدارة المواهب، التوظيف عن بُعد، وأفضل ممارسات الموارد البشرية على مدونة توظيف إكس (TawzeefX).",
       keywords:
         "مدونة توظيف إكس, مقالات الموارد البشرية, نصائح المقابلات الشخصية, التوظيف الذكي, التوظيف بالذكاء الاصطناعي, TawzeefX blog",
-      h1: "مدونة توظيف إكس (TawzeefX) للتوظيف الذكي والموارد البشرية",
+      h1: "مدونة توظيف إكس للتوظيف الذكي والموارد البشرية",
       summary:
         "مقالات وأدلة عملية لفرق الموارد البشرية ومديري التوظيف حول الذكاء الاصطناعي، التوظيف عن بُعد، وبناء العلامة التجارية للمنشأة.",
     },
@@ -321,7 +321,7 @@ export function buildDynamicBlogPageHtml(
 
   const headline = post.title_ar || post.title_en || slug;
   const description = (post.excerpt_ar || post.excerpt_en || headline).trim();
-  const title = `${headline} | مدونة توظيف إكس (TawzeefX)`;
+  const title = `${headline} | مدونة توظيف إكس`;
   const canonicalUrl = `${SEO_BASE_URL}/blog/${encodedSlug}`;
   const imageUrl = resolveAbsoluteImageUrl(post.cover_image);
   const keywords = `${headline}, توظيف إكس, TawzeefX, مدونة توظيف إكس, التوظيف الذكي, نظام تتبع المتقدمين ATS${post.category ? `, ${post.category}` : ""}`;
@@ -339,7 +339,7 @@ export function buildDynamicBlogPageHtml(
         mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
         datePublished: post.published_at || undefined,
         dateModified: post.updated_at || post.published_at || undefined,
-        author: { "@type": "Person", name: post.author_name || "فريق توظيف إكس (TawzeefX)" },
+        author: { "@type": "Person", name: post.author_name || "فريق توظيف إكس" },
         publisher: { "@id": `${SEO_BASE_URL}/#organization` },
         image: imageUrl,
         inLanguage: "ar",
