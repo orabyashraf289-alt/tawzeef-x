@@ -71,16 +71,131 @@ async function computeHmacSignature(secret: string, payload: string): Promise<st
     .join("");
 }
 
+function getEventTitle(eventType: string, payload: any): string {
+  switch (eventType) {
+    case "candidate.applied":
+      return `مرشح جديد: ${payload?.name || payload?.candidate_name || "مجهول"}`;
+    case "candidate.status_changed":
+      return `تحديث مسار المرشح: ${payload?.candidate_name || payload?.name || "مرشح"}`;
+    case "candidate.top_match":
+      return `⭐ مرشح فائق التوافق: ${payload?.name || "مرشح"}`;
+    case "interview.scheduled":
+      return `📅 مقابلة مجدولة: ${payload?.candidate_name || ""}`;
+    case "offer.accepted":
+      return `🎉 تم قبول العرض الوظيفي!`;
+    case "job.created":
+      return `📢 وظيفة جديدة: ${payload?.title || payload?.job_title || ""}`;
+    default:
+      return `إشعار من توظيف إكس: ${eventType}`;
+  }
+}
+
+function getEventSummary(eventType: string, payload: any): string {
+  switch (eventType) {
+    case "candidate.applied":
+      return `قدم المرشح على وظيفة "${payload?.job_title || payload?.role || "شاغر"}" في قسم ${payload?.department || "العام"}.`;
+    case "candidate.status_changed":
+      return `تم نقل المرشح من (${payload?.old_status || "-"}) إلى (${payload?.new_status || "-"}).`;
+    case "candidate.top_match":
+      return `حقق المرشح نسبة تطابق ذكاء اصطناعي استثنائية (${payload?.match_score || "85%+"}).`;
+    case "interview.scheduled":
+      return `تم حجز موعد مقابلة بتاريخ ${payload?.scheduled_at || payload?.date || "قريباً"}.`;
+    case "offer.accepted":
+      return `أتم المرشح توقيع العرض الوظيفي بنجاح وهو الآن جاهز للمباشرة.`;
+    case "job.created":
+      return `تم نشر وظيفة شاغرة جديدة وتفعيل استقبال طلبات المتقدمين.`;
+    default:
+      return `حدث جديد في نظام التوظيف (${eventType}).`;
+  }
+}
+
+function formatPayloadForEndpoint(url: string, event_type: string, payload: any): string {
+  const normUrl = url.toLowerCase();
+  const timestamp = new Date().toISOString();
+
+  // 1) Slack Incoming Webhook (Block Kit)
+  if (normUrl.includes("hooks.slack.com")) {
+    const title = getEventTitle(event_type, payload);
+    const summary = getEventSummary(event_type, payload);
+    const fields = Object.entries(payload || {})
+      .filter(([_, v]) => typeof v === "string" || typeof v === "number")
+      .slice(0, 6)
+      .map(([k, v]) => ({
+        type: "mrkdwn",
+        text: `*${k}:*\n${v}`,
+      }));
+
+    return JSON.stringify({
+      text: `${title}: ${summary}`,
+      blocks: [
+        {
+          type: "header",
+          text: { type: "plain_text", text: `🚀 ${title}`, emoji: true },
+        },
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: summary },
+        },
+        ...(fields.length > 0 ? [{ type: "section", fields }] : []),
+        {
+          type: "context",
+          elements: [
+            {
+              type: "mrkdwn",
+              text: `🤖 *منصة توظيف إكس (TawzeefX)* • ${timestamp}`,
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  // 2) Microsoft Teams Connector / Power Automate
+  if (
+    normUrl.includes("webhook.office.com") ||
+    normUrl.includes("logic.azure.com") ||
+    normUrl.includes("teams.microsoft.com") ||
+    normUrl.includes("powerautomate.com") ||
+    normUrl.includes("office365.com")
+  ) {
+    const title = getEventTitle(event_type, payload);
+    const summary = getEventSummary(event_type, payload);
+    const facts = Object.entries(payload || {})
+      .filter(([_, v]) => typeof v === "string" || typeof v === "number")
+      .slice(0, 8)
+      .map(([name, value]) => ({ name, value: String(value) }));
+
+    return JSON.stringify({
+      "@type": "MessageCard",
+      "@context": "http://schema.org/extensions",
+      summary: title,
+      themeColor: event_type === "offer.accepted" ? "22c55e" : "6366f1",
+      title: `⚡ ${title}`,
+      text: summary,
+      sections: [
+        {
+          activityTitle: "TawzeefX Collaboration Engine",
+          activitySubtitle: timestamp,
+          facts,
+          markdown: true,
+        },
+      ],
+    });
+  }
+
+  // 3) Standard generic webhook
+  return JSON.stringify({
+    event: event_type,
+    timestamp,
+    data: payload,
+  });
+}
+
     // Send to regular webhook endpoints
     const regularResults = await Promise.allSettled(
       (endpoints || []).map(async (endpoint) => {
         const timestamp = new Date().toISOString();
-        const webhookPayload = {
-          event: event_type,
-          timestamp,
-          data: payload,
-        };
-        const payloadStr = JSON.stringify(webhookPayload);
+        const payloadStr = formatPayloadForEndpoint(endpoint.url, event_type, payload);
 
         const requestHeaders: Record<string, string> = {
           "Content-Type": "application/json",

@@ -85,9 +85,9 @@ const PLANNED_INTEGRATIONS: IntegrationItem[] = [
     id: "slack-teams",
     name: "Slack و Microsoft Teams",
     nameEn: "Slack & Microsoft Teams",
-    detail: "لا يوجد تطبيق أو بوت مباشر حالياً (يمكن الاعتماد على Webhooks مؤقتاً)",
-    detailEn: "No native app or bot connector yet (outgoing webhooks usable meanwhile)",
-    endpointOrTech: "Planned",
+    detail: "مكتمل بالكامل عبر بطاقات Slack Block Kit وبطاقات Teams التفاعلية مع تنبيهات فورية للمرشحين والمقابلات والعروض",
+    detailEn: "Fully implemented with Slack Block Kit & Teams Adaptive Cards for candidates, interviews and offers",
+    endpointOrTech: "Live & Connected",
     icon: Link2,
   },
   {

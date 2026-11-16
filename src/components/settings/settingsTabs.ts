@@ -96,7 +96,11 @@ export function buildSettingsTabs({
       label: locale === "en" ? "Message Automation" : "أتمتة وقوالب الرسائل",
       icon: FileText,
     },
-    { id: "webhooks", label: t("settings.webhooks"), icon: Webhook },
+    {
+      id: "webhooks",
+      label: locale === "en" ? "Slack, Teams & Webhooks" : "تكامل Slack وتيمز والـ Webhooks",
+      icon: Webhook,
+    },
   ];
 }
 

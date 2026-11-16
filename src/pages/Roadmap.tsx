@@ -227,10 +227,10 @@ const phases: Phase[] = [
             key: "p3-slack",
             title: "تكامل مع Slack/Teams",
             titleEn: "Slack/Teams integration",
-            defaultDone: false,
+            defaultDone: true,
             icon: Zap,
-            note: "غير مبني بعد — لا يوجد موصّل مباشر لـ Slack أو Teams (تتوفر Webhooks عامة صادرة).",
-            noteEn: "Unbuilt — no native Slack or Teams app yet (generic outgoing webhooks are available).",
+            note: "مكتمل ومفعّل بالكامل عبر بطاقات Slack Block Kit وبطاقات Teams التفاعلية مع محرك إرسال الإشعارات التلقائي واختبار الاتصال اللحظي.",
+            noteEn: "Fully live via Slack Block Kit and MS Teams Adaptive Cards with automated event dispatcher and instant test ping.",
           },
           {
             key: "p3-calendar",
