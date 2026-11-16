@@ -18,6 +18,8 @@ import { CostsAnalysisTab } from "@/components/reports/CostsAnalysisTab";
 import { DepartmentsTableTab } from "@/components/reports/DepartmentsTableTab";
 import HiringKPIReport from "@/components/reports/HiringKPIReport";
 import ExecutiveKpiHub from "@/components/reports/ExecutiveKpiHub";
+import ComplianceLicensingTab from "@/components/reports/ComplianceLicensingTab";
+import AIInterviewAnalyticsTab from "@/components/reports/AIInterviewAnalyticsTab";
 import { InterviewersPerfTab } from "@/components/reports/InterviewersPerfTab";
 import { MonthlyComparisonTab } from "@/components/reports/MonthlyComparisonTab";
 import { OverviewChartsTab } from "@/components/reports/OverviewChartsTab";
@@ -97,6 +99,8 @@ export default function Reports() {
 
   const reportRef = useRef<HTMLDivElement>(null);
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
+  const [selectedJobId, setSelectedJobId] = useState<string>("all");
+  const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const { t, locale, dir } = useI18n();
 
@@ -120,21 +124,62 @@ export default function Reports() {
     [dynamicStages],
   );
 
+  const allJobs = useMemo(() => jobs || [], [jobs]);
+
+  const jobMap = useMemo(() => {
+    const map = new Map<string, (typeof allJobs)[0]>();
+    allJobs.forEach((j) => map.set(j.id, j));
+    return map;
+  }, [allJobs]);
+
+  const departmentList = useMemo(() => {
+    const depts = new Set<string>();
+    allJobs.forEach((j) => {
+      if (j.department && j.department.trim()) depts.add(j.department.trim());
+    });
+    return Array.from(depts);
+  }, [allJobs]);
+
   const allOffers = useMemo(
-    () => (offers || []).filter((o) => isDateInRange(o.created_at, dateRange)),
-    [offers, dateRange],
+    () =>
+      (offers || []).filter((o) => {
+        if (!isDateInRange(o.created_at, dateRange)) return false;
+        if (selectedJobId !== "all" && o.job_id && o.job_id !== selectedJobId) return false;
+        if (selectedDepartment !== "all") {
+          const matchedJob = o.job_id ? jobMap.get(o.job_id) : undefined;
+          if (matchedJob && matchedJob.department !== selectedDepartment) return false;
+        }
+        return true;
+      }),
+    [offers, dateRange, selectedJobId, selectedDepartment, jobMap],
   );
 
   const allCandidates = useMemo(
-    () => (candidates || []).filter((c) => isDateInRange(c.created_at, dateRange)),
-    [candidates, dateRange],
+    () =>
+      (candidates || []).filter((c) => {
+        if (!isDateInRange(c.created_at, dateRange)) return false;
+        if (selectedJobId !== "all" && c.job_id !== selectedJobId) return false;
+        if (selectedDepartment !== "all") {
+          const matchedJob = c.job_id ? jobMap.get(c.job_id) : undefined;
+          if (matchedJob && matchedJob.department !== selectedDepartment) return false;
+        }
+        return true;
+      }),
+    [candidates, dateRange, selectedJobId, selectedDepartment, jobMap],
   );
 
-  const allJobs = useMemo(() => jobs || [], [jobs]);
-
   const allInterviews = useMemo(
-    () => (interviews || []).filter((i) => isDateInRange(i.date, dateRange)),
-    [interviews, dateRange],
+    () =>
+      (interviews || []).filter((i) => {
+        if (!isDateInRange(i.date, dateRange)) return false;
+        if (selectedJobId !== "all" && i.job_id && i.job_id !== selectedJobId) return false;
+        if (selectedDepartment !== "all") {
+          const matchedJob = i.job_id ? jobMap.get(i.job_id) : undefined;
+          if (matchedJob && matchedJob.department !== selectedDepartment) return false;
+        }
+        return true;
+      }),
+    [interviews, dateRange, selectedJobId, selectedDepartment, jobMap],
   );
 
   const branchesComparisonData = useMemo(
@@ -365,16 +410,33 @@ export default function Reports() {
           dir={dir}
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
+          jobs={allJobs}
+          selectedJobId={selectedJobId}
+          onJobChange={setSelectedJobId}
+          departments={departmentList}
+          selectedDepartment={selectedDepartment}
+          onDepartmentChange={setSelectedDepartment}
+          onResetAllFilters={() => {
+            setDateRange({ from: undefined, to: undefined });
+            setSelectedJobId("all");
+            setSelectedDepartment("all");
+          }}
           onOpenReviewModal={() => setReviewModalOpen(true)}
           onExportExcel={handleExportExcel}
         />
 
         <ReportKpiGrid kpis={headerKpis} t={t} />
 
-        <Tabs defaultValue="overview" dir={dir}>
+        <Tabs defaultValue="executive" dir={dir}>
           <TabsList className="bg-md-surface-container border border-md-outline-variant p-1.5 rounded-md3-2xl flex-wrap gap-1.5 h-auto shadow-xs">
             <TabsTrigger value="executive" className={TAB_TRIGGER_CLASS}>
               {locale === "en" ? "Executive KPI Hub" : "المؤشرات التنفيذية للقيادة 📊"}
+            </TabsTrigger>
+            <TabsTrigger value="compliance" className={TAB_TRIGGER_CLASS}>
+              {locale === "en" ? "Compliance & ETEC" : "الامتثال والتراخيص المهنية (ETEC) 🛡️"}
+            </TabsTrigger>
+            <TabsTrigger value="aiAnalytics" className={TAB_TRIGGER_CLASS}>
+              {locale === "en" ? "AI Analytics" : "تحليلات الذكاء الاصطناعي 🤖"}
             </TabsTrigger>
             <TabsTrigger value="overview" className={TAB_TRIGGER_CLASS}>
               {t("reports.overview")}
@@ -428,6 +490,23 @@ export default function Reports() {
               jobs={allJobs}
               interviews={allInterviews}
               offers={allOffers}
+              locale={locale}
+            />
+          </TabsContent>
+
+          <TabsContent value="compliance" className="space-y-4 mt-4">
+            <ComplianceLicensingTab
+              candidates={allCandidates}
+              jobs={allJobs}
+              locale={locale}
+            />
+          </TabsContent>
+
+          <TabsContent value="aiAnalytics" className="space-y-4 mt-4">
+            <AIInterviewAnalyticsTab
+              candidates={allCandidates}
+              interviews={allInterviews}
+              jobs={allJobs}
               locale={locale}
             />
           </TabsContent>

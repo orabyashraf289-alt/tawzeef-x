@@ -1,6 +1,13 @@
 import { motion } from "framer-motion";
-import { BarChart3, Download, FileDown, Filter, Printer, RotateCcw } from "lucide-react";
+import { BarChart3, Briefcase, Building2, Download, FileDown, Filter, Printer, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import DateRangeFilter, { type DateRange } from "./DateRangeFilter";
 
 interface ReportsHeaderProps {
@@ -13,6 +20,13 @@ interface ReportsHeaderProps {
   onDateRangeChange: (range: DateRange) => void;
   onOpenReviewModal: () => void;
   onExportExcel: () => void;
+  jobs?: { id: string; title: string; department?: string | null }[];
+  selectedJobId?: string;
+  onJobChange?: (jobId: string) => void;
+  departments?: string[];
+  selectedDepartment?: string;
+  onDepartmentChange?: (dept: string) => void;
+  onResetAllFilters?: () => void;
 }
 
 export function ReportsHeader({
@@ -25,7 +39,28 @@ export function ReportsHeader({
   onDateRangeChange,
   onOpenReviewModal,
   onExportExcel,
+  jobs = [],
+  selectedJobId = "all",
+  onJobChange,
+  departments = [],
+  selectedDepartment = "all",
+  onDepartmentChange,
+  onResetAllFilters,
 }: ReportsHeaderProps) {
+  const hasActiveFilters = Boolean(
+    dateRange.from ||
+      dateRange.to ||
+      (selectedJobId && selectedJobId !== "all") ||
+      (selectedDepartment && selectedDepartment !== "all")
+  );
+
+  const handleReset = () => {
+    onDateRangeChange({ from: undefined, to: undefined });
+    if (onJobChange) onJobChange("all");
+    if (onDepartmentChange) onDepartmentChange("all");
+    if (onResetAllFilters) onResetAllFilters();
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
@@ -36,7 +71,7 @@ export function ReportsHeader({
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md3-full bg-md-primary-container text-md-on-primary-container text-xs font-bold mb-2">
             <BarChart3 className="w-3.5 h-3.5" />
-            <span>مركز التقارير ومؤشرات الأداء التنفيذية</span>
+            <span>{locale === "en" ? "Executive Analytics & Intelligence Hub" : "مركز التقارير ومؤشرات الأداء التنفيذية"}</span>
           </div>
           <h1 className="text-2xl lg:text-3xl font-black text-foreground">{title}</h1>
           <p className="text-muted-foreground text-xs mt-0.5">{subtitle}</p>
@@ -73,23 +108,63 @@ export function ReportsHeader({
       <div className="flex items-center gap-3 flex-wrap bg-md-surface-container p-2.5 rounded-md3-2xl border border-md-outline-variant shadow-xs">
         <div className="flex items-center gap-2 text-xs font-bold text-foreground">
           <Filter className="w-4 h-4 text-primary" />
-          <span>{locale === "en" ? "Date Range:" : "الفترة الزمنية:"}</span>
+          <span>{locale === "en" ? "Filter Data:" : "تصفية البيانات:"}</span>
         </div>
+
         <DateRangeFilter
           dateRange={dateRange}
           onDateRangeChange={onDateRangeChange}
           locale={locale}
           dir={dir}
         />
-        {(dateRange.from || dateRange.to) && (
+
+        {jobs.length > 0 && onJobChange && (
+          <div className="flex items-center gap-1.5">
+            <Briefcase className="w-3.5 h-3.5 text-muted-foreground hidden sm:inline" />
+            <Select value={selectedJobId} onValueChange={onJobChange}>
+              <SelectTrigger className="h-8 text-xs rounded-md3-full bg-background border-md-outline-variant w-[150px] sm:w-[170px]">
+                <SelectValue placeholder={locale === "en" ? "All Jobs" : "جميع الوظائف"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{locale === "en" ? "All Jobs" : "جميع الوظائف"}</SelectItem>
+                {jobs.map((j) => (
+                  <SelectItem key={j.id} value={j.id}>
+                    {j.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {departments.length > 0 && onDepartmentChange && (
+          <div className="flex items-center gap-1.5">
+            <Building2 className="w-3.5 h-3.5 text-muted-foreground hidden sm:inline" />
+            <Select value={selectedDepartment} onValueChange={onDepartmentChange}>
+              <SelectTrigger className="h-8 text-xs rounded-md3-full bg-background border-md-outline-variant w-[130px] sm:w-[150px]">
+                <SelectValue placeholder={locale === "en" ? "All Departments" : "جميع الأقسام"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{locale === "en" ? "All Departments" : "جميع الأقسام"}</SelectItem>
+                {departments.map((dept) => (
+                  <SelectItem key={dept} value={dept}>
+                    {dept}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {hasActiveFilters && (
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onDateRangeChange({ from: undefined, to: undefined })}
+            onClick={handleReset}
             className="gap-1.5 text-xs text-rose-500 hover:text-rose-600 rounded-md3-full h-8"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            {locale === "en" ? "Reset" : "إعادة ضبط"}
+            {locale === "en" ? "Reset Filters" : "إعادة ضبط"}
           </Button>
         )}
       </div>

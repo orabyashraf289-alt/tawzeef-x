@@ -23,11 +23,15 @@ export async function exportReportsToExcel({
   const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
   const dateLocale = locale === "en" ? "en-US" : "ar-SA";
+  const isEn = locale === "en";
 
   const candidatesSheet = candidates.map((c) => ({
     [t("reports.xl.name")]: c.name,
     [t("reports.xl.email")]: c.email || "",
     [t("reports.xl.role")]: c.role || "",
+    [isEn ? "Location / City" : "المدينة / المنطقة"]: (c as any).location || "",
+    [isEn ? "ETEC License" : "الرخصة المهنية (ETEC)"]: (c as any).license_number || "غير مدخلة",
+    [isEn ? "Qualification" : "المؤهل العلمي"]: (c as any).university_degree || (c as any).education || "",
     [t("reports.xl.stage")]: c.stage || "",
     [t("reports.xl.status")]: c.status,
     [t("reports.xl.source")]: c.source || "",
@@ -37,7 +41,7 @@ export async function exportReportsToExcel({
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.json_to_sheet(candidatesSheet),
-    locale === "en" ? "Candidates" : "المرشحون",
+    isEn ? "Candidates" : "المرشحون والامتثال",
   );
 
   const jobsSheet = jobs.map((j) => ({
@@ -50,7 +54,7 @@ export async function exportReportsToExcel({
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.json_to_sheet(jobsSheet),
-    locale === "en" ? "Jobs" : "الوظائف",
+    isEn ? "Jobs" : "الوظائف",
   );
 
   const interviewsSheet = interviews.map((i) => ({
@@ -60,11 +64,12 @@ export async function exportReportsToExcel({
     [t("reports.xl.time")]: i.time,
     [t("reports.xl.status")]: i.status,
     [t("reports.xl.type")]: i.type,
+    [isEn ? "AI Evaluated" : "تقييم الذكاء الاصطناعي"]: Boolean(i.ai_evaluation) ? (isEn ? "Yes" : "نعم") : (isEn ? "No" : "لا"),
   }));
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.json_to_sheet(interviewsSheet),
-    locale === "en" ? "Interviews" : "المقابلات",
+    isEn ? "Interviews" : "المقابلات",
   );
 
   const offersSheet = offers.map((o) => ({
@@ -77,11 +82,50 @@ export async function exportReportsToExcel({
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.json_to_sheet(offersSheet),
-    locale === "en" ? "Offers" : "العروض",
+    isEn ? "Offers" : "العروض",
   );
 
-  const dateStr = new Date().toLocaleDateString(dateLocale);
-  XLSX.writeFile(wb, `${locale === "en" ? "recruitment-report" : "تقرير-التوظيف"}-${dateStr}.xlsx`);
+  // Summary Metrics Sheet
+  const licensedTotal = candidates.filter((c) => Boolean((c as any).license_number)).length;
+  const highAiMatches = candidates.filter((c) => typeof c.ai_score === "number" && c.ai_score >= 85).length;
+  const summarySheet = [
+    {
+      [isEn ? "Metric" : "المؤشر القياسي"]: isEn ? "Total Candidates" : "إجمالي المرشحين",
+      [isEn ? "Value" : "القيمة"]: candidates.length,
+    },
+    {
+      [isEn ? "Metric" : "المؤشر القياسي"]: isEn ? "ETEC Licensed Candidates" : "الحاصلون على رخصة مهنية ETEC",
+      [isEn ? "Value" : "القيمة"]: licensedTotal,
+    },
+    {
+      [isEn ? "Metric" : "المؤشر القياسي"]: isEn ? "ETEC Compliance Rate" : "نسبة الامتثال للرخص المهنية",
+      [isEn ? "Value" : "القيمة"]: `${candidates.length ? Math.round((licensedTotal / candidates.length) * 100) : 0}%`,
+    },
+    {
+      [isEn ? "Metric" : "المؤشر القياسي"]: isEn ? "High AI Match (>=85%)" : "مطابقة ذكاء اصطناعي استثنائية (85%+)",
+      [isEn ? "Value" : "القيمة"]: highAiMatches,
+    },
+    {
+      [isEn ? "Metric" : "المؤشر القياسي"]: isEn ? "Active Jobs" : "الوظائف المفتوحة",
+      [isEn ? "Value" : "القيمة"]: jobs.filter((j) => j.status === "active" || j.status === "مفتوحة").length,
+    },
+    {
+      [isEn ? "Metric" : "المؤشر القياسي"]: isEn ? "Total Interviews" : "إجمالي المقابلات",
+      [isEn ? "Value" : "القيمة"]: interviews.length,
+    },
+    {
+      [isEn ? "Metric" : "المؤشر القياسي"]: isEn ? "Total Offers" : "إجمالي العروض الوظيفية",
+      [isEn ? "Value" : "القيمة"]: offers.length,
+    },
+  ];
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.json_to_sheet(summarySheet),
+    isEn ? "Executive Summary" : "الملخص التنفيذي والامتثال",
+  );
+
+  const dateStr = new Date().toLocaleDateString(dateLocale).replace(/\//g, "-");
+  XLSX.writeFile(wb, `${isEn ? "recruitment-report" : "تقرير-التوظيف-الشامل"}-${dateStr}.xlsx`);
 }
 
 export async function exportReportsPdf(
