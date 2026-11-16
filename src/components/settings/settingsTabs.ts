@@ -16,6 +16,7 @@ import {
   Target,
   User,
   Webhook,
+  Code2,
 } from "lucide-react";
 
 export type SettingsTabId =
@@ -35,7 +36,8 @@ export type SettingsTabId =
   | "email"
   | "templates"
   | "webhooks"
-  | "hris";
+  | "hris"
+  | "api";
 
 export interface SettingsTabConfig {
   id: SettingsTabId;
@@ -107,6 +109,11 @@ export function buildSettingsTabs({
       label: locale === "en" ? "HRIS (SAP & Oracle)" : "أنظمة HR (SAP / Oracle)",
       icon: Building2,
     },
+    {
+      id: "api",
+      label: locale === "en" ? "Developer API & SDK" : "بوابة المطورين والـ API",
+      icon: Code2,
+    },
   ];
 }
 
@@ -136,7 +143,7 @@ export function buildSettingsGroups({
     },
     {
       title: locale === "en" ? "Messages & integrations" : "الرسائل والتكاملات",
-      ids: ["email", "templates", "linkedin", "webhooks", "hris"],
+      ids: ["email", "templates", "linkedin", "webhooks", "hris", "api"],
     },
     {
       title: locale === "en" ? "Billing" : "الفواتير",

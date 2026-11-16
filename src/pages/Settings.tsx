@@ -13,6 +13,7 @@ import PublicContactSettings from "@/components/PublicContactSettings";
 import SavedFiltersManager from "@/components/SavedFiltersManager";
 import WebhookSettings from "@/components/WebhookSettings";
 import EnterpriseHrisHub from "@/components/settings/EnterpriseHrisHub";
+import DeveloperApiHub from "@/components/settings/DeveloperApiHub";
 import { AccountSettingsSection } from "@/components/settings/AccountSettingsSection";
 import { HiringGoalsSettingsSection } from "@/components/settings/HiringGoalsSettingsSection";
 import { LinkedInSettingsSection } from "@/components/settings/LinkedInSettingsSection";
@@ -118,6 +119,7 @@ export default function SettingsPage() {
                   {activeTab === "linkedin" && <LinkedInSettingsSection />}
                   {activeTab === "webhooks" && <WebhookSettings />}
                   {activeTab === "hris" && <EnterpriseHrisHub />}
+                  {activeTab === "api" && <DeveloperApiHub />}
                 </motion.div>
               </AnimatePresence>
             </div>

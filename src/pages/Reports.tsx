@@ -18,6 +18,7 @@ import { CostsAnalysisTab } from "@/components/reports/CostsAnalysisTab";
 import { DepartmentsTableTab } from "@/components/reports/DepartmentsTableTab";
 import HiringKPIReport from "@/components/reports/HiringKPIReport";
 import ExecutiveKpiHub from "@/components/reports/ExecutiveKpiHub";
+import PredictiveHiringHub from "@/components/reports/PredictiveHiringHub";
 import ComplianceLicensingTab from "@/components/reports/ComplianceLicensingTab";
 import AIInterviewAnalyticsTab from "@/components/reports/AIInterviewAnalyticsTab";
 import { InterviewersPerfTab } from "@/components/reports/InterviewersPerfTab";
@@ -438,6 +439,9 @@ export default function Reports() {
             <TabsTrigger value="aiAnalytics" className={TAB_TRIGGER_CLASS}>
               {locale === "en" ? "AI Analytics" : "تحليلات الذكاء الاصطناعي 🤖"}
             </TabsTrigger>
+            <TabsTrigger value="predictiveBi" className={TAB_TRIGGER_CLASS}>
+              {locale === "en" ? "Predictive BI & Market Trends 📈" : "التحليلات التنبؤية واتجاهات السوق 📈"}
+            </TabsTrigger>
             <TabsTrigger value="overview" className={TAB_TRIGGER_CLASS}>
               {t("reports.overview")}
             </TabsTrigger>
@@ -507,6 +511,14 @@ export default function Reports() {
               candidates={allCandidates}
               interviews={allInterviews}
               jobs={allJobs}
+              locale={locale}
+            />
+          </TabsContent>
+
+          <TabsContent value="predictiveBi" className="space-y-4 mt-4">
+            <PredictiveHiringHub
+              jobs={allJobs}
+              candidates={allCandidates}
               locale={locale}
             />
           </TabsContent>

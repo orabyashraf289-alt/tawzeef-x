@@ -27,6 +27,7 @@ import CompanySwitcher from "@/components/CompanySwitcher";
 import ScreenGuideHelper from "@/components/ScreenGuideHelper";
 import WelcomeVideoModal from "@/components/WelcomeVideoModal";
 import NotificationCenterPopover from "@/components/notifications/NotificationCenterPopover";
+import OfflineSyncStatusBanner from "@/components/offline/OfflineSyncStatusBanner";
 import { prefetchRoute, recordNavigation } from "@/lib/routePrefetch";
 
 const tourIdMap: Record<string, string> = {
@@ -469,6 +470,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Offline Connectivity & Outbox Sync Banner */}
+      <OfflineSyncStatusBanner />
 
       {/* Main Content Area */}
       <main className={cn("flex-1 min-w-0 flex flex-col", dir === "rtl" ? "lg:mr-64" : "lg:ml-64")}>
