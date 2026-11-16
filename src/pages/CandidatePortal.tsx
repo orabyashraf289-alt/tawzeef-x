@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Check, Clock, Circle, Briefcase, MapPin, ArrowLeft, Shield, Star, Brain, GraduationCap, Award, BookOpen, Video, Plus, FileText, CheckCircle2 } from "lucide-react";
+import { Search, Check, Clock, Circle, Briefcase, MapPin, ArrowLeft, Shield, Star, Brain, GraduationCap, Award, BookOpen, Video, Plus, FileText, CheckCircle2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import CandidateChatbot from "@/components/candidate-portal/CandidateChatbot";
+import CandidateInterviewPrepDialog from "@/components/candidate/CandidateInterviewPrepDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -131,6 +132,7 @@ function PipelineProgress({ currentStage, stages }: { currentStage: string; stag
 }
 
 export default function CandidatePortal() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [searchType, setSearchType] = useState<"tracking" | "email">("tracking");
   const [input, setInput] = useState("");
@@ -140,6 +142,9 @@ export default function CandidatePortal() {
   const [emailSent, setEmailSent] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const activeSearch = useRef<AbortController | null>(null);
+
+  // Candidate Interview Prep Modal State
+  const [prepModalCandidate, setPrepModalCandidate] = useState<CandidateResult | null>(null);
 
   // Edit Teacher Credentials Modal State
   const [editTeacherModal, setEditTeacherModal] = useState<CandidateResult | null>(null);
@@ -438,6 +443,49 @@ export default function CandidatePortal() {
                   <h3 className="text-xs font-bold text-foreground">مراحل الفرز للوظيفة التعليمية:</h3>
                   <PipelineProgress currentStage={c.stage} stages={DEFAULT_STAGES} />
 
+                  {/* Scheduled / Active Interview Card */}
+                  {/مقابلة|interview/.test(c.stage) && (
+                    <div className="p-4 rounded-2xl bg-primary/[0.04] border border-primary/25 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                            <Video className="w-4 h-4" />
+                            جلسة المقابلة الشخصية عبر الفيديو
+                          </span>
+                        </div>
+                        <p className="text-xs font-bold text-foreground">
+                          أهلاً بك! تم تأهيلك لمرحلة المقابلة لوظيفة {c.jobTitle || c.role || "المعلن عنها"}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          يمكنك تجربة فحص الكاميرا والميكروفون والاطلاع على نماذج الأسئلة الذكية قبل الانضمام.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                          onClick={() => setPrepModalCandidate(c)}
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          التحضير وفحص الأجهزة
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="rounded-xl text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                          onClick={() => {
+                            const roomUrl = `/meeting/tawzeef-x-${c.trackingCode}?name=${encodeURIComponent(c.name)}&position=${encodeURIComponent(c.jobTitle || c.role || "")}`;
+                            navigate(roomUrl);
+                          }}
+                        >
+                          <Video className="w-3.5 h-3.5" />
+                          الانضمام للمقابلة 🎥
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Teacher Credentials Quick Summary Card */}
                   <div className="p-4 rounded-2xl bg-muted/20 border border-border/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="space-y-1">
@@ -666,6 +714,19 @@ export default function CandidatePortal() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Candidate Interview Prep & Device Simulator Modal */}
+      <CandidateInterviewPrepDialog
+        open={!!prepModalCandidate}
+        onOpenChange={(open) => !open && setPrepModalCandidate(null)}
+        candidateName={prepModalCandidate?.name || ""}
+        jobTitle={prepModalCandidate?.jobTitle || prepModalCandidate?.role || ""}
+        meetingUrl={
+          prepModalCandidate
+            ? `/meeting/tawzeef-x-${prepModalCandidate.trackingCode}?name=${encodeURIComponent(prepModalCandidate.name)}&position=${encodeURIComponent(prepModalCandidate.jobTitle || prepModalCandidate.role || "")}`
+            : ""
+        }
+      />
     </div>
   );
 }

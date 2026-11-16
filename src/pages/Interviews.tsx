@@ -10,7 +10,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { InterviewsSkeleton } from "@/components/Skeletons";
 import InterviewCalendar from "@/components/InterviewCalendar";
 import InterviewEvaluationForm from "@/components/InterviewEvaluationForm";
-import { Calendar, Clock, Video, MapPin, User, Star, Plus, CheckCircle, XCircle, ExternalLink, Copy, Check, Link2, FileText, CircleDot, LayoutGrid, List, Sparkles, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
+import AIInterviewReportDialog from "@/components/interviews/AIInterviewReportDialog";
+import { Calendar, Clock, Video, MapPin, User, Star, Plus, CheckCircle, XCircle, ExternalLink, Copy, Check, Link2, FileText, CircleDot, LayoutGrid, List, Sparkles, TrendingUp, TrendingDown, AlertTriangle, Brain } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 
@@ -534,6 +535,17 @@ export default function Interviews() {
                               ))}
                             </div>
                           )}
+                          {interview.status === "مكتملة" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1 border-primary/40 text-primary hover:bg-primary/5 font-semibold"
+                              onClick={() => setReportModalData(interview)}
+                            >
+                              <Brain className="w-3.5 h-3.5" />
+                              تقرير التقييم الذكي
+                            </Button>
+                          )}
                           {/* Meeting Actions for scheduled remote interviews */}
                           {interview.status === "مجدولة" && interview.type === "عن بُعد" && (
                             <>
@@ -897,6 +909,16 @@ export default function Interviews() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AI Interview Report Dialog */}
+      <AIInterviewReportDialog
+        open={!!reportModalData}
+        onOpenChange={(open) => !open && setReportModalData(null)}
+        interview={reportModalData}
+        onMoveToOffer={(int) => {
+          navigate(`/offers?action=new&candidate=${encodeURIComponent(int.candidate_name)}&position=${encodeURIComponent(int.position)}`);
+        }}
+      />
     </DashboardLayout>
   );
 }
