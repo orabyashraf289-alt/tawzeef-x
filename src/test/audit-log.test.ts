@@ -107,6 +107,50 @@ describe("Audit Log Data Structure", () => {
   });
 });
 
+describe("Guest Visitor & Unauthenticated Traffic Tracking", () => {
+  it("structures valid unauthenticated visitor tracking records", () => {
+    const guestEntry = {
+      event_type: "visitor.entry",
+      user_id: null,
+      user_email: null,
+      ip_address: "178.80.120.45",
+      details: {
+        visitor_id: "vis_17948293_ab12",
+        is_guest: true,
+        is_returning: false,
+        path: "/jobs",
+        referrer: "https://google.com",
+        device_type: "Mobile",
+        device_name: "iPhone",
+        browser_name: "Safari",
+        os_name: "iOS",
+      },
+    };
+
+    expect(guestEntry.event_type).toBe("visitor.entry");
+    expect(guestEntry.user_id).toBeNull();
+    expect(guestEntry.user_email).toBeNull();
+    expect(guestEntry.details.is_guest).toBe(true);
+    expect(guestEntry.details.path).toBe("/jobs");
+    expect(guestEntry.details.device_type).toBe("Mobile");
+  });
+
+  it("filters guest visitor records by public routes", () => {
+    const events = [
+      { event_type: "visitor.entry", details: { path: "/jobs", is_guest: true } },
+      { event_type: "visitor.page_view", details: { path: "/careers", is_guest: true } },
+      { event_type: "login.success", details: { path: "/dashboard", is_guest: false } },
+      { event_type: "visitor.page_view", details: { path: "/auth", is_guest: true } },
+    ];
+
+    const guestEvents = events.filter((e) => e.details.is_guest);
+    expect(guestEvents).toHaveLength(3);
+
+    const jobsVisitors = guestEvents.filter((e) => e.details.path === "/jobs");
+    expect(jobsVisitors).toHaveLength(1);
+  });
+});
+
 describe("Audit Log Filtering", () => {
   const logs = [
     { event_type: "login.success", created_at: "2024-01-10T10:00:00Z" },

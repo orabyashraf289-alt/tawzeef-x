@@ -28,7 +28,10 @@ export type AuditEventType =
   | "member.invited"
   | "member.deleted"
   | "data.exported"
-  | "settings.changed";
+  | "settings.changed"
+  | "visitor.entry"
+  | "visitor.page_view"
+  | "guest.visit";
 
 export async function logAuditEvent(params: {
   eventType: AuditEventType;
@@ -37,7 +40,13 @@ export async function logAuditEvent(params: {
   details?: Record<string, unknown>;
 }) {
   try {
-    const unauthEvents: string[] = ["login.failed", "login.otp_failed"];
+    const unauthEvents: string[] = [
+      "login.failed",
+      "login.otp_failed",
+      "visitor.entry",
+      "visitor.page_view",
+      "guest.visit",
+    ];
     const isUnauthEvent = unauthEvents.includes(params.eventType);
 
     if (isUnauthEvent) {

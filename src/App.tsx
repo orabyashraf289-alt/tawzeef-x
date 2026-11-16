@@ -16,6 +16,7 @@ import { PageSkeleton } from "@/components/Skeletons";
 import { SessionManager } from "@/components/SessionManager";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { RouteSeoManager } from "@/components/RouteSeoManager";
+import VisitorTrackerManager from "@/components/VisitorTrackerManager";
 
 // Eagerly loaded (critical path)
 import LandingPage from "./pages/LandingPage";
@@ -220,6 +221,7 @@ const App = () => {
                     <Toaster />
                     <Sonner />
                     <BrowserRouter>
+                      <VisitorTrackerManager />
                       <AnimatedRoutes />
                     </BrowserRouter>
                   </TooltipProvider>

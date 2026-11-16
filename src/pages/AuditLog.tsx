@@ -34,6 +34,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { detectUserDevice } from "@/lib/deviceDetector";
 import { getCountryFlag } from "@/lib/locationService";
 import { formatExactArabicDuration } from "@/lib/sessionTracker";
+import GuestVisitorsMonitor from "@/components/security/GuestVisitorsMonitor";
+import LiveSessionsMonitor from "@/components/security/LiveSessionsMonitor";
 
 // ────────────────────────────────────────────────────────────
 // Constants & Maps
@@ -85,6 +87,10 @@ const EVENT_TYPES: Record<string, {
   "password_reset":         { label: "إعادة تعيين كلمة مرور",        icon: Lock,         color: "text-purple-500",  category: "security", severity: "medium"   },
   "signup":                 { label: "تسجيل حساب جديد",              icon: User,         color: "text-blue-500",    category: "roles",    severity: "low"      },
   "security.suspicious_ip": { label: "🚨 محاولة مشبوهة / IP غير معروف", icon: AlertTriangle, color: "text-rose-600", category: "security", severity: "critical" },
+  "visitor.entry":          { label: "دخول زائر غير مسجل 🌐",        icon: Globe,        color: "text-blue-500",    category: "session",  severity: "info"     },
+  "visitor.page_view":      { label: "تصفح صفحة عامة 📄",           icon: Eye,          color: "text-cyan-500",    category: "session",  severity: "info"     },
+  "guest.visit":            { label: "زيارة ضيف للمنصة 👤",          icon: Globe,        color: "text-emerald-500", category: "session",  severity: "info"     },
+  "session.revoked":        { label: "إنهاء جلسة إجباري 🔒",         icon: Lock,         color: "text-rose-500",    category: "security", severity: "high"     },
 };
 
 // ────────────────────────────────────────────────────────────
@@ -907,6 +913,7 @@ function KanbanView({ logs, allLogs, onFilterByUser }: { logs: any[]; allLogs: a
 // ────────────────────────────────────────────────────────────
 
 export default function AuditLog() {
+  const [securityScreen, setSecurityScreen] = useState<"audit_trail" | "guest_visitors" | "live_sessions">("audit_trail");
   const [page, setPage] = useState(0);
   const [activeTab, setActiveTab] = useState("all");
   const [eventFilter, setEventFilter] = useState("all");
@@ -1155,6 +1162,48 @@ export default function AuditLog() {
           }
         />
 
+        {/* Primary Security Sub-Screens Navigator */}
+        <div className="flex items-center gap-2 p-1.5 bg-muted/40 rounded-2xl border border-border/60 flex-wrap shadow-xs">
+          <Button
+            variant={securityScreen === "audit_trail" ? "default" : "ghost"}
+            size="sm"
+            className="gap-2 text-xs h-9 font-bold rounded-xl"
+            onClick={() => setSecurityScreen("audit_trail")}
+          >
+            <Shield className="w-4 h-4" />
+            سجل تدقيق العمليات (Audit Trail)
+          </Button>
+
+          <Button
+            variant={securityScreen === "guest_visitors" ? "default" : "ghost"}
+            size="sm"
+            className="gap-2 text-xs h-9 font-bold rounded-xl relative"
+            onClick={() => setSecurityScreen("guest_visitors")}
+          >
+            <Globe className="w-4 h-4 text-blue-500" />
+            رصد حركة الزوار والضيوف غير المسجلين
+            <Badge className="bg-blue-500 text-white text-[9px] px-1.5 py-0 h-4 rounded-full animate-pulse">
+              شاشة مستقلة
+            </Badge>
+          </Button>
+
+          <Button
+            variant={securityScreen === "live_sessions" ? "default" : "ghost"}
+            size="sm"
+            className="gap-2 text-xs h-9 font-bold rounded-xl"
+            onClick={() => setSecurityScreen("live_sessions")}
+          >
+            <Lock className="w-4 h-4 text-indigo-500" />
+            الجلسات الحية والحظر المباشر
+          </Button>
+        </div>
+
+        {securityScreen === "guest_visitors" ? (
+          <GuestVisitorsMonitor />
+        ) : securityScreen === "live_sessions" ? (
+          <LiveSessionsMonitor />
+        ) : (
+          <>
         {/* Threat Intelligence Panel */}
         <AnimatePresence>
           {visibleThreats.length > 0 && (
@@ -1448,6 +1497,8 @@ export default function AuditLog() {
             </motion.div>
           )}
         </AnimatePresence>
+          </>
+        )}
 
       </div>
     </DashboardLayout>

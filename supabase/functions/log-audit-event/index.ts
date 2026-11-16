@@ -30,8 +30,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Only allow unauthenticated calls for login failure events
-    const allowedUnauthEvents = ["login.failed", "login.otp_failed"];
+    // Only allow unauthenticated calls for login failures and anonymous visitor tracking
+    const allowedUnauthEvents = [
+      "login.failed",
+      "login.otp_failed",
+      "visitor.entry",
+      "visitor.page_view",
+      "guest.visit",
+    ];
     let user = null;
 
     if (authHeader) {
