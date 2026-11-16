@@ -87,6 +87,15 @@ const VERIFIED_INTEGRATIONS: IntegrationItem[] = [
     endpointOrTech: "jobFeedGenerator • XML v2 • Schema.org",
     icon: Globe,
   },
+  {
+    id: "sap-oracle",
+    name: "أنظمة HR (SAP / Oracle)",
+    nameEn: "Enterprise HRIS (SAP / Oracle)",
+    detail: "موصّل مؤسسي لدعم تصدير واستيراد SAP SuccessFactors و Oracle HCM Cloud (ملفات Worker.dat HDL) ومزامنة تسليم الموظفين الجدد",
+    detailEn: "Enterprise HRIS connector supporting SAP SuccessFactors, Oracle HCM Cloud Worker.dat HDL exports & hired candidate handoff",
+    endpointOrTech: "enterpriseHrisConnector • OData • HDL",
+    icon: Building,
+  },
 ];
 
 const PLANNED_INTEGRATIONS: IntegrationItem[] = [
@@ -100,11 +109,11 @@ const PLANNED_INTEGRATIONS: IntegrationItem[] = [
     icon: Calendar,
   },
   {
-    id: "sap-oracle",
-    name: "أنظمة HR (SAP / Oracle)",
-    nameEn: "Enterprise HRIS (SAP / Oracle)",
-    detail: "لا يوجد موصّل فعلي لأنظمة ERP/HRIS المؤسسية حتى الآن",
-    detailEn: "No live SAP or Oracle HRIS connector implemented yet",
+    id: "adp-workday",
+    name: "Workday و ADP Enterprise",
+    nameEn: "Workday & ADP Enterprise",
+    detail: "مخطط للتوسعات المؤسسية العالمية القادمة عبر بروتوكولات RaaS و WECP",
+    detailEn: "Planned for upcoming global enterprise rollouts via RaaS & WECP protocols",
     endpointOrTech: "Planned",
     icon: Building,
   },

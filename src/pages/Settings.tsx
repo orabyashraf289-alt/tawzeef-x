@@ -12,6 +12,7 @@ import PipelineStagesManager from "@/components/PipelineStagesManager";
 import PublicContactSettings from "@/components/PublicContactSettings";
 import SavedFiltersManager from "@/components/SavedFiltersManager";
 import WebhookSettings from "@/components/WebhookSettings";
+import EnterpriseHrisHub from "@/components/settings/EnterpriseHrisHub";
 import { AccountSettingsSection } from "@/components/settings/AccountSettingsSection";
 import { HiringGoalsSettingsSection } from "@/components/settings/HiringGoalsSettingsSection";
 import { LinkedInSettingsSection } from "@/components/settings/LinkedInSettingsSection";
@@ -116,6 +117,7 @@ export default function SettingsPage() {
                   {activeTab === "templates" && <NotificationTemplatesSection />}
                   {activeTab === "linkedin" && <LinkedInSettingsSection />}
                   {activeTab === "webhooks" && <WebhookSettings />}
+                  {activeTab === "hris" && <EnterpriseHrisHub />}
                 </motion.div>
               </AnimatePresence>
             </div>

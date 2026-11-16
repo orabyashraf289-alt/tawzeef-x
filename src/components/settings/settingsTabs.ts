@@ -34,7 +34,8 @@ export type SettingsTabId =
   | "linkedin"
   | "email"
   | "templates"
-  | "webhooks";
+  | "webhooks"
+  | "hris";
 
 export interface SettingsTabConfig {
   id: SettingsTabId;
@@ -101,6 +102,11 @@ export function buildSettingsTabs({
       label: locale === "en" ? "Slack, Teams & Webhooks" : "تكامل Slack وتيمز والـ Webhooks",
       icon: Webhook,
     },
+    {
+      id: "hris",
+      label: locale === "en" ? "HRIS (SAP & Oracle)" : "أنظمة HR (SAP / Oracle)",
+      icon: Building2,
+    },
   ];
 }
 
@@ -130,7 +136,7 @@ export function buildSettingsGroups({
     },
     {
       title: locale === "en" ? "Messages & integrations" : "الرسائل والتكاملات",
-      ids: ["email", "templates", "linkedin", "webhooks"],
+      ids: ["email", "templates", "linkedin", "webhooks", "hris"],
     },
     {
       title: locale === "en" ? "Billing" : "الفواتير",

@@ -4,7 +4,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import AIEvaluationCard from "@/components/AIEvaluationCard";
 import {
   Search, Mail, Phone, Star, UserPlus, Users, UserCheck, UserX, Brain, Sparkles,
-  GitCompareArrows, X, Filter, ArrowUpDown, CheckSquare, Trash2, ArrowRight,
+  GitCompareArrows, GitMerge, X, Filter, ArrowUpDown, CheckSquare, Trash2, ArrowRight,
   Download, LayoutGrid, List, Loader2, Eye, FileText,
   Calendar, Building, Globe, RefreshCw, Plus, MessageCircle, CheckCircle2
 } from "lucide-react";
@@ -26,6 +26,8 @@ import { useScreenPermissions } from "@/hooks/useScreenPermissions";
 import { useCompactView } from "@/hooks/useCompactView";
 import { useProgressiveRender } from "@/hooks/useProgressiveRender";
 import { useAuth } from "@/contexts/AuthContext";
+import CompareDialog from "@/components/candidates/CompareDialog";
+import CandidateDeduplicationHub from "@/components/candidates/CandidateDeduplicationHub";
 
 const statusStyles: Record<string, string> = {
   "مقبول": "bg-success/10 text-success border-success/20",
@@ -43,9 +45,6 @@ const getInitials = (name?: string | null) => {
 };
 
 const EVAL_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/evaluate-candidate`;
-
-
-import CompareDialog from "@/components/candidates/CompareDialog";
 
 
 /* ─── Add Candidate Modal ─── */
@@ -254,6 +253,7 @@ export default function Candidates() {
   const [selectedCandidateForAiSummary, setSelectedCandidateForAiSummary] = useState<any | null>(null);
   const [selectedCandidateForQuickView, setSelectedCandidateForQuickView] = useState<any | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [deduplicationOpen, setDeduplicationOpen] = useState(false);
 
   // AI Screening runner
   const runAutoScreening = async (selectedOnly = false) => {
@@ -566,6 +566,11 @@ export default function Candidates() {
 
             <Button size="sm" variant="outline" onClick={toggleCompact} className="gap-1.5 rounded-md3-xl border-md-outline-variant h-10 w-10 p-0" title={isCompact ? "عرض كروت" : "عرض مدمج"}>
               {isCompact ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
+            </Button>
+
+            <Button size="sm" variant="outline" onClick={() => setDeduplicationOpen(true)} className="gap-1.5 rounded-md3-xl border-md-outline-variant text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 h-10 px-3 text-xs font-bold">
+              <GitMerge className="w-4 h-4 text-amber-600" />
+              <span>كشف ودمج المكررين</span>
             </Button>
 
             {filtered.length > 0 && (
@@ -1147,6 +1152,13 @@ export default function Candidates() {
       {showCompare && compareList.length >= 2 && (
         <CompareDialog candidates={compareList} onClose={() => setShowCompare(false)} />
       )}
+
+      {/* Deduplication & Smart Merge Modal */}
+      <CandidateDeduplicationHub
+        open={deduplicationOpen}
+        onOpenChange={setDeduplicationOpen}
+        candidates={(candidates as any) || []}
+      />
 
       {/* AI CV Summary Drawer */}
       <AnimatePresence>
