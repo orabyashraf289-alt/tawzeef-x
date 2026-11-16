@@ -17,6 +17,7 @@ import { BranchComparisonTab } from "@/components/reports/BranchComparisonTab";
 import { CostsAnalysisTab } from "@/components/reports/CostsAnalysisTab";
 import { DepartmentsTableTab } from "@/components/reports/DepartmentsTableTab";
 import HiringKPIReport from "@/components/reports/HiringKPIReport";
+import ExecutiveKpiHub from "@/components/reports/ExecutiveKpiHub";
 import { InterviewersPerfTab } from "@/components/reports/InterviewersPerfTab";
 import { MonthlyComparisonTab } from "@/components/reports/MonthlyComparisonTab";
 import { OverviewChartsTab } from "@/components/reports/OverviewChartsTab";
@@ -372,6 +373,9 @@ export default function Reports() {
 
         <Tabs defaultValue="overview" dir={dir}>
           <TabsList className="bg-md-surface-container border border-md-outline-variant p-1.5 rounded-md3-2xl flex-wrap gap-1.5 h-auto shadow-xs">
+            <TabsTrigger value="executive" className={TAB_TRIGGER_CLASS}>
+              {locale === "en" ? "Executive KPI Hub" : "المؤشرات التنفيذية للقيادة 📊"}
+            </TabsTrigger>
             <TabsTrigger value="overview" className={TAB_TRIGGER_CLASS}>
               {t("reports.overview")}
             </TabsTrigger>
@@ -417,6 +421,16 @@ export default function Reports() {
               </TabsTrigger>
             )}
           </TabsList>
+
+          <TabsContent value="executive" className="space-y-4 mt-4">
+            <ExecutiveKpiHub
+              candidates={allCandidates}
+              jobs={allJobs}
+              interviews={allInterviews}
+              offers={allOffers}
+              locale={locale}
+            />
+          </TabsContent>
 
           <TabsContent value="overview" className="space-y-4 mt-4">
             <OverviewChartsTab monthlyData={monthlyData} aiScoreData={aiScoreData} t={t} />
