@@ -21,7 +21,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Zap, Plus, Trash2, Pencil, Play, Pause, RefreshCw, AlertTriangle } from "lucide-react";
+import { Zap, Plus, Trash2, Pencil, Play, Pause, RefreshCw, AlertTriangle, Sparkles, MessageSquare, Mail, Smartphone } from "lucide-react";
+import { RECRUITMENT_TEMPLATES } from "@/lib/messagingTemplates";
 
 const triggerLabels: Record<string, string> = {
   "candidate.stage_changed": "عند تغيير مرحلة المرشح",
@@ -600,6 +601,32 @@ export default function AutomationBuilder() {
 
             {actionType === "send_email" && (
               <div className="space-y-3 rounded-xl border p-3 bg-muted/20">
+                <div className="flex items-center justify-between pb-1 border-b border-border/40">
+                  <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" /> تطبيق قالب جاهز:
+                  </span>
+                  <Select
+                    value=""
+                    onValueChange={(val) => {
+                      const t = RECRUITMENT_TEMPLATES.find((x) => x.id === val);
+                      if (t) {
+                        setEmailSubject(t.email.subject);
+                        setEmailBody(t.email.bodyHtml);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-7 w-44 text-[11px] rounded-lg">
+                      <SelectValue placeholder="اختر من القوالب..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {RECRUITMENT_TEMPLATES.map((t) => (
+                        <SelectItem key={t.id} value={t.id} className="text-xs">
+                          {t.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-1.5">
                   <Label>المستلم</Label>
                   <Select
@@ -702,6 +729,32 @@ export default function AutomationBuilder() {
 
             {actionType === "send_whatsapp" && (
               <div className="space-y-3 rounded-xl border p-3 bg-muted/20">
+                <div className="flex items-center justify-between pb-1 border-b border-border/40">
+                  <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" /> تطبيق قالب واتساب جاهز:
+                  </span>
+                  <Select
+                    value=""
+                    onValueChange={(val) => {
+                      const t = RECRUITMENT_TEMPLATES.find((x) => x.id === val);
+                      if (t) {
+                        setWhatsappMessage(t.whatsapp.text);
+                        setWhatsappTemplateName(t.whatsapp.templateName);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-7 w-44 text-[11px] rounded-lg">
+                      <SelectValue placeholder="اختر من القوالب..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {RECRUITMENT_TEMPLATES.map((t) => (
+                        <SelectItem key={t.id} value={t.id} className="text-xs">
+                          {t.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 {whatsappConfigured === false && (
                   <div role="status" className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 text-xs text-amber-800 dark:text-amber-300">
                     <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -762,6 +815,31 @@ export default function AutomationBuilder() {
 
             {actionType === "send_sms" && (
               <div className="space-y-3 rounded-xl border p-3 bg-muted/20">
+                <div className="flex items-center justify-between pb-1 border-b border-border/40">
+                  <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" /> تطبيق قالب SMS جاهز:
+                  </span>
+                  <Select
+                    value=""
+                    onValueChange={(val) => {
+                      const t = RECRUITMENT_TEMPLATES.find((x) => x.id === val);
+                      if (t) {
+                        setSmsMessage(t.sms.text);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-7 w-44 text-[11px] rounded-lg">
+                      <SelectValue placeholder="اختر من القوالب..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {RECRUITMENT_TEMPLATES.map((t) => (
+                        <SelectItem key={t.id} value={t.id} className="text-xs">
+                          {t.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 {smsConfigured === false && (
                   <div role="status" className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 text-xs text-amber-800 dark:text-amber-300">
                     <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />

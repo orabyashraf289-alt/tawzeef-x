@@ -12,12 +12,13 @@ import { useI18n } from "@/contexts/I18nContext";
 import PipelineStepper from "@/components/PipelineStepper";
 import StageDetailPanel from "@/components/StageDetailPanel";
 import AutomationBuilder from "@/components/AutomationBuilder";
+import MessagingAutomationHub from "@/components/messaging/MessagingAutomationHub";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   GitBranch, Plus, Trash2, Check, X, Loader2, Settings2, Users,
   FileText, FileSearch, Phone, Code, Briefcase, Circle,
   Mail, Target, Award, Heart, ThumbsUp, AlertTriangle,
-  Eye, Star, Timer, Zap, Sparkles
+  Eye, Star, Timer, Zap, Sparkles, MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -199,13 +200,17 @@ export default function WorkflowEditor() {
         </motion.div>
 
         <Tabs defaultValue="stages" className="w-full space-y-6">
-          <TabsList className="grid w-full grid-cols-2 max-w-md h-12 p-1 bg-muted/60 rounded-2xl">
+          <TabsList className="grid w-full grid-cols-3 max-w-xl h-12 p-1 bg-muted/60 rounded-2xl">
             <TabsTrigger value="stages" className="rounded-xl font-bold text-xs gap-2">
               <GitBranch className="w-4 h-4 text-primary" /> {isAr ? "مسارات ومراحل التوظيف" : "Recruitment Pipeline"}
             </TabsTrigger>
 
             <TabsTrigger value="automation" className="rounded-xl font-bold text-xs gap-2">
               <Zap className="w-4 h-4 text-amber-500" /> {isAr ? "محرك الأتمتة والسيناريوهات" : "Automation Builder"}
+            </TabsTrigger>
+
+            <TabsTrigger value="messaging" className="rounded-xl font-bold text-xs gap-2">
+              <MessageSquare className="w-4 h-4 text-emerald-500" /> {isAr ? "أتمتة الرسائل وواتساب" : "Messaging & WhatsApp"}
             </TabsTrigger>
           </TabsList>
 
@@ -249,6 +254,10 @@ export default function WorkflowEditor() {
 
           <TabsContent value="automation" className="mt-0">
             <AutomationBuilder />
+          </TabsContent>
+
+          <TabsContent value="messaging" className="mt-0">
+            <MessagingAutomationHub />
           </TabsContent>
         </Tabs>
       </div>

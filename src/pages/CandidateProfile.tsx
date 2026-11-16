@@ -47,6 +47,8 @@ import { Progress } from "@/components/ui/progress";
 import CandidateChecklistPanel from "@/components/CandidateChecklistPanel";
 import { encryptField, decryptField } from "@/lib/security";
 import { useI18n } from "@/contexts/I18nContext";
+import { useCompany } from "@/contexts/CompanyContext";
+import CandidateQuickMessageDialog from "@/components/messaging/CandidateQuickMessageDialog";
 import { ProfileSkeleton } from "@/components/Skeletons";
 
 const statusConfig: Record<string, { label: string; bg: string; dot: string }> = {
@@ -157,12 +159,14 @@ export default function CandidateProfile() {
   const { id } = useParams();
   const { user } = useAuth();
   const { locale } = useI18n();
+  const { activeCompany } = useCompany();
   const queryClient = useQueryClient();
   const { data: candidates, isLoading: isCandidatesLoading } = useCandidates();
   const [overrideStage, setOverrideStage] = useState<string | null>(null);
   const [overrideStatus, setOverrideStatus] = useState<string | null>(null);
   const [stageToConfirm, setStageToConfirm] = useState<string | null>(null);
   const [isChangingStage, setIsChangingStage] = useState(false);
+  const [showMessageDialog, setShowMessageDialog] = useState(false);
 
   useEffect(() => {
     setOverrideStage(null);
@@ -478,6 +482,15 @@ export default function CandidateProfile() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="gap-1.5 rounded-xl text-xs h-9 text-emerald-700 bg-emerald-50/80 border-emerald-300 hover:bg-emerald-100 font-bold"
+                  onClick={() => setShowMessageDialog(true)}
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                  مراسلة ذكية (واتساب / بريد)
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="gap-1.5 rounded-xl text-xs h-9 text-emerald-700 bg-emerald-50 border-emerald-300 hover:bg-emerald-100 font-bold"
                   asChild
                 >
@@ -640,6 +653,22 @@ export default function CandidateProfile() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {candidate && (
+          <CandidateQuickMessageDialog
+            open={showMessageDialog}
+            onOpenChange={setShowMessageDialog}
+            candidate={{
+              id: candidate.id,
+              name: candidateName,
+              email: candidateEmail,
+              phone: candidatePhone,
+              job_title: candidateRole,
+              company_id: candidate.company_id,
+              company_name: activeCompany?.name || "توظيف إكس",
+            }}
+          />
+        )}
       </div>
     </DashboardLayout>
   );
