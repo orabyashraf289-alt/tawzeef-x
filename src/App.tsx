@@ -39,6 +39,7 @@ const Interviews = lazy(() => import("./pages/Interviews"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const Pipeline = lazy(() => import("./pages/Pipeline"));
 const ApplyJob = lazy(() => import("./pages/ApplyJob"));
+const EventCheckinPage = lazy(() => import("./pages/EventCheckinPage"));
 const CandidatePortal = lazy(() => import("./pages/CandidatePortal"));
 const BookInterview = lazy(() => import("./pages/BookInterview"));
 const TeamManagement = lazy(() => import("./pages/TeamManagement"));
@@ -111,6 +112,8 @@ function AnimatedRoutes() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/apply/:id" element={<ApplyJob />} />
+        <Route path="/checkin/:id" element={<EventCheckinPage />} />
+        <Route path="/checkin" element={<EventCheckinPage />} />
         <Route path="/portal" element={<CandidatePortal />} />
         <Route path="/candidate-portal" element={<CandidatePortal />} />
         <Route path="/book/:candidateId" element={<BookInterview />} />

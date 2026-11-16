@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Briefcase, MapPin, Clock, Plus, Search, TrendingUp, LayoutGrid, List, QrCode, Archive, RotateCcw, Filter, X, Copy, Pencil, Trash2, Share2, Crown, Linkedin, Calendar, UserCheck, Workflow, Loader2, GitBranch } from "lucide-react";
+import { Briefcase, MapPin, Clock, Plus, Search, TrendingUp, LayoutGrid, List, QrCode, Archive, RotateCcw, Filter, X, Copy, Pencil, Trash2, Share2, Crown, Linkedin, Calendar, UserCheck, Workflow, Loader2, GitBranch, Globe } from "lucide-react";
 import { useStageMutations, STAGE_TEMPLATES } from "@/hooks/usePipelineStages";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import AddJobDialog from "@/components/AddJobDialog";
 import ShareJobDialog from "@/components/ShareJobDialog";
 import JobPreviewDialog, { type JobPreviewData } from "@/components/JobPreviewDialog";
+import JobFeedsHub from "@/components/jobs/JobFeedsHub";
+import QREventCheckinHub from "@/components/jobs/QREventCheckinHub";
 import { useJobs, useAddJob, useCandidates } from "@/hooks/useJobs";
 import { useProgressiveRender } from "@/hooks/useProgressiveRender";
 import { Users as UsersIcon } from "lucide-react";
@@ -97,6 +99,8 @@ export default function Jobs() {
   const [templateForm, setTemplateForm] = useState<any>(null);
   const [previewData, setPreviewData] = useState<JobPreviewData | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [feedsHubOpen, setFeedsHubOpen] = useState(false);
+  const [qrEventHubOpen, setQrEventHubOpen] = useState(false);
   const [ksaApplyingFor, setKsaApplyingFor] = useState<string | null>(null);
   const { applyTemplate } = useStageMutations();
 
@@ -422,7 +426,23 @@ export default function Jobs() {
             <h1 className="text-2xl lg:text-3xl font-black text-foreground">{t("jobs.title")}</h1>
             <p className="text-muted-foreground text-xs mt-1">{t("jobs.subtitle")}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setFeedsHubOpen(true)}
+              className="gap-1.5 rounded-md3-xl border-md-outline-variant h-10 px-3 text-xs font-bold"
+            >
+              <Globe className="w-4 h-4 text-emerald-600" />
+              <span>خلاصات التوظيف (Indeed & Google)</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setQrEventHubOpen(true)}
+              className="gap-1.5 rounded-md3-xl border-md-outline-variant h-10 px-3 text-xs font-bold"
+            >
+              <QrCode className="w-4 h-4 text-indigo-600" />
+              <span>فعاليات التوظيف QR</span>
+            </Button>
             <Button variant="outline" onClick={() => setTemplateDialogOpen(true)} className="gap-1.5 rounded-md3-xl border-md-outline-variant h-10 px-4 text-xs font-bold">
               <Copy className="w-4 h-4 text-primary" />
               {t("jobs.templates")}
@@ -850,6 +870,8 @@ export default function Jobs() {
         />
       )}
       <ShareJobDialog open={shareDialog.open} onClose={() => setShareDialog({ open: false, jobTitle: "", jobId: "", isNew: false })} jobTitle={shareDialog.jobTitle} jobId={shareDialog.jobId} isNewJob={shareDialog.isNew} />
+      <JobFeedsHub open={feedsHubOpen} onOpenChange={setFeedsHubOpen} jobs={allJobs as any} />
+      <QREventCheckinHub open={qrEventHubOpen} onOpenChange={setQrEventHubOpen} jobs={allJobs as any} />
 
       {/* Floating Batch Actions Bar */}
       <AnimatePresence>

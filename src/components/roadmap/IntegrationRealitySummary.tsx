@@ -69,6 +69,24 @@ const VERIFIED_INTEGRATIONS: IntegrationItem[] = [
     endpointOrTech: "execute-automation-actions • send_whatsapp • send_sms",
     icon: MessageSquare,
   },
+  {
+    id: "slack-teams",
+    name: "Slack و Microsoft Teams",
+    nameEn: "Slack & Microsoft Teams",
+    detail: "مكتمل بالكامل عبر بطاقات Slack Block Kit وبطاقات Teams التفاعلية مع تنبيهات فورية للمرشحين والمقابلات والعروض",
+    detailEn: "Fully implemented with Slack Block Kit & Teams Adaptive Cards for candidates, interviews and offers",
+    endpointOrTech: "teamNotifications • Block Kit • Adaptive Cards",
+    icon: Link2,
+  },
+  {
+    id: "indeed-bayt-feed",
+    name: "Indeed و Bayt.com",
+    nameEn: "Indeed & Bayt.com",
+    detail: "محرك توليد خلاصات وظائف XML متوافق مع مواصفات Indeed v2 و Schema.org JobPosting لـ Google Jobs وفحص صحة الخلاصات",
+    detailEn: "XML v2 job feed generator compliant with Indeed & Bayt.com, Schema.org JobPosting for Google Jobs and health audit",
+    endpointOrTech: "jobFeedGenerator • XML v2 • Schema.org",
+    icon: Globe,
+  },
 ];
 
 const PLANNED_INTEGRATIONS: IntegrationItem[] = [
@@ -80,24 +98,6 @@ const PLANNED_INTEGRATIONS: IntegrationItem[] = [
     detailEn: "Signed .ics feed, connection store & overlap checks are live; real-time OAuth push awaits client secrets",
     endpointOrTech: "Needs OAuth Secrets",
     icon: Calendar,
-  },
-  {
-    id: "slack-teams",
-    name: "Slack و Microsoft Teams",
-    nameEn: "Slack & Microsoft Teams",
-    detail: "مكتمل بالكامل عبر بطاقات Slack Block Kit وبطاقات Teams التفاعلية مع تنبيهات فورية للمرشحين والمقابلات والعروض",
-    detailEn: "Fully implemented with Slack Block Kit & Teams Adaptive Cards for candidates, interviews and offers",
-    endpointOrTech: "Live & Connected",
-    icon: Link2,
-  },
-  {
-    id: "indeed-bayt",
-    name: "Indeed و Bayt.com",
-    nameEn: "Indeed & Bayt.com",
-    detail: "لا يوجد ربط API للنشر المباشر أو مزامنة المتقدمين بعد",
-    detailEn: "No direct job-board API posting or applicant sync implemented yet",
-    endpointOrTech: "Planned",
-    icon: Globe,
   },
   {
     id: "sap-oracle",
