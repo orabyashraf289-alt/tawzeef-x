@@ -26,6 +26,7 @@ import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
 import CompanySwitcher from "@/components/CompanySwitcher";
 import ScreenGuideHelper from "@/components/ScreenGuideHelper";
 import WelcomeVideoModal from "@/components/WelcomeVideoModal";
+import NotificationCenterPopover from "@/components/notifications/NotificationCenterPopover";
 import { prefetchRoute, recordNavigation } from "@/lib/routePrefetch";
 
 const tourIdMap: Record<string, string> = {
@@ -498,16 +499,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <span>شاغر جديد</span>
             </Link>
 
-            <Link
-              to="/notifications"
-              className="relative p-2 rounded-md3-full bg-md-surface-container hover:bg-md-surface-variant text-md-on-surface transition-colors"
-              title="الإشعارات"
-            >
-              <Bell className="w-4 h-4" />
-              {unreadNotifCount > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full animate-pulse" />
-              )}
-            </Link>
+            <NotificationCenterPopover />
 
             <Link
               to="/tutorial"
@@ -572,12 +564,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <button onClick={() => setCmdOpen(true)} className="p-2 rounded-md3-md text-md-on-surface hover:bg-md-surface-variant">
               <Search className="w-4 h-4" />
             </button>
-            <Link to="/notifications" className="relative p-2 rounded-md3-md text-md-on-surface hover:bg-md-surface-variant">
-              <Bell className="w-4 h-4" />
-              {unreadNotifCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full" />
-              )}
-            </Link>
+            <NotificationCenterPopover />
             <button onClick={() => setMobileOpen(true)} className="p-2 rounded-md3-md text-md-on-surface hover:bg-md-surface-variant">
               <Menu className="w-5 h-5" />
             </button>
