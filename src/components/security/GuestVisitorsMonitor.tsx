@@ -34,6 +34,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { getCountryFlag } from "@/lib/locationService";
+import { trackGuestVisit } from "@/lib/visitorTracker";
 
 interface VisitorEvent {
   id: string;
@@ -70,13 +71,35 @@ export default function GuestVisitorsMonitor() {
   const [selectedVisitor, setSelectedVisitor] = useState<VisitorEvent | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [blockingIp, setBlockingIp] = useState<string | null>(null);
+  const [isSimulating, setIsSimulating] = useState(false);
 
-  // Fetch guest visitor events from audit_log
+  // Fetch guest visitor events from audit_log (with RPC fallback)
   const { data: visitors = [], isLoading, refetch, isFetching } = useQuery<VisitorEvent[]>({
     queryKey: ["guest-visitors-monitor", timeRange],
     staleTime: 10000,
     refetchInterval: autoRefresh ? 10000 : false,
     queryFn: async () => {
+      // 1) Direct RPC check first for unrestricted access
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc("get_guest_visitor_logs", {
+          limit_count: 300,
+        });
+        if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
+          let list = rpcData as VisitorEvent[];
+          if (timeRange !== "all") {
+            const startDate = new Date();
+            if (timeRange === "today") startDate.setHours(0, 0, 0, 0);
+            else if (timeRange === "7days") startDate.setDate(startDate.getDate() - 7);
+            else if (timeRange === "30days") startDate.setDate(startDate.getDate() - 30);
+            list = list.filter((v) => new Date(v.created_at) >= startDate);
+          }
+          return list;
+        }
+      } catch (rpcErr) {
+        console.debug("[GuestMonitor] RPC query fallback:", rpcErr);
+      }
+
+      // 2) Direct table query on audit_log
       let query = supabase
         .from("audit_log")
         .select("*")
@@ -100,6 +123,29 @@ export default function GuestVisitorsMonitor() {
       return (data || []) as VisitorEvent[];
     },
   });
+
+  // Simulate on-demand visitor entry for immediate testing verification
+  const handleSimulateVisitor = async () => {
+    try {
+      setIsSimulating(true);
+      const testPaths = ["/careers", "/pricing", "/features", "/jobs", "/about"];
+      const randomPath = testPaths[Math.floor(Math.random() * testPaths.length)];
+      await trackGuestVisit(randomPath, true);
+      await refetch();
+      toast({
+        title: "تم تسجيل زيارة تجريبية بنجاح 🚀",
+        description: `تم رصد الزيارة التجريبية للمسار (${randomPath}) وتحديث السجل فوراً.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "فشل تسجيل الزيارة التجريبية",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSimulating(false);
+    }
+  };
 
   // Real-time subscription to new visitor events
   useEffect(() => {
@@ -300,6 +346,17 @@ export default function GuestVisitorsMonitor() {
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin text-primary" : ""}`} />
             تحديث فوري
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSimulateVisitor}
+            disabled={isSimulating}
+            className="text-xs h-9 gap-1.5 font-bold border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+          >
+            <Eye className={`w-3.5 h-3.5 ${isSimulating ? "animate-pulse" : ""}`} />
+            {isSimulating ? "جارِ التسجيل..." : "تسجيل زيارة تجريبية الآن ⚡"}
           </Button>
 
           <Button size="sm" onClick={exportToExcel} className="text-xs h-9 gap-1.5 font-bold">

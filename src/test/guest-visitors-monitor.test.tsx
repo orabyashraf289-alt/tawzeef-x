@@ -6,50 +6,52 @@ import GuestVisitorsMonitor from "@/components/security/GuestVisitorsMonitor";
 import { trackGuestVisit, getOrCreateVisitorId } from "@/lib/visitorTracker";
 
 // Mock Supabase
-const mockVisitors = [
-  {
-    id: "guest-1",
-    event_type: "visitor.entry",
-    ip_address: "178.80.120.45",
-    created_at: new Date(Date.now() - 5 * 60000).toISOString(),
-    details: {
-      visitor_id: "vis_101",
-      is_guest: true,
-      is_returning: false,
-      path: "/jobs",
-      full_url: "https://tawzeefx.com/jobs",
-      referrer: "google.com",
-      screen_resolution: "1920x1080",
-      device_type: "Desktop",
-      device_name: "كمبيوتر شخصي",
-      browser_name: "Chrome",
-      os_name: "Windows",
-      language: "ar",
-      time_zone: "Asia/Riyadh",
+const { mockVisitors } = vi.hoisted(() => ({
+  mockVisitors: [
+    {
+      id: "guest-1",
+      event_type: "visitor.entry",
+      ip_address: "178.80.120.45",
+      created_at: new Date(Date.now() - 5 * 60000).toISOString(),
+      details: {
+        visitor_id: "vis_101",
+        is_guest: true,
+        is_returning: false,
+        path: "/jobs",
+        full_url: "https://tawzeefx.com/jobs",
+        referrer: "google.com",
+        screen_resolution: "1920x1080",
+        device_type: "Desktop",
+        device_name: "كمبيوتر شخصي",
+        browser_name: "Chrome",
+        os_name: "Windows",
+        language: "ar",
+        time_zone: "Asia/Riyadh",
+      },
     },
-  },
-  {
-    id: "guest-2",
-    event_type: "visitor.page_view",
-    ip_address: "212.118.140.22",
-    created_at: new Date(Date.now() - 2 * 60000).toISOString(),
-    details: {
-      visitor_id: "vis_102",
-      is_guest: true,
-      is_returning: true,
-      path: "/auth",
-      full_url: "https://tawzeefx.com/auth",
-      referrer: "مباشر (Direct)",
-      screen_resolution: "390x844",
-      device_type: "Mobile",
-      device_name: "Apple iPhone",
-      browser_name: "Safari",
-      os_name: "iOS",
-      language: "ar",
-      time_zone: "Asia/Riyadh",
+    {
+      id: "guest-2",
+      event_type: "visitor.page_view",
+      ip_address: "212.118.140.22",
+      created_at: new Date(Date.now() - 2 * 60000).toISOString(),
+      details: {
+        visitor_id: "vis_102",
+        is_guest: true,
+        is_returning: true,
+        path: "/auth",
+        full_url: "https://tawzeefx.com/auth",
+        referrer: "مباشر (Direct)",
+        screen_resolution: "390x844",
+        device_type: "Mobile",
+        device_name: "Apple iPhone",
+        browser_name: "Safari",
+        os_name: "iOS",
+        language: "ar",
+        time_zone: "Asia/Riyadh",
+      },
     },
-  },
-];
+  ],
+}));
 
 vi.mock("@/integrations/supabase/client", () => {
   const mockChannel = {
@@ -66,6 +68,7 @@ vi.mock("@/integrations/supabase/client", () => {
         gte: vi.fn().mockReturnThis(),
         insert: vi.fn().mockResolvedValue({ error: null }),
       })),
+      rpc: vi.fn().mockResolvedValue({ data: mockVisitors, error: null }),
       channel: vi.fn(() => mockChannel),
       removeChannel: vi.fn(),
     },

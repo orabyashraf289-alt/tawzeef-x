@@ -76,6 +76,13 @@ export async function trackGuestVisit(pathname: string, force = false): Promise<
     const language = navigator.language || "ar";
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Riyadh";
 
+    // Extract company ID from URL query or active company storage
+    let companyId: string | null = null;
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      companyId = searchParams.get("company") || searchParams.get("c") || localStorage.getItem("tx_active_company_id");
+    } catch {}
+
     const isFirstSessionVisit = !sessionStorage.getItem("tx_guest_entry_logged");
     const eventType = isFirstSessionVisit ? "visitor.entry" : "visitor.page_view";
 
@@ -87,8 +94,10 @@ export async function trackGuestVisit(pathname: string, force = false): Promise<
       eventType,
       userEmail: null,
       userId: null,
+      companyId,
       details: {
         visitor_id: visitorId,
+        company_id: companyId,
         is_guest: true,
         is_returning: isReturning,
         path: pathname,

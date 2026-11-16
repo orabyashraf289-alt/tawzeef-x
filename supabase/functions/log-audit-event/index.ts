@@ -72,10 +72,28 @@ Deno.serve(async (req) => {
       device: browserInfo.device,
     };
 
+    // Resolve company_id:
+    // 1) From body.companyId
+    // 2) From details.company_id
+    // 3) Fallback: get first company from companies table so multi-tenant RLS permits company staff to view it
+    let targetCompanyId = body.companyId || (details as Record<string, unknown>)?.company_id || null;
+    if (!targetCompanyId) {
+      const { data: firstCompany } = await supabaseAdmin
+        .from("companies")
+        .select("id")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (firstCompany?.id) {
+        targetCompanyId = firstCompany.id;
+      }
+    }
+
     const { error } = await supabaseAdmin.from("audit_log").insert({
       event_type: eventType,
       user_id: user?.id || null,
       user_email: user?.email || body.userEmail || null,
+      company_id: targetCompanyId,
       ip_address: clientIp,
       details: enrichedDetails,
     });

@@ -37,6 +37,7 @@ export async function logAuditEvent(params: {
   eventType: AuditEventType;
   userId?: string | null;
   userEmail?: string | null;
+  companyId?: string | null;
   details?: Record<string, unknown>;
 }) {
   try {
@@ -50,7 +51,28 @@ export async function logAuditEvent(params: {
     const isUnauthEvent = unauthEvents.includes(params.eventType);
 
     if (isUnauthEvent) {
-      // For failed login events, call edge function directly without auth header
+      const isVisitorEvent = ["visitor.entry", "visitor.page_view", "guest.visit"].includes(params.eventType);
+
+      // Method 1: For visitor tracking, attempt fast direct RPC first
+      if (isVisitorEvent) {
+        try {
+          const { error: rpcErr } = await supabase.rpc("log_guest_visit_event", {
+            p_event_type: params.eventType,
+            p_details: {
+              ...(params.details || {}),
+              company_id: params.companyId || (params.details?.company_id as string) || null,
+            },
+            p_ip: (params.details?.ip_address as string) || null,
+          });
+          if (!rpcErr) {
+            return;
+          }
+        } catch (rpcEx) {
+          console.debug("[AuditLog] RPC log_guest_visit_event fallback to edge function:", rpcEx);
+        }
+      }
+
+      // Method 2: Edge function call (always include apikey and Bearer auth header)
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       await fetch(`${supabaseUrl}/functions/v1/log-audit-event`, {
@@ -58,10 +80,12 @@ export async function logAuditEvent(params: {
         headers: {
           "Content-Type": "application/json",
           "apikey": anonKey,
+          "Authorization": `Bearer ${anonKey}`,
         },
         body: JSON.stringify({
           eventType: params.eventType,
           userEmail: params.userEmail || null,
+          companyId: params.companyId || (params.details?.company_id as string) || null,
           details: params.details || {},
         }),
       });
@@ -71,6 +95,7 @@ export async function logAuditEvent(params: {
         body: {
           eventType: params.eventType,
           userEmail: params.userEmail || null,
+          companyId: params.companyId || null,
           details: params.details || {},
         },
       });
