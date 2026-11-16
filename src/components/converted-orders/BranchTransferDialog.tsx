@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AL_ANDALUS_BRANCHES, type BranchTransferFormState } from "./convertedOrdersConstants";
+import { COMPANY_DEFAULT_BRANCHES, type BranchTransferFormState } from "./convertedOrdersConstants";
 
 interface BranchTransferDialogProps {
   open: boolean;
@@ -64,7 +64,7 @@ export default function BranchTransferDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent align="end">
-                  {AL_ANDALUS_BRANCHES.map((b) => (
+                  {COMPANY_DEFAULT_BRANCHES.map((b) => (
                     <SelectItem key={b} value={b}>
                       {b}
                     </SelectItem>
@@ -80,7 +80,7 @@ export default function BranchTransferDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent align="end">
-                  {AL_ANDALUS_BRANCHES.map((b) => (
+                  {COMPANY_DEFAULT_BRANCHES.map((b) => (
                     <SelectItem key={b} value={b}>
                       {b}
                     </SelectItem>

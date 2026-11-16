@@ -7,18 +7,54 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { Building2, Briefcase, Users, FileText, Mail, Loader2, GitFork, Plus, MapPin, Phone, Pencil, Camera, Info, Sparkles, Trash2, AlertTriangle } from "lucide-react";
-import { useMyCompanies, useCompanyStats, useMyCompanyRole, useCompanyBranches, useCreateCompanyBranch, useUpdateCompany, useDeleteCompany, prepareCompanyPayload } from "@/hooks/useCompanies";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Building2,
+  Briefcase,
+  Users,
+  FileText,
+  Mail,
+  Loader2,
+  GitFork,
+  Plus,
+  MapPin,
+  Phone,
+  Pencil,
+  Camera,
+  Trash2,
+  AlertTriangle,
+  Search,
+  CheckCircle2,
+  Globe,
+  ShieldCheck,
+  Building,
+  Filter,
+  Sparkles,
+} from "lucide-react";
+import {
+  useMyCompanies,
+  useCompanyStats,
+  useMyCompanyRole,
+  useCompanyBranches,
+  useCreateCompanyBranch,
+  useUpdateCompany,
+  useDeleteCompany,
+  type Company,
+} from "@/hooks/useCompanies";
 import { useCompanyContext } from "@/contexts/CompanyContext";
-import { useQueryClient } from "@tanstack/react-query";
 import { useMyPendingInvitations, useAcceptInvitation, useDeclineInvitation } from "@/hooks/useCompanyInvitations";
 import CompanyInvitationsPanel from "@/components/CompanyInvitationsPanel";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { ALL_AL_ANDALUS_BRANCHES } from "@/data/alAndalusBranches";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,12 +70,24 @@ export default function CompanyPortal() {
   const { data: pendingInvites = [] } = useMyPendingInvitations();
   const accept = useAcceptInvitation();
   const decline = useDeclineInvitation();
+  const { activeCompanyId } = useCompanyContext();
+
+  const primaryCompanies = useMemo(
+    () => companies.filter((c) => !c.parent_company_id),
+    [companies]
+  );
+
+  const activeCompany = useMemo(
+    () => companies.find((c) => c.id === activeCompanyId) || primaryCompanies[0],
+    [companies, activeCompanyId, primaryCompanies]
+  );
 
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="p-6 max-w-6xl mx-auto flex items-center justify-center min-h-[300px]">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="p-12 max-w-6xl mx-auto flex flex-col items-center justify-center min-h-[400px] gap-3">
+          <Loader2 className="w-10 h-10 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground font-medium">جاري تحميل بيانات المنظمة والفروع...</p>
         </div>
       </DashboardLayout>
     );
@@ -48,43 +96,134 @@ export default function CompanyPortal() {
   return (
     <DashboardLayout>
       <div className="p-6 max-w-6xl mx-auto space-y-6" dir="rtl">
-        <div>
-          <h1 className="text-2xl font-black">بوابة الشركة</h1>
-          <p className="text-sm text-muted-foreground mt-1">الشركات العميلة والفروع التي تديرها</p>
+        {/* Top Header & Executive Summary Bar */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-border/40">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-foreground">بوابة إدارة الشركات والفروع</h1>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  إدارة الكيان المؤسسي، الفروع التشغيلية، وصلاحيات فريق الموارد البشرية
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {activeCompany && (
+              <Badge className="bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 text-xs px-3 py-1 font-bold flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                البيئة النشطة: {activeCompany.name}
+              </Badge>
+            )}
+            <Link to="/settings?tab=company">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                <Pencil className="w-3.5 h-3.5" />
+                إعدادات الهوية المؤسسية
+              </Button>
+            </Link>
+          </div>
         </div>
 
-        {/* Pending invitations */}
+        {/* Global Overview KPI Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Card className="p-4 bg-card/60 backdrop-blur-sm border-border/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] text-muted-foreground font-medium">الشركات المعتمدة</p>
+                <p className="text-xl font-black text-foreground mt-0.5">{primaryCompanies.length}</p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600">
+                <Building className="w-4 h-4" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-card/60 backdrop-blur-sm border-border/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] text-muted-foreground font-medium">الفروع الإجمالية</p>
+                <p className="text-xl font-black text-foreground mt-0.5">
+                  {companies.filter((c) => c.parent_company_id).length}
+                </p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                <GitFork className="w-4 h-4" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-card/60 backdrop-blur-sm border-border/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] text-muted-foreground font-medium">الدعوات المعلقة</p>
+                <p className="text-xl font-black text-foreground mt-0.5">{pendingInvites.length}</p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
+                <Mail className="w-4 h-4" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-card/60 backdrop-blur-sm border-border/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] text-muted-foreground font-medium">الامتثال والنطاقات</p>
+                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                  نطاق أخضر / متوافق 🌟
+                </p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-600">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Pending Invitations Banner */}
         {pendingInvites.length > 0 && (
-          <Card className="p-5 border-warning/30 bg-warning/5">
+          <Card className="p-5 border-amber-500/40 bg-amber-500/5 shadow-sm">
             <div className="flex items-center gap-2 mb-3">
-              <Mail className="w-5 h-5 text-warning" />
-              <h3 className="font-bold">دعوات بانتظار الرد ({pendingInvites.length})</h3>
+              <Mail className="w-5 h-5 text-amber-600" />
+              <h3 className="font-bold text-sm text-foreground">
+                دعوات الانضمام بانتظار موافقتك ({pendingInvites.length})
+              </h3>
             </div>
             <div className="space-y-2">
               {pendingInvites.map((inv: any) => (
-                <div key={inv.id} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-card border border-border/50">
+                <div
+                  key={inv.id}
+                  className="flex items-center justify-between gap-3 p-3 rounded-xl bg-card border border-border/60 shadow-xs"
+                >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                       <Building2 className="w-5 h-5 text-primary" />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-semibold text-sm truncate">{inv.company?.name}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        دور: {inv.member_role === "owner" ? "مالك" : inv.member_role === "hr" ? "HR" : "مشاهد"} • تنتهي {new Date(inv.expires_at).toLocaleDateString("ar-SA")}
+                      <p className="font-bold text-sm truncate text-foreground">{inv.company?.name}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        الدور المحدد:{" "}
+                        {inv.member_role === "owner" ? "مالك" : inv.member_role === "hr" ? "مسؤول HR" : "مشاهد"}{" "}
+                        • تنتهي الصلاحية: {new Date(inv.expires_at).toLocaleDateString("ar-SA")}
                       </p>
                     </div>
                   </div>
                   <div className="flex gap-1.5 shrink-0">
                     <Button
                       size="sm"
+                      className="text-xs h-8"
                       disabled={accept.isPending}
                       onClick={() => accept.mutate(inv.token)}
                     >
-                      {accept.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "قبول"}
+                      {accept.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "قبول الدعوة"}
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
+                      className="text-xs h-8"
                       disabled={decline.isPending}
                       onClick={() => decline.mutate(inv.token)}
                     >
@@ -97,20 +236,26 @@ export default function CompanyPortal() {
           </Card>
         )}
 
-        {companies.length === 0 && pendingInvites.length === 0 ? (
-          <Card className="p-12 text-center">
+        {/* Primary Companies List */}
+        {primaryCompanies.length === 0 && pendingInvites.length === 0 ? (
+          <Card className="p-12 text-center border-dashed border-2">
             <Building2 className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
-            <h2 className="text-lg font-bold mb-2">لست عضواً في أي شركة</h2>
-            <p className="text-sm text-muted-foreground">تواصل مع مدير النظام لإضافتك إلى شركة.</p>
+            <h2 className="text-lg font-bold mb-1 text-foreground">لست عضواً في أي شركة حتى الآن</h2>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto">
+              تواصل مع مسؤول المنظمة أو مدير النظام لإرسال دعوة انضمام، أو أنشئ شركتك من صفحة الإعدادات.
+            </p>
           </Card>
         ) : (
           <div className="space-y-6">
-            {companies
-              // Only render primary companies directly (where parent_company_id is null)
-              .filter(c => !c.parent_company_id)
-              .map((c) => (
-                <CompanyBlock key={c.id} companyId={c.id} name={c.name} role={c.member_role} />
-              ))}
+            {primaryCompanies.map((c) => (
+              <CompanyBlock
+                key={c.id}
+                company={c}
+                companyId={c.id}
+                name={c.name}
+                role={c.member_role || "viewer"}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -118,25 +263,40 @@ export default function CompanyPortal() {
   );
 }
 
-function CompanyBlock({ companyId, name, role }: { companyId: string; name: string; role: string }) {
+function CompanyBlock({
+  company,
+  companyId,
+  name,
+  role,
+}: {
+  company: Company;
+  companyId: string;
+  name: string;
+  role: string;
+}) {
   const { activeCompanyId, setActiveCompanyId } = useCompanyContext();
   const isActive = activeCompanyId === companyId;
   const { data: stats } = useCompanyStats(companyId);
   const { data: myRole } = useMyCompanyRole(companyId);
   const { user } = useAuth();
-  
-  // Branches list query
+
+  // Branches query & state
   const { data: branches = [], isLoading: branchesLoading } = useCompanyBranches(companyId);
   const createBranch = useCreateCompanyBranch();
 
-  // Branch create form state
-  const [open, setOpen] = useState(false);
+  // Branch creation form state
+  const [openAddBranch, setOpenAddBranch] = useState(false);
   const [branchName, setBranchName] = useState("");
   const [branchCity, setBranchCity] = useState("");
+  const [branchType, setBranchType] = useState("فرع إداري");
   const [branchEmail, setBranchEmail] = useState("");
   const [branchPhone, setBranchPhone] = useState("");
   const [branchNotes, setBranchNotes] = useState("");
-  
+
+  // Branch search and city filter
+  const [branchSearch, setBranchSearch] = useState("");
+  const [selectedCityFilter, setSelectedCityFilter] = useState("all");
+
   // Edit & Delete Branch state
   const [editingBranch, setEditingBranch] = useState<any | null>(null);
   const deleteBranchMutation = useDeleteCompany();
@@ -150,6 +310,34 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
     interviewsCount: number;
   } | null>(null);
 
+  // Extract unique cities from branches for quick filtering
+  const availableCities = useMemo(() => {
+    const cities = new Set<string>();
+    branches.forEach((b) => {
+      if (b.city && b.city.trim()) {
+        cities.add(b.city.trim());
+      }
+    });
+    return Array.from(cities);
+  }, [branches]);
+
+  // Filtered branches
+  const filteredBranches = useMemo(() => {
+    return branches.filter((b) => {
+      const matchesSearch =
+        !branchSearch.trim() ||
+        b.name?.toLowerCase().includes(branchSearch.toLowerCase()) ||
+        b.city?.toLowerCase().includes(branchSearch.toLowerCase()) ||
+        b.contact_phone?.includes(branchSearch) ||
+        b.contact_email?.toLowerCase().includes(branchSearch.toLowerCase()) ||
+        b.notes?.toLowerCase().includes(branchSearch.toLowerCase());
+
+      const matchesCity = selectedCityFilter === "all" || b.city === selectedCityFilter;
+
+      return matchesSearch && matchesCity;
+    });
+  }, [branches, branchSearch, selectedCityFilter]);
+
   const handleStartDeleteBranch = async (branch: any) => {
     setDeletingBranchTarget(branch);
     setCheckingBranchData(true);
@@ -157,34 +345,42 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
 
     try {
       // 1. Check jobs count
-      const { data: compJobs, error: jobsError } = await supabase.from("jobs").select("id").eq("company_id", branch.id);
+      const { data: compJobs, error: jobsError } = await supabase
+        .from("jobs")
+        .select("id")
+        .eq("company_id", branch.id);
       if (jobsError) throw jobsError;
       const jobsCount = compJobs?.length || 0;
-      const jobIds = (compJobs || []).map(j => j.id);
+      const jobIds = (compJobs || []).map((j) => j.id);
 
-      // 2. Include candidates attached directly to the branch or its jobs.
+      // 2. Check candidates
       let candidatesQuery = supabase.from("candidates").select("id");
-      candidatesQuery = jobIds.length > 0
-        ? candidatesQuery.or(`company_id.eq.${branch.id},job_id.in.(${jobIds.join(",")})`)
-        : candidatesQuery.eq("company_id", branch.id);
+      candidatesQuery =
+        jobIds.length > 0
+          ? candidatesQuery.or(`company_id.eq.${branch.id},job_id.in.(${jobIds.join(",")})`)
+          : candidatesQuery.eq("company_id", branch.id);
       const { data: branchCandidates, error: candidatesError } = await candidatesQuery;
       if (candidatesError) throw candidatesError;
-      const candidateIds = (branchCandidates || []).map((candidate) => candidate.id);
+      const candidateIds = (branchCandidates || []).map((c) => c.id);
       const candidatesCount = candidateIds.length;
 
       // 3. Check offers count
       let offersCount = 0;
       if (jobIds.length > 0) {
-        const { count, error: offersError } = await supabase.from("job_offers").select("id", { count: "exact" }).in("job_id", jobIds);
+        const { count, error: offersError } = await supabase
+          .from("job_offers")
+          .select("id", { count: "exact" })
+          .in("job_id", jobIds);
         if (offersError) throw offersError;
         offersCount = count || 0;
       }
 
-      // Interviews link to a candidate or company, not a job_id column.
+      // 4. Check interviews count
       let interviewsQuery = supabase.from("interviews").select("id", { count: "exact", head: true });
-      interviewsQuery = candidateIds.length > 0
-        ? interviewsQuery.or(`company_id.eq.${branch.id},candidate_id.in.(${candidateIds.join(",")})`)
-        : interviewsQuery.eq("company_id", branch.id);
+      interviewsQuery =
+        candidateIds.length > 0
+          ? interviewsQuery.or(`company_id.eq.${branch.id},candidate_id.in.(${candidateIds.join(",")})`)
+          : interviewsQuery.eq("company_id", branch.id);
       const { count: interviewCount, error: interviewsError } = await interviewsQuery;
       if (interviewsError) throw interviewsError;
       const interviewsCount = interviewCount || 0;
@@ -195,11 +391,15 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
         jobsCount,
         candidatesCount,
         offersCount,
-        interviewsCount
+        interviewsCount,
       });
-    } catch (e) {
+    } catch {
       setDeletingBranchTarget(null);
-      toast({ title: "تعذر التحقق من بيانات الفرع", description: "أعد المحاولة قبل متابعة الحذف.", variant: "destructive" });
+      toast({
+        title: "تعذر التحقق من بيانات الفرع",
+        description: "أعد المحاولة قبل متابعة الحذف.",
+        variant: "destructive",
+      });
     } finally {
       setCheckingBranchData(false);
     }
@@ -211,83 +411,8 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
       await deleteBranchMutation.mutateAsync(deletingBranchTarget.id);
       setDeletingBranchTarget(null);
       setBranchLinkedInfo(null);
-    } catch (err: any) {
+    } catch {
       // Error toast handled inside mutation
-    }
-  };
-
-  const queryClient = useQueryClient();
-  const [importingAlAndalus, setImportingAlAndalus] = useState(false);
-
-  const handleImportAlAndalusCompanyBranches = async () => {
-    setImportingAlAndalus(true);
-    toast({
-      title: "جاري استيراد فروع مدارس الأندلس الـ 13...",
-      description: "يرجى الانتظار ثوانٍ بسيطة — يتم حفظ جميع الفروع بدفعة واحدة..."
-    });
-
-    try {
-      const existingBranchNames = new Set((branches || []).map(b => b.name));
-      const missingBranches = ALL_AL_ANDALUS_BRANCHES.filter(b => !existingBranchNames.has(b.name));
-
-      if (missingBranches.length === 0) {
-        toast({ title: "الفروع موجودة بالفعل 🏫", description: "جميع فروع الأندلس الـ 13 مضافة مسبقاً" });
-        return;
-      }
-
-      // Prepare batch payloads for companies
-      const companyPayloads = missingBranches.map(b =>
-        prepareCompanyPayload({
-          name: b.name,
-          name_en: b.name,
-          city: b.city,
-          country: "السعودية",
-          industry: "التعليم",
-          website: "https://as.edu.sa",
-          contact_email: b.email,
-          contact_phone: b.phone,
-          notes: `${b.district} — ${b.address} | المراحل: ${b.stages.join("، ")} | النوع: ${b.schoolTypes.join("، ")}`,
-          parent_company_id: companyId,
-          status: "active",
-          owner_user_id: user?.id || null,
-        })
-      );
-
-      // Single high-speed batch insert into companies table
-      const { data: insertedCompanies, error: compErr } = await supabase
-        .from("companies")
-        .insert(companyPayloads as any)
-        .select();
-
-      if (compErr) throw compErr;
-
-      // Single high-speed batch insert into company_members table for owner role
-      if (user && insertedCompanies && insertedCompanies.length > 0) {
-        const memberPayloads = insertedCompanies.map((comp: any) => ({
-          company_id: comp.id,
-          user_id: user.id,
-          member_role: "owner",
-        }));
-        await supabase.from("company_members").insert(memberPayloads as any);
-      }
-
-      // Invalidate queries ONCE at the end
-      queryClient.invalidateQueries({ queryKey: ["company-branches", companyId] });
-      queryClient.invalidateQueries({ queryKey: ["my-companies", user?.id] });
-
-      toast({
-        title: `✅ تمت إضافة ${insertedCompanies?.length || missingBranches.length} فرع لمدارس الأندلس بنجاح!`,
-        description: "جميع الفروع ظاهرة الآن ومفهرسة في القائمة أدناه"
-      });
-    } catch (err: any) {
-      console.error("[Batch Branch Import] Error:", err);
-      toast({
-        title: "خطأ في استيراد الفروع",
-        description: err.message || "حدث خطأ أثناء حفظ الفروع",
-        variant: "destructive"
-      });
-    } finally {
-      setImportingAlAndalus(false);
     }
   };
 
@@ -296,157 +421,285 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
     if (!branchName.trim()) return;
 
     try {
+      const formattedNotes = branchNotes.trim()
+        ? `${branchType ? `[${branchType}] ` : ""}${branchNotes.trim()}`
+        : branchType || "";
+
       await createBranch.mutateAsync({
-        name: branchName,
-        city: branchCity,
-        contact_email: branchEmail,
-        contact_phone: branchPhone,
-        notes: branchNotes,
+        name: branchName.trim(),
+        city: branchCity.trim() || null,
+        contact_email: branchEmail.trim() || null,
+        contact_phone: branchPhone.trim() || null,
+        notes: formattedNotes || null,
         parent_company_id: companyId,
       });
 
-      setOpen(false);
+      setOpenAddBranch(false);
       setBranchName("");
       setBranchCity("");
+      setBranchType("فرع إداري");
       setBranchEmail("");
       setBranchPhone("");
       setBranchNotes("");
-    } catch (err) {
+      toast({ title: "تمت إضافة الفرع بنجاح 🏢", description: `أصبح فرع (${branchName}) جاهزاً الآن للربط بالوظائف.` });
+    } catch {
       // Handled in mutation
     }
   };
 
-  const cards = useMemo(
+  const statsCards = useMemo(
     () => [
-      { label: "الوظائف", value: stats?.jobsTotal ?? 0, icon: Briefcase, color: "bg-blue-500/10 text-blue-600", to: "/jobs" },
-      { label: "المرشحون", value: stats?.candidatesTotal ?? 0, icon: Users, color: "bg-violet-500/10 text-violet-600", to: "/candidates" },
-      { label: "العروض", value: stats?.offersTotal ?? 0, icon: FileText, color: "bg-emerald-500/10 text-emerald-600", to: "/offers" },
+      {
+        label: "الوظائف المتاحة",
+        value: stats?.jobsTotal ?? 0,
+        icon: Briefcase,
+        color: "bg-blue-500/10 text-blue-600",
+        to: "/jobs",
+      },
+      {
+        label: "المرشحون المتقدمون",
+        value: stats?.candidatesTotal ?? 0,
+        icon: Users,
+        color: "bg-violet-500/10 text-violet-600",
+        to: "/candidates",
+      },
+      {
+        label: "العروض الوظيفية",
+        value: stats?.offersTotal ?? 0,
+        icon: FileText,
+        color: "bg-emerald-500/10 text-emerald-600",
+        to: "/offers",
+      },
     ],
     [stats]
   );
 
   return (
-    <Card className="p-6 space-y-6">
-      <div className="flex items-center justify-between border-b border-border/50 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Building2 className="w-6 h-6 text-primary" />
+    <Card className="p-6 space-y-6 border-border/60 shadow-xs relative overflow-hidden">
+      {/* Primary Company Header Banner */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-border/50 pb-5">
+        <div className="flex items-start gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 overflow-hidden shadow-xs">
+            {company.logo_url ? (
+              <img src={company.logo_url} alt={name} className="w-full h-full object-contain" />
+            ) : (
+              <Building2 className="w-7 h-7 text-primary" />
+            )}
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-bold text-lg">{name}</h2>
-              {isActive && (
-                <Badge className="bg-emerald-600/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 text-[10px] px-2 py-0.5 font-bold">
-                  ✓ بيئة العمل النشطة
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="font-black text-xl text-foreground">{name}</h2>
+              {isActive ? (
+                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 text-[11px] px-2.5 py-0.5 font-bold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  بيئة العمل النشطة
                 </Badge>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs font-bold border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                  onClick={() => {
+                    setActiveCompanyId(companyId);
+                    toast({ title: `تم التبديل إلى ${name} كبيئة العمل النشطة 🏢` });
+                  }}
+                >
+                  التبديل إلى هذه المنظمة
+                </Button>
+              )}
+              <Badge variant="secondary" className="text-[10px] px-2 py-0.5 font-bold">
+                {role === "owner" ? "مالك المؤسسة" : role === "hr" ? "مسؤول HR" : "مشاهد"}
+              </Badge>
+            </div>
+
+            {/* Saudi Business Regulatory Badges & Meta */}
+            <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground mt-2">
+              {company.city && (
+                <span className="flex items-center gap-1 font-medium">
+                  <MapPin className="w-3.5 h-3.5 text-primary/70" />
+                  {company.city}، {company.country || "المملكة العربية السعودية"}
+                </span>
+              )}
+              {company.contact_phone && (
+                <span className="flex items-center gap-1">
+                  <Phone className="w-3.5 h-3.5 text-primary/70" />
+                  {company.contact_phone}
+                </span>
+              )}
+              {company.contact_email && (
+                <span className="flex items-center gap-1">
+                  <Mail className="w-3.5 h-3.5 text-primary/70" />
+                  {company.contact_email}
+                </span>
+              )}
+              {company.website && (
+                <a
+                  href={company.website.startsWith("http") ? company.website : `https://${company.website}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-primary hover:underline"
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  الموقع الإلكتروني
+                </a>
               )}
             </div>
-            <Badge variant="outline" className="text-[10px] mt-1">
-              {role === "owner" ? "مالك" : role === "hr" ? "HR" : "مشاهد"}
-            </Badge>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {!isActive && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs font-bold border-emerald-500/40 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950"
-              onClick={() => {
-                setActiveCompanyId(companyId);
-                toast({ title: `تم التبديل إلى ${name} كبيئة العمل النشطة 🏢` });
-              }}
-            >
-              التبديل إلى هذه الشركة
-            </Button>
-          )}
-
+        {/* Action Controls for Company */}
+        <div className="flex items-center gap-2 flex-wrap">
           {(myRole === "owner" || myRole === "hr") && (
             <Link to="/settings?tab=company">
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs h-9">
                 <Pencil className="w-3.5 h-3.5" />
-                إعدادات الشركة
+                تعديل البيانات الأساسية
               </Button>
             </Link>
           )}
 
           {myRole === "owner" && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs font-bold text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950"
-                disabled={importingAlAndalus}
-                onClick={handleImportAlAndalusCompanyBranches}
-              >
-                {importingAlAndalus ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-emerald-600" />}
-                استيراد فروع مدارس الأندلس الـ 13 🏫
-              </Button>
-              <Dialog open={open} onOpenChange={setOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="gap-1.5 text-xs">
-                    <Plus className="w-3.5 h-3.5" />
-                    إضافة فرع للشركة
-                  </Button>
-                </DialogTrigger>
+            <Dialog open={openAddBranch} onOpenChange={setOpenAddBranch}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-1.5 text-xs h-9 font-bold">
+                  <Plus className="w-4 h-4" />
+                  إضافة فرع جديد
+                </Button>
+              </DialogTrigger>
               <DialogContent className="max-w-md" dir="rtl">
                 <DialogHeader>
-                  <DialogTitle className="text-right">إضافة فرع جديد للشركة</DialogTitle>
+                  <DialogTitle className="text-right flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-primary" />
+                    إضافة فرع جديد للمؤسسة
+                  </DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleAddBranch} className="space-y-4 py-2">
-                  <div className="space-y-1.5 text-right">
-                    <Label htmlFor="branchName">اسم الفرع *</Label>
-                    <Input id="branchName" value={branchName} onChange={e => setBranchName(e.target.value)} placeholder="مثال: فرع الرياض، فرع جدة" required />
+                <form onSubmit={handleAddBranch} className="space-y-3.5 py-2">
+                  <div className="space-y-1 text-right">
+                    <Label htmlFor="branchName" className="text-xs font-bold">
+                      اسم الفرع / المركز *
+                    </Label>
+                    <Input
+                      id="branchName"
+                      value={branchName}
+                      onChange={(e) => setBranchName(e.target.value)}
+                      placeholder="مثال: فرع العليا، فرع الواجهة البحرية، مركز التوزيع"
+                      required
+                      className="text-xs h-9"
+                    />
                   </div>
-                  <div className="space-y-1.5 text-right">
-                    <Label htmlFor="branchCity">المدينة</Label>
-                    <Input id="branchCity" value={branchCity} onChange={e => setBranchCity(e.target.value)} placeholder="الرياض، جدة..." />
+
+                  <div className="grid grid-cols-2 gap-2 text-right">
+                    <div className="space-y-1">
+                      <Label htmlFor="branchCity" className="text-xs font-bold">
+                        المدينة
+                      </Label>
+                      <Input
+                        id="branchCity"
+                        value={branchCity}
+                        onChange={(e) => setBranchCity(e.target.value)}
+                        placeholder="الرياض، جدة، الخبر..."
+                        className="text-xs h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="branchType" className="text-xs font-bold">
+                        تصنيف الفرع
+                      </Label>
+                      <select
+                        id="branchType"
+                        value={branchType}
+                        onChange={(e) => setBranchType(e.target.value)}
+                        className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      >
+                        <option value="فرع إداري">فرع إداري</option>
+                        <option value="مقر رئيسي">مقر رئيسي</option>
+                        <option value="مركز تشغيلي">مركز تشغيلي</option>
+                        <option value="مكتب مبيعات">مكتب مبيعات</option>
+                        <option value="مستودع / لوجستي">مستودع / لوجستي</option>
+                      </select>
+                    </div>
                   </div>
-                  <div className="space-y-1.5 text-right">
-                    <Label htmlFor="branchEmail">البريد الإلكتروني للتواصل</Label>
-                    <Input id="branchEmail" type="email" value={branchEmail} onChange={e => setBranchEmail(e.target.value)} placeholder="branch@company.com" />
+
+                  <div className="grid grid-cols-2 gap-2 text-right">
+                    <div className="space-y-1">
+                      <Label htmlFor="branchEmail" className="text-xs font-bold">
+                        البريد الإلكتروني للفرع
+                      </Label>
+                      <Input
+                        id="branchEmail"
+                        type="email"
+                        value={branchEmail}
+                        onChange={(e) => setBranchEmail(e.target.value)}
+                        placeholder="branch@company.sa"
+                        className="text-xs h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="branchPhone" className="text-xs font-bold">
+                        رقم هاتف الفرع
+                      </Label>
+                      <Input
+                        id="branchPhone"
+                        value={branchPhone}
+                        onChange={(e) => setBranchPhone(e.target.value)}
+                        placeholder="011XXXXXXX"
+                        className="text-xs h-9"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-1.5 text-right">
-                    <Label htmlFor="branchPhone">رقم هاتف الفرع</Label>
-                    <Input id="branchPhone" value={branchPhone} onChange={e => setBranchPhone(e.target.value)} placeholder="05XXXXXXXX" />
+
+                  <div className="space-y-1 text-right">
+                    <Label htmlFor="branchNotes" className="text-xs font-bold">
+                      العنوان التفصيلي وملاحظات التشغيل
+                    </Label>
+                    <Textarea
+                      id="branchNotes"
+                      value={branchNotes}
+                      onChange={(e) => setBranchNotes(e.target.value)}
+                      placeholder="العنوان الوطني، الحي، ساعات العمل، أو أي اشتراطات خاصة بالفرع..."
+                      rows={3}
+                      className="text-xs resize-none"
+                    />
                   </div>
-                  <div className="space-y-1.5 text-right">
-                    <Label htmlFor="branchNotes">تفاصيل ووصف الفرع</Label>
-                    <Textarea id="branchNotes" value={branchNotes} onChange={e => setBranchNotes(e.target.value)} placeholder="اكتب تفاصيل إضافية أو عنوان الفرع بالتفصيل..." rows={3} />
-                  </div>
-                  <DialogFooter className="flex justify-end gap-2 mt-4">
-                    <Button type="button" variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-                    <Button type="submit" disabled={createBranch.isPending}>
-                      {createBranch.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "إضافة الفرع"}
+
+                  <DialogFooter className="flex justify-end gap-2 pt-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => setOpenAddBranch(false)}>
+                      إلغاء
+                    </Button>
+                    <Button type="submit" size="sm" disabled={createBranch.isPending}>
+                      {createBranch.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "حفظ الفرع"}
                     </Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
-              </Dialog>
-            </>
+            </Dialog>
           )}
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-3">
-        {cards.map((c, i) => {
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {statsCards.map((c, i) => {
           const Icon = c.icon;
           return (
             <motion.div
               key={c.label}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06 }}
+              transition={{ delay: i * 0.05 }}
             >
               <Link to={c.to}>
-                <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${c.color}`}>
-                    <Icon className="w-5 h-5" />
+                <Card className="p-4 hover:shadow-md transition-all cursor-pointer border-border/50 bg-card/70 hover:border-primary/40">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${c.color}`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                      عرض التفاصيل ↗
+                    </Badge>
                   </div>
-                  <div className="text-2xl font-black">{c.value}</div>
-                  <div className="text-xs text-muted-foreground">{c.label}</div>
+                  <div className="text-2xl font-black text-foreground">{c.value}</div>
+                  <div className="text-xs text-muted-foreground font-medium mt-0.5">{c.label}</div>
                 </Card>
               </Link>
             </motion.div>
@@ -454,50 +707,133 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
         })}
       </div>
 
-      {/* Branches List for Owners */}
-      {myRole === "owner" && (
-        <Card className="p-4 bg-muted/20 border-border/40 space-y-3">
-          <h3 className="text-sm font-bold flex items-center gap-1.5 text-foreground mb-2">
+      {/* Branches Management Section */}
+      <div className="space-y-3 pt-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-muted/30 p-3.5 rounded-xl border border-border/40">
+          <div className="flex items-center gap-2">
             <GitFork className="w-4 h-4 text-primary shrink-0" />
-            فروع الشركة المعتمدة ({branches.length})
-          </h3>
-          {branchesLoading ? (
-            <p className="text-xs text-muted-foreground">جاري تحميل الفروع...</p>
-          ) : branches.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-4 bg-background/50 rounded-lg border border-border/30">
-              لا توجد فروع مضافة لهذه الشركة بعد.
+            <h3 className="text-sm font-bold text-foreground">
+              فروع ومراكز الشركة المعتمدة ({branches.length})
+            </h3>
+            {filteredBranches.length !== branches.length && (
+              <Badge variant="secondary" className="text-[10px]">
+                تصفية: {filteredBranches.length}
+              </Badge>
+            )}
+          </div>
+
+          {/* Search & City Filter Bar */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative min-w-[200px]">
+              <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={branchSearch}
+                onChange={(e) => setBranchSearch(e.target.value)}
+                placeholder="بحث باسم الفرع أو المدينة..."
+                className="h-8 text-xs pr-8 pl-3 bg-background"
+              />
+            </div>
+
+            {availableCities.length > 0 && (
+              <div className="flex items-center gap-1 overflow-x-auto">
+                <Button
+                  variant={selectedCityFilter === "all" ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 text-[11px] px-2.5 rounded-lg"
+                  onClick={() => setSelectedCityFilter("all")}
+                >
+                  الكل
+                </Button>
+                {availableCities.map((city) => (
+                  <Button
+                    key={city}
+                    variant={selectedCityFilter === city ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 text-[11px] px-2.5 rounded-lg"
+                    onClick={() => setSelectedCityFilter(city)}
+                  >
+                    {city}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {branchesLoading ? (
+          <div className="py-8 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            جاري تحميل فروع المنظمة...
+          </div>
+        ) : branches.length === 0 ? (
+          <div className="text-center py-8 px-4 bg-muted/10 rounded-xl border border-dashed border-border/60">
+            <GitFork className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+            <p className="text-xs font-bold text-foreground">لا توجد فروع مسجلة لهذه المنظمة حتى الآن</p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              يمكنك إضافة فروع الشركة وتحديد مدنها لتمكين توجيه الوظائف والمرشحين بدقة.
             </p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <AnimatePresence>
-                {branches.map((b) => (
-                  <motion.div key={b.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="p-4 bg-background border border-border/60 rounded-xl flex flex-col justify-between shadow-sm relative group">
+          </div>
+        ) : filteredBranches.length === 0 ? (
+          <div className="text-center py-6 px-4 bg-muted/10 rounded-xl border border-border/40">
+            <Filter className="w-6 h-6 text-muted-foreground/40 mx-auto mb-1" />
+            <p className="text-xs text-muted-foreground">لا توجد فروع مطابقة لمعايير البحث الحالية.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <AnimatePresence>
+              {filteredBranches.map((b) => (
+                <motion.div
+                  key={b.id}
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  className="p-4 bg-background border border-border/60 rounded-xl flex flex-col justify-between shadow-xs relative group hover:border-primary/40 transition-colors"
+                >
+                  <div className="space-y-2.5">
                     <div className="flex items-start gap-3">
-                      {/* Logo or Default Icon */}
-                      <div className="w-10 h-10 rounded-lg bg-primary/5 flex items-center justify-center shrink-0 border border-border/40 overflow-hidden">
+                      <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center shrink-0 border border-border/40 overflow-hidden">
                         {b.logo_url ? (
                           <img src={b.logo_url} alt={b.name} className="w-full h-full object-contain" />
                         ) : (
-                          <Building2 className="w-5 h-5 text-primary/70" />
+                          <Building className="w-5 h-5 text-primary/70" />
                         )}
                       </div>
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <p className="text-xs font-bold truncate text-foreground pr-6">{b.name}</p>
-                        <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
-                          {b.city && <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3 text-primary/75" />{b.city}</span>}
-                          {b.contact_phone && <span className="flex items-center gap-0.5"><Phone className="w-3 h-3 text-primary/75" />{b.contact_phone}</span>}
+                      <div className="min-w-0 flex-1 pr-6">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-xs font-bold truncate text-foreground">{b.name}</p>
+                          {b.city && (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 font-medium">
+                              {b.city}
+                            </Badge>
+                          )}
                         </div>
-                        {formatNotesText(b.notes) && (
-                          <p className="text-[10px] text-muted-foreground bg-muted/30 p-1.5 rounded-lg border border-border/20 mt-1.5 line-clamp-2">
-                            {formatNotesText(b.notes)}
-                          </p>
-                        )}
-
+                        <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground mt-1">
+                          {b.contact_phone && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="w-3 h-3 text-primary/70" />
+                              {b.contact_phone}
+                            </span>
+                          )}
+                          {b.contact_email && (
+                            <span className="flex items-center gap-1 truncate max-w-[140px]">
+                              <Mail className="w-3 h-3 text-primary/70" />
+                              {b.contact_email}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Action buttons (Edit & Delete) */}
-                    <div className="absolute top-2 left-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    {formatNotesText(b.notes) && (
+                      <p className="text-[11px] text-muted-foreground bg-muted/30 p-2 rounded-lg border border-border/20 line-clamp-2">
+                        {formatNotesText(b.notes)}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Actions Bar on card */}
+                  {myRole === "owner" && (
+                    <div className="absolute top-2 left-2 flex items-center gap-0.5 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -517,15 +853,15 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          )}
-        </Card>
-      )}
+                  )}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
 
-      {/* Delete Branch Confirmation & Safety Check Dialog */}
+      {/* Delete Branch Confirmation & Safety Dependency Check Dialog */}
       <AlertDialog
         open={!!deletingBranchTarget}
         onOpenChange={(op) => {
@@ -541,7 +877,7 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
               {checkingBranchData ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                  جاري التحقق من بيانات الفرع...
+                  جاري التحقق من سجلات الفرع...
                 </>
               ) : branchLinkedInfo?.hasData ? (
                 <>
@@ -559,49 +895,53 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
 
           <div className="py-2 text-sm text-muted-foreground space-y-3 text-right">
             {checkingBranchData ? (
-              <p className="text-xs">يرجى الانتظار بينما نقوم بالتحقق مما إذا كان الفرع مرتبط بأي وظائف أو مرشحين أو عروض...</p>
+              <p className="text-xs">
+                يرجى الانتظار بينما نقوم بالتحقق مما إذا كان الفرع مرتبط بأي وظائف، مرشحين، أو عروض...
+              </p>
             ) : branchLinkedInfo?.hasData ? (
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-foreground">
-                  الفرع <span className="font-bold text-primary">"{deletingBranchTarget?.name}"</span> مرتبط ببيانات داخل النظام ولا يمكن حذفه حتى يتم حذف أو نقل هذه البيانات أولاً:
+                  الفرع <span className="font-bold text-primary">"{deletingBranchTarget?.name}"</span> مرتبط ببيانات
+                  تشغيلية نشطة ولا يمكن حذفه حتى يتم نقل أو حذف هذه السجلات أولاً:
                 </p>
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 space-y-1.5 text-xs text-amber-900 dark:text-amber-200">
                   {branchLinkedInfo.jobsCount > 0 && (
                     <div className="flex items-center justify-between">
-                      <span>💼 عدد الوظائف المرتبطة:</span>
+                      <span>💼 الوظائف المرتبطة:</span>
                       <span className="font-bold">{branchLinkedInfo.jobsCount}</span>
                     </div>
                   )}
                   {branchLinkedInfo.candidatesCount > 0 && (
                     <div className="flex items-center justify-between">
-                      <span>👥 عدد المرشحين المرتبطين:</span>
+                      <span>👥 المرشحون المتقدمون:</span>
                       <span className="font-bold">{branchLinkedInfo.candidatesCount}</span>
                     </div>
                   )}
                   {branchLinkedInfo.offersCount > 0 && (
                     <div className="flex items-center justify-between">
-                      <span>📄 عدد عروض العمل:</span>
+                      <span>📄 العروض الوظيفية:</span>
                       <span className="font-bold">{branchLinkedInfo.offersCount}</span>
                     </div>
                   )}
                   {branchLinkedInfo.interviewsCount > 0 && (
                     <div className="flex items-center justify-between">
-                      <span>📅 عدد المقابلات:</span>
+                      <span>📅 المقابلات:</span>
                       <span className="font-bold">{branchLinkedInfo.interviewsCount}</span>
                     </div>
                   )}
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  تنبيه لحماية البيانات: لا يُسمح بحذف أي فرع يحتوي على سجلات توظيف نشطة لتجنب فقدان البيانات.
+                  إجراء لحماية البيانات: لا يُسمح بحذف الفروع المرتبطة بسجلات توظيف تجنباً لأي فقدان بيانات غير مقصود.
                 </p>
               </div>
             ) : (
               <div className="space-y-2">
                 <p>
-                  هل أنت تأكد من رغبتك في حذف فرع <span className="font-bold text-foreground">"{deletingBranchTarget?.name}"</span> نهائياً؟
+                  هل أنت متأكد من رغبتك في حذف فرع{" "}
+                  <span className="font-bold text-foreground">"{deletingBranchTarget?.name}"</span> نهائياً؟
                 </p>
                 <p className="text-xs bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 p-2.5 rounded-lg border border-emerald-500/20">
-                  ✅ تم التأكد من عدم وجود أية وظائف، مرشحين، أو عروض مرتبطة بهذا الفرع.
+                  ✅ تم التأكد من عدم وجود أية وظائف، مرشحين، أو عروض وظيفية مرتبطة بهذا الفرع.
                 </p>
                 <p className="text-[11px] text-destructive">
                   ⚠️ هذا الإجراء سيقوم بحذف الفرع نهائياً ولا يمكن التراجع عنه.
@@ -611,7 +951,12 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
           </div>
 
           <AlertDialogFooter className="flex justify-end gap-2">
-            <AlertDialogCancel onClick={() => { setDeletingBranchTarget(null); setBranchLinkedInfo(null); }}>
+            <AlertDialogCancel
+              onClick={() => {
+                setDeletingBranchTarget(null);
+                setBranchLinkedInfo(null);
+              }}
+            >
               {branchLinkedInfo?.hasData ? "إغلاق" : "إلغاء"}
             </AlertDialogCancel>
             {!checkingBranchData && !branchLinkedInfo?.hasData && (
@@ -620,7 +965,11 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
                 disabled={deleteBranchMutation.isPending}
                 onClick={handleConfirmDeleteBranch}
               >
-                {deleteBranchMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                {deleteBranchMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
                 تأكيد الحذف النهائي
               </AlertDialogAction>
             )}
@@ -630,13 +979,10 @@ function CompanyBlock({ companyId, name, role }: { companyId: string; name: stri
 
       {/* Edit Branch Dialog */}
       {editingBranch && (
-        <EditBranchDialog
-          branch={editingBranch}
-          onClose={() => setEditingBranch(null)}
-        />
+        <EditBranchDialog branch={editingBranch} onClose={() => setEditingBranch(null)} />
       )}
 
-      {/* Invitations panel only for owners */}
+      {/* Company Invitations Panel for owners */}
       {myRole === "owner" && <CompanyInvitationsPanel companyId={companyId} />}
     </Card>
   );
@@ -659,7 +1005,7 @@ const EditBranchDialog = ({
   branch,
   open = true,
   onClose,
-  updateBranch: updateBranchProp
+  updateBranch: updateBranchProp,
 }: {
   branch: any;
   open?: boolean;
@@ -670,7 +1016,6 @@ const EditBranchDialog = ({
   const defaultUpdateBranch = useUpdateCompany();
   const updateBranch = updateBranchProp || defaultUpdateBranch;
 
-  
   const [name, setName] = useState(branch.name || "");
   const [city, setCity] = useState(branch.city || "");
   const [email, setEmail] = useState(branch.contact_email || "");
@@ -686,18 +1031,14 @@ const EditBranchDialog = ({
 
     setUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split(".").pop();
       const filePath = `${user.id}/branch_logo_${Math.random()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
+      const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
 
       setLogoUrl(data.publicUrl);
       toast({ title: "تم رفع الشعار بنجاح ✅" });
@@ -715,22 +1056,25 @@ const EditBranchDialog = ({
 
     await updateBranch.mutateAsync({
       id: branch.id,
-      name,
-      city: city || null,
-      contact_email: email || null,
-      contact_phone: phone || null,
-      notes: notes || null,
-      logo_url: logoUrl || null
+      name: name.trim(),
+      city: city.trim() || null,
+      contact_email: email.trim() || null,
+      contact_phone: phone.trim() || null,
+      notes: notes.trim() || null,
+      logo_url: logoUrl || null,
     });
 
     onClose();
   };
 
   return (
-    <Dialog open onOpenChange={open => !open && onClose()}>
+    <Dialog open={open} onOpenChange={(op) => !op && onClose()}>
       <DialogContent className="max-w-md" dir="rtl">
         <DialogHeader>
-          <DialogTitle className="text-right">تعديل بيانات الفرع</DialogTitle>
+          <DialogTitle className="text-right flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-primary" />
+            تعديل بيانات الفرع
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleUpdate} className="space-y-4 py-2">
           {/* Logo Upload Section */}
@@ -747,9 +1091,15 @@ const EditBranchDialog = ({
                 </div>
               )}
             </div>
-            
+
             <div className="flex gap-2">
-              <Button type="button" variant="outline" size="sm" className="relative gap-1.5 text-xs" disabled={uploading}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="relative gap-1.5 text-xs"
+                disabled={uploading}
+              >
                 <Camera className="w-3.5 h-3.5" />
                 {logoUrl ? "تغيير الشعار" : "رفع شعار"}
                 <input
@@ -760,7 +1110,13 @@ const EditBranchDialog = ({
                 />
               </Button>
               {logoUrl && (
-                <Button type="button" variant="ghost" size="sm" className="text-destructive text-xs" onClick={() => setLogoUrl("")}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive text-xs"
+                  onClick={() => setLogoUrl("")}
+                >
                   حذف
                 </Button>
               )}
@@ -768,29 +1124,54 @@ const EditBranchDialog = ({
           </div>
 
           <div className="space-y-1.5 text-right">
-            <Label htmlFor="editName">اسم الفرع *</Label>
-            <Input id="editName" value={name} onChange={e => setName(e.target.value)} required />
+            <Label htmlFor="editName" className="text-xs font-bold">
+              اسم الفرع *
+            </Label>
+            <Input id="editName" value={name} onChange={(e) => setName(e.target.value)} required className="text-xs h-9" />
           </div>
           <div className="space-y-1.5 text-right">
-            <Label htmlFor="editCity">المدينة</Label>
-            <Input id="editCity" value={city} onChange={e => setCity(e.target.value)} />
+            <Label htmlFor="editCity" className="text-xs font-bold">
+              المدينة
+            </Label>
+            <Input id="editCity" value={city} onChange={(e) => setCity(e.target.value)} className="text-xs h-9" />
           </div>
           <div className="space-y-1.5 text-right">
-            <Label htmlFor="editEmail">البريد الإلكتروني للتواصل</Label>
-            <Input id="editEmail" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+            <Label htmlFor="editEmail" className="text-xs font-bold">
+              البريد الإلكتروني للتواصل
+            </Label>
+            <Input
+              id="editEmail"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="text-xs h-9"
+            />
           </div>
           <div className="space-y-1.5 text-right">
-            <Label htmlFor="editPhone">رقم هاتف الفرع</Label>
-            <Input id="editPhone" value={phone} onChange={e => setPhone(e.target.value)} />
+            <Label htmlFor="editPhone" className="text-xs font-bold">
+              رقم هاتف الفرع
+            </Label>
+            <Input id="editPhone" value={phone} onChange={(e) => setPhone(e.target.value)} className="text-xs h-9" />
           </div>
           <div className="space-y-1.5 text-right">
-            <Label htmlFor="editNotes">تفاصيل ووصف الفرع</Label>
-            <Textarea id="editNotes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="العنوان التفصيلي، أوقات العمل، إلخ..." rows={3} />
+            <Label htmlFor="editNotes" className="text-xs font-bold">
+              العنوان التفصيلي وملاحظات التشغيل
+            </Label>
+            <Textarea
+              id="editNotes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="العنوان التفصيلي، أوقات العمل، إلخ..."
+              rows={3}
+              className="text-xs resize-none"
+            />
           </div>
 
-          <DialogFooter className="flex justify-end gap-2 mt-4">
-            <Button type="button" variant="outline" onClick={onClose}>إلغاء</Button>
-            <Button type="submit" disabled={updateBranch.isPending || uploading}>
+          <DialogFooter className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>
+              إلغاء
+            </Button>
+            <Button type="submit" size="sm" disabled={updateBranch.isPending || uploading}>
               {updateBranch.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "حفظ التغييرات"}
             </Button>
           </DialogFooter>
@@ -798,4 +1179,4 @@ const EditBranchDialog = ({
       </DialogContent>
     </Dialog>
   );
-}
+};

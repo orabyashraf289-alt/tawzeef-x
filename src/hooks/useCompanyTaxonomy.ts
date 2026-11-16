@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { ALL_AL_ANDALUS_BRANCHES } from "@/data/alAndalusBranches";
 import {
   DEFAULT_SCHOOL_TYPES,
   DEFAULT_CURRICULA,
@@ -55,17 +54,11 @@ export const DEFAULT_DEPARTMENTS: DepartmentItem[] = [
 ];
 
 export const DEFAULT_LOCATIONS: LocationItem[] = [
-  ...ALL_AL_ANDALUS_BRANCHES.map((b) => ({
-    id: b.id,
-    name: `${b.city} - ${b.name}`,
-    city: b.city,
-    country: "السعودية",
-    type: b.schoolTypes.join(" / "),
-    address: b.address,
-  })),
-  { id: "loc-1", name: "الرياض - المقر الرئيسي", city: "الرياض", country: "السعودية", type: "مكتبي" },
-  { id: "loc-2", name: "جدة - الفرع الغربي", city: "جدة", country: "السعودية", type: "مكتبي" },
-  { id: "loc-3", name: "المنطقة الشرقية - الخبر", city: "الخبر", country: "السعودية", type: "مكتبي" },
+  { id: "loc-1", name: "الرياض - المقر الرئيسي", city: "الرياض", country: "السعودية", type: "مقر رئيسي", address: "طريق الملك فهد" },
+  { id: "loc-2", name: "جدة - فرع المنطقة الغربية", city: "جدة", country: "السعودية", type: "فرع إداري", address: "طريق الملك عبدالعزيز" },
+  { id: "loc-3", name: "الدمام / الخبر - فرع المنطقة الشرقية", city: "الخبر", country: "السعودية", type: "فرع إداري", address: "طريق الأمير تركي" },
+  { id: "loc-4", name: "مكة المكرمة - فرع العاصمة المقدسة", city: "مكة المكرمة", country: "السعودية", type: "مركز تشغيلي" },
+  { id: "loc-5", name: "المدينة المنورة", city: "المدينة المنورة", country: "السعودية", type: "مركز تشغيلي" },
   { id: "loc-6", name: "عمل عن بُعد (Remote)", city: "عن بُعد", country: "عالمي", type: "عن_بعد" },
 ];
 

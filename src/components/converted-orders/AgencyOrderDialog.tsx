@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { AL_ANDALUS_BRANCHES, type AgencyOrderFormState } from "./convertedOrdersConstants";
+import { COMPANY_DEFAULT_BRANCHES, type AgencyOrderFormState } from "./convertedOrdersConstants";
 
 interface AgencyOption {
   id: string;
@@ -99,7 +99,7 @@ export default function AgencyOrderDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="end">
-                {AL_ANDALUS_BRANCHES.map((b) => (
+                {COMPANY_DEFAULT_BRANCHES.map((b) => (
                   <SelectItem key={b} value={b}>
                     {b}
                   </SelectItem>

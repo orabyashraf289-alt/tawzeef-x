@@ -37,16 +37,18 @@ export const ORDER_TYPE_LABELS: Record<OrderType, { label: string; icon: LucideI
   branch_transfer: { label: "تحويل بين الفروع", icon: ArrowRightLeft, color: "text-blue-600 bg-blue-50 border-blue-200" },
 };
 
-export const AL_ANDALUS_BRANCHES = [
-  "مجمع بنين - الرياض",
-  "مجمع بنات - الرياض",
-  "مجمع بنين - جدة",
-  "مجمع بنات - جدة",
-  "مجمع بنين - الخبر والشرقية",
-  "مجمع بنات - الخبر والشرقية",
-  "القسم الدولي (International Section)",
+export const COMPANY_DEFAULT_BRANCHES = [
+  "المقر الرئيسي - الرياض",
+  "فرع المنطقة الغربية - جدة",
+  "فرع المنطقة الشرقية - الخبر والدمام",
+  "فرع مكة المكرمة",
+  "فرع المدينة المنورة",
+  "القسم الدولي (International Division)",
   "الإدارة العامة",
 ];
+
+/** @deprecated Use COMPANY_DEFAULT_BRANCHES */
+export const AL_ANDALUS_BRANCHES = COMPANY_DEFAULT_BRANCHES;
 
 export const CHECKLIST_ITEMS: ReadonlyArray<{ key: keyof OrderChecklist; label: string }> = [
   { key: "id_copy", label: "صورة الهوية الوطنية / الإقامة سارية المفعول" },
@@ -136,7 +138,7 @@ export function createInitialDirectOrderForm(): DirectOrderFormState {
     job_id: "",
     job_title: "",
     department: "",
-    target_branch: AL_ANDALUS_BRANCHES[0],
+    target_branch: COMPANY_DEFAULT_BRANCHES[0],
     basic_salary: 8000,
     currency: "SAR",
     housing_allowance: 2000,
@@ -155,7 +157,7 @@ export function createInitialAgencyOrderForm(): AgencyOrderFormState {
     job_id: "",
     job_title: "",
     department: "",
-    target_branch: AL_ANDALUS_BRANCHES[0],
+    target_branch: COMPANY_DEFAULT_BRANCHES[0],
     quota: 2,
     basic_salary: 7500,
     housing_allowance: 1800,
@@ -168,8 +170,8 @@ export function createInitialAgencyOrderForm(): AgencyOrderFormState {
 export function createInitialBranchTransferForm(): BranchTransferFormState {
   return {
     candidate_name: "",
-    source_branch: AL_ANDALUS_BRANCHES[0],
-    target_branch: AL_ANDALUS_BRANCHES[1],
+    source_branch: COMPANY_DEFAULT_BRANCHES[0],
+    target_branch: COMPANY_DEFAULT_BRANCHES[1],
     job_title: "",
     transfer_reason: "",
     notes: "",

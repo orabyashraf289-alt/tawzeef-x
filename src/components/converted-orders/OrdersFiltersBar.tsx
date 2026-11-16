@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  AL_ANDALUS_BRANCHES,
+  COMPANY_DEFAULT_BRANCHES,
   isConvertedOrdersTab,
   STATUS_BADGE_MAP,
   type ConvertedOrdersTab,
@@ -72,7 +72,7 @@ export default function OrdersFiltersBar({
             </SelectTrigger>
             <SelectContent align="end">
               <SelectItem value="all">كافة الفروع والمجمعات</SelectItem>
-              {AL_ANDALUS_BRANCHES.map((b) => (
+              {COMPANY_DEFAULT_BRANCHES.map((b) => (
                 <SelectItem key={b} value={b}>
                   {b}
                 </SelectItem>

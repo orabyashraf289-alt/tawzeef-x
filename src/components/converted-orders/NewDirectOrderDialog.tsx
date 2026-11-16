@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CandidateRow } from "@/hooks/useJobs";
-import { AL_ANDALUS_BRANCHES, type DirectOrderFormState } from "./convertedOrdersConstants";
+import { COMPANY_DEFAULT_BRANCHES, type DirectOrderFormState } from "./convertedOrdersConstants";
 
 interface NewDirectOrderDialogProps {
   open: boolean;
@@ -142,7 +142,7 @@ export default function NewDirectOrderDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent align="end">
-                  {[...new Set([form.target_branch, ...AL_ANDALUS_BRANCHES])].map((b) => (
+                  {[...new Set([form.target_branch, ...COMPANY_DEFAULT_BRANCHES])].map((b) => (
                     <SelectItem key={b} value={b}>
                       {b}
                     </SelectItem>
