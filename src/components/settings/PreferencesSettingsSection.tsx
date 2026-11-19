@@ -90,226 +90,228 @@ export function PreferencesSettingsSection({ onOpenRegional }: PreferencesSettin
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
         <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
           <Palette className="w-5 h-5 text-primary" />
           {isAr ? "تفضيلات ومظهر المنصة" : "Platform Preferences & Appearance"}
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-muted-foreground mt-0.5">
           {isAr
             ? "تخصيص المظهر الشخصي، لغة واجهة المستخدم، لون الهوية، وكثافة عرض الجداول."
             : "Customize your personal interface theme, accent color, language, and display density."}
         </p>
       </div>
 
-      {/* Interface Language */}
-      <div className="rounded-xl border border-border/50 p-5 space-y-4">
-        <div className="flex items-center gap-3">
-          <Globe className="w-5 h-5 text-muted-foreground" />
-          <div>
-            <h3 className="font-bold text-sm text-foreground">
-              {isAr ? "لغة واجهة المستخدم" : "Interface Language"}
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {isAr
-                ? "اختر لغة العرض الرئيسية للنظام والواجهات"
-                : "Select the primary display language of the system"}
-            </p>
+      {/* Top 2-Column Bento Row */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        {/* Display Mode + Brand Accent Color */}
+        <div className="rounded-xl border border-border/60 bg-muted/15 p-5 space-y-5">
+          <div className="flex items-center gap-3">
+            <Palette className="w-5 h-5 text-primary shrink-0" />
+            <div>
+              <h3 className="font-bold text-sm text-foreground">
+                {isAr ? "مظهر الشاشة ولون الهوية" : "Display Mode & Accent Color"}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {isAr
+                  ? "التبديل بين المظهر الفاتح والمظلم واختيار اللون التفاعلي المفضل"
+                  : "Toggle between Light and Dark modes and choose your accent hue"}
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-3 max-w-md">
-          <button
-            type="button"
-            onClick={() => setLocale("ar")}
-            className={cn(
-              "p-3 rounded-xl border-2 text-center transition-all",
-              locale === "ar"
-                ? "border-primary bg-primary/5 font-bold text-primary"
-                : "border-border/50 hover:bg-muted/30 text-muted-foreground",
-            )}
-          >
-            العربية (AR)
-          </button>
-          <button
-            type="button"
-            onClick={() => setLocale("en")}
-            className={cn(
-              "p-3 rounded-xl border-2 text-center transition-all",
-              locale === "en"
-                ? "border-primary bg-primary/5 font-bold text-primary"
-                : "border-border/50 hover:bg-muted/30 text-muted-foreground",
-            )}
-          >
-            English (EN)
-          </button>
-        </div>
-      </div>
-
-      {/* Display Mode + Brand Accent Color */}
-      <div className="rounded-xl border border-border/50 p-5 space-y-5">
-        <div className="flex items-center gap-3">
-          <Palette className="w-5 h-5 text-muted-foreground" />
-          <div>
-            <h3 className="font-bold text-sm text-foreground">
-              {isAr ? "مظهر الشاشة ولون الهوية" : "Display Mode & Accent Color"}
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {isAr
-                ? "التبديل بين المظهر الفاتح والمظلم واختيار اللون التفاعلي المفضل"
-                : "Toggle between Light and Dark modes and choose your accent hue"}
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3 max-w-lg">
-          {themeModes.map((mode) => {
-            const isSelected = theme === mode.id;
-            return (
-              <button
-                key={mode.id}
-                type="button"
-                onClick={() => setTheme(mode.id)}
-                className={cn(
-                  "flex flex-col items-center gap-1.5 p-3.5 rounded-xl border-2 transition-all",
-                  isSelected
-                    ? "border-primary bg-primary/5 font-bold text-primary"
-                    : "border-border/50 hover:bg-muted/30 text-muted-foreground",
-                )}
-              >
-                <span className="text-lg">{mode.icon}</span>
-                <span className="text-xs">{mode.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <Separator className="opacity-45" />
-
-        <div className="space-y-2.5">
-          <p className="text-xs font-semibold text-foreground">
-            {isAr ? "اللون الأساسي للواجهة (Accent Color)" : "Primary Interface Accent"}
-          </p>
-          <div className="flex flex-wrap gap-2.5">
-            {ACCENT_PRESETS.map((preset) => {
-              const selected = primaryColor === preset.hsl;
-              const label = isAr ? preset.labelAr : preset.labelEn;
+          <div className="grid grid-cols-3 gap-3">
+            {themeModes.map((mode) => {
+              const isSelected = theme === mode.id;
               return (
                 <button
-                  key={preset.hsl}
+                  key={mode.id}
                   type="button"
-                  aria-pressed={selected}
-                  onClick={() => handleAccentSelect(preset.hsl, label)}
+                  onClick={() => setTheme(mode.id)}
                   className={cn(
-                    "inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all",
-                    selected
-                      ? "border-primary bg-primary/10 text-foreground shadow-xs"
-                      : "border-border/60 hover:bg-muted/40 text-muted-foreground",
+                    "flex flex-col items-center gap-1.5 p-3.5 rounded-xl border-2 transition-all bg-background",
+                    isSelected
+                      ? "border-primary bg-primary/5 font-bold text-primary"
+                      : "border-border/50 hover:bg-muted/30 text-muted-foreground",
                   )}
                 >
-                  <span
-                    className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: preset.hex }}
-                  >
-                    {selected && <Check className="w-2.5 h-2.5 text-white" />}
-                  </span>
-                  <span>{label}</span>
+                  <span className="text-lg">{mode.icon}</span>
+                  <span className="text-xs">{mode.label}</span>
                 </button>
               );
             })}
           </div>
+
+          <Separator className="opacity-45" />
+
+          <div className="space-y-2.5">
+            <p className="text-xs font-semibold text-foreground">
+              {isAr ? "اللون الأساسي للواجهة (Accent Color)" : "Primary Interface Accent"}
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {ACCENT_PRESETS.map((preset) => {
+                const selected = primaryColor === preset.hsl;
+                const label = isAr ? preset.labelAr : preset.labelEn;
+                return (
+                  <button
+                    key={preset.hsl}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => handleAccentSelect(preset.hsl, label)}
+                    className={cn(
+                      "inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition-all bg-background",
+                      selected
+                        ? "border-primary bg-primary/10 text-foreground shadow-xs"
+                        : "border-border/60 hover:bg-muted/40 text-muted-foreground",
+                    )}
+                  >
+                    <span
+                      className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: preset.hex }}
+                    >
+                      {selected && <Check className="w-2.5 h-2.5 text-white" />}
+                    </span>
+                    <span className="truncate">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Language + Regional Shortcut */}
+        <div className="rounded-xl border border-border/60 bg-muted/15 p-5 flex flex-col justify-between gap-5">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Globe className="w-5 h-5 text-primary shrink-0" />
+              <div>
+                <h3 className="font-bold text-sm text-foreground">
+                  {isAr ? "لغة واجهة المستخدم" : "Interface Language"}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {isAr
+                    ? "اختر لغة العرض الرئيسية للنظام والواجهات والتقارير"
+                    : "Select the primary display language of the system"}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setLocale("ar")}
+                className={cn(
+                  "p-4 rounded-xl border-2 text-center transition-all bg-background",
+                  locale === "ar"
+                    ? "border-primary bg-primary/5 font-bold text-primary"
+                    : "border-border/50 hover:bg-muted/30 text-muted-foreground",
+                )}
+              >
+                <div className="text-sm font-black">العربية</div>
+                <div className="text-[11px] opacity-75 mt-0.5">RTL — Arabic (AR)</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setLocale("en")}
+                className={cn(
+                  "p-4 rounded-xl border-2 text-center transition-all bg-background",
+                  locale === "en"
+                    ? "border-primary bg-primary/5 font-bold text-primary"
+                    : "border-border/50 hover:bg-muted/30 text-muted-foreground",
+                )}
+              >
+                <div className="text-sm font-black">English</div>
+                <div className="text-[11px] opacity-75 mt-0.5">LTR — English (EN)</div>
+              </button>
+            </div>
+          </div>
+
+          {onOpenRegional && (
+            <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <Globe2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-bold text-foreground">
+                    {isAr ? "إعدادات التقويم الهجري والعملات المتعددة" : "Hijri Calendar & Multi-Currency"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                    {isAr
+                      ? "ضبط تقويم أم القرى الهجري، العملة الافتراضية والتحويل الآلي، والمنطقة الزمنية وأيام العمل."
+                      : "Configure Umm al-Qura Hijri dates, salary currency conversion, and workweek."}
+                  </p>
+                </div>
+              </div>
+              <Button type="button" size="sm" variant="outline" onClick={onOpenRegional} className="w-full text-xs font-bold gap-1 bg-background">
+                <span>{isAr ? "فتح التخصيص الإقليمي" : "Open Regional Settings"}</span>
+                {isAr ? <ArrowUpLeft className="w-3.5 h-3.5" /> : <ArrowUpRight className="w-3.5 h-3.5" />}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Accessibility, Density & Shortcuts */}
-      <div className="rounded-xl border border-border/50 p-5 space-y-4">
+      {/* Bottom 3-Column Feature Toggles Bento Row */}
+      <div className="rounded-xl border border-border/60 bg-muted/15 p-5 space-y-4">
         <div className="flex items-center gap-3">
-          <Settings2 className="w-5 h-5 text-muted-foreground" />
+          <Settings2 className="w-5 h-5 text-primary shrink-0" />
           <div>
             <h3 className="font-bold text-sm text-foreground">
               {isAr ? "خيارات واجهة الاستخدام والكثافة" : "Accessibility, Density & Shortcuts"}
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               {isAr
-                ? "خيارات مخصصة لتحسين كفاءة وتجربة شاشات العمل اليومية"
-                : "Optimize screen density, animations, and keyboard navigation"}
+                ? "تحكم فوري في كثافة الجداول والمؤثرات الانتقالية واختصارات لوحة المفاتيح"
+                : "Fine-tune screen density, animations, and keyboard navigation"}
             </p>
           </div>
         </div>
 
-        <div className="space-y-4 pt-2">
-          <div className="flex items-center justify-between gap-4">
-            <div className="space-y-0.5">
-              <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <LayoutGrid className="w-3.5 h-3.5 text-primary" />
-                {isAr ? "العرض المدمج للجداول والقوائم (Compact View)" : "Compact Table & List Density"}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col justify-between gap-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <LayoutGrid className="w-4 h-4 text-primary shrink-0" />
+                {isAr ? "العرض المدمج (Compact)" : "Compact Density"}
               </p>
-              <p className="text-[11px] text-muted-foreground">
-                {isAr
-                  ? "عرض عدد أكبر من المرشحين وسجلات الأمان في الشاشة الواحدة"
-                  : "Fit more candidates and audit records into each screen view"}
-              </p>
+              <Switch checked={isCompact} onCheckedChange={handleDensityToggle} />
             </div>
-            <Switch checked={isCompact} onCheckedChange={handleDensityToggle} />
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {isAr
+                ? "عرض عدد أكبر من المرشحين وسجلات الأمان في الشاشة الواحدة"
+                : "Fit more candidates and audit records into each screen view"}
+            </p>
           </div>
 
-          <Separator className="opacity-45" />
-
-          <div className="flex items-center justify-between gap-4">
-            <div className="space-y-0.5">
-              <p className="text-xs font-semibold text-foreground">
-                {isAr ? "تفعيل الحركات والمؤثرات الانتقالية" : "Enable Page Transitions & Animations"}
+          <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col justify-between gap-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs font-bold text-foreground">
+                {isAr ? "المؤثرات الانتقالية" : "Page Animations"}
               </p>
-              <p className="text-[11px] text-muted-foreground">
-                {isAr
-                  ? "عرض مؤثرات بصرية مريحة عند الانتقال بين صفحات النظام"
-                  : "Render fluid animations when navigating between pages"}
-              </p>
+              <Switch checked={animationsEnabled} onCheckedChange={handleAnimationsChange} />
             </div>
-            <Switch checked={animationsEnabled} onCheckedChange={handleAnimationsChange} />
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {isAr
+                ? "عرض حركات بصرية مريحة عند الانتقال بين صفحات النظام"
+                : "Render fluid transitions when navigating between views"}
+            </p>
           </div>
 
-          <Separator className="opacity-45" />
-
-          <div className="flex items-center justify-between gap-4">
-            <div className="space-y-0.5">
-              <p className="text-xs font-semibold text-foreground">
-                {isAr ? "تفعيل اختصارات لوحة المفاتيح الذكية" : "Enable Keyboard Shortcuts HUD"}
+          <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col justify-between gap-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs font-bold text-foreground">
+                {isAr ? "اختصارات المفاتيح" : "Keyboard Shortcuts"}
               </p>
-              <p className="text-[11px] text-muted-foreground">
-                {isAr
-                  ? "استخدام لوحة المفاتيح للانتقال السريع والبحث الذكي (Cmd+K)"
-                  : "Access navigation actions using hotkeys (e.g. Cmd+K)"}
-              </p>
+              <Switch checked={shortcutsEnabled} onCheckedChange={handleShortcutsChange} />
             </div>
-            <Switch checked={shortcutsEnabled} onCheckedChange={handleShortcutsChange} />
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {isAr
+                ? "استخدام لوحة المفاتيح للانتقال السريع والبحث الذكي (Cmd+K)"
+                : "Access navigation actions using hotkeys (e.g. Cmd+K)"}
+            </p>
           </div>
         </div>
       </div>
-
-      {/* Regional Shortcut Card */}
-      {onOpenRegional && (
-        <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Globe2 className="w-5 h-5 text-primary shrink-0" />
-            <div>
-              <p className="text-xs font-bold text-foreground">
-                {isAr ? "إعدادات التقويم الهجري والعملات المتعددة" : "Hijri Calendar & Multi-Currency Settings"}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {isAr
-                  ? "انتقل لتبويب التخصيص الإقليمي لضبط تقويم أم القرى والعملة الافتراضية وأيام العمل."
-                  : "Configure Umm al-Qura Hijri dates, salary currency conversion, and workweek."}
-              </p>
-            </div>
-          </div>
-          <Button type="button" size="sm" variant="outline" onClick={onOpenRegional} className="text-xs font-bold gap-1">
-            <span>{isAr ? "فتح التخصيص الإقليمي" : "Open Regional Settings"}</span>
-            {isAr ? <ArrowUpLeft className="w-3.5 h-3.5" /> : <ArrowUpRight className="w-3.5 h-3.5" />}
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

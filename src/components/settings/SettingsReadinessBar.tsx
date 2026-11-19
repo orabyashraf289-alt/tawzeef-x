@@ -90,20 +90,20 @@ export function SettingsReadinessBar({
   const percentage = Math.round((doneCount / steps.length) * 100);
 
   return (
-    <div className="mb-5 rounded-md3-2xl border border-md-outline-variant bg-card/80 px-4 py-3.5 shadow-xs">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+    <div className="rounded-md3-2xl border border-md-outline-variant bg-card/85 px-4 py-3 shadow-xs flex-1 min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0 shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
             <Sparkles className="w-4 h-4" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-black text-foreground">
-                {isAr ? "جاهزية تهيئة النظام" : "Workspace Setup Readiness"}
+              <span className="text-xs font-black text-foreground whitespace-nowrap">
+                {isAr ? "جاهزية النظام" : "Setup Readiness"}
               </span>
               <span className="text-xs font-mono font-bold text-primary">{percentage}%</span>
             </div>
-            <div className="w-44 mt-1">
+            <div className="w-32 mt-1">
               <Progress value={percentage} className="h-1.5" />
             </div>
           </div>

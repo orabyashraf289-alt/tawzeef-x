@@ -245,276 +245,279 @@ export function SecuritySettingsSection() {
   const currentStrength = newPassword ? checkPasswordStrength(newPassword, activePolicy) : null;
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-lg font-bold text-foreground">{t("settings.securityTitle")}</h2>
-          <p className="text-sm text-muted-foreground mt-1">{t("settings.securityDesc")}</p>
-        </div>
-        <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">{t("settings.newPassword")}</Label>
-            <Input
-              name="newPassword"
-              type="password"
-              placeholder="••••••••"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-            />
+    <div className="space-y-6">
+      {/* Top 2-Column Bento Row: Password Update + Strength Policy */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
+        <div className="rounded-xl border border-border/60 bg-muted/15 p-5 space-y-4">
+          <div>
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-primary" />
+              {t("settings.securityTitle")}
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">{t("settings.securityDesc")}</p>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">{t("settings.confirmPassword")}</Label>
-            <Input
-              name="confirmPassword"
-              type="password"
-              placeholder="••••••••"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          {newPassword && currentStrength && (
-            <div className="space-y-2 mt-2">
-              <div className="flex gap-1">
-                {[0, 1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="h-1.5 flex-1 rounded-full transition-all duration-300"
-                    style={{
-                      background:
-                        i < currentStrength.score ? currentStrength.color : "hsl(var(--muted))",
-                    }}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold" style={{ color: currentStrength.color }}>
-                  قوة كلمة المرور: {currentStrength.label}
-                </span>
-              </div>
+          <form onSubmit={handlePasswordChange} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">{t("settings.newPassword")}</Label>
+              <Input
+                name="newPassword"
+                type="password"
+                placeholder="••••••••"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                className="bg-background"
+              />
             </div>
-          )}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">{t("settings.confirmPassword")}</Label>
+              <Input
+                name="confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className="bg-background"
+              />
+            </div>
 
-          <Button type="submit" disabled={loading} className="gap-2">
-            {loading ? (
-              t("settings.updating")
-            ) : (
-              <>
-                <KeyRound className="w-4 h-4" />
-                {t("settings.changePassword")}
-              </>
+            {newPassword && currentStrength && (
+              <div className="space-y-2 mt-2">
+                <div className="flex gap-1">
+                  {[0, 1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="h-1.5 flex-1 rounded-full transition-all duration-300"
+                      style={{
+                        background:
+                          i < currentStrength.score ? currentStrength.color : "hsl(var(--muted))",
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold" style={{ color: currentStrength.color }}>
+                    قوة كلمة المرور: {currentStrength.label}
+                  </span>
+                </div>
+              </div>
             )}
-          </Button>
-        </form>
+
+            <Button type="submit" disabled={loading} className="w-full sm:w-auto gap-2">
+              {loading ? (
+                t("settings.updating")
+              ) : (
+                <>
+                  <KeyRound className="w-4 h-4" />
+                  {t("settings.changePassword")}
+                </>
+              )}
+            </Button>
+          </form>
+        </div>
+
+        {isAdmin && (
+          <div className="rounded-xl border border-border/60 bg-muted/15 p-5 space-y-4">
+            <div>
+              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                <Shield className="w-4 h-4 text-primary" />
+                قواعد تغيير كلمة مروري
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                تُطبق هذه القواعد عند تغيير كلمة مرور حسابك من هذه الصفحة فقط.
+              </p>
+            </div>
+
+            {loadingPolicy ? (
+              <div className="flex justify-center py-6" role="status">
+                <Loader2 className="w-5 h-5 text-primary animate-spin" />
+              </div>
+            ) : policyError ? (
+              <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-2">
+                <p className="text-sm font-medium text-destructive">
+                  {locale === "en" ? "Could not load password rules." : "تعذّر تحميل قواعد كلمة المرور."}
+                </p>
+                <p className="text-xs text-muted-foreground">{policyError}</p>
+                <Button variant="outline" size="sm" onClick={() => void loadPolicy()}>
+                  {locale === "en" ? "Retry" : "إعادة المحاولة"}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs font-semibold">الحد الأدنى لطول كلمة المرور</Label>
+                    <span className="text-xs font-mono font-bold bg-primary/10 text-primary px-2 py-0.5 rounded">
+                      {minLength} أحرف
+                    </span>
+                  </div>
+                  <Input
+                    type="range"
+                    min={8}
+                    max={20}
+                    value={minLength}
+                    onChange={(e) => setMinLength(clampMinLength(e.target.value))}
+                    className="h-1.5 bg-secondary accent-primary transition-colors cursor-pointer"
+                  />
+                </div>
+
+                <Separator className="opacity-40" />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-background p-2.5 border border-border/50">
+                    <div>
+                      <p className="text-xs font-medium text-foreground">أحرف كبيرة (A-Z)</p>
+                    </div>
+                    <Switch checked={requireUpper} onCheckedChange={setRequireUpper} />
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-background p-2.5 border border-border/50">
+                    <div>
+                      <p className="text-xs font-medium text-foreground">أحرف صغيرة (a-z)</p>
+                    </div>
+                    <Switch checked={requireLower} onCheckedChange={setRequireLower} />
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-background p-2.5 border border-border/50">
+                    <div>
+                      <p className="text-xs font-medium text-foreground">أرقام (0-9)</p>
+                    </div>
+                    <Switch checked={requireNumbers} onCheckedChange={setRequireNumbers} />
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-background p-2.5 border border-border/50">
+                    <div>
+                      <p className="text-xs font-medium text-foreground">رموز خاصة (@#$)</p>
+                    </div>
+                    <Switch checked={requireSpecial} onCheckedChange={setRequireSpecial} />
+                  </div>
+                </div>
+
+                <Button onClick={handleSavePolicy} disabled={savingPolicy} className="w-full gap-2">
+                  {savingPolicy ? (
+                    "جاري الحفظ..."
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      حفظ سياسة كلمة المرور
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {isAdmin && (
-        <div className="space-y-6 pt-6 border-t border-border/60">
+      {/* Full-Width PDPL / GDPR Data Retention Bento Panel */}
+      {isAdmin && activeCompanyId && (
+        <div className="rounded-xl border border-border/60 bg-muted/15 p-5 space-y-4">
           <div>
-            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <Shield className="w-5 h-5 text-primary" />
-              قواعد تغيير كلمة مروري
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+              <Scale className="w-4 h-4 text-primary" />
+              الاحتفاظ بالبيانات والامتثال (GDPR / PDPL السعودية)
             </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              تُطبق هذه القواعد عند تغيير كلمة مرور حسابك من هذه الصفحة فقط. لا تغير شروط تسجيل أعضاء الفريق أو استعادة كلمات مرورهم.
+            <p className="text-xs text-muted-foreground mt-1">
+              تحديد مدد الاحتفاظ ببيانات المرشحين المرفوضين وغير النشطين وسجلات التدقيق، ومعاينة وتنفيذ إخفاء الهوية التلقائي للامتثال.
             </p>
           </div>
 
-          {loadingPolicy ? (
-            <div className="flex justify-center py-6" role="status">
-              <Loader2 className="w-5 h-5 text-primary animate-spin" />
-            </div>
-          ) : policyError ? (
-            <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-2 max-w-xl">
-              <p className="text-sm font-medium text-destructive">
-                {locale === "en" ? "Could not load password rules." : "تعذّر تحميل قواعد كلمة المرور."}
-              </p>
-              <p className="text-xs text-muted-foreground">{policyError}</p>
-              <Button variant="outline" size="sm" onClick={() => void loadPolicy()}>
-                {locale === "en" ? "Retry" : "إعادة المحاولة"}
-              </Button>
-            </div>
-          ) : (
-            <div className="bg-muted/20 border border-border/40 rounded-xl p-5 space-y-5 max-w-xl">
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label className="text-sm font-semibold">الحد الأدنى لطول كلمة المرور</Label>
-                  <span className="text-xs font-mono font-bold bg-primary/10 text-primary px-2 py-0.5 rounded">
-                    {minLength} أحرف
-                  </span>
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+            <div className="xl:col-span-7 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="retention-candidate-days" className="text-xs font-semibold">احتفاظ المرشحين (يوم)</Label>
+                  <Input
+                    id="retention-candidate-days"
+                    type="number"
+                    min={30}
+                    max={3650}
+                    value={candidateRetentionDays}
+                    onChange={(e) => setCandidateRetentionDays(Number(e.target.value))}
+                    className="bg-background"
+                  />
                 </div>
-                <Input
-                  type="range"
-                  min={8}
-                  max={20}
-                  value={minLength}
-                  onChange={(e) => setMinLength(clampMinLength(e.target.value))}
-                  className="h-1.5 bg-secondary accent-primary transition-colors cursor-pointer"
-                />
-              </div>
-
-              <Separator className="opacity-40" />
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-foreground">تطلب أحرفاً كبيرة (A-Z)</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      يجب أن تحتوي كلمة المرور على حرف كبير واحد على الأقل.
-                    </p>
-                  </div>
-                  <Switch checked={requireUpper} onCheckedChange={setRequireUpper} />
+                <div className="space-y-1">
+                  <Label htmlFor="retention-rejected-days" className="text-xs font-semibold">الطلبات المرفوضة (يوم)</Label>
+                  <Input
+                    id="retention-rejected-days"
+                    type="number"
+                    min={30}
+                    max={1825}
+                    value={rejectedRetentionDays}
+                    onChange={(e) => setRejectedRetentionDays(Number(e.target.value))}
+                    className="bg-background"
+                  />
                 </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-foreground">تطلب أحرفاً صغيرة (a-z)</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      يجب أن تحتوي كلمة المرور على حرف صغير واحد على الأقل.
-                    </p>
-                  </div>
-                  <Switch checked={requireLower} onCheckedChange={setRequireLower} />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-foreground">تطلب أرقاماً (0-9)</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      يجب أن تحتوي كلمة المرور على رقم واحد على الأقل.
-                    </p>
-                  </div>
-                  <Switch checked={requireNumbers} onCheckedChange={setRequireNumbers} />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-foreground">تطلب رموزاً خاصة (@, #, $ ...)</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      يجب أن تحتوي كلمة المرور على رمز خاص واحد على الأقل.
-                    </p>
-                  </div>
-                  <Switch checked={requireSpecial} onCheckedChange={setRequireSpecial} />
+                <div className="space-y-1">
+                  <Label htmlFor="retention-audit-days" className="text-xs font-semibold">سجلات التدقيق (يوم)</Label>
+                  <Input
+                    id="retention-audit-days"
+                    type="number"
+                    min={90}
+                    max={3650}
+                    value={auditRetentionDays}
+                    onChange={(e) => setAuditRetentionDays(Number(e.target.value))}
+                    className="bg-background"
+                  />
                 </div>
               </div>
 
-              <Button onClick={handleSavePolicy} disabled={savingPolicy} className="w-full gap-2 mt-2">
-                {savingPolicy ? (
-                  "جاري الحفظ..."
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    حفظ سياسة كلمة المرور
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-
-          {activeCompanyId && (
-            <div className="pt-8 space-y-4 max-w-xl">
-              <Separator className="opacity-50" />
-              <div>
-                <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <Scale className="w-5 h-5 text-primary" />
-                  الاحتفاظ بالبيانات والامتثال (GDPR / PDPL السعودية)
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  تحديد مدد الاحتفاظ ببيانات المرشحين المرفوضين وغير النشطين وسجلات التدقيق، ومعاينة وتنفيذ إخفاء الهوية التلقائي للامتثال.
-                </p>
+              <div className="flex items-center justify-between gap-3 rounded-lg bg-background p-3 border border-border/50">
+                <div>
+                  <p className="text-xs font-semibold text-foreground">تفعيل التجهيل الدوري التلقائي للبيانات المنتهية</p>
+                  <p className="text-[11px] text-muted-foreground">يُسجّل السياسة المعتمدة لتنفيذ إخفاء هوية المرشحين بعد انقضاء المدة.</p>
+                </div>
+                <Switch checked={autoAnonymizeEnabled} onCheckedChange={setAutoAnonymizeEnabled} />
               </div>
 
-              <div className="bg-muted/20 border border-border/40 rounded-xl p-5 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="retention-candidate-days" className="text-xs font-semibold">احتفاظ المرشحين (يوم)</Label>
-                    <Input
-                      id="retention-candidate-days"
-                      type="number"
-                      min={30}
-                      max={3650}
-                      value={candidateRetentionDays}
-                      onChange={(e) => setCandidateRetentionDays(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="retention-rejected-days" className="text-xs font-semibold">الطلبات المرفوضة (يوم)</Label>
-                    <Input
-                      id="retention-rejected-days"
-                      type="number"
-                      min={30}
-                      max={1825}
-                      value={rejectedRetentionDays}
-                      onChange={(e) => setRejectedRetentionDays(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="retention-audit-days" className="text-xs font-semibold">سجلات التدقيق (يوم)</Label>
-                    <Input
-                      id="retention-audit-days"
-                      type="number"
-                      min={90}
-                      max={3650}
-                      value={auditRetentionDays}
-                      onChange={(e) => setAuditRetentionDays(Number(e.target.value))}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <div>
-                    <p className="text-xs font-medium text-foreground">تفعيل التجهيل الدوري التلقائي للبيانات المنتهية</p>
-                    <p className="text-[10px] text-muted-foreground">يُسجّل السياسة المعتمدة لتنفيذ إخفاء هوية المرشحين بعد انقضاء المدة.</p>
-                  </div>
-                  <Switch checked={autoAnonymizeEnabled} onCheckedChange={setAutoAnonymizeEnabled} />
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" onClick={() => void handleSaveRetentionPolicy()} disabled={savingRetention} className="gap-1.5">
-                    <Check className="w-4 h-4" />
-                    {savingRetention ? "جارٍ الحفظ..." : "حفظ سياسة الاحتفاظ بالبيانات"}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => void handleExecuteRetention(true)} disabled={executingRetention}>
-                    معاينة السجلات المستحقة (Dry Run)
-                  </Button>
-                </div>
-
-                {retentionReport && (
-                  <div role="status" className="rounded-lg border bg-background p-3 text-xs space-y-1">
-                    <p className="font-semibold text-foreground">
-                      {retentionReport.dry_run
-                        ? `عدد ملفات المرشحين المستحقة لإخفاء الهوية: ${retentionReport.eligible_candidates}`
-                        : `تم تنفيذ إخفاء الهوية لـ ${retentionReport.anonymized_candidates} ملف مرشح بنجاح.`}
-                    </p>
-                  </div>
-                )}
-
-                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2.5">
-                  <label className="flex items-start gap-2 text-xs text-foreground cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={confirmRetentionAnonymize}
-                      onChange={(e) => setConfirmRetentionAnonymize(e.target.checked)}
-                      className="mt-0.5"
-                    />
-                    <span>أؤكد تنفيذ إخفاء البيانات الشخصية للمرشحين المنتهية مدتهم ولا يمكن التراجع عن التجهيل بعد التنفيذ.</span>
-                  </label>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    disabled={!confirmRetentionAnonymize || executingRetention}
-                    onClick={() => void handleExecuteRetention(false)}
-                    className="gap-1.5"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    تنفيذ إخفاء الهوية الآن (PDPL/GDPR)
-                  </Button>
-                </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" onClick={() => void handleSaveRetentionPolicy()} disabled={savingRetention} className="gap-1.5">
+                  <Check className="w-4 h-4" />
+                  {savingRetention ? "جارٍ الحفظ..." : "حفظ سياسة الاحتفاظ بالبيانات"}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => void handleExecuteRetention(true)} disabled={executingRetention} className="bg-background">
+                  معاينة السجلات المستحقة (Dry Run)
+                </Button>
               </div>
             </div>
-          )}
+
+            <div className="xl:col-span-5 space-y-3">
+              {retentionReport && (
+                <div role="status" className="rounded-lg border bg-background p-3 text-xs space-y-1">
+                  <p className="font-semibold text-foreground">
+                    {retentionReport.dry_run
+                      ? `عدد ملفات المرشحين المستحقة لإخفاء الهوية: ${retentionReport.eligible_candidates}`
+                      : `تم تنفيذ إخفاء الهوية لـ ${retentionReport.anonymized_candidates} ملف مرشح بنجاح.`}
+                  </p>
+                </div>
+              )}
+
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-3">
+                <label className="flex items-start gap-2 text-xs text-foreground cursor-pointer leading-relaxed">
+                  <input
+                    type="checkbox"
+                    checked={confirmRetentionAnonymize}
+                    onChange={(e) => setConfirmRetentionAnonymize(e.target.checked)}
+                    className="mt-1 shrink-0"
+                  />
+                  <span>أؤكد تنفيذ إخفاء البيانات الشخصية للمرشحين المنتهية مدتهم ولا يمكن التراجع عن التجهيل بعد التنفيذ.</span>
+                </label>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={!confirmRetentionAnonymize || executingRetention}
+                  onClick={() => void handleExecuteRetention(false)}
+                  className="w-full gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  تنفيذ إخفاء الهوية الآن (PDPL/GDPR)
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

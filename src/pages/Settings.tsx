@@ -111,44 +111,36 @@ export default function SettingsPage() {
   const matchedTab = settingsTabs.find((tab) => tab.id === tabParam);
   const activeTabConfig = matchedTab ?? settingsTabs.find((tab) => tab.id === "account") ?? settingsTabs[0];
   const activeTab: SettingsTabId = activeTabConfig ? activeTabConfig.id : "account";
-  const ActiveIcon = activeTabConfig?.icon ?? Settings2;
 
   return (
     <DashboardLayout>
-      <div className="p-4 lg:p-8">
+      <div className="p-4 lg:p-6">
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-5"
+          className="mb-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-md3-xl bg-md-primary flex items-center justify-center text-md-on-primary shadow-md3-2 shrink-0">
-              <Settings2 className="w-6 h-6" />
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="w-11 h-11 rounded-md3-xl bg-md-primary flex items-center justify-center text-md-on-primary shadow-md3-2 shrink-0">
+              <Settings2 className="w-5 h-5" />
             </div>
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md3-full bg-md-primary-container text-md-on-primary-container text-xs font-bold mb-1">
-                <span>
-                  {locale === "en"
-                    ? "Workspace Customization & Governance"
-                    : "تخصيص المنصة وصلاحيات النظام"}
-                </span>
-              </div>
-              <h1 className="text-2xl lg:text-3xl font-black text-foreground">
+              <h1 className="text-xl lg:text-2xl font-black text-foreground leading-tight">
                 {t("settings.title")}
               </h1>
               <p className="text-xs text-muted-foreground mt-0.5">{t("settings.subtitle")}</p>
             </div>
           </div>
+
+          <SettingsReadinessBar
+            locale={locale}
+            availableTabIds={availableTabIds}
+            activeTab={activeTab}
+            onSelectTab={handleTabChange}
+          />
         </motion.div>
 
-        <SettingsReadinessBar
-          locale={locale}
-          availableTabIds={availableTabIds}
-          activeTab={activeTab}
-          onSelectTab={handleTabChange}
-        />
-
-        <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex flex-col lg:flex-row gap-5">
           <SettingsSidebar
             tabs={settingsTabs}
             groups={settingsGroups}
@@ -165,23 +157,7 @@ export default function SettingsPage() {
             transition={{ duration: 0.2 }}
             className="flex-1 min-w-0"
           >
-            <div className="bg-card rounded-md3-2xl border border-md-outline-variant p-5 sm:p-7 w-full max-w-full shadow-xs">
-              {activeTabConfig && (
-                <div className="flex items-center gap-2.5 pb-4 mb-5 border-b border-border/60">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <ActiveIcon className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm font-black text-foreground truncate">
-                      {activeTabConfig.label}
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {activeTabConfig.description}
-                    </p>
-                  </div>
-                </div>
-              )}
-
+            <div className="bg-card rounded-md3-2xl border border-md-outline-variant p-5 sm:p-6 w-full max-w-full shadow-xs">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}

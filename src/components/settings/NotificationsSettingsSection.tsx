@@ -165,11 +165,11 @@ export function NotificationsSettingsSection() {
         <h2 className="text-lg font-bold text-foreground">{t("settings.notificationsTitle")}</h2>
         <p className="text-sm text-muted-foreground mt-1">{t("settings.notificationsDesc")}</p>
       </div>
-      <div className="space-y-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {prefs.map((pref, i) => (
           <div
             key={i}
-            className="flex items-center justify-between gap-3 p-4 rounded-xl bg-muted/30 border border-border/30 hover:bg-muted/50 transition-colors"
+            className="flex items-start justify-between gap-3 p-4 rounded-xl bg-muted/20 border border-border/60 hover:bg-muted/35 transition-colors"
           >
             <div className="flex items-center gap-3 min-w-0">
               <span className="text-lg">{pref.icon}</span>

@@ -143,7 +143,7 @@ export function HiringGoalsSettingsSection() {
           })}
         </p>
       </div>
-      <div className="grid sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {fields.map((field) => (
           <div
             key={field.key}

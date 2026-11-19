@@ -163,122 +163,133 @@ export function AccountSettingsSection() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
         <h2 className="text-lg font-bold text-foreground">{t("settings.profileTitle")}</h2>
-        <p className="text-sm text-muted-foreground mt-1">{t("settings.profileDesc")}</p>
+        <p className="text-sm text-muted-foreground mt-0.5">{t("settings.profileDesc")}</p>
       </div>
 
-      {loadingProfile ? (
-        <div className="flex justify-center py-8" role="status">
-          <Loader2 className="w-6 h-6 text-primary animate-spin" />
-        </div>
-      ) : profileError ? (
-        <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 space-y-3">
-          <p className="text-sm font-medium text-destructive">
-            {locale === "en" ? "Could not load profile details." : "تعذّر تحميل بيانات الملف الشخصي."}
-          </p>
-          <p className="text-xs text-muted-foreground">{profileError}</p>
-          <Button variant="outline" size="sm" onClick={() => void loadProfile()}>
-            {locale === "en" ? "Retry" : "إعادة المحاولة"}
-          </Button>
-        </div>
-      ) : (
-        <>
-          <div className="flex items-start gap-5">
-            <div className="relative group">
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt="avatar"
-                  className="w-20 h-20 rounded-2xl object-cover border-2 border-border/50 shadow-sm"
-                />
-              ) : (
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border-2 border-border/50 flex items-center justify-center shadow-sm">
-                  <User className="w-8 h-8 text-primary/70" />
-                </div>
-              )}
-              <label className="absolute -bottom-1 -left-1 w-7 h-7 rounded-full bg-card border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                <Camera className="w-3.5 h-3.5 text-muted-foreground" />
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleAvatarUpload}
-                  disabled={uploading}
-                />
-              </label>
-              {avatarUrl && (
-                <button
-                  type="button"
-                  onClick={handleRemoveAvatar}
-                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-card border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-destructive/10"
-                  title={t("settings.removeAvatar")}
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                </button>
-              )}
-              {uploading && (
-                <div className="absolute inset-0 rounded-2xl bg-background/60 flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+        {/* Primary Profile Column */}
+        <div className="xl:col-span-7 rounded-xl border border-border/60 bg-muted/15 p-5 space-y-5">
+          {loadingProfile ? (
+            <div className="flex justify-center py-8" role="status">
+              <Loader2 className="w-6 h-6 text-primary animate-spin" />
             </div>
-            <div className="flex-1 space-y-3">
-              <div>
-                <Label className="text-xs text-muted-foreground">{t("settings.fullName")}</Label>
-                <Input
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder={t("settings.fullNamePlaceholder")}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">{t("settings.jobTitleLabel")}</Label>
-                <Input
-                  value={jobTitle}
-                  onChange={(e) => setJobTitle(e.target.value)}
-                  placeholder={t("settings.jobTitlePlaceholder")}
-                  className="mt-1"
-                />
-              </div>
+          ) : profileError ? (
+            <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 space-y-3">
+              <p className="text-sm font-medium text-destructive">
+                {locale === "en" ? "Could not load profile details." : "تعذّر تحميل بيانات الملف الشخصي."}
+              </p>
+              <p className="text-xs text-muted-foreground">{profileError}</p>
+              <Button variant="outline" size="sm" onClick={() => void loadProfile()}>
+                {locale === "en" ? "Retry" : "إعادة المحاولة"}
+              </Button>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="flex flex-col sm:flex-row items-start gap-5">
+                <div className="relative group shrink-0">
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt="avatar"
+                      className="w-20 h-20 rounded-2xl object-cover border-2 border-border/50 shadow-sm"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border-2 border-border/50 flex items-center justify-center shadow-sm">
+                      <User className="w-8 h-8 text-primary/70" />
+                    </div>
+                  )}
+                  <label className="absolute -bottom-1 -left-1 w-7 h-7 rounded-full bg-card border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <Camera className="w-3.5 h-3.5 text-muted-foreground" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarUpload}
+                      disabled={uploading}
+                    />
+                  </label>
+                  {avatarUrl && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveAvatar}
+                      className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-card border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-destructive/10"
+                      title={t("settings.removeAvatar")}
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    </button>
+                  )}
+                  {uploading && (
+                    <div className="absolute inset-0 rounded-2xl bg-background/60 flex items-center justify-center">
+                      <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
+                </div>
 
-          <Separator className="opacity-50" />
+                <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">{t("settings.fullName")}</Label>
+                    <Input
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder={t("settings.fullNamePlaceholder")}
+                      className="mt-1 bg-background"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">{t("settings.jobTitleLabel")}</Label>
+                    <Input
+                      value={jobTitle}
+                      onChange={(e) => setJobTitle(e.target.value)}
+                      placeholder={t("settings.jobTitlePlaceholder")}
+                      className="mt-1 bg-background"
+                    />
+                  </div>
+                </div>
+              </div>
 
-          <div className="space-y-3">
-            <InfoRow icon={Mail} label={t("settings.emailLabel")} value={user?.email || "—"} />
-            <InfoRow
-              icon={Calendar}
-              label={t("settings.joinDate")}
-              value={
-                user?.created_at
-                  ? new Date(user.created_at).toLocaleDateString(
-                      locale === "en" ? "en-US" : "ar-SA",
-                      { year: "numeric", month: "long", day: "numeric" },
-                    )
-                  : "—"
-              }
-            />
-            <InfoRow icon={Shield} label={t("settings.accountStatus")} value={t("settings.active")} badge />
-          </div>
+              <Separator className="opacity-50" />
 
-          <Button onClick={handleSaveProfile} disabled={loading} className="gap-2">
-            {loading ? (
-              t("common.saving")
-            ) : (
-              <>
-                <Check className="w-4 h-4" />
-                {t("settings.saveChanges")}
-              </>
-            )}
-          </Button>
-        </>
-      )}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <InfoRow icon={Mail} label={t("settings.emailLabel")} value={user?.email || "—"} />
+                <InfoRow
+                  icon={Calendar}
+                  label={t("settings.joinDate")}
+                  value={
+                    user?.created_at
+                      ? new Date(user.created_at).toLocaleDateString(
+                          locale === "en" ? "en-US" : "ar-SA",
+                          { year: "numeric", month: "long", day: "numeric" },
+                        )
+                      : "—"
+                  }
+                />
+                <InfoRow icon={Shield} label={t("settings.accountStatus")} value={t("settings.active")} badge />
+              </div>
 
-      <AccountEmailSettings />
+              <div className="flex justify-end">
+                <Button onClick={handleSaveProfile} disabled={loading} className="gap-2">
+                  {loading ? (
+                    t("common.saving")
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      {t("settings.saveChanges")}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Secondary Email Change Column */}
+        <div className="xl:col-span-5 [&>form]:bg-muted/15 [&>form]:border-border/60">
+          <AccountEmailSettings />
+        </div>
+      </div>
     </div>
   );
 }
