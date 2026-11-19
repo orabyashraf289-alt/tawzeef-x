@@ -3,7 +3,7 @@ import { ArrowUpLeft, ArrowUpRight, Check, Globe, Globe2, LayoutGrid, Palette, S
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { useI18n } from "@/contexts/I18nContext";
+import { SUPPORTED_LOCALES, useI18n } from "@/contexts/I18nContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useCompactView } from "@/hooks/useCompactView";
 import { toast } from "@/hooks/use-toast";
@@ -198,32 +198,26 @@ export function PreferencesSettingsSection({ onOpenRegional }: PreferencesSettin
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setLocale("ar")}
-                className={cn(
-                  "p-4 rounded-xl border-2 text-center transition-all bg-background",
-                  locale === "ar"
-                    ? "border-primary bg-primary/5 font-bold text-primary"
-                    : "border-border/50 hover:bg-muted/30 text-muted-foreground",
-                )}
-              >
-                <div className="text-sm font-black">العربية</div>
-                <div className="text-[11px] opacity-75 mt-0.5">RTL — Arabic (AR)</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setLocale("en")}
-                className={cn(
-                  "p-4 rounded-xl border-2 text-center transition-all bg-background",
-                  locale === "en"
-                    ? "border-primary bg-primary/5 font-bold text-primary"
-                    : "border-border/50 hover:bg-muted/30 text-muted-foreground",
-                )}
-              >
-                <div className="text-sm font-black">English</div>
-                <div className="text-[11px] opacity-75 mt-0.5">LTR — English (EN)</div>
-              </button>
+              {SUPPORTED_LOCALES.map((lang) => {
+                const active = locale === lang.code;
+                return (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setLocale(lang.code)}
+                    className={cn(
+                      "p-3.5 rounded-xl border-2 text-center transition-all bg-background",
+                      active
+                        ? "border-primary bg-primary/5 font-bold text-primary shadow-xs"
+                        : "border-border/50 hover:bg-muted/30 text-muted-foreground",
+                    )}
+                  >
+                    <div className="text-sm font-black">{lang.nativeLabel}</div>
+                    <div className="text-[10px] opacity-75 mt-0.5">{lang.subLabel}</div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

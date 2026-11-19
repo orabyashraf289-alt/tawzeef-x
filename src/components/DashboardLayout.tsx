@@ -387,11 +387,24 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         {/* Quick Language & Theme Buttons */}
         <div className="flex items-center justify-between gap-1 bg-md-surface rounded-md3-lg p-1 border border-md-outline-variant/50 text-[11px]">
           <button
-            onClick={() => setLocale(locale === "ar" ? "en" : "ar")}
+            onClick={() => {
+              const order = ["ar", "en", "fr", "ur"] as const;
+              const nextIdx = (order.indexOf(locale) + 1) % order.length;
+              setLocale(order[nextIdx]);
+            }}
+            title="تبديل اللغة (AR / EN / FR / UR)"
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-md-on-surface font-bold hover:bg-md-surface-variant transition-colors"
           >
             <Globe className="w-3.5 h-3.5 text-md-primary" />
-            <span>{locale === "ar" ? "English" : "العربية"}</span>
+            <span>
+              {locale === "ar"
+                ? "العربية"
+                : locale === "en"
+                ? "English"
+                : locale === "fr"
+                ? "Français"
+                : "اردو"}
+            </span>
           </button>
 
           <button

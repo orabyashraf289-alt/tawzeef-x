@@ -1,8 +1,9 @@
 import { useScreenPermissions } from "@/hooks/useScreenPermissions";
-import { useState, useMemo, useEffect } from "react";
+import { lazy, Suspense, useState, useMemo, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import SARSymbol from "@/components/SARSymbol";
 import DashboardLayout from "@/components/DashboardLayout";
+const RegionalContractsHub = lazy(() => import("@/components/offers/RegionalContractsHub"));
 import { useCandidates, useJobs } from "@/hooks/useJobs";
 import { useOffers, useSendOffer, useDeleteOffer, useCreateOffer, useUpdateOffer, useWithdrawOffer, type JobOffer } from "@/hooks/useOffers";
 import { getPublicBaseUrl } from "@/lib/getPublicUrl";
@@ -172,6 +173,7 @@ export default function OffersPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [offersViewMode, setOffersViewMode] = useState<"offers" | "contracts">("offers");
   const [generatingAiOfferTerms, setGeneratingAiOfferTerms] = useState(false);
   const [withdrawOfferId, setWithdrawOfferId] = useState<string | null>(null);
   const [offerToDelete, setOfferToDelete] = useState<JobOffer | null>(null);
@@ -942,6 +944,36 @@ export default function OffersPage() {
           </div>
         </motion.div>
 
+        {/* Primary View Switcher: Digital Offers vs Regional Legal Contract Templates */}
+        <div className="flex items-center gap-2 p-1.5 bg-muted/40 rounded-2xl border border-border/60 w-fit flex-wrap">
+          <Button
+            type="button"
+            size="sm"
+            variant={offersViewMode === "offers" ? "default" : "ghost"}
+            onClick={() => setOffersViewMode("offers")}
+            className="gap-2 text-xs h-9 font-bold rounded-xl"
+          >
+            <FileText className="w-4 h-4" />
+            {locale === "en" ? "Digital Job Offers" : "العروض الوظيفية الرقمية"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={offersViewMode === "contracts" ? "default" : "ghost"}
+            onClick={() => setOffersViewMode("contracts")}
+            className="gap-2 text-xs h-9 font-bold rounded-xl"
+          >
+            <FileCheck2 className="w-4 h-4" />
+            {locale === "en" ? "Local Law Contract Templates (KSA / UAE / Egypt)" : "قوالب العقود حسب القوانين المحلية (قوى / الخليج)"}
+          </Button>
+        </div>
+
+        {offersViewMode === "contracts" ? (
+          <Suspense fallback={<div className="py-12 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
+            <RegionalContractsHub offers={offers || []} />
+          </Suspense>
+        ) : (
+          <>
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
@@ -1542,6 +1574,8 @@ export default function OffersPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+          </>
+        )}
       </div>
     </DashboardLayout>
   );

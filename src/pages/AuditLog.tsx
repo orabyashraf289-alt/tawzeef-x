@@ -36,6 +36,7 @@ import { getCountryFlag } from "@/lib/locationService";
 import { formatExactArabicDuration } from "@/lib/sessionTracker";
 import GuestVisitorsMonitor from "@/components/security/GuestVisitorsMonitor";
 import LiveSessionsMonitor from "@/components/security/LiveSessionsMonitor";
+import ComplianceAutomationCenter from "@/components/security/ComplianceAutomationCenter";
 
 // ────────────────────────────────────────────────────────────
 // Constants & Maps
@@ -913,7 +914,7 @@ function KanbanView({ logs, allLogs, onFilterByUser }: { logs: any[]; allLogs: a
 // ────────────────────────────────────────────────────────────
 
 export default function AuditLog() {
-  const [securityScreen, setSecurityScreen] = useState<"audit_trail" | "guest_visitors" | "live_sessions">("audit_trail");
+  const [securityScreen, setSecurityScreen] = useState<"audit_trail" | "guest_visitors" | "live_sessions" | "compliance_center">("audit_trail");
   const [page, setPage] = useState(0);
   const [activeTab, setActiveTab] = useState("all");
   const [eventFilter, setEventFilter] = useState("all");
@@ -1196,12 +1197,28 @@ export default function AuditLog() {
             <Lock className="w-4 h-4 text-indigo-500" />
             الجلسات الحية والحظر المباشر
           </Button>
+
+          <Button
+            variant={securityScreen === "compliance_center" ? "default" : "ghost"}
+            size="sm"
+            className="gap-2 text-xs h-9 font-bold rounded-xl"
+            onClick={() => setSecurityScreen("compliance_center")}
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            مركز الامتثال (SOC 2 / PDPL) والتشفير الشامل
+          </Button>
         </div>
 
         {securityScreen === "guest_visitors" ? (
           <GuestVisitorsMonitor />
         ) : securityScreen === "live_sessions" ? (
           <LiveSessionsMonitor />
+        ) : securityScreen === "compliance_center" ? (
+          <ComplianceAutomationCenter
+            auditEventsCount={stats.total}
+            failedLoginsCount={stats.failed}
+            suspiciousEventsCount={allThreats.length}
+          />
         ) : (
           <>
         {/* Threat Intelligence Panel */}

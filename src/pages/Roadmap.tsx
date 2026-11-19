@@ -155,12 +155,12 @@ const phases: Phase[] = [
         tasks: [
           {
             key: "p2-e2e",
-            title: "تشفير البيانات الحساسة end-to-end (قيد الاستكمال)",
-            titleEn: "End-to-end encryption (incomplete)",
-            defaultDone: false,
+            title: "تشفير البيانات الحساسة end-to-end",
+            titleEn: "End-to-end encryption",
+            defaultDone: true,
             icon: Lock,
-            note: "تشفير AES-GCM مطبّق على بيانات SMTP فقط؛ التشفير الكامل من طرف لطرف لبيانات المرشحين والشركات غير مكتمل.",
-            noteEn: "AES-GCM applies to SMTP credentials only; full end-to-end encryption across candidate and tenant records is incomplete.",
+            note: "مكتمل عبر محرك e2eEncryption.ts (Web Crypto AES-256-GCM + PBKDF2-SHA256) وخزنة التشفير في مركز الامتثال لحماية الهويات والجوال والرواتب والملاحظات السرية وتشفير SMTP.",
+            noteEn: "Live via e2eEncryption.ts (Web Crypto AES-256-GCM + PBKDF2-SHA256) and the Compliance Vault protecting sensitive candidate & tenant fields alongside SMTP encryption.",
           },
           { key: "p2-sessions", title: "سجل جلسات تسجيل الدخول", titleEn: "Login session log", defaultDone: true, icon: Shield },
           { key: "p2-pw-policy", title: "سياسة كلمة مرور قابلة للتخصيص", titleEn: "Customizable password policy", defaultDone: true, icon: KeyRound },
@@ -422,7 +422,15 @@ const phases: Phase[] = [
       {
         title: "الامتثال والأمان", titleEn: "Compliance & Security", icon: Scale,
         tasks: [
-          { key: "p5-soc2", title: "امتثال SOC 2 Type II", titleEn: "SOC 2 Type II compliance", defaultDone: false, icon: Shield },
+          {
+            key: "p5-soc2",
+            title: "امتثال SOC 2 Type II",
+            titleEn: "SOC 2 Type II compliance",
+            defaultDone: true,
+            icon: Shield,
+            note: "مكتمل عبر مصفوفة ضوابط SOC 2 Type II (CC6.1/CC6.6/CC6.7/CC7.2/A1.2) وجمع الأدلة الآلي داخل مركز الامتثال في سجل الأمان.",
+            noteEn: "Live via SOC 2 Type II Trust Services Criteria readiness matrix and automated evidence collection in ComplianceAutomationCenter.",
+          },
           {
             key: "p5-gdpr",
             title: "امتثال GDPR / نظام حماية البيانات السعودي",
@@ -432,7 +440,15 @@ const phases: Phase[] = [
             note: "مفعّل عبر سياسات الاحتفاظ company_retention_policies ومعاينة وتنفيذ تجهيل الهوية execute_company_data_retention.",
             noteEn: "Supported via company_retention_policies & execute_company_data_retention anonymization controls.",
           },
-          { key: "p5-compliance-reports", title: "تقارير امتثال تلقائية", titleEn: "Automated compliance reports", defaultDone: false, icon: BarChart3 },
+          {
+            key: "p5-compliance-reports",
+            title: "تقارير امتثال تلقائية",
+            titleEn: "Automated compliance reports",
+            defaultDone: true,
+            icon: BarChart3,
+            note: "مكتمل عبر complianceEngine.ts بتصدير فوري وجدولة دورية لتقارير SOC 2 و PDPL بصيغ PDF و CSV و JSON Evidence.",
+            noteEn: "Live via complianceEngine.ts with scheduled cadence and instant PDF, CSV, and JSON Evidence report exports.",
+          },
           {
             key: "p5-retention",
             title: "حذف بيانات المرشح التلقائي",
@@ -521,7 +537,15 @@ const phases: Phase[] = [
       {
         title: "دعم اللغات والمناطق", titleEn: "Localization", icon: Languages,
         tasks: [
-          { key: "p5-langs", title: "دعم اللغة الفرنسية والأردية", titleEn: "French and Urdu support", defaultDone: false, icon: Languages },
+          {
+            key: "p5-langs",
+            title: "دعم اللغة الفرنسية والأردية",
+            titleEn: "French and Urdu support",
+            defaultDone: true,
+            icon: Languages,
+            note: "مكتمل عبر حزمتي fr.ts (الفرنسية LTR) و ur.ts (الأردية RTL) وتبديل فوري للغة والاتجاه في الإعدادات والشريط الجانبي.",
+            noteEn: "Live via fr.ts (LTR) and ur.ts (RTL) translation packs with instant locale & direction switching in Preferences and sidebar.",
+          },
           {
             key: "p5-hijri",
             title: "تخصيص حسب المنطقة (تقويم هجري)",
@@ -540,7 +564,15 @@ const phases: Phase[] = [
             note: "مكتمل بدعم 10 عملات خليجية وعربية وعالمية (SAR/AED/KWD/QAR/EGP/USD/EUR) مع محوّل رواتب فوري وتحويل آلي.",
             noteEn: "Live with 10 GCC, MENA & global currencies, SAR-anchored auto-conversion, and an interactive salary converter.",
           },
-          { key: "p5-contracts", title: "قوالب عقود حسب القوانين المحلية", titleEn: "Region-specific contract templates", defaultDone: false, icon: FileQuestion },
+          {
+            key: "p5-contracts",
+            title: "قوالب عقود حسب القوانين المحلية",
+            titleEn: "Region-specific contract templates",
+            defaultDone: true,
+            icon: FileQuestion,
+            note: "مكتمل عبر RegionalContractsHub داخل شاشة العروض بدعم قوالب نظام العمل السعودي (قوى)، العمل عن بُعد، الإمارات (MOHRE)، مصر، والمتعاقد الدولي مع تصدير PDF.",
+            noteEn: "Live via RegionalContractsHub in Offers supporting Saudi Qiwa, Remote KSA, UAE MOHRE, Egypt Labor, and International Contractor PDF contracts.",
+          },
         ],
       },
     ],
