@@ -488,7 +488,15 @@ const phases: Phase[] = [
       {
         title: "سوق التكاملات", titleEn: "Integration Marketplace", icon: Store,
         tasks: [
-          { key: "p5-marketplace", title: "متجر إضافات", titleEn: "Plugins Marketplace", defaultDone: false, icon: Store },
+          {
+            key: "p5-marketplace",
+            title: "متجر إضافات",
+            titleEn: "Plugins Marketplace",
+            defaultDone: true,
+            icon: Store,
+            note: "مكتمل عبر مركز متجر الإضافات والتكاملات الموحد (IntegrationsMarketplaceHub) داخل الإعدادات لتفعيل وإدارة تكاملات التواصل والوظائف وHRIS والـ API.",
+            noteEn: "Live via IntegrationsMarketplaceHub in Settings with category filtering, live status detection, and toggleable plugins.",
+          },
           {
             key: "p5-api",
             title: "API عامة موثقة للمطورين",
@@ -514,8 +522,24 @@ const phases: Phase[] = [
         title: "دعم اللغات والمناطق", titleEn: "Localization", icon: Languages,
         tasks: [
           { key: "p5-langs", title: "دعم اللغة الفرنسية والأردية", titleEn: "French and Urdu support", defaultDone: false, icon: Languages },
-          { key: "p5-hijri", title: "تخصيص حسب المنطقة (تقويم هجري)", titleEn: "Regional customization (Hijri)", defaultDone: false, icon: Globe },
-          { key: "p5-currency", title: "عملات متعددة مع تحويل آلي", titleEn: "Multi-currency with auto conversion", defaultDone: false, icon: BarChart3 },
+          {
+            key: "p5-hijri",
+            title: "تخصيص حسب المنطقة (تقويم هجري)",
+            titleEn: "Regional customization (Hijri)",
+            defaultDone: true,
+            icon: Globe,
+            note: "مكتمل عبر محرك التخصيص الإقليمي (regionalSettings.ts) بدعم تقويم أم القرى الهجري، العرض المزدوج، المنطقة الزمنية، وأيام العمل الخليجية.",
+            noteEn: "Live via RegionalSettingsSection supporting Umm al-Qura Hijri, dual Gregorian+Hijri dates, timezone, and workweek presets.",
+          },
+          {
+            key: "p5-currency",
+            title: "عملات متعددة مع تحويل آلي",
+            titleEn: "Multi-currency with auto conversion",
+            defaultDone: true,
+            icon: BarChart3,
+            note: "مكتمل بدعم 10 عملات خليجية وعربية وعالمية (SAR/AED/KWD/QAR/EGP/USD/EUR) مع محوّل رواتب فوري وتحويل آلي.",
+            noteEn: "Live with 10 GCC, MENA & global currencies, SAR-anchored auto-conversion, and an interactive salary converter.",
+          },
           { key: "p5-contracts", title: "قوالب عقود حسب القوانين المحلية", titleEn: "Region-specific contract templates", defaultDone: false, icon: FileQuestion },
         ],
       },

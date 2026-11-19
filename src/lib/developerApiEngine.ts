@@ -57,6 +57,23 @@ export function generateApiKey(
   return { rawKey, keyRecord };
 }
 
+export const DEV_API_KEYS_STORAGE_KEY = "tx_dev_api_keys_v1";
+
+/**
+ * Reads persisted developer API keys safely from browser storage.
+ */
+export function loadDeveloperApiKeys(): ApiKeyRecord[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(DEV_API_KEYS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as ApiKeyRecord[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Validates whether an API key record has the required scope
  */
