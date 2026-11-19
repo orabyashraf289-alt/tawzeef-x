@@ -36,33 +36,38 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-charts': ['recharts'],
-          'vendor-pdf': ['jspdf', 'html2canvas'],
-          'vendor-xlsx': ['xlsx'],
-          'vendor-motion': ['framer-motion'],
-          'vendor-gsap': ['gsap', '@gsap/react'],
-          'vendor-three': ['three'],
-          'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-radix': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-popover',
-            '@radix-ui/react-select',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-tooltip',
-            '@radix-ui/react-accordion',
-            '@radix-ui/react-alert-dialog',
-            '@radix-ui/react-scroll-area',
-            '@radix-ui/react-switch',
-            '@radix-ui/react-slider',
-          ],
-          'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
-          'vendor-pdfjs': ['pdfjs-dist'],
-          'vendor-date': ['date-fns'],
-          'vendor-qr': ['qrcode', 'qrcode.react'],
-          'vendor-purify': ['dompurify'],
+        manualChunks(id) {
+          // Pin Rollup/Vite virtual helpers and core React/class utilities to vendor-react
+          // so heavy lazy chunks (vendor-charts, vendor-pdf) are never pulled into initial boot.
+          if (
+            id.includes("vite/preload-helper") ||
+            id.includes("commonjsHelpers") ||
+            /[\\/]node_modules[\\/](react|react-dom|scheduler|react-router|react-router-dom|@remix-run[\\/]router|clsx|tailwind-merge|class-variance-authority)[\\/]/.test(
+              id
+            )
+          ) {
+            return "vendor-react";
+          }
+          if (!id.includes("node_modules")) return undefined;
+          if (/[\\/]node_modules[\\/](recharts|d3-[^\\/]+|victory-vendor|react-smooth)[\\/]/.test(id)) {
+            return "vendor-charts";
+          }
+          if (/[\\/]node_modules[\\/](jspdf|html2canvas|canvg|fflate|fast-png|rgbcolor|stackblur-canvas)[\\/]/.test(id)) {
+            return "vendor-pdf";
+          }
+          if (/[\\/]node_modules[\\/]xlsx[\\/]/.test(id)) return "vendor-xlsx";
+          if (/[\\/]node_modules[\\/]framer-motion[\\/]/.test(id)) return "vendor-motion";
+          if (/[\\/]node_modules[\\/](gsap|@gsap[\\/]react)[\\/]/.test(id)) return "vendor-gsap";
+          if (/[\\/]node_modules[\\/]three[\\/]/.test(id)) return "vendor-three";
+          if (/[\\/]node_modules[\\/]@supabase[\\/]/.test(id)) return "vendor-supabase";
+          if (/[\\/]node_modules[\\/]@tanstack[\\/]react-query[\\/]/.test(id)) return "vendor-query";
+          if (/[\\/]node_modules[\\/]@radix-ui[\\/]/.test(id)) return "vendor-radix";
+          if (/[\\/]node_modules[\\/]@dnd-kit[\\/]/.test(id)) return "vendor-dnd";
+          if (/[\\/]node_modules[\\/]pdfjs-dist[\\/]/.test(id)) return "vendor-pdfjs";
+          if (/[\\/]node_modules[\\/]date-fns[\\/]/.test(id)) return "vendor-date";
+          if (/[\\/]node_modules[\\/](qrcode|qrcode\.react)[\\/]/.test(id)) return "vendor-qr";
+          if (/[\\/]node_modules[\\/]dompurify[\\/]/.test(id)) return "vendor-purify";
+          return undefined;
         },
       },
     },

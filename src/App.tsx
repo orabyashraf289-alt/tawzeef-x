@@ -1,4 +1,3 @@
-import CompanyRegistration from "@/pages/CompanyRegistration";
 import MotionProvider from "@/components/motion/MotionProvider";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -18,11 +17,10 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { RouteSeoManager } from "@/components/RouteSeoManager";
 import VisitorTrackerManager from "@/components/VisitorTrackerManager";
 
-// Eagerly loaded (critical path)
-import LandingPage from "./pages/LandingPage";
-import Auth from "./pages/Auth";
-
-// Lazy loaded pages
+// Lazy loaded pages (each entry route downloads only its own code)
+const LandingPage = lazy(() => import("./pages/LandingPage"));
+const Auth = lazy(() => import("./pages/Auth"));
+const CompanyRegistration = lazy(() => import("@/pages/CompanyRegistration"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
@@ -86,6 +84,32 @@ const Terms = lazy(() => import("./pages/Terms"));
 const SystemLibrary = lazy(() => import("./pages/SystemLibrary"));
 
 function PageLoader() {
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
+  const isPublicRoute =
+    pathname === "/" ||
+    pathname === "/auth" ||
+    pathname === "/features" ||
+    pathname === "/pricing" ||
+    pathname === "/careers" ||
+    pathname === "/about" ||
+    pathname === "/contact" ||
+    pathname === "/privacy" ||
+    pathname === "/terms" ||
+    pathname === "/blog" ||
+    pathname.startsWith("/blog/") ||
+    pathname.startsWith("/apply/");
+
+  if (isPublicRoute) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div
+          className="w-8 h-8 rounded-full border-[3px] border-primary/20 border-t-primary animate-spin"
+          role="status"
+          aria-label="جاري التحميل"
+        />
+      </div>
+    );
+  }
   return <PageSkeleton />;
 }
 

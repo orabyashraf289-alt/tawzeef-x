@@ -7,6 +7,17 @@ import { autoPreloadFonts } from "@/lib/fontPreload";
 // Thmanyah supports both interface languages.
 autoPreloadFonts();
 
+// Clear pre-hydration boot guard right before React mounts into #root.
+if (typeof document !== "undefined") {
+  document.documentElement.classList.remove("tx-js-booting");
+  const fallbackTimer = (window as Window & { __txBootFallback?: number }).__txBootFallback;
+  if (fallbackTimer) {
+    clearTimeout(fallbackTimer);
+    delete (window as Window & { __txBootFallback?: number }).__txBootFallback;
+  }
+  document.getElementById("tx-boot-style")?.remove();
+}
+
 createRoot(document.getElementById("root")!).render(<App />);
 
 // Prefetch routes when browser is idle.

@@ -16,15 +16,31 @@
     <meta name="apple-mobile-web-app-title" content="توظيف إكس" />
     <link rel="apple-touch-icon" href="/icon-192x192.png" />
 
-    <!-- Official Thmanyah fonts + icon fonts; body weight is preloaded at startup. -->
+    <!-- Official Thmanyah fonts; preload primary body weight in parallel with HTML. -->
     <link rel="preconnect" href="https://framerusercontent.com" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      id="preload-thmanyah-body"
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="https://framerusercontent.com/assets/x6EBzvXf1Fi35XhsRoHxePDVo.woff2"
+      crossorigin
+    />
 
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap"
+      />
+    </noscript>
 
     <title>توظيف إكس | منصة توظيف ذكية ووظائف شاغرة ونظام تتبع المتقدمين ATS</title>
     <meta name="description" content="توظيف إكس (TawzeefX - توظيف اكس) منصة توظيف ذكية ونظام تتبع المتقدمين (ATS) في السعودية والعالم العربي: تصفح أحدث الوظائف وفرص العمل، فرز السير الذاتية بالذكاء الاصطناعي، مقابلات الفيديو، والعروض الوظيفية الرقمية." />
@@ -78,6 +94,57 @@
         }
       ]
     }
+    </script>
+    <style id="tx-boot-style">
+      html.dark { background-color: #0b111c; color-scheme: dark; }
+      html.light { background-color: #f7f9fc; color-scheme: light; }
+      html.tx-js-booting body {
+        margin: 0;
+        min-height: 100vh;
+        background-color: inherit;
+      }
+      html.tx-js-booting [data-seo-prerender] {
+        display: none !important;
+      }
+      html.tx-js-booting #root {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      html.tx-js-booting #root::after {
+        content: "";
+        width: 32px;
+        height: 32px;
+        border-radius: 9999px;
+        border: 3px solid rgba(13, 92, 90, 0.18);
+        border-top-color: #0d5c5a;
+        opacity: 0;
+        animation: tx-boot-spin 0.7s linear infinite, tx-boot-reveal 0.2s ease 0.15s forwards;
+      }
+      html.dark.tx-js-booting #root::after {
+        border-color: rgba(52, 211, 153, 0.2);
+        border-top-color: #34d399;
+      }
+      @keyframes tx-boot-spin { to { transform: rotate(360deg); } }
+      @keyframes tx-boot-reveal { to { opacity: 1; } }
+    </style>
+    <script>
+      (function () {
+        try {
+          var d = document.documentElement;
+          var t = localStorage.getItem("tawzeef-x-theme") || "light";
+          var resolved = t === "system"
+            ? (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+            : (t === "dark" ? "dark" : "light");
+          d.classList.add(resolved, "tx-js-booting");
+          var p = localStorage.getItem("tawzeef-x-primary");
+          if (p) d.style.setProperty("--primary", p);
+          window.__txBootFallback = setTimeout(function () {
+            d.classList.remove("tx-js-booting");
+          }, 5000);
+        } catch (e) {}
+      })();
     </script>
   </head>
 

@@ -12,7 +12,7 @@ import {
   Briefcase, FileText, Video, Sparkles, Award, Play, Layout,
   Calendar, Menu, X, Sun, Moon, Check, Building2, Lock, Cpu,
   Layers, Server, Database, MessageSquare, CheckSquare,
-  FileCheck, Flame, ChevronLeft, ChevronRight, PenTool,
+  FileCheck, Flame, ChevronLeft, ChevronRight, ChevronDown, PenTool,
   Volume2, ShieldCheck, PieChart, BarChart3, Star, Clock, Laptop,
   KeyRound, HelpCircle, Eye, ArrowUpRight, Search, UserCheck, UserPlus
 } from "lucide-react";
@@ -1586,9 +1586,10 @@ export default function LandingPage() {
               >
                 <summary className="cursor-pointer list-none font-black text-base text-md-on-surface flex items-center justify-between gap-4">
                   <span>{item.question}</span>
-                  <span className="material-symbols-rounded text-md-primary transition-transform group-open:rotate-180">
-                    expand_more
-                  </span>
+                  <ChevronDown
+                    className="w-5 h-5 text-md-primary shrink-0 transition-transform group-open:rotate-180"
+                    aria-hidden="true"
+                  />
                 </summary>
                 <p className="mt-3 text-sm leading-7 text-md-on-surface-variant font-medium">
                   {item.answer}
