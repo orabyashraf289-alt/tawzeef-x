@@ -83,7 +83,7 @@ export default function QuestionsList() {
   };
 
   const handleExport = async () => {
-    const XLSX = await import("xlsx");
+    const XLSX = await import("@/lib/safeSpreadsheet");
     const rows = filtered.map(q => ({
       [locale === "ar" ? "نص السؤال" : "Question"]: q.question_text,
       [locale === "ar" ? "النوع" : "Type"]: typeLabels[locale]?.[q.question_type] || q.question_type,
@@ -104,7 +104,7 @@ export default function QuestionsList() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const XLSX = await import("xlsx");
+      const XLSX = await import("@/lib/safeSpreadsheet");
       const data = await file.arrayBuffer();
       const wb = XLSX.read(data);
       const ws = wb.Sheets[wb.SheetNames[0]];

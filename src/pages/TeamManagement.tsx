@@ -355,7 +355,7 @@ export default function TeamManagement() {
   };
 
   const handleExportTeam = useCallback(async () => {
-    const XLSX = await import("xlsx");
+    const XLSX = await import("@/lib/safeSpreadsheet");
     const exportData = filteredRoles.map((r: any) => {
       const profile = getUserProfile(r.user_id);
       const stats = getMemberStats(r.user_id);

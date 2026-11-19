@@ -697,6 +697,41 @@ export async function setupSupabaseMocks(
     });
   });
 
+  await page.route("**/rest/v1/company_api_keys*", async (route) => {
+    const method = route.request().method();
+    if (method === "POST") {
+      const body = parseBodyRecord(route);
+      await fulfillPostgrest(
+        route,
+        [
+          {
+            id: "mock-api-key-1",
+            company_id: mockCompany.id,
+            name: body.name || "E2E API Key",
+            key_prefix: body.key_prefix || "tx_live_...e2e1",
+            key_hash: body.key_hash || "a".repeat(64),
+            scopes: body.scopes || ["jobs:read"],
+            status: "active",
+            last_used_at: null,
+            created_at: new Date().toISOString(),
+          },
+        ],
+        undefined,
+        201,
+      );
+      return;
+    }
+    await fulfillPostgrest(route, []);
+  });
+
+  await page.route("**/rest/v1/company_enterprise_settings*", async (route) => {
+    if (route.request().method() === "POST" || route.request().method() === "PATCH") {
+      await fulfillPostgrest(route, [parseBodyRecord(route)]);
+      return;
+    }
+    await fulfillPostgrest(route, [], null);
+  });
+
   await page.route("**/functions/v1/send-welcome-email*", async (route) => {
     await route.fulfill({
       status: 200,

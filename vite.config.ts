@@ -55,7 +55,6 @@ export default defineConfig(({ mode }) => ({
           if (/[\\/]node_modules[\\/](jspdf|html2canvas|canvg|fflate|fast-png|rgbcolor|stackblur-canvas)[\\/]/.test(id)) {
             return "vendor-pdf";
           }
-          if (/[\\/]node_modules[\\/]xlsx[\\/]/.test(id)) return "vendor-xlsx";
           if (/[\\/]node_modules[\\/]framer-motion[\\/]/.test(id)) return "vendor-motion";
           if (/[\\/]node_modules[\\/](gsap|@gsap[\\/]react)[\\/]/.test(id)) return "vendor-gsap";
           if (/[\\/]node_modules[\\/]three[\\/]/.test(id)) return "vendor-three";

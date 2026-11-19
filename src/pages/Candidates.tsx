@@ -494,7 +494,7 @@ export default function Candidates() {
   const compareList = (candidates || []).filter(c => selectedForCompare.includes(c.id));
 
   const handleExportExcel = () => {
-    import("xlsx").then(XLSX => {
+    import("@/lib/safeSpreadsheet").then(XLSX => {
       const exportData = filtered.map(c => ({
         "الاسم": c.name || "—",
         "الوظيفة": c.role || "—",

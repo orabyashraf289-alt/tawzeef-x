@@ -274,7 +274,7 @@ export default function GuestVisitorsMonitor() {
   // Export to Excel
   const exportToExcel = async () => {
     try {
-      const XLSX = await import("xlsx");
+      const XLSX = await import("@/lib/safeSpreadsheet");
       const rows = filteredVisitors.map((v) => ({
         "معرف الزائر": v.details?.visitor_id || "غير معروف",
         "الصفحة المزارة": v.details?.path || "/",

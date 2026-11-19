@@ -383,7 +383,7 @@ export default function PermissionsMatrixManager() {
 
   // Export Matrix to Excel
   const exportToExcel = async () => {
-    const XLSX = await import("xlsx");
+    const XLSX = await import("@/lib/safeSpreadsheet");
     const rows: any[] = [];
     MODULE_CATEGORIES.forEach((cat) => {
       cat.pages.forEach((page) => {

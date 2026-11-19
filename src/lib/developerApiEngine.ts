@@ -30,22 +30,66 @@ export const API_SCOPE_DESCRIPTIONS: Record<ApiKeyScope, { ar: string; en: strin
 };
 
 /**
+ * Generates a cryptographically strong random alphanumeric string.
+ */
+function generateSecureRandomToken(length = 36): string {
+  const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = new Uint8Array(length);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
+  }
+  return Array.from({ length }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
+}
+
+/**
+ * Computes a lowercase hex SHA-256 hash of a raw API key for zero-plaintext server storage.
+ */
+export async function hashApiKeySha256(rawKey: string): Promise<string> {
+  if (typeof crypto !== "undefined" && crypto.subtle) {
+    const bytes = new TextEncoder().encode(rawKey);
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+  // Deterministic 64-hex fallback for non-WebCrypto test runtimes
+  let acc = 0x811c9dc5;
+  for (let i = 0; i < rawKey.length; i++) {
+    acc ^= rawKey.charCodeAt(i);
+    acc = Math.imul(acc, 0x01000193) >>> 0;
+  }
+  return acc.toString(16).padStart(8, "0").repeat(8);
+}
+
+/**
+ * Resolves the live Supabase Edge Function base URL for TawzeefX Public API v1.
+ */
+export function getLivePublicApiBaseUrl(): string {
+  const supabaseUrl =
+    (typeof import.meta !== "undefined" && (import.meta.env?.VITE_SUPABASE_URL as string | undefined)) ||
+    "";
+  if (supabaseUrl && /^https?:\/\//i.test(supabaseUrl)) {
+    return `${supabaseUrl.replace(/\/+$/, "")}/functions/v1/public-api-v1`;
+  }
+  return "https://api.tawzeefx.com/v1";
+}
+
+/**
  * Generates a secure API key with live prefix and masked secret
  */
 export function generateApiKey(
   name: string,
   scopes: ApiKeyScope[]
 ): { rawKey: string; keyRecord: ApiKeyRecord } {
-  const randomChars = Array.from({ length: 32 }, () =>
-    Math.floor(Math.random() * 36).toString(36)
-  ).join("");
+  const randomChars = generateSecureRandomToken(36);
 
   const rawKey = `tx_live_${randomChars}`;
   const prefix = `tx_live_...${rawKey.slice(-4)}`;
   const hashedSecret = btoa(rawKey.slice(-16));
 
   const keyRecord: ApiKeyRecord = {
-    id: `key_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    id: `key_${Date.now()}_${generateSecureRandomToken(6)}`,
     name,
     prefix,
     hashedSecret,

@@ -80,12 +80,12 @@ export default function TaskDetailModal({
   const { locale } = useI18n();
   const { toast } = useToast();
 
-  if (!task) return null;
-
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [newTagText, setNewTagText] = useState("");
   const [newCommentText, setNewCommentText] = useState("");
   const [confirmDeleteTask, setConfirmDeleteTask] = useState(false);
+
+  if (!task) return null;
 
   const subtasks = task.subtasks || [];
   const tags = task.tags || [];

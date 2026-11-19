@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,27 +15,40 @@ import {
   Trash2,
   Play,
   Terminal,
-  BookOpen,
   ShieldCheck,
   AlertTriangle,
-  Sparkles,
+  Database,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
+import { supabase } from "@/integrations/supabase/client";
 import {
-  generateApiKey,
   generateTypeScriptSnippet,
   generateCurlSnippet,
   generatePythonSnippet,
+  getLivePublicApiBaseUrl,
   API_SCOPE_DESCRIPTIONS,
   type ApiKeyRecord,
   type ApiKeyScope,
 } from "@/lib/developerApiEngine";
-
-const STORAGE_KEYS_KEY = "tx_dev_api_keys_v1";
+import {
+  createCompanyApiKey,
+  fetchCompanyApiKeys,
+  revokeCompanyApiKey,
+  type SyncSource,
+} from "@/lib/enterpriseConfigSync";
 
 export default function DeveloperApiHub() {
+  const { user } = useAuth();
+  const { activeCompanyId } = useCompany();
+  const liveEndpoint = useMemo(() => getLivePublicApiBaseUrl(), []);
+
   const [activeTab, setActiveTab] = useState("keys");
   const [keys, setKeys] = useState<ApiKeyRecord[]>([]);
+  const [syncSource, setSyncSource] = useState<SyncSource>("local");
+  const [loadingKeys, setLoadingKeys] = useState(false);
+  const [creatingKey, setCreatingKey] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
   const [selectedScopes, setSelectedScopes] = useState<ApiKeyScope[]>([
@@ -49,57 +62,67 @@ export default function DeveloperApiHub() {
   // Explorer playground state
   const [explorerMethod, setExplorerMethod] = useState<"GET" | "POST">("GET");
   const [explorerEndpoint, setExplorerEndpoint] = useState("/jobs");
+  const [explorerApiKey, setExplorerApiKey] = useState("");
   const [explorerLoading, setExplorerLoading] = useState(false);
-  const [explorerResponse, setExplorerResponse] = useState<any>(null);
+  const [explorerStatus, setExplorerStatus] = useState<number | null>(null);
+  const [explorerResponse, setExplorerResponse] = useState<unknown>(null);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEYS_KEY);
-      if (raw) {
-        setKeys(JSON.parse(raw));
-      } else {
-        // Initial sample key
-        const initial = generateApiKey("مفتاح المنصة الافتراضي (Production)", [
-          "jobs:read",
-          "candidates:read",
-        ]);
-        setKeys([initial.keyRecord]);
-        localStorage.setItem(STORAGE_KEYS_KEY, JSON.stringify([initial.keyRecord]));
-      }
-    } catch {
-      // fallback
-    }
-  }, []);
+    let active = true;
+    setLoadingKeys(true);
+    void fetchCompanyApiKeys(activeCompanyId).then(({ keys: loaded, source }) => {
+      if (!active) return;
+      setKeys(loaded);
+      setSyncSource(source);
+      setLoadingKeys(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [activeCompanyId]);
 
-  const saveKeys = (updated: ApiKeyRecord[]) => {
-    setKeys(updated);
-    try {
-      localStorage.setItem(STORAGE_KEYS_KEY, JSON.stringify(updated));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleCreateKey = () => {
+  const handleCreateKey = async () => {
     if (!newKeyName.trim()) {
       toast({ title: "يرجى كتابة اسم تعريفي للمفتاح", variant: "destructive" });
       return;
     }
+    if (selectedScopes.length === 0) {
+      toast({ title: "يرجى اختيار صلاحية واحدة على الأقل", variant: "destructive" });
+      return;
+    }
 
-    const { rawKey, keyRecord } = generateApiKey(newKeyName.trim(), selectedScopes);
-    const updated = [keyRecord, ...keys];
-    saveKeys(updated);
+    setCreatingKey(true);
+    try {
+      const { rawKey, keyRecord, source } = await createCompanyApiKey({
+        companyId: activeCompanyId,
+        userId: user?.id,
+        name: newKeyName.trim(),
+        scopes: selectedScopes,
+      });
 
-    setRevealedKey(rawKey);
-    setCreateDialogOpen(false);
-    setNewKeyName("");
-    toast({ title: "تم إنشاء مفتاح API بنجاح ✅" });
+      setKeys((prev) => [keyRecord, ...prev.filter((k) => k.id !== keyRecord.id)]);
+      setSyncSource(source);
+      setRevealedKey(rawKey);
+      setExplorerApiKey(rawKey);
+      setCreateDialogOpen(false);
+      setNewKeyName("");
+      toast({
+        title: "تم إنشاء مفتاح API بنجاح ✅",
+        description:
+          source === "supabase"
+            ? "تم حفظ بصمة المفتاح (SHA-256) في قاعدة بيانات الشركة بأمان."
+            : "تم حفظ المفتاح محلياً لحين تطبيق ترحيل قاعدة البيانات.",
+      });
+    } finally {
+      setCreatingKey(false);
+    }
   };
 
-  const handleRevokeKey = (id: string) => {
+  const handleRevokeKey = async (id: string) => {
     if (!window.confirm("هل أنت متأكد من تعطيل هذا المفتاح؟ ستتوقف أي خدمات خارجية تستخدمه فوراً.")) return;
-    const updated = keys.map((k) => (k.id === id ? { ...k, status: "revoked" as const } : k));
-    saveKeys(updated);
+    const { source } = await revokeCompanyApiKey(activeCompanyId, id);
+    setKeys((prev) => prev.map((k) => (k.id === id ? { ...k, status: "revoked" as const } : k)));
+    setSyncSource(source);
     toast({ title: "تم إلغاء تفعيل المفتاح" });
   };
 
@@ -120,27 +143,89 @@ export default function DeveloperApiHub() {
 
   const handleRunExplorer = async () => {
     setExplorerLoading(true);
-    await new Promise((r) => setTimeout(r, 450));
-    setExplorerLoading(false);
+    setExplorerStatus(null);
+    try {
+      const token = explorerApiKey.trim();
+      if (token.startsWith("tx_live_")) {
+        const resp = await fetch(`${liveEndpoint}${explorerEndpoint}`, {
+          method: explorerMethod,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+            ...(explorerMethod === "POST" ? { "Content-Type": "application/json" } : {}),
+          },
+          ...(explorerMethod === "POST"
+            ? {
+                body: JSON.stringify({
+                  name: "مرشح تجريبي API",
+                  email: `api-test-${Date.now()}@example.com`,
+                  phone: "+966500000000",
+                }),
+              }
+            : {}),
+        });
+        setExplorerStatus(resp.status);
+        const body = await resp.json().catch(() => ({ status: resp.statusText }));
+        setExplorerResponse(body);
+        return;
+      }
 
-    if (explorerEndpoint === "/jobs") {
+      // Live authenticated tenant preview (read-only) when no Bearer key is pasted
+      if (explorerEndpoint === "/jobs" && activeCompanyId) {
+        const { data, error } = await supabase
+          .from("jobs")
+          .select("id, title, department, location, status, created_at")
+          .eq("company_id", activeCompanyId)
+          .order("created_at", { ascending: false })
+          .limit(5);
+        setExplorerStatus(error ? 400 : 200);
+        setExplorerResponse(
+          error
+            ? { error: error.message }
+            : {
+                status: "success",
+                mode: "live_tenant_preview",
+                endpoint: `${liveEndpoint}/jobs`,
+                total: data?.length ?? 0,
+                data: data ?? [],
+              },
+        );
+      } else if (explorerEndpoint === "/candidates" && explorerMethod === "GET" && activeCompanyId) {
+        const { data, error } = await supabase
+          .from("candidates")
+          .select("id, name, role, stage, status, tracking_code, created_at")
+          .eq("company_id", activeCompanyId)
+          .order("created_at", { ascending: false })
+          .limit(5);
+        setExplorerStatus(error ? 400 : 200);
+        setExplorerResponse(
+          error
+            ? { error: error.message }
+            : {
+                status: "success",
+                mode: "live_tenant_preview",
+                endpoint: `${liveEndpoint}/candidates`,
+                total: data?.length ?? 0,
+                data: data ?? [],
+              },
+        );
+      } else {
+        setExplorerStatus(401);
+        setExplorerResponse({
+          error: "api_key_required",
+          message:
+            "لإرسال طلبات الكتابة (POST) عبر نقطة public-api-v1 الحية، الصق مفتاح tx_live_... في حقل الترويسة أعلاه.",
+          endpoint: `${liveEndpoint}${explorerEndpoint}`,
+        });
+      }
+    } catch (err: unknown) {
+      setExplorerStatus(500);
       setExplorerResponse({
-        status: "success",
-        total: 3,
-        data: [
-          { id: "job_01", title: "مهندس برمجيات أول", department: "الهندسة", status: "open", location: "الرياض" },
-          { id: "job_02", title: "مصمم واجهات منتجات", department: "التصميم", status: "open", location: "جدة" },
-          { id: "job_03", title: "محلل بيانات ذكي", department: "البيانات", status: "open", location: "عن بُعد" },
-        ],
+        error: "network_error",
+        message: err instanceof Error ? err.message : "Failed to reach public-api-v1",
       });
-    } else {
-      setExplorerResponse({
-        status: "success",
-        message: "Candidate registered successfully",
-        candidateId: "cand_98765",
-        trackingCode: "TX-API-7890",
-        stage: "تقديم الطلب",
-      });
+    } finally {
+      setExplorerLoading(false);
     }
   };
 
@@ -155,15 +240,28 @@ export default function DeveloperApiHub() {
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-muted/40 rounded-2xl border border-border/70">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-600 text-xs font-bold mb-1.5">
-            <Code2 className="w-3.5 h-3.5" />
-            <span>بوابة المطورين والـ API العامة (p5-api & p5-sdk)</span>
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-600 text-xs font-bold">
+              <Code2 className="w-3.5 h-3.5" />
+              <span>بوابة المطورين والـ API العامة (p5-api & p5-sdk)</span>
+            </div>
+            <Badge
+              variant="outline"
+              className={
+                syncSource === "supabase"
+                  ? "text-[10px] gap-1 bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+                  : "text-[10px] gap-1 text-muted-foreground"
+              }
+            >
+              <Database className="w-3 h-3" />
+              {syncSource === "supabase" ? "مزامنة Supabase مفعّلة" : "تخزين محلي مؤقت"}
+            </Badge>
           </div>
           <h2 className="text-lg font-black text-foreground">
             واجهة برمجة التطبيقات العامة ومكتبات الـ SDK
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            ربط المنصة برمجياً مع أنظمتكم الخارجية، استيراد الشواغر، وتسجيل المرشحين عبر REST API معتمد بـ OpenAPI 3.1
+            نقطة الوصول الحية: <code className="font-mono text-[11px] text-primary" dir="ltr">{liveEndpoint}</code>
           </p>
         </div>
 
@@ -202,7 +300,9 @@ export default function DeveloperApiHub() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {keys.length === 0 ? (
+              {loadingKeys ? (
+                <div className="p-8 text-center text-xs text-muted-foreground">جاري تحميل مفاتيح الشركة...</div>
+              ) : keys.length === 0 ? (
                 <div className="p-8 text-center bg-muted/30 rounded-xl border border-dashed border-border/80">
                   <Key className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                   <div className="text-xs font-bold text-foreground">لم يتم إنشاء مفاتيح API حتى الآن</div>
@@ -272,25 +372,42 @@ export default function DeveloperApiHub() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center gap-2 bg-muted/40 p-2.5 rounded-xl border border-border/70">
-                <Badge variant="default" className="bg-purple-600 font-mono text-xs px-2.5 py-1">
-                  {explorerMethod}
-                </Badge>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground block">
+                  مفتاح Bearer اختياري (لتنفيذ الطلب عبر Edge Function الحي)
+                </label>
+                <Input
+                  value={explorerApiKey}
+                  onChange={(e) => setExplorerApiKey(e.target.value)}
+                  placeholder="tx_live_... (اتركه فارغاً لمعاينة بيانات شركتك الحية للقراءة فقط)"
+                  className="text-xs font-mono h-9"
+                  dir="ltr"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 bg-muted/40 p-2.5 rounded-xl border border-border/70">
                 <select
-                  value={explorerEndpoint}
-                  onChange={(e) => {
-                    setExplorerEndpoint(e.target.value);
-                    setExplorerMethod(e.target.value === "/jobs" ? "GET" : "POST");
-                  }}
-                  className="bg-transparent text-xs font-mono font-bold text-foreground focus:outline-none flex-1"
+                  value={explorerMethod}
+                  onChange={(e) => setExplorerMethod(e.target.value as "GET" | "POST")}
+                  className="bg-purple-600 text-white rounded-md font-mono text-xs px-2.5 py-1.5 font-bold"
                   dir="ltr"
                 >
-                  <option value="/jobs">https://api.tawzeefx.com/v1/jobs</option>
-                  <option value="/candidates">https://api.tawzeefx.com/v1/candidates</option>
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                </select>
+                <select
+                  value={explorerEndpoint}
+                  onChange={(e) => setExplorerEndpoint(e.target.value)}
+                  className="bg-transparent text-xs font-mono font-bold text-foreground focus:outline-none flex-1 min-w-[200px]"
+                  dir="ltr"
+                >
+                  <option value="/jobs">{liveEndpoint}/jobs</option>
+                  <option value="/candidates">{liveEndpoint}/candidates</option>
+                  <option value="/health">{liveEndpoint}/health</option>
                 </select>
                 <Button
                   size="sm"
-                  onClick={handleRunExplorer}
+                  onClick={() => void handleRunExplorer()}
                   disabled={explorerLoading}
                   className="gap-1.5 text-xs h-8 font-bold"
                 >
@@ -299,11 +416,11 @@ export default function DeveloperApiHub() {
                 </Button>
               </div>
 
-              {explorerResponse && (
+              {explorerResponse !== null && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-emerald-600 flex items-center gap-1">
-                      <ShieldCheck className="w-4 h-4" /> 200 OK — استجابة معتمدة:
+                      <ShieldCheck className="w-4 h-4" /> HTTP {explorerStatus ?? 200} — استجابة حية:
                     </span>
                     <span className="text-muted-foreground font-mono">Content-Type: application/json</span>
                   </div>
@@ -337,7 +454,7 @@ export default function DeveloperApiHub() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleCopySnippet(generateTypeScriptSnippet())}
+                    onClick={() => handleCopySnippet(generateTypeScriptSnippet("YOUR_API_KEY", liveEndpoint))}
                     className="text-xs h-7 gap-1"
                   >
                     {copiedSnippet ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
@@ -346,7 +463,7 @@ export default function DeveloperApiHub() {
                 </CardHeader>
                 <CardContent className="p-0">
                   <pre className="p-4 text-[11px] font-mono overflow-x-auto text-foreground" dir="ltr">
-                    {generateTypeScriptSnippet()}
+                    {generateTypeScriptSnippet("YOUR_API_KEY", liveEndpoint)}
                   </pre>
                 </CardContent>
               </Card>
@@ -359,7 +476,7 @@ export default function DeveloperApiHub() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleCopySnippet(generateCurlSnippet())}
+                    onClick={() => handleCopySnippet(generateCurlSnippet("YOUR_API_KEY", liveEndpoint))}
                     className="text-xs h-7 gap-1"
                   >
                     {copiedSnippet ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
@@ -368,7 +485,7 @@ export default function DeveloperApiHub() {
                 </CardHeader>
                 <CardContent className="p-0">
                   <pre className="p-4 text-[11px] font-mono overflow-x-auto text-foreground" dir="ltr">
-                    {generateCurlSnippet()}
+                    {generateCurlSnippet("YOUR_API_KEY", liveEndpoint)}
                   </pre>
                 </CardContent>
               </Card>
@@ -381,7 +498,7 @@ export default function DeveloperApiHub() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleCopySnippet(generatePythonSnippet())}
+                    onClick={() => handleCopySnippet(generatePythonSnippet("YOUR_API_KEY", liveEndpoint))}
                     className="text-xs h-7 gap-1"
                   >
                     {copiedSnippet ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
@@ -390,7 +507,7 @@ export default function DeveloperApiHub() {
                 </CardHeader>
                 <CardContent className="p-0">
                   <pre className="p-4 text-[11px] font-mono overflow-x-auto text-foreground" dir="ltr">
-                    {generatePythonSnippet()}
+                    {generatePythonSnippet("YOUR_API_KEY", liveEndpoint)}
                   </pre>
                 </CardContent>
               </Card>
@@ -442,8 +559,8 @@ export default function DeveloperApiHub() {
               </div>
             </div>
 
-            <Button onClick={handleCreateKey} className="w-full text-xs font-bold h-9">
-              توليد المفتاح الآن
+            <Button onClick={() => void handleCreateKey()} disabled={creatingKey} className="w-full text-xs font-bold h-9">
+              {creatingKey ? "جاري التوليد والحفظ..." : "توليد المفتاح الآن"}
             </Button>
           </div>
         </DialogContent>

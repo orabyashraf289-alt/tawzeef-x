@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CalendarClock,
   CheckCircle2,
+  Database,
   Download,
   FileJson,
   FileSpreadsheet,
@@ -22,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { toast } from "@/hooks/use-toast";
@@ -30,7 +32,6 @@ import {
   buildCompliancePrintableHtml,
   evaluateComplianceReadiness,
   loadComplianceSchedule,
-  saveComplianceSchedule,
   type ComplianceFramework,
   type ComplianceReportSchedule,
   type ReportCadence,
@@ -40,10 +41,15 @@ import {
   encryptSensitiveValue,
   loadTenantEncryptionPolicy,
   maskSensitiveValue,
-  saveTenantEncryptionPolicy,
   type SensitiveFieldKey,
   type TenantEncryptionPolicy,
 } from "@/lib/e2eEncryption";
+import {
+  hydrateCompanyEnterpriseSettings,
+  saveAndSyncComplianceSchedule,
+  saveAndSyncEncryptionPolicy,
+  type SyncSource,
+} from "@/lib/enterpriseConfigSync";
 import { openPrintableHtml } from "@/lib/documentFonts";
 import { cn } from "@/lib/utils";
 
@@ -68,17 +74,36 @@ export default function ComplianceAutomationCenter({
   suspiciousEventsCount = 0,
 }: ComplianceAutomationCenterProps) {
   const { locale } = useI18n();
-  const isAr = locale !== "en";
+  const isAr = locale === "ar";
+  const { user } = useAuth();
   const { activeCompany, activeCompanyId } = useCompany();
   const companyName = activeCompany?.name || "توظيف إكس";
 
   const [frameworkFilter, setFrameworkFilter] = useState<"ALL" | ComplianceFramework>("ALL");
+  const [syncSource, setSyncSource] = useState<SyncSource>("local");
   const [encryptionPolicy, setEncryptionPolicy] = useState<TenantEncryptionPolicy>(() =>
     loadTenantEncryptionPolicy(activeCompanyId),
   );
   const [schedule, setSchedule] = useState<ComplianceReportSchedule>(() =>
     loadComplianceSchedule(activeCompanyId),
   );
+
+  useEffect(() => {
+    let active = true;
+    setEncryptionPolicy(loadTenantEncryptionPolicy(activeCompanyId));
+    setSchedule(loadComplianceSchedule(activeCompanyId));
+    void hydrateCompanyEnterpriseSettings(activeCompanyId).then(
+      ({ encryptionPolicy: hydratedEnc, complianceSchedule: hydratedSched, source }) => {
+        if (!active) return;
+        setEncryptionPolicy(hydratedEnc);
+        setSchedule(hydratedSched);
+        setSyncSource(source);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [activeCompanyId]);
 
   // Interactive AES-256-GCM verification sandbox state
   const [sandboxInput, setSandboxInput] = useState("1098456321 — مرشح سري");
@@ -137,21 +162,32 @@ export default function ComplianceAutomationCenter({
       openPrintableHtml(html);
     }
 
-    const updated = saveComplianceSchedule(
-      { ...schedule, lastGeneratedAt: new Date().toISOString() },
-      activeCompanyId,
-    );
-    setSchedule(updated);
+    const nextSchedule = { ...schedule, lastGeneratedAt: new Date().toISOString() };
+    setSchedule(nextSchedule);
+    void saveAndSyncComplianceSchedule(activeCompanyId, nextSchedule, user?.id).then(({ schedule: saved, source }) => {
+      setSchedule(saved);
+      setSyncSource(source);
+    });
     toast({
       title: isAr ? "تم توليد تقرير الامتثال بنجاح ✅" : "Compliance report generated",
     });
   };
 
   const handleSaveSchedule = (patch: Partial<ComplianceReportSchedule>) => {
-    const next = saveComplianceSchedule({ ...schedule, ...patch }, activeCompanyId);
-    setSchedule(next);
-    toast({
-      title: isAr ? "تم تحديث جدولة تقارير الامتثال التلقائية" : "Automated compliance schedule saved",
+    const nextSchedule = { ...schedule, ...patch };
+    setSchedule(nextSchedule);
+    void saveAndSyncComplianceSchedule(activeCompanyId, nextSchedule, user?.id).then(({ schedule: saved, source }) => {
+      setSchedule(saved);
+      setSyncSource(source);
+      toast({
+        title: isAr ? "تم تحديث جدولة تقارير الامتثال التلقائية" : "Automated compliance schedule saved",
+        description:
+          source === "supabase"
+            ? isAr
+              ? "تمت مزامنة الجدول مع قاعدة بيانات الشركة."
+              : "Synced company-wide to Supabase."
+            : undefined,
+      });
     });
   };
 
@@ -160,30 +196,32 @@ export default function ComplianceAutomationCenter({
     const nextFields = exists
       ? encryptionPolicy.encryptedFields.filter((f) => f !== field)
       : [...encryptionPolicy.encryptedFields, field];
-    const next = saveTenantEncryptionPolicy(
-      { ...encryptionPolicy, encryptedFields: nextFields },
-      activeCompanyId,
-    );
-    setEncryptionPolicy(next);
-    toast({
-      title: isAr ? "تم تحديث نطاق التشفير الشامل (E2E)" : "E2E encryption scope updated",
+    const nextPolicy = { ...encryptionPolicy, encryptedFields: nextFields };
+    setEncryptionPolicy(nextPolicy);
+    void saveAndSyncEncryptionPolicy(activeCompanyId, nextPolicy, user?.id).then(({ policy: saved, source }) => {
+      setEncryptionPolicy(saved);
+      setSyncSource(source);
+      toast({
+        title: isAr ? "تم تحديث نطاق التشفير الشامل (E2E)" : "E2E encryption scope updated",
+      });
     });
   };
 
   const handleRotateKey = () => {
-    const next = saveTenantEncryptionPolicy(
-      {
-        ...encryptionPolicy,
-        keyVersion: encryptionPolicy.keyVersion + 1,
-        lastRotatedAt: new Date().toISOString(),
-      },
-      activeCompanyId,
-    );
-    setEncryptionPolicy(next);
-    toast({
-      title: isAr
-        ? `تم تدوير مفتاح التشفير إلى الإصدار v${next.keyVersion}`
-        : `Encryption key rotated to v${next.keyVersion}`,
+    const nextPolicy = {
+      ...encryptionPolicy,
+      keyVersion: encryptionPolicy.keyVersion + 1,
+      lastRotatedAt: new Date().toISOString(),
+    };
+    setEncryptionPolicy(nextPolicy);
+    void saveAndSyncEncryptionPolicy(activeCompanyId, nextPolicy, user?.id).then(({ policy: saved, source }) => {
+      setEncryptionPolicy(saved);
+      setSyncSource(source);
+      toast({
+        title: isAr
+          ? `تم تدوير مفتاح التشفير إلى الإصدار v${saved.keyVersion}`
+          : `Encryption key rotated to v${saved.keyVersion}`,
+      });
     });
   };
 
@@ -222,6 +260,26 @@ export default function ComplianceAutomationCenter({
 
   return (
     <div className="space-y-5">
+      <div className="flex items-center justify-end">
+        <Badge
+          variant="outline"
+          className={
+            syncSource === "supabase"
+              ? "text-[11px] gap-1.5 bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+              : "text-[11px] gap-1.5 text-muted-foreground"
+          }
+        >
+          <Database className="w-3.5 h-3.5" />
+          {syncSource === "supabase"
+            ? isAr
+              ? "سياسات الامتثال والتشفير متزامنة مع قاعدة بيانات الشركة"
+              : "Synced company-wide with Supabase"
+            : isAr
+            ? "وضع التخزين المحلي المؤقت"
+            : "Local Cache Mode"}
+        </Badge>
+      </div>
+
       {/* Top 4-Column Compliance KPI Bento Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Card className="border-emerald-500/30 bg-emerald-500/5">
@@ -523,11 +581,16 @@ export default function ComplianceAutomationCenter({
                   </div>
                   <Switch
                     checked={encryptionPolicy.enabled}
-                    onCheckedChange={(checked) =>
-                      setEncryptionPolicy(
-                        saveTenantEncryptionPolicy({ ...encryptionPolicy, enabled: checked }, activeCompanyId),
-                      )
-                    }
+                    onCheckedChange={(checked) => {
+                      const nextPolicy = { ...encryptionPolicy, enabled: checked };
+                      setEncryptionPolicy(nextPolicy);
+                      void saveAndSyncEncryptionPolicy(activeCompanyId, nextPolicy, user?.id).then(
+                        ({ policy: saved, source }) => {
+                          setEncryptionPolicy(saved);
+                          setSyncSource(source);
+                        },
+                      );
+                    }}
                   />
                 </div>
               </CardHeader>

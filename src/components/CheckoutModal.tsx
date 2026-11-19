@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { useCreateUpgradeRequest } from "@/hooks/useSubscription";
-import { Sparkles, CheckCircle2, Building2, Send, Clock, Infinity } from "lucide-react";
+import { Sparkles, CheckCircle2, Building2, Send, Clock, Infinity as InfinityIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import SARSymbol from "@/components/SARSymbol";
 
@@ -89,7 +89,7 @@ export default function CheckoutModal({
                 <span className="text-muted-foreground">تحدِيد الوظائف:</span>
                 <span className="font-semibold text-foreground flex items-center gap-1">
                   {limit === -1 ? (
-                    <><Infinity className="w-4 h-4 text-primary" /> غير محدود</>
+                    <><InfinityIcon className="w-4 h-4 text-primary" /> غير محدود</>
                   ) : (
                     `${limit} منشور توظيف`
                   )}

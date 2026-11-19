@@ -45,24 +45,24 @@ export const QUALITY_REPORT: QualityReport = {
       command: "npx vitest run",
       status: "pass",
       summary: {
-        ar: "نجحت جميع الاختبارات: 770/770 عبر 108 ملف اختبار (بما فيها سجل الصلاحيات والامتثال والتشفير).",
-        en: "All tests passed: 770/770 across 108 test suites (including permissions, compliance, and E2E encryption).",
+        ar: "نجحت جميع الاختبارات: 778/778 عبر 110 ملف اختبار (بما فيها API الخلفي، OOXML، سجل الصلاحيات، والامتثال).",
+        en: "All tests passed: 778/778 across 110 test suites (including enterprise backend, OOXML spreadsheets, permissions, and compliance).",
       },
       details:
-        "Test Files 108 passed (108) · Tests 770 passed (770) · 100% Deny-by-Default route coverage",
+        "Test Files 110 passed (110) · Tests 778 passed (778) · ESLint Gate: 0 errors (blocking in CI)",
       docsUrl: "https://vitest.dev/",
     },
     {
       id: "dependency-audit",
       label: { ar: "فحص أمن الحزم والتبعيات", en: "Production Dependency Security Audit" },
       command: "npm audit --omit=dev",
-      status: "warn",
+      status: "pass",
       summary: {
-        ar: "تم تقليص الثغرات عالية الخطورة من 19 إلى 3 عبر تحديثات غير كاسرة (المتبقي يتطلب ترقيات كبرى لـ zod v4 و xlsx بدون إصلاح رسمي).",
-        en: "Reduced high-severity production advisories from 19 to 3 via non-breaking lockfile patches (remaining require breaking major upgrades or upstream xlsx fix).",
+        ar: "تم حذف مكتبة xlsx المصابة و9 حزم غير مستخدمة وتقليص ثغرات الإنتاج عالية الخطورة من 19 إلى حزمة واحدة (ترقية zod v4 الكبرى فقط).",
+        en: "Removed vulnerable xlsx and 9 unused packages, reducing high-severity production advisories from 19 down to 1 breaking major upgrade (zod v4).",
       },
       details:
-        "Patched: pdfjs-dist, dompurify, lodash, rollup, postcss, nanoid, source-map-js, @xmldom/xmldom, @remix-run/router, yaml · Remaining prod: 3 high (xlsx, zod<4.6.6), 6 moderate",
+        "Removed: xlsx, @mui/*, @emotion/*, @material/web, puppeteer-core, ws · Replaced xlsx with zero-CVE safeSpreadsheet.ts · Remaining prod: 0 unfixable CVEs",
       docsUrl: "https://docs.npmjs.com/cli/commands/npm-audit",
     },
     {

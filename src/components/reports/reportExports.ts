@@ -20,7 +20,7 @@ export async function exportReportsToExcel({
   locale,
   t,
 }: ExportReportsExcelParams): Promise<void> {
-  const XLSX = await import("xlsx");
+  const XLSX = await import("@/lib/safeSpreadsheet");
   const wb = XLSX.utils.book_new();
   const dateLocale = locale === "en" ? "en-US" : "ar-SA";
   const isEn = locale === "en";
@@ -64,7 +64,7 @@ export async function exportReportsToExcel({
     [t("reports.xl.time")]: i.time,
     [t("reports.xl.status")]: i.status,
     [t("reports.xl.type")]: i.type,
-    [isEn ? "AI Evaluated" : "تقييم الذكاء الاصطناعي"]: Boolean((i as typeof i & { ai_evaluation?: unknown }).ai_evaluation)
+    [isEn ? "AI Evaluated" : "تقييم الذكاء الاصطناعي"]: (i as typeof i & { ai_evaluation?: unknown }).ai_evaluation
       ? (isEn ? "Yes" : "نعم")
       : (isEn ? "No" : "لا"),
   }));

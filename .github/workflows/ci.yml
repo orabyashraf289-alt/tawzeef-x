@@ -62,9 +62,7 @@ jobs:
       - name: Verify Playwright E2E Discovery & Syntax
         run: npx playwright test --list
 
-      # Promote to strict (remove continue-on-error) once src/pages lint cleanup finishes
-      - name: Repo ESLint Readiness Check (Non-blocking)
-        continue-on-error: true
+      - name: Repo ESLint Gate (Strict Structural Rules)
         run: npm run lint
 
       - name: Production Build

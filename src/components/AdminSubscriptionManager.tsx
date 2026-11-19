@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import {
-  Package, Edit2, Save, X, Users, CreditCard, Building2, Crown, Infinity,
+  Package, Edit2, Save, X, Users, CreditCard, Building2, Crown, Infinity as InfinityIcon,
   CheckCircle2, AlertTriangle, Search, Filter, Send, Clock, FileText, Download,
   Calendar, DollarSign, Sparkles
 } from "lucide-react";
@@ -527,7 +527,7 @@ export default function AdminSubscriptionManager() {
                       ) : (
                         <p className="text-lg font-bold flex items-center gap-1">
                           {plan.job_posts_limit === -1 ? (
-                            <><Infinity className="w-5 h-5 text-primary" /> <span className="text-xs text-muted-foreground font-normal">غير محدود</span></>
+                            <><InfinityIcon className="w-5 h-5 text-primary" /> <span className="text-xs text-muted-foreground font-normal">غير محدود</span></>
                           ) : (
                             <>{plan.job_posts_limit} <span className="text-xs text-muted-foreground font-normal">منشور</span></>
                           )}

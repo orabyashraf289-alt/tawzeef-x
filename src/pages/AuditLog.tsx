@@ -994,7 +994,7 @@ export default function AuditLog() {
   // ── Export functions ──
 
   const exportToExcel = async () => {
-    const XLSX = await import("xlsx");
+    const XLSX = await import("@/lib/safeSpreadsheet");
     const rows = filteredLogs.map((l: any) => {
       const dev = parseDeviceDetails(l.details);
       const loc = parseLocationDetails(l.details, l.ip_address);

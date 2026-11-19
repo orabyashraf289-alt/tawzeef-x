@@ -91,7 +91,7 @@ export function generateIndeedXmlFeed(
 
       // Parse location
       let city = "الرياض";
-      let country = "SA";
+      const country = "SA";
       if (j.location) {
         city = j.location.split("-")[0]?.split("،")[0]?.trim() || j.location;
       }

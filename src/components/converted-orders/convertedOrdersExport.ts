@@ -3,7 +3,7 @@ import type { ConvertedOrder } from "@/types/convertedOrders";
 import { ORDER_TYPE_LABELS, STATUS_BADGE_MAP } from "./convertedOrdersConstants";
 
 export async function exportOrdersToExcel(orders: ConvertedOrder[]): Promise<void> {
-  const XLSX = await import("xlsx");
+  const XLSX = await import("@/lib/safeSpreadsheet");
   const dataToExport = orders.map((o) => ({
     "رقم الأمر": o.order_number,
     "اسم المرشح / الطلب": o.candidate_name,
@@ -25,7 +25,7 @@ export async function exportOrdersToExcel(orders: ConvertedOrder[]): Promise<voi
 }
 
 export async function exportErpFormatToExcel(orders: ConvertedOrder[]): Promise<void> {
-  const XLSX = await import("xlsx");
+  const XLSX = await import("@/lib/safeSpreadsheet");
   const erpRows = orders.map((o, idx) => ({
     EMP_ID: `EMP-${2026000 + idx + 1}`,
     ORDER_REF: o.order_number,

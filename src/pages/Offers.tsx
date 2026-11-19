@@ -458,7 +458,7 @@ export default function OffersPage() {
 
   const exportToExcel = async () => {
     if (!offers || offers.length === 0) return;
-    const XLSX = await import("xlsx");
+    const XLSX = await import("@/lib/safeSpreadsheet");
     const statusLabels: Record<string, string> = {
       draft: "مسودة", sent: "مرسل", viewed: "تم الاطلاع", accepted: "مقبول", rejected: "مرفوض", expired: "منتهي", withdrawn: "ملغي",
     };

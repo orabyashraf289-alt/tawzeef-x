@@ -272,7 +272,7 @@ export default function ResumeArchive() {
   };
 
   const exportExcel = async () => {
-    const XLSX = await import("xlsx");
+    const XLSX = await import("@/lib/safeSpreadsheet");
     const rows = filtered.map(r => ({
       [locale === "ar" ? "الاسم" : "Name"]: r.name,
       [locale === "ar" ? "البريد" : "Email"]: r.email || "",

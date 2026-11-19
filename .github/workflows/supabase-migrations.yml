@@ -93,8 +93,10 @@ jobs:
                OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.job_requisitions'::regclass)
                OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.requisition_approvals'::regclass)
                OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.automation_outbound_queue'::regclass)
-               OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.company_retention_policies'::regclass) THEN
-              RAISE EXCEPTION 'Phase 1/2/4 tables must enforce Row Level Security';
+               OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.company_retention_policies'::regclass)
+               OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.company_api_keys'::regclass)
+               OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.company_enterprise_settings'::regclass) THEN
+              RAISE EXCEPTION 'Phase 1/2/4/5 tables must enforce Row Level Security';
             END IF;
           END $$;
           SQL

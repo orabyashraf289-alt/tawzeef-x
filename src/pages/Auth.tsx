@@ -271,7 +271,7 @@ const TawzeefXSystemShowcase = memo(function TawzeefXSystemShowcase() {
 
   useEffect(() => {
     let frame: number;
-    let start = performance.now();
+    const start = performance.now();
     const duration = 1500;
     const animate = (now: number) => {
       const elapsed = now - start;
@@ -742,7 +742,7 @@ const AuthForm = memo(function AuthForm({ isLogin, setIsLogin, setPendingOtp }: 
       if (isLogin) {
         setPendingOtp(true);
         setPendingPassword(form.password);
-        let { data: loginData, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password: form.password });
+        const { data: loginData, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password: form.password });
 
         if (error) { setPendingOtp(false); logAuditEvent({ eventType: "login.failed", userEmail: normalizedEmail, details: { reason: error.message } }); throw error; }
 

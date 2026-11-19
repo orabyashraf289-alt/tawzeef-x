@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeftRight,
   Calendar,
   Check,
   Clock,
   Coins,
+  Database,
   Globe2,
   Sparkles,
 } from "lucide-react";
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { toast } from "@/hooks/use-toast";
@@ -21,7 +23,6 @@ import {
   formatRegionalCurrency,
   formatRegionalDate,
   loadRegionalSettings,
-  saveRegionalSettings,
   SUPPORTED_CURRENCIES,
   SUPPORTED_TIMEZONES,
   type CalendarMode,
@@ -29,6 +30,11 @@ import {
   type RegionalSettings,
   type WorkweekPreset,
 } from "@/lib/regionalSettings";
+import {
+  hydrateCompanyEnterpriseSettings,
+  saveAndSyncRegionalSettings,
+  type SyncSource,
+} from "@/lib/enterpriseConfigSync";
 import { cn } from "@/lib/utils";
 
 const CURRENCY_LIST = Object.values(SUPPORTED_CURRENCIES);
@@ -36,14 +42,29 @@ const PREVIEW_TARGET_CURRENCIES: CurrencyCode[] = ["SAR", "AED", "USD", "EGP", "
 
 export function RegionalSettingsSection() {
   const { locale } = useI18n();
-  const isAr = locale !== "en";
+  const isAr = locale === "ar";
+  const { user } = useAuth();
   const { activeCompanyId } = useCompany();
 
   const [settings, setSettings] = useState<RegionalSettings>(() =>
     loadRegionalSettings(activeCompanyId),
   );
+  const [syncSource, setSyncSource] = useState<SyncSource>("local");
   const [sampleAmount, setSampleAmount] = useState<number>(15000);
   const [sampleFrom, setSampleFrom] = useState<CurrencyCode>("SAR");
+
+  useEffect(() => {
+    let active = true;
+    setSettings(loadRegionalSettings(activeCompanyId));
+    void hydrateCompanyEnterpriseSettings(activeCompanyId).then(({ regional, source }) => {
+      if (!active) return;
+      setSettings(regional);
+      setSyncSource(source);
+    });
+    return () => {
+      active = false;
+    };
+  }, [activeCompanyId]);
 
   const today = useMemo(() => new Date(), []);
   const nextWeek = useMemo(() => {
@@ -53,16 +74,24 @@ export function RegionalSettingsSection() {
   }, []);
 
   const updateAndSave = (patch: Partial<RegionalSettings>, notify = true) => {
-    const updated = saveRegionalSettings({ ...settings, ...patch }, activeCompanyId);
-    setSettings(updated);
-    if (notify) {
-      toast({
-        title: isAr ? "تم حفظ التخصيص الإقليمي بنجاح" : "Regional preferences saved",
-        description: isAr
-          ? "سيتم تطبيق إعدادات التقويم والعملة على التواريخ والعروض والرواتب."
-          : "Calendar and currency formatting updated across dates, offers, and salaries.",
-      });
-    }
+    const next = { ...settings, ...patch };
+    setSettings(next);
+    void saveAndSyncRegionalSettings(activeCompanyId, next, user?.id).then(({ settings: saved, source }) => {
+      setSettings(saved);
+      setSyncSource(source);
+      if (notify) {
+        toast({
+          title: isAr ? "تم حفظ التخصيص الإقليمي بنجاح" : "Regional preferences saved",
+          description: isAr
+            ? source === "supabase"
+              ? "تمت مزامنة إعدادات التقويم والعملة مع قاعدة بيانات الشركة لجميع الفريق."
+              : "سيتم تطبيق إعدادات التقويم والعملة على التواريخ والعروض والرواتب."
+            : source === "supabase"
+            ? "Synced company-wide to Supabase for your entire team."
+            : "Calendar and currency formatting updated across dates, offers, and salaries.",
+        });
+      }
+    });
   };
 
   const calendarOptions: Array<{
@@ -112,11 +141,28 @@ export function RegionalSettingsSection() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+          <h2 className="text-lg font-bold text-foreground flex flex-wrap items-center gap-2">
             <Globe2 className="w-5 h-5 text-primary" />
             {isAr
               ? "التخصيص الإقليمي (التقويم الهجري وتعدد العملات)"
               : "Regional Customization (Hijri Calendar & Multi-Currency)"}
+            <Badge
+              variant="outline"
+              className={
+                syncSource === "supabase"
+                  ? "text-[10px] gap-1 bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+                  : "text-[10px] gap-1 text-muted-foreground"
+              }
+            >
+              <Database className="w-3 h-3" />
+              {syncSource === "supabase"
+                ? isAr
+                  ? "مزامنة الشركة مفعّلة"
+                  : "Company Sync Active"
+                : isAr
+                ? "حفظ محلي"
+                : "Local Cache"}
+            </Badge>
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
             {isAr

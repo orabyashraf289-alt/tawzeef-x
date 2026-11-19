@@ -9,9 +9,11 @@ TawzeefX is a multi-tenant AI recruitment & Applicant Tracking System (ATS) buil
 ---
 
 ## 2. Public Developer REST API v1 & SDKs (`p5-api`, `p5-sdk`)
-- **Engine**: `src/lib/developerApiEngine.ts`
+- **Edge Function Runtime**: `supabase/functions/public-api-v1/index.ts` (registered in `supabase/config.toml` with `verify_jwt = false`, protected by SHA-256 Bearer key verification & 60 req/min rate limiting)
+- **Database Persistence**: `public.company_api_keys` (SHA-256 `key_hash`, tenant-scoped RLS) and `public.company_enterprise_settings` (`regional_settings`, `encryption_policy`, `compliance_schedule`) via `supabase/migrations/20261119160000_enterprise_api_keys_and_company_configs.sql`
+- **Client Engine & Sync Bridge**: `src/lib/developerApiEngine.ts` + `src/lib/enterpriseConfigSync.ts`
 - **Portal UI**: `/settings?tab=api` (`src/components/settings/DeveloperApiHub.tsx`)
-- **Authentication**: Bearer token header `Authorization: Bearer tx_live_<key>`
+- **Authentication**: Bearer token header `Authorization: Bearer tx_live_<key>` (generated via `crypto.getRandomValues`, stored exclusively as SHA-256 hex)
 - **Supported Scopes**:
   - `jobs:read` — List and retrieve open vacancies
   - `jobs:write` — Create and update job postings
@@ -19,8 +21,11 @@ TawzeefX is a multi-tenant AI recruitment & Applicant Tracking System (ATS) buil
   - `candidates:write` — Programmatically submit candidate applications
   - `webhooks:manage` — Register and manage outbound event webhooks
 - **Core Endpoints (OpenAPI 3.1)**:
-  - `GET /v1/jobs` — Returns active published vacancies for the authenticated tenant
-  - `POST /v1/candidates` — Creates a candidate record and returns a tracking code
+  - `GET /functions/v1/public-api-v1/health` — Service health & version discovery
+  - `GET /functions/v1/public-api-v1/jobs` — Returns tenant-scoped vacancies (`jobs:read`)
+  - `POST /functions/v1/public-api-v1/jobs` — Creates a new vacancy (`jobs:write`)
+  - `GET /functions/v1/public-api-v1/candidates` — Lists tenant candidates (`candidates:read`)
+  - `POST /functions/v1/public-api-v1/candidates` — Creates a candidate record with cryptographic `TX-` tracking code (`candidates:write`)
 - **SDK Snippets**: Auto-generated for TypeScript (`@tawzeefx/sdk`), Python (`requests`), and `cURL`.
 
 ---
@@ -52,6 +57,7 @@ TawzeefX is a multi-tenant AI recruitment & Applicant Tracking System (ATS) buil
 
 ## 5. Performance, Offline Resilience & Observability (`p4-offline`, `maint-db`, `maint-monitoring`)
 - **Zero-Flash SEO Boot Guard**: `index.html` + `src/main.tsx` sync light/dark theme synchronously before first paint and hide `[data-seo-prerender]` during JS hydration while keeping Wave-1 semantic HTML intact for non-JS crawlers.
-- **Chunk Splitting (`vite.config.ts`)**: Pins `react`, `react-dom`, `vite/preload-helper`, and `commonjsHelpers` to `vendor-react`, keeping `vendor-charts`, `vendor-pdf`, `vendor-gsap`, `vendor-three`, and `vendor-xlsx` 100% lazy-loaded on demand.
+- **Chunk Splitting (`vite.config.ts`)**: Pins `react`, `react-dom`, `vite/preload-helper`, and `commonjsHelpers` to `vendor-react`, keeping `vendor-charts`, `vendor-pdf`, `vendor-gsap`, and `vendor-three` 100% lazy-loaded on demand.
+- **Zero-Vulnerability Spreadsheet Engine (`src/lib/safeSpreadsheet.ts`)**: Replaces legacy SheetJS (`xlsx`) with a native OOXML `.xlsx`/`.csv` writer & parser powered by `fflate` (eliminating unpatched Prototype Pollution & ReDoS advisories and removing 429 KB from client bundles).
 - **Offline Sync Outbox (`src/lib/offlineSyncEngine.ts`)**: Queues field evaluations/check-ins in `tx_offline_action_queue_v1` and replays automatically on `online` reconnect.
 - **System Health Monitor (`src/lib/systemHealthMonitor.ts`)**: Live Supabase DB round-trip latency probe, Navigation Timing Web Vitals, client storage footprint, and runtime error ring buffer rendered inside `/admin/quality`.

@@ -290,7 +290,7 @@ export default function AssessmentAnalytics() {
       [t("qbank.analytics.passRate")]: `${s.passRate}%`,
     }));
 
-    const XLSX = await import("xlsx");
+    const XLSX = await import("@/lib/safeSpreadsheet");
     const wb = XLSX.utils.book_new();
     if (summaryData.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), locale === "ar" ? "ملخص الاختبارات" : "Summary");
     if (responsesData.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(responsesData), locale === "ar" ? "النتائج التفصيلية" : "Results");
