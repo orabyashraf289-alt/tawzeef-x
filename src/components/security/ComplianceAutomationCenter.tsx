@@ -44,7 +44,7 @@ import {
   type SensitiveFieldKey,
   type TenantEncryptionPolicy,
 } from "@/lib/e2eEncryption";
-import { printWithFonts } from "@/lib/documentFonts";
+import { openPrintableHtml } from "@/lib/documentFonts";
 import { cn } from "@/lib/utils";
 
 interface ComplianceAutomationCenterProps {
@@ -134,7 +134,7 @@ export default function ComplianceAutomationCenter({
       downloadBlob(csv, "text/csv;charset=utf-8", `tawzeefx-compliance-${stamp}.csv`);
     } else {
       const html = buildCompliancePrintableHtml(compliance, companyName);
-      printWithFonts(html);
+      openPrintableHtml(html);
     }
 
     const updated = saveComplianceSchedule(

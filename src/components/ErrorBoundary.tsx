@@ -1,6 +1,7 @@
 import { Component, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import { recordRuntimeError } from "@/lib/systemHealthMonitor";
 
 interface Props {
   children: ReactNode;
@@ -25,6 +26,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+    recordRuntimeError(error?.message || "React render error", "ErrorBoundary");
 
     // Auto-reload on deployment chunk hash mismatch
     const isChunkLoadError =

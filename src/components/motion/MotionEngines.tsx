@@ -143,13 +143,13 @@ export function ProgressiveRive({
   if (!src || reduced || !RiveComponent) return <>{fallback}</>;
   return (
     <MotionErrorBoundary fallback={fallback}>
-      <RiveComponent
-        src={src}
-        artboard={artboard}
-        stateMachines={stateMachines}
-        className={className}
-        aria-hidden="true"
-      />
+      <div className={className} aria-hidden="true">
+        <RiveComponent
+          src={src}
+          artboard={artboard}
+          stateMachines={stateMachines}
+        />
+      </div>
     </MotionErrorBoundary>
   );
 }

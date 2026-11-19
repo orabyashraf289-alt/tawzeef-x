@@ -241,7 +241,7 @@ export function normalizeRequirementsText(value: string | string[] | null | unde
 export function formatCurrencyAmount(
   amount: number,
   currency: string,
-  locale: "ar" | "en" = "ar",
+  locale: string = "ar",
 ): string {
   const safeAmount = Number.isFinite(amount) ? Math.round(amount) : 0;
   const normalizedCurrency = (currency || "SAR").toUpperCase();

@@ -13,9 +13,9 @@ import {
   RefreshCw,
   Clock,
   Printer,
-  FileDown,
 } from "lucide-react";
 import { QUALITY_REPORT, reportStatus, type QualityCheck } from "@/data/qualityReport";
+import SystemHealthMonitorPanel from "@/components/security/SystemHealthMonitorPanel";
 
 const STATUS_META: Record<
   QualityCheck["status"],
@@ -95,6 +95,9 @@ export default function QualityReport() {
             </Button>
           </div>
         </div>
+
+        {/* Live System Health & DB Latency Telemetry */}
+        <SystemHealthMonitorPanel locale={locale} />
 
         {/* Refresh instructions */}
         <Card className="border-dashed">

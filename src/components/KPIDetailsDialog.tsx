@@ -14,7 +14,7 @@ interface KPIDetailsDialogProps {
   interviews: any[];
   jobs: any[];
   offers: any[];
-  locale: "ar" | "en";
+  locale: string;
 }
 
 const chartTooltipStyle = {

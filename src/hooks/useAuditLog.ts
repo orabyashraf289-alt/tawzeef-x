@@ -56,7 +56,11 @@ export async function logAuditEvent(params: {
       // Method 1: For visitor tracking, attempt fast direct RPC first
       if (isVisitorEvent) {
         try {
-          const { error: rpcErr } = await supabase.rpc("log_guest_visit_event", {
+          const rpc = supabase.rpc as unknown as (
+            fn: string,
+            args: Record<string, unknown>,
+          ) => Promise<{ error: unknown }>;
+          const { error: rpcErr } = await rpc("log_guest_visit_event", {
             p_event_type: params.eventType,
             p_details: {
               ...(params.details || {}),

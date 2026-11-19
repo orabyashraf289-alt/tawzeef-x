@@ -169,18 +169,29 @@ export default function Reports() {
     [candidates, dateRange, selectedJobId, selectedDepartment, jobMap],
   );
 
+  const candidateJobMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (candidates || []).forEach((c) => {
+      if (c.id && c.job_id) map.set(c.id, c.job_id);
+    });
+    return map;
+  }, [candidates]);
+
   const allInterviews = useMemo(
     () =>
       (interviews || []).filter((i) => {
         if (!isDateInRange(i.date, dateRange)) return false;
-        if (selectedJobId !== "all" && i.job_id && i.job_id !== selectedJobId) return false;
+        const interviewJobId =
+          (i as typeof i & { job_id?: string | null }).job_id ||
+          (i.candidate_id ? candidateJobMap.get(i.candidate_id) : undefined);
+        if (selectedJobId !== "all" && interviewJobId && interviewJobId !== selectedJobId) return false;
         if (selectedDepartment !== "all") {
-          const matchedJob = i.job_id ? jobMap.get(i.job_id) : undefined;
+          const matchedJob = interviewJobId ? jobMap.get(interviewJobId) : undefined;
           if (matchedJob && matchedJob.department !== selectedDepartment) return false;
         }
         return true;
       }),
-    [interviews, dateRange, selectedJobId, selectedDepartment, jobMap],
+    [interviews, dateRange, selectedJobId, selectedDepartment, jobMap, candidateJobMap],
   );
 
   const branchesComparisonData = useMemo(

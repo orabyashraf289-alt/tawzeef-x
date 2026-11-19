@@ -81,11 +81,15 @@ export default function GuestVisitorsMonitor() {
     queryFn: async () => {
       // 1) Direct RPC check first for unrestricted access
       try {
-        const { data: rpcData, error: rpcError } = await supabase.rpc("get_guest_visitor_logs", {
+        const rpc = supabase.rpc as unknown as (
+          fn: string,
+          args: Record<string, unknown>,
+        ) => Promise<{ data: unknown; error: unknown }>;
+        const { data: rpcData, error: rpcError } = await rpc("get_guest_visitor_logs", {
           limit_count: 300,
         });
         if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
-          let list = rpcData as VisitorEvent[];
+          let list = rpcData as unknown as VisitorEvent[];
           if (timeRange !== "all") {
             const startDate = new Date();
             if (timeRange === "today") startDate.setHours(0, 0, 0, 0);

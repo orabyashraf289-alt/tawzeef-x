@@ -382,7 +382,7 @@ export default function MessagingAutomationHub() {
                   <Badge variant={rule.is_active ? 'default' : 'secondary'} className="text-[10px]">
                     {rule.is_active ? 'مفعلة' : 'متوقفة'}
                   </Badge>
-                  <span className="font-bold text-foreground">{rule.name}</span>
+                  <span className="font-bold text-foreground">{rule.title}</span>
                   <span className="text-muted-foreground font-mono text-[11px]">{rule.trigger_event}</span>
                 </div>
                 <div className="flex items-center gap-2">

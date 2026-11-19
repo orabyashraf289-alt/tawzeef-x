@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { flushSessionAudit } from "@/lib/sessionTracker";
 
 interface AuthContextType {
   session: Session | null;
@@ -44,7 +45,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     if (session?.user) {
       try {
-        const { flushSessionAudit } = await import("@/lib/sessionTracker");
         await flushSessionAudit(session.user.id, session.user.email, "manual");
       } catch (err) {
         console.error("Error logging logout audit event:", err);

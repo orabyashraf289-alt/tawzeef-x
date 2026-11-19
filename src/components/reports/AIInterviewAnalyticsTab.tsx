@@ -79,9 +79,10 @@ export default function AIInterviewAnalyticsTab({
   const interviewMetrics = useMemo(() => {
     const totalInterviews = interviews.length;
     const completedInterviews = interviews.filter((i) => i.status === 'completed' || i.status === 'منتهية').length;
-    const aiReportedInterviews = interviews.filter(
-      (i) => i.ai_evaluation || (i as any).notes?.includes('تقييم الذكاء الاصطناعي')
-    ).length;
+    const aiReportedInterviews = interviews.filter((i) => {
+      const row = i as typeof i & { ai_evaluation?: unknown; notes?: string | null };
+      return Boolean(row.ai_evaluation) || Boolean(row.notes?.includes('تقييم الذكاء الاصطناعي'));
+    }).length;
 
     const completionRate = totalInterviews > 0 ? Math.round((completedInterviews / totalInterviews) * 100) : 92;
 

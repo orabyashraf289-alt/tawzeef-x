@@ -64,7 +64,9 @@ export async function exportReportsToExcel({
     [t("reports.xl.time")]: i.time,
     [t("reports.xl.status")]: i.status,
     [t("reports.xl.type")]: i.type,
-    [isEn ? "AI Evaluated" : "تقييم الذكاء الاصطناعي"]: Boolean(i.ai_evaluation) ? (isEn ? "Yes" : "نعم") : (isEn ? "No" : "لا"),
+    [isEn ? "AI Evaluated" : "تقييم الذكاء الاصطناعي"]: Boolean((i as typeof i & { ai_evaluation?: unknown }).ai_evaluation)
+      ? (isEn ? "Yes" : "نعم")
+      : (isEn ? "No" : "لا"),
   }));
   XLSX.utils.book_append_sheet(
     wb,

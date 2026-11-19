@@ -63,7 +63,7 @@ function getSubtleCrypto(): SubtleCrypto {
   return cryptoObj.subtle;
 }
 
-export function isEncryptedEnvelope(value: unknown): value is string {
+export function isEncryptedEnvelope(value: unknown): boolean {
   return typeof value === "string" && value.startsWith(ENCRYPTION_ENVELOPE_PREFIX);
 }
 
@@ -180,7 +180,7 @@ export async function decryptSensitiveFields<T extends Record<string, unknown>>(
   const clone: Record<string, unknown> = { ...record };
   for (const field of fields) {
     const val = clone[field];
-    if (isEncryptedEnvelope(val)) {
+    if (typeof val === "string" && isEncryptedEnvelope(val)) {
       clone[field] = await decryptSensitiveValue(val, passphrase);
     }
   }

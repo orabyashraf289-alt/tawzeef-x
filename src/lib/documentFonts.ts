@@ -28,3 +28,15 @@ export async function printWithFonts(printWindow: Window) {
     printWindow.print();
   }
 }
+
+/** Open a standalone printable HTML document in a popup and trigger font-ready print. */
+export function openPrintableHtml(html: string): boolean {
+  if (typeof window === "undefined") return false;
+  const win = window.open("", "_blank");
+  if (!win) return false;
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  void printWithFonts(win);
+  return true;
+}

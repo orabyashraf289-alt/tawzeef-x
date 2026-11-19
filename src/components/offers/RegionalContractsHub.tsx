@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { toast } from "@/hooks/use-toast";
-import { printWithFonts } from "@/lib/documentFonts";
+import { openPrintableHtml } from "@/lib/documentFonts";
 import {
   buildPrintableContractHtml,
   REGIONAL_CONTRACT_TEMPLATES,
@@ -117,7 +117,7 @@ export default function RegionalContractsHub({ offers = [] }: RegionalContractsH
 
   const handlePrintPdf = () => {
     const html = buildPrintableContractHtml(rendered, contractVars, locale);
-    printWithFonts(html);
+    openPrintableHtml(html);
   };
 
   return (

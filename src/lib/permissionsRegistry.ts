@@ -73,6 +73,8 @@ export const PUBLIC_ROUTES: readonly string[] = [
   "/forgot-password",
   "/reset-password",
   "/apply/:id",
+  "/checkin",
+  "/checkin/:id",
   "/portal",
   "/candidate-portal",
   "/book/:candidateId",

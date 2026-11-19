@@ -9,14 +9,14 @@ import { trackGuestVisit } from "@/lib/visitorTracker";
  */
 export default function VisitorTrackerManager() {
   const { pathname } = useLocation();
-  const { user, isLoading } = useAuth();
+  const { user, loading } = useAuth();
 
   useEffect(() => {
     // Only track if user is not logged in and auth finished checking
-    if (!isLoading && !user) {
+    if (!loading && !user) {
       void trackGuestVisit(pathname);
     }
-  }, [pathname, user, isLoading]);
+  }, [pathname, user, loading]);
 
   return null;
 }
